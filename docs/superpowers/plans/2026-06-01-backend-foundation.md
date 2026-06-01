@@ -1490,7 +1490,7 @@ git commit -m "feat(api): add UsersService for user+profile creation and lookups
 - [ ] **Step 1: Write the failing test `auth.service.spec.ts`**
 
 ```ts
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
@@ -1508,17 +1508,20 @@ describe('AuthService', () => {
     service = new AuthService(users as unknown as UsersService);
   });
 
-  const newCtx: AuthContext = {
+  const newCtx: AuthContext = Object.freeze({
     authProviderId: 'sub-1',
     email: 'a@x.com',
     name: 'Ann',
     user: null,
-  };
+  });
 
-  it('creates a new user on first sync', async () => {
+  it('creates a new user on first sync and returns it', async () => {
     users.createWithProfile.mockResolvedValue({ id: 'u1' } as any);
 
-    await service.syncUser(newCtx, { role: UserRole.PATIENT, referralCode: 'NUTRI-ABCDE' });
+    const result = await service.syncUser(newCtx, {
+      role: UserRole.PATIENT,
+      referralCode: 'NUTRI-ABCDE',
+    });
 
     expect(users.createWithProfile).toHaveBeenCalledWith({
       authProviderId: 'sub-1',
@@ -1527,22 +1530,24 @@ describe('AuthService', () => {
       role: UserRole.PATIENT,
       referralCode: 'NUTRI-ABCDE',
     });
+    expect(result).toEqual({ id: 'u1' });
   });
 
-  it('updates basics when the user already exists (idempotent)', async () => {
+  it('updates basics when the user already exists (idempotent) and returns it', async () => {
     const existingCtx: AuthContext = {
       ...newCtx,
       user: { id: 'u1', email: 'old@x.com', name: 'Old' } as any,
     };
     users.updateBasics.mockResolvedValue({ id: 'u1' } as any);
 
-    await service.syncUser(existingCtx, { role: UserRole.PATIENT });
+    const result = await service.syncUser(existingCtx, { role: UserRole.PATIENT });
 
     expect(users.updateBasics).toHaveBeenCalledWith('u1', {
       email: 'a@x.com',
       name: 'Ann',
     });
     expect(users.createWithProfile).not.toHaveBeenCalled();
+    expect(result).toEqual({ id: 'u1' });
   });
 
   it('me() returns the resolved local user', () => {
@@ -1550,8 +1555,8 @@ describe('AuthService', () => {
     expect(service.me(ctx)).toEqual({ id: 'u1' });
   });
 
-  it('me() throws when the user has not synced yet', () => {
-    expect(() => service.me(newCtx)).toThrow(NotFoundException);
+  it('me() throws ConflictException when the user has not synced yet', () => {
+    expect(() => service.me(newCtx)).toThrow(ConflictException);
   });
 });
 ```
@@ -1564,7 +1569,7 @@ Expected: FAIL with "Cannot find module './auth.service'".
 - [ ] **Step 3: Implement `auth.service.ts`**
 
 ```ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { AuthContext, LocalUser } from './types/auth-context';
 import { SyncUserDto } from './dto/sync-user.dto';
@@ -1591,19 +1596,29 @@ export class AuthService {
 
   me(ctx: AuthContext): LocalUser {
     if (!ctx.user) {
-      throw new NotFoundException('User not synced. Call POST /v1/auth/sync-user first.');
+      // Authenticated, but no local record yet: the caller must sync first.
+      // 409 (not 404) so clients don't misread it as a missing route.
+      throw new ConflictException(
+        'User not synced. Call POST /v1/auth/sync-user first.',
+      );
     }
     return ctx.user;
   }
 }
 ```
 
+> `me()` returns 409 Conflict (not 404) for an authenticated caller without a
+> local record, so clients distinguish "you must sync first" from a missing
+> route. The Task 9 unit tests assert the returned value of `syncUser` on both
+> branches; `SyncUserDto` drops the redundant `@IsString()` (`@Matches` already
+> implies string).
+
 > The `SyncUserDto` import is created in Task 10 Step 1. If implementing strictly in order, create the DTO first (Task 10 Step 1) before running the build; the unit test above does not import the DTO type at runtime so it passes once `auth.service.ts` compiles. To keep the build green within this task, also create `dto/sync-user.dto.ts` now (see Task 10 Step 1 for its exact contents).
 
 - [ ] **Step 4: Create `dto/sync-user.dto.ts` (also referenced in Task 10)**
 
 ```ts
-import { IsEnum, IsOptional, IsString, Matches } from 'class-validator';
+import { IsEnum, IsOptional, Matches } from 'class-validator';
 import { UserRole } from '@prisma/client';
 
 export class SyncUserDto {
@@ -1611,7 +1626,6 @@ export class SyncUserDto {
   role!: UserRole;
 
   @IsOptional()
-  @IsString()
   @Matches(/^NUTRI-[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{5}$/, {
     message: 'referralCode must match NUTRI-XXXXX',
   })
