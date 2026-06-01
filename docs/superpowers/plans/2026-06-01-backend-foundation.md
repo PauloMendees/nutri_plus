@@ -1714,11 +1714,14 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
+  private readonly logger = new Logger(AllExceptionsFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -1742,6 +1745,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     }
 
+    // Don't swallow 5xx / unknown errors silently (structured pino logging is
+    // the Observability sub-project; Logger.error is the stopgap).
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      this.logger.error(
+        `Unhandled ${status} on request`,
+        exception instanceof Error ? exception.stack : String(exception),
+      );
+    }
+
     response.status(status).json({ statusCode: status, message, error });
   }
 }
@@ -1750,12 +1762,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
 - [ ] **Step 5: Wire everything in `app.module.ts` (global guards)**
 
 ```ts
-import { Module } from '@nestjs/common';
+import { Module, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { validateEnv } from './config/env.schema';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { SupabaseAuthGuard } from './auth/guards/supabase-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -1765,7 +1778,19 @@ import { RolesGuard } from './auth/guards/roles.guard';
     PrismaModule,
     AuthModule,
   ],
+  // Global pipe/filter/guards are providers (not imperative main.ts calls) so
+  // every bootstrap of AppModule — including e2e Test modules — inherits the
+  // same behavior with no drift.
   providers: [
+    {
+      provide: APP_PIPE,
+      useValue: new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+      }),
+    },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_GUARD, useClass: SupabaseAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
@@ -1773,23 +1798,22 @@ import { RolesGuard } from './auth/guards/roles.guard';
 export class AppModule {}
 ```
 
-> Guard order: NestJS runs `APP_GUARD` providers in registration order, so `SupabaseAuthGuard` (authentication, populates `request.user`) runs before `RolesGuard` (authorization, reads `request.user.user.role`).
+> Guard order: NestJS runs `APP_GUARD` providers in registration order, so `SupabaseAuthGuard` (authentication, populates `request.user`) runs before `RolesGuard` (authorization, reads `request.user.user.role`). Registering the
+> `ValidationPipe` (`APP_PIPE`) and `AllExceptionsFilter` (`APP_FILTER`) as
+> providers means e2e tests that import `AppModule` get them automatically.
 
 - [ ] **Step 6: Wire global pipe + filter in `main.ts`**
 
 ```ts
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { VersioningType } from '@nestjs/common';
 import { AppModule } from './app.module';
-import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  // The global ValidationPipe and exception filter are registered as providers
+  // in AppModule (APP_PIPE / APP_FILTER) so every bootstrap path shares them.
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
-  app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
-  );
-  app.useGlobalFilters(new AllExceptionsFilter());
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
@@ -1937,12 +1961,11 @@ afterAll(async () => {
 - [ ] **Step 4: Write the e2e test `test/auth.e2e-spec.ts`**
 
 ```ts
-import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
+import { INestApplication, VersioningType } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as request from 'supertest';
 import { UserRole } from '@prisma/client';
 import { AppModule } from '../src/app.module';
-import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter';
 import { signSupabaseJwt } from './helpers/sign-jwt';
 
 describe('Auth (e2e)', () => {
@@ -1953,11 +1976,10 @@ describe('Auth (e2e)', () => {
       imports: [AppModule],
     }).compile();
     app = moduleRef.createNestApplication();
+    // ValidationPipe + AllExceptionsFilter are global APP_PIPE/APP_FILTER
+    // providers in AppModule, so they apply here automatically. Only URI
+    // versioning is configured on the app instance.
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
-    );
-    app.useGlobalFilters(new AllExceptionsFilter());
     await app.init();
   });
 
