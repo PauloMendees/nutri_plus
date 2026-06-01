@@ -813,8 +813,11 @@ import { generateReferralCode } from './referral-code';
 
 describe('generateReferralCode', () => {
   it('matches NUTRI-XXXXX format (5 Crockford base32 chars)', () => {
-    const code = generateReferralCode();
-    expect(code).toMatch(/^NUTRI-[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{5}$/);
+    for (let i = 0; i < 50; i++) {
+      expect(generateReferralCode()).toMatch(
+        /^NUTRI-[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{5}$/,
+      );
+    }
   });
 
   it('excludes ambiguous characters I, L, O, U', () => {
