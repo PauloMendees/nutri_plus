@@ -381,12 +381,12 @@ git commit -m "feat(shared-types): add v1 UserRole and auth contracts"
 
 - [ ] **Step 2: Create `apps/api/tsconfig.json` and `tsconfig.build.json`**
 
-`tsconfig.json`:
+`tsconfig.json` (note: NO `rootDir` here — `include` covers `test/**/*`, and a
+`rootDir: src` would make TypeScript emit TS6059 for files under `test/`):
 ```json
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
     "outDir": "dist",
     "baseUrl": "."
   },
@@ -394,10 +394,13 @@ git commit -m "feat(shared-types): add v1 UserRole and auth contracts"
 }
 ```
 
-`tsconfig.build.json`:
+`tsconfig.build.json` (`rootDir: src` lives here, where `test/` is excluded):
 ```json
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src"
+  },
   "exclude": ["node_modules", "test", "dist", "**/*.spec.ts"]
 }
 ```
