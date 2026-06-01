@@ -140,6 +140,7 @@ packages:
 ```json
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [".env", "apps/api/.env"],
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
     "test": { "dependsOn": ["^build"] },
@@ -148,6 +149,9 @@ packages:
   }
 }
 ```
+
+> `globalDependencies` lists `.env` files so Turbo invalidates its cache when env
+> changes (relevant once `ConfigModule` lands in Task 4).
 
 - [ ] **Step 6: Create `tsconfig.base.json`**
 
@@ -164,10 +168,15 @@ packages:
     "forceConsistentCasingInFileNames": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,
     "resolveJsonModule": true
   }
 }
 ```
+
+> `useDefineForClassFields: false` is required: with `target: ES2022` it defaults
+> to `true`, which breaks `class-validator` property decorators (used in the
+> DTOs of Tasks 9–10). NestJS's own starter sets this explicitly.
 
 - [ ] **Step 7: Create placeholders**
 
