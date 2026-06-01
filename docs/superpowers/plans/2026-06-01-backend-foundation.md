@@ -1239,6 +1239,24 @@ describe('UsersService', () => {
     expect(prisma.user.create).toHaveBeenCalledTimes(1);
   });
 
+  it('rethrows after exhausting referral code retry attempts', async () => {
+    const collision = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      { code: 'P2002', clientVersion: 'test', meta: { target: ['referralCode'] } },
+    );
+    prisma.user.create.mockRejectedValue(collision);
+
+    await expect(
+      service.createWithProfile({
+        authProviderId: 'sub-7',
+        email: 'n7@x.com',
+        name: 'Nut7',
+        role: UserRole.NUTRITIONIST,
+      }),
+    ).rejects.toBe(collision);
+    expect(prisma.user.create).toHaveBeenCalledTimes(5);
+  });
+
   it('updates email and name for an existing user', async () => {
     prisma.user.update.mockResolvedValue({ id: 'user-4' } as any);
 
@@ -1249,6 +1267,23 @@ describe('UsersService', () => {
       data: { email: 'new@x.com', name: 'New' },
       include: { nutritionistProfile: true, patientProfile: true },
     });
+  });
+
+  it('finds a user by auth provider id', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: 'user-8' } as any);
+
+    const result = await service.findByAuthProviderId('sub-8');
+
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: {
+        authProvider_authProviderId: {
+          authProvider: 'SUPABASE',
+          authProviderId: 'sub-8',
+        },
+      },
+      include: { nutritionistProfile: true, patientProfile: true },
+    });
+    expect(result).toEqual({ id: 'user-8' });
   });
 });
 ```
@@ -1412,12 +1447,35 @@ export class UsersModule {}
 - [ ] **Step 6: Run test to verify it passes**
 
 Run: `pnpm --filter @nutri-plus/api test -- users.service`
-Expected: 6 passing tests.
+Expected: 8 passing tests.
+
+- [ ] **Step 6b: Consolidate the JWT strategy onto `findByAuthProviderId`**
+
+Now that `UsersService.findByAuthProviderId` exists, refactor
+`apps/api/src/auth/strategies/supabase.strategy.ts` to delegate the user lookup
+to it instead of duplicating the `findUnique` (so the compound-key name and
+`INCLUDE_PROFILES` shape live in one place). Inject `UsersService` instead of
+`PrismaService`; drop the now-unused `PrismaService` and `SUPABASE_PROVIDER`
+imports. The relevant parts become:
+```ts
+import { UsersService } from '../../users/users.service';
+// ...
+  constructor(
+    config: ConfigService,
+    private readonly users: UsersService,
+  ) { /* super({...}) unchanged */ }
+// ...
+    const user = await this.users.findByAuthProviderId(authProviderId);
+    return { authProviderId, email, name, user };
+```
+`AuthModule` (Task 10) imports `UsersModule`, so `UsersService` is injectable
+into the strategy. Re-run `pnpm --filter @nutri-plus/api build` and the full
+test suite to confirm green.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add apps/api/src/users
+git add apps/api/src/users apps/api/src/auth/strategies/supabase.strategy.ts
 git commit -m "feat(api): add UsersService for user+profile creation and lookups"
 ```
 
