@@ -2,8 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { PrismaService } from '../../prisma/prisma.service';
-import { SUPABASE_PROVIDER } from '../auth.constants';
+import { UsersService } from '../../users/users.service';
 import { AuthContext } from '../types/auth-context';
 import { SupabaseJwtPayload } from '../types/supabase-jwt-payload';
 
@@ -11,7 +10,7 @@ import { SupabaseJwtPayload } from '../types/supabase-jwt-payload';
 export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
   constructor(
     config: ConfigService,
-    private readonly prisma: PrismaService,
+    private readonly users: UsersService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -33,15 +32,7 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
     const name =
       payload.user_metadata?.name ?? payload.user_metadata?.full_name ?? email;
 
-    const user = await this.prisma.user.findUnique({
-      where: {
-        authProvider_authProviderId: {
-          authProvider: SUPABASE_PROVIDER,
-          authProviderId,
-        },
-      },
-      include: { nutritionistProfile: true, patientProfile: true },
-    });
+    const user = await this.users.findByAuthProviderId(authProviderId);
 
     return { authProviderId, email, name, user };
   }
