@@ -23,7 +23,8 @@ builds on.
   `apps/mobile` are placeholders).
 - **Supabase:** cloud project, used for **Auth only**. The backend validates the
   Supabase JWT via `SUPABASE_JWT_SECRET` and does not couple to Supabase's DB.
-- **App database:** local Postgres in Docker, schema managed by Prisma. The
+- **App database:** the developer's local Postgres instance (not Docker), schema
+  managed by Prisma. A dedicated database `nutri_plus` on `localhost:5432`. The
   `sync-user` flow copies the authenticated user into the local DB precisely to
   keep the backend decoupled from Supabase's database.
 - **API versioning:** URI versioning, `v1` from the start.
@@ -34,7 +35,7 @@ In scope for this sub-project:
 
 - Monorepo structure (pnpm + Turborepo) with placeholders for web/mobile.
 - NestJS app scaffold (`apps/api`) with module boundaries.
-- Prisma + Postgres (Docker) setup.
+- Prisma + local Postgres setup.
 - Config/env validation.
 - Supabase JWT validation + guards + role-based authorization.
 - User synchronization (`POST /v1/auth/sync-user`, `GET /v1/auth/me`).
@@ -55,9 +56,10 @@ nutri_plus/
 │   └── shared-types/ # shared contracts (DTOs, enums), versioned (v1/) — pure TS
 ├── package.json      # workspaces + root scripts
 ├── pnpm-workspace.yaml
-├── turbo.json
-└── docker-compose.yml # local Postgres
+└── turbo.json
 ```
+
+Postgres is the developer's local instance, not containerized.
 
 `packages/shared-types` is created now because web and mobile will consume the
 API contracts. For this sub-project it contains only the enums/DTOs the API
@@ -199,9 +201,13 @@ Returns the local user + its profile.
 - `.env` keys: `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
   `SUPABASE_JWT_SECRET`, `OPENAI_API_KEY` (placeholder, unused this sub-project).
 - Env validated at boot — the app does not start with missing/invalid env.
-- `docker-compose.yml`: `postgres` service. Prisma scripts: `pnpm db:migrate`,
-  `pnpm db:studio`.
-- `.env.example` is versioned; `.env` is gitignored.
+- **Database:** developer's local Postgres (no Docker). `DATABASE_URL` points to
+  the dedicated `nutri_plus` database, e.g.
+  `postgresql://postgres:<password>@localhost:5432/nutri_plus?schema=public`.
+  The dev creates the database once (`createdb nutri_plus` or via a SQL client).
+  Prisma scripts: `pnpm db:migrate`, `pnpm db:studio`.
+- `.env.example` is versioned with a placeholder password; the real `.env`
+  (with the actual password) is gitignored. No secrets are committed.
 
 ## Error Handling and Validation
 
@@ -220,7 +226,8 @@ Returns the local user + its profile.
   - `/v1/auth/sync-user` and `/v1/auth/me` with JWTs signed locally using
     `SUPABASE_JWT_SECRET` in tests (no live Supabase call).
   - Guard coverage: no token → 401, wrong role → 403.
-- Isolated test Postgres.
+- Isolated test database on the local Postgres (e.g. `nutri_plus_test`), separate
+  from the dev database.
 
 ## Out of Scope (future sub-projects)
 
