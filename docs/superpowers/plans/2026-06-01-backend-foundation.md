@@ -357,6 +357,8 @@ git commit -m "feat(shared-types): add v1 UserRole and auth contracts"
     "jest-mock-extended": "^3.0.7",
     "jsonwebtoken": "^9.0.2",
     "@types/jsonwebtoken": "^9.0.6",
+    "pg": "^8.12.0",
+    "@types/pg": "^8.11.6",
     "prisma": "^5.18.0",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.4",
@@ -583,12 +585,13 @@ git commit -m "feat(api): validate environment with Zod at boot"
 - Modify: `apps/api/src/app.module.ts`
 - Create: `apps/api/.env.example`
 
-> Prerequisite: create the local databases once:
-> ```bash
-> createdb nutri_plus || true
-> createdb nutri_plus_test || true
-> ```
-> (Or via a SQL client. Password for user `postgres` is `1234` per the dev's local instance.)
+> Prerequisite: a local PostgreSQL server is running on `localhost:5432`
+> (user `postgres`, password `1234`). The `createdb` CLI is **not** available on
+> this machine, so databases are created without it:
+> - `nutri_plus` (dev) is created automatically by `prisma migrate dev` in Step 4.
+> - `nutri_plus_test` is created programmatically by the e2e setup (Task 11),
+>   which connects to the `postgres` maintenance database via the `pg` driver and
+>   issues `CREATE DATABASE` if it does not already exist.
 
 - [ ] **Step 1: Create `apps/api/.env.example`**
 
@@ -1587,7 +1590,9 @@ git commit -m "feat(api): wire auth controller, module, global guards, pipe, and
 **Files:**
 - Create: `apps/api/test/jest-e2e.config.ts`, `test/setup-e2e.ts`, `test/helpers/sign-jwt.ts`, `test/auth.e2e-spec.ts`
 
-> Prerequisite: `nutri_plus_test` database exists (created in Task 5 prerequisite). The e2e suite runs migrations against it before tests.
+> The e2e suite creates `nutri_plus_test` if missing (via the `pg` driver against
+> the `postgres` maintenance DB), then runs migrations against it before tests.
+> `createdb` CLI is not required.
 
 - [ ] **Step 1: Create `test/jest-e2e.config.ts`**
 
@@ -1632,11 +1637,43 @@ export function signSupabaseJwt({ sub, email, name }: SignOptions): string {
 }
 ```
 
-- [ ] **Step 3: Create `test/setup-e2e.ts`**
+- [ ] **Step 3a: Create `test/ensure-test-db.ts`**
+
+Creates the test database if it doesn't exist, using the `pg` driver against the
+`postgres` maintenance database (no `createdb` CLI needed).
+
+```ts
+import { Client } from 'pg';
+
+const TEST_DB = 'nutri_plus_test';
+const ADMIN_URL =
+  process.env.ADMIN_DATABASE_URL ??
+  'postgresql://postgres:1234@localhost:5432/postgres';
+
+export async function ensureTestDatabase(): Promise<void> {
+  const client = new Client({ connectionString: ADMIN_URL });
+  await client.connect();
+  try {
+    const { rowCount } = await client.query(
+      'SELECT 1 FROM pg_database WHERE datname = $1',
+      [TEST_DB],
+    );
+    if (rowCount === 0) {
+      // Identifier is a constant, not user input — safe to interpolate.
+      await client.query(`CREATE DATABASE ${TEST_DB}`);
+    }
+  } finally {
+    await client.end();
+  }
+}
+```
+
+- [ ] **Step 3b: Create `test/setup-e2e.ts`**
 
 ```ts
 import { execSync } from 'child_process';
 import { PrismaClient } from '@prisma/client';
+import { ensureTestDatabase } from './ensure-test-db';
 
 // Point the app at the test database for the whole suite.
 process.env.DATABASE_URL =
@@ -1649,7 +1686,8 @@ process.env.OPENAI_API_KEY = 'sk-test';
 
 const prisma = new PrismaClient();
 
-beforeAll(() => {
+beforeAll(async () => {
+  await ensureTestDatabase();
   execSync('pnpm exec prisma migrate deploy', {
     stdio: 'inherit',
     env: process.env,
