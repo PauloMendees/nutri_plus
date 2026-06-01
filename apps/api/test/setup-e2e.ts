@@ -1,0 +1,33 @@
+import { execSync } from 'child_process';
+import { PrismaClient } from '@prisma/client';
+import { ensureTestDatabase } from './ensure-test-db';
+
+// Point the app at the test database for the whole suite.
+process.env.DATABASE_URL =
+  process.env.TEST_DATABASE_URL ??
+  'postgresql://postgres:1234@localhost:5432/nutri_plus_test?schema=public';
+process.env.SUPABASE_URL = 'https://test.supabase.co';
+process.env.SUPABASE_ANON_KEY = 'test-anon';
+process.env.SUPABASE_JWT_SECRET = 'test-jwt-secret';
+process.env.OPENAI_API_KEY = 'sk-test';
+
+const prisma = new PrismaClient();
+
+beforeAll(async () => {
+  await ensureTestDatabase();
+  execSync('pnpm exec prisma migrate deploy', {
+    stdio: 'inherit',
+    env: process.env,
+  });
+});
+
+beforeEach(async () => {
+  // Order matters: children before parents (FK constraints).
+  await prisma.patientProfile.deleteMany();
+  await prisma.nutritionistProfile.deleteMany();
+  await prisma.user.deleteMany();
+});
+
+afterAll(async () => {
+  await prisma.$disconnect();
+});
