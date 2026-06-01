@@ -1201,6 +1201,44 @@ describe('UsersService', () => {
     );
   });
 
+  it('retries referral code generation on a unique collision', async () => {
+    const collision = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      { code: 'P2002', clientVersion: 'test', meta: { target: ['referralCode'] } },
+    );
+    prisma.user.create
+      .mockRejectedValueOnce(collision)
+      .mockResolvedValueOnce({ id: 'user-5' } as any);
+
+    const result = await service.createWithProfile({
+      authProviderId: 'sub-5',
+      email: 'n5@x.com',
+      name: 'Nut5',
+      role: UserRole.NUTRITIONIST,
+    });
+
+    expect(prisma.user.create).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ id: 'user-5' });
+  });
+
+  it('does not retry on a non-referralCode unique collision (e.g. email)', async () => {
+    const emailCollision = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      { code: 'P2002', clientVersion: 'test', meta: { target: ['email'] } },
+    );
+    prisma.user.create.mockRejectedValue(emailCollision);
+
+    await expect(
+      service.createWithProfile({
+        authProviderId: 'sub-6',
+        email: 'dup@x.com',
+        name: 'Dup',
+        role: UserRole.NUTRITIONIST,
+      }),
+    ).rejects.toBe(emailCollision);
+    expect(prisma.user.create).toHaveBeenCalledTimes(1);
+  });
+
   it('updates email and name for an existing user', async () => {
     prisma.user.update.mockResolvedValue({ id: 'user-4' } as any);
 
@@ -1215,6 +1253,11 @@ describe('UsersService', () => {
 });
 ```
 
+Add the import for `Prisma` at the top of the spec:
+```ts
+import { Prisma, UserRole } from '@prisma/client';
+```
+
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @nutri-plus/api test -- users.service`
@@ -1226,6 +1269,7 @@ Expected: FAIL with "Cannot find module './users.service'".
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { SUPABASE_PROVIDER } from '../auth/auth.constants';
 import { LocalUser } from '../auth/types/auth-context';
 import { generateReferralCode } from '../common/referral-code';
 
@@ -1237,18 +1281,38 @@ interface CreateWithProfileInput {
   referralCode?: string;
 }
 
+type UserBaseData = {
+  authProvider: string;
+  authProviderId: string;
+  email: string;
+  name: string;
+  role: UserRole;
+};
+
 const INCLUDE_PROFILES = {
   nutritionistProfile: true,
   patientProfile: true,
 } as const;
+
+// Bounded retries to absorb the rare referralCode collision. The DB unique
+// constraint is the source of truth; we regenerate and retry on its P2002.
+const MAX_REFERRAL_ATTEMPTS = 5;
+
+function isReferralCodeCollision(
+  error: Prisma.PrismaClientKnownRequestError,
+): boolean {
+  const target = error.meta?.target;
+  const text = Array.isArray(target) ? target.join(',') : String(target ?? '');
+  return text.includes('referralCode');
+}
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createWithProfile(input: CreateWithProfileInput): Promise<LocalUser> {
-    const base = {
-      authProvider: 'SUPABASE',
+    const base: UserBaseData = {
+      authProvider: SUPABASE_PROVIDER,
       authProviderId: input.authProviderId,
       email: input.email,
       name: input.name,
@@ -1256,13 +1320,7 @@ export class UsersService {
     };
 
     if (input.role === UserRole.NUTRITIONIST) {
-      return this.prisma.user.create({
-        data: {
-          ...base,
-          nutritionistProfile: { create: { referralCode: generateReferralCode() } },
-        },
-        include: INCLUDE_PROFILES,
-      });
+      return this.createNutritionist(base);
     }
 
     let nutritionistId: string | undefined;
@@ -1285,6 +1343,34 @@ export class UsersService {
     });
   }
 
+  private async createNutritionist(base: UserBaseData): Promise<LocalUser> {
+    for (let attempt = 1; attempt <= MAX_REFERRAL_ATTEMPTS; attempt++) {
+      try {
+        return await this.prisma.user.create({
+          data: {
+            ...base,
+            nutritionistProfile: {
+              create: { referralCode: generateReferralCode() },
+            },
+          },
+          include: INCLUDE_PROFILES,
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002' &&
+          isReferralCodeCollision(error) &&
+          attempt < MAX_REFERRAL_ATTEMPTS
+        ) {
+          continue;
+        }
+        throw error;
+      }
+    }
+    // Unreachable: the loop either returns or throws on the final attempt.
+    throw new Error('Failed to generate a unique referral code');
+  }
+
   async updateBasics(
     id: string,
     data: { email: string; name: string },
@@ -1299,22 +1385,15 @@ export class UsersService {
   async findByAuthProviderId(authProviderId: string): Promise<LocalUser | null> {
     return this.prisma.user.findUnique({
       where: {
-        authProvider_authProviderId: { authProvider: 'SUPABASE', authProviderId },
+        authProvider_authProviderId: {
+          authProvider: SUPABASE_PROVIDER,
+          authProviderId,
+        },
       },
       include: INCLUDE_PROFILES,
     });
   }
 }
-```
-
-> Note: the referralCode unique-collision retry is exercised at the DB level. The generator's 32^5 ≈ 33M space makes collisions rare; a hardening retry loop is deferred (logged as out of scope for this sub-project — see spec). `Prisma` import kept for typing of future use is removed if unused — verify lint passes.
-
-- [ ] **Step 4: Remove the unused `Prisma` import if lint flags it**
-
-If `pnpm --filter @nutri-plus/api build` warns about an unused `Prisma` import, delete it from the import line:
-```ts
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
 ```
 
 - [ ] **Step 5: Create `users.module.ts`**
@@ -1333,7 +1412,7 @@ export class UsersModule {}
 - [ ] **Step 6: Run test to verify it passes**
 
 Run: `pnpm --filter @nutri-plus/api test -- users.service`
-Expected: 4 passing tests.
+Expected: 6 passing tests.
 
 - [ ] **Step 7: Commit**
 
@@ -2006,7 +2085,9 @@ git commit -m "docs: add root README with setup and API overview"
 - Testing (unit: AuthService, referral generator; e2e: endpoints + 401/403, test DB) → Tasks 6, 9, 11. ✓
 - pino deferred to Step 09; clinical fields deferred → respected (not in any task). ✓
 
-**Placeholder scan:** No "TBD/TODO" left as work items. The only "deferred" notes (referralCode retry hardening, pino) are explicit out-of-scope per spec, not plan gaps.
+**Placeholder scan:** No "TBD/TODO" left as work items. The referralCode
+collision retry is implemented in Task 8 (bounded P2002 retry). The only remaining
+deferral (pino logging) is explicit out-of-scope per spec, not a plan gap.
 
 **Type consistency:**
 - `AuthContext { authProviderId, email, name, user: LocalUser | null }` — defined Task 7, used identically in Tasks 9, 10, 11. ✓
