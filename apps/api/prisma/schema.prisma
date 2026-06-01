@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  NUTRITIONIST
+  PATIENT
+}
+
+model User {
+  id             String   @id @default(uuid())
+  authProvider   String
+  authProviderId String
+  email          String   @unique
+  name           String
+  role           UserRole
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  nutritionistProfile NutritionistProfile?
+  patientProfile      PatientProfile?
+
+  @@unique([authProvider, authProviderId])
+}
+
+model NutritionistProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id])
+  crn          String?
+  referralCode String   @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  patients     PatientProfile[]
+}
+
+model PatientProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  nutritionistId String?
+  nutritionist   NutritionistProfile? @relation(fields: [nutritionistId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([nutritionistId])
+}

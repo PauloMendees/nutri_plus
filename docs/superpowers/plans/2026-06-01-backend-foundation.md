@@ -140,6 +140,7 @@ packages:
 ```json
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [".env", "apps/api/.env"],
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**"] },
     "test": { "dependsOn": ["^build"] },
@@ -148,6 +149,9 @@ packages:
   }
 }
 ```
+
+> `globalDependencies` lists `.env` files so Turbo invalidates its cache when env
+> changes (relevant once `ConfigModule` lands in Task 4).
 
 - [ ] **Step 6: Create `tsconfig.base.json`**
 
@@ -164,10 +168,15 @@ packages:
     "forceConsistentCasingInFileNames": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,
     "resolveJsonModule": true
   }
 }
 ```
+
+> `useDefineForClassFields: false` is required: with `target: ES2022` it defaults
+> to `true`, which breaks `class-validator` property decorators (used in the
+> DTOs of Tasks 9–10). NestJS's own starter sets this explicitly.
 
 - [ ] **Step 7: Create placeholders**
 
@@ -357,6 +366,8 @@ git commit -m "feat(shared-types): add v1 UserRole and auth contracts"
     "jest-mock-extended": "^3.0.7",
     "jsonwebtoken": "^9.0.2",
     "@types/jsonwebtoken": "^9.0.6",
+    "pg": "^8.12.0",
+    "@types/pg": "^8.11.6",
     "prisma": "^5.18.0",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.4",
@@ -370,12 +381,12 @@ git commit -m "feat(shared-types): add v1 UserRole and auth contracts"
 
 - [ ] **Step 2: Create `apps/api/tsconfig.json` and `tsconfig.build.json`**
 
-`tsconfig.json`:
+`tsconfig.json` (note: NO `rootDir` here — `include` covers `test/**/*`, and a
+`rootDir: src` would make TypeScript emit TS6059 for files under `test/`):
 ```json
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
     "outDir": "dist",
     "baseUrl": "."
   },
@@ -383,10 +394,13 @@ git commit -m "feat(shared-types): add v1 UserRole and auth contracts"
 }
 ```
 
-`tsconfig.build.json`:
+`tsconfig.build.json` (`rootDir: src` lives here, where `test/` is excluded):
 ```json
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src"
+  },
   "exclude": ["node_modules", "test", "dist", "**/*.spec.ts"]
 }
 ```
@@ -508,7 +522,13 @@ describe('validateEnv', () => {
   });
 
   it('throws when DATABASE_URL is not a valid url', () => {
-    expect(() => validateEnv({ ...valid, DATABASE_URL: 'not-a-url' })).toThrow();
+    expect(() => validateEnv({ ...valid, DATABASE_URL: 'not-a-url' })).toThrow(
+      /DATABASE_URL/,
+    );
+  });
+
+  it('rejects an out-of-range PORT', () => {
+    expect(() => validateEnv({ ...valid, PORT: '70000' })).toThrow(/PORT/);
   });
 });
 ```
@@ -529,7 +549,7 @@ export const envSchema = z.object({
   SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_JWT_SECRET: z.string().min(1),
   OPENAI_API_KEY: z.string().min(1),
-  PORT: z.coerce.number().default(3000),
+  PORT: z.coerce.number().int().min(1).max(65535).default(3000),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -566,10 +586,42 @@ import { validateEnv } from './config/env.schema';
 export class AppModule {}
 ```
 
+- [ ] **Step 5b: Provide test env defaults for unit tests**
+
+Wiring `ConfigModule` makes `AppModule` run fail-fast env validation at boot, so
+the `app.module.spec.ts` smoke test (and any future test that instantiates
+`AppModule`) needs the 5 vars present. Add a jest `setupFiles` hook with benign
+defaults so the unit suite is self-contained — `??=` ensures it never clobbers a
+real `.env` or CI secrets.
+
+Create `apps/api/test/jest-setup-env.ts`:
+```ts
+// Default env vars for UNIT tests so instantiating AppModule (fail-fast env
+// validation) doesn't require exporting real secrets. ??= never clobbers
+// already-set values (real .env / CI secrets).
+process.env.DATABASE_URL ??=
+  'postgresql://postgres:1234@localhost:5432/nutri_plus?schema=public';
+process.env.SUPABASE_URL ??= 'https://test.supabase.co';
+process.env.SUPABASE_ANON_KEY ??= 'test-anon';
+process.env.SUPABASE_JWT_SECRET ??= 'test-jwt-secret';
+process.env.OPENAI_API_KEY ??= 'sk-test';
+```
+
+Add `setupFiles` to `apps/api/jest.config.ts`:
+```ts
+  setupFiles: ['<rootDir>/../test/jest-setup-env.ts'],
+```
+
+Verify the unit suite passes even with all env vars unset:
+```bash
+env -u DATABASE_URL -u SUPABASE_URL -u SUPABASE_ANON_KEY -u SUPABASE_JWT_SECRET -u OPENAI_API_KEY pnpm --filter @nutri-plus/api test
+```
+Expected: all unit tests pass.
+
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/api/src/config apps/api/src/app.module.ts
+git add apps/api/src/config apps/api/src/app.module.ts apps/api/jest.config.ts apps/api/test/jest-setup-env.ts
 git commit -m "feat(api): validate environment with Zod at boot"
 ```
 
@@ -583,12 +635,13 @@ git commit -m "feat(api): validate environment with Zod at boot"
 - Modify: `apps/api/src/app.module.ts`
 - Create: `apps/api/.env.example`
 
-> Prerequisite: create the local databases once:
-> ```bash
-> createdb nutri_plus || true
-> createdb nutri_plus_test || true
-> ```
-> (Or via a SQL client. Password for user `postgres` is `1234` per the dev's local instance.)
+> Prerequisite: a local PostgreSQL server is running on `localhost:5432`
+> (user `postgres`, password `1234`). The `createdb` CLI is **not** available on
+> this machine, so databases are created without it:
+> - `nutri_plus` (dev) is created automatically by `prisma migrate dev` in Step 4.
+> - `nutri_plus_test` is created programmatically by the e2e setup (Task 11),
+>   which connects to the `postgres` maintenance database via the `pg` driver and
+>   issues `CREATE DATABASE` if it does not already exist.
 
 - [ ] **Step 1: Create `apps/api/.env.example`**
 
@@ -666,8 +719,15 @@ model PatientProfile {
   nutritionist   NutritionistProfile? @relation(fields: [nutritionistId], references: [id])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  @@index([nutritionistId])
 }
 ```
+
+> `@@index([nutritionistId])`: Prisma does not auto-index FK columns. This index
+> backs the "list a nutritionist's patients" query and keeps the FK
+> non-unique-lookup off a sequential scan. The init migration's SQL includes the
+> matching `CREATE INDEX "PatientProfile_nutritionistId_idx"`.
 
 - [ ] **Step 4: Generate client and create the migration**
 
@@ -753,8 +813,11 @@ import { generateReferralCode } from './referral-code';
 
 describe('generateReferralCode', () => {
   it('matches NUTRI-XXXXX format (5 Crockford base32 chars)', () => {
-    const code = generateReferralCode();
-    expect(code).toMatch(/^NUTRI-[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{5}$/);
+    for (let i = 0; i < 50; i++) {
+      expect(generateReferralCode()).toMatch(
+        /^NUTRI-[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{5}$/,
+      );
+    }
   });
 
   it('excludes ambiguous characters I, L, O, U', () => {
@@ -874,13 +937,22 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
 
   async validate(payload: SupabaseJwtPayload): Promise<AuthContext> {
     const authProviderId = payload.sub;
-    const email = payload.email ?? '';
+    // email backs User's @unique, non-null column. A token without it (some
+    // social-OAuth flows) cannot be synced — fail closed rather than writing an
+    // empty string that would collide on the second such user.
+    const email = payload.email;
+    if (!email) {
+      throw new UnauthorizedException('JWT is missing the email claim');
+    }
     const name =
       payload.user_metadata?.name ?? payload.user_metadata?.full_name ?? email;
 
     const user = await this.prisma.user.findUnique({
       where: {
-        authProvider_authProviderId: { authProvider: 'SUPABASE', authProviderId },
+        authProvider_authProviderId: {
+          authProvider: SUPABASE_PROVIDER,
+          authProviderId,
+        },
       },
       include: { nutritionistProfile: true, patientProfile: true },
     });
@@ -889,6 +961,14 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
   }
 }
 ```
+
+> Add `apps/api/src/auth/auth.constants.ts` exporting
+> `export const SUPABASE_PROVIDER = 'SUPABASE';` — shared by the strategy and
+> `UsersService` (Task 8) so the `authProvider` literal never drifts between the
+> write path and the read path (a typo would silently break auth). Import it as
+> `import { SUPABASE_PROVIDER } from '../auth.constants';` and
+> `UnauthorizedException` from `@nestjs/common`. `SupabaseJwtPayload` also
+> declares the standard `iat/exp/aud/iss` claims for accurate typing.
 
 - [ ] **Step 4: Create the decorators**
 
@@ -1121,6 +1201,62 @@ describe('UsersService', () => {
     );
   });
 
+  it('retries referral code generation on a unique collision', async () => {
+    const collision = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      { code: 'P2002', clientVersion: 'test', meta: { target: ['referralCode'] } },
+    );
+    prisma.user.create
+      .mockRejectedValueOnce(collision)
+      .mockResolvedValueOnce({ id: 'user-5' } as any);
+
+    const result = await service.createWithProfile({
+      authProviderId: 'sub-5',
+      email: 'n5@x.com',
+      name: 'Nut5',
+      role: UserRole.NUTRITIONIST,
+    });
+
+    expect(prisma.user.create).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ id: 'user-5' });
+  });
+
+  it('does not retry on a non-referralCode unique collision (e.g. email)', async () => {
+    const emailCollision = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      { code: 'P2002', clientVersion: 'test', meta: { target: ['email'] } },
+    );
+    prisma.user.create.mockRejectedValue(emailCollision);
+
+    await expect(
+      service.createWithProfile({
+        authProviderId: 'sub-6',
+        email: 'dup@x.com',
+        name: 'Dup',
+        role: UserRole.NUTRITIONIST,
+      }),
+    ).rejects.toBe(emailCollision);
+    expect(prisma.user.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('rethrows after exhausting referral code retry attempts', async () => {
+    const collision = new Prisma.PrismaClientKnownRequestError(
+      'Unique constraint failed',
+      { code: 'P2002', clientVersion: 'test', meta: { target: ['referralCode'] } },
+    );
+    prisma.user.create.mockRejectedValue(collision);
+
+    await expect(
+      service.createWithProfile({
+        authProviderId: 'sub-7',
+        email: 'n7@x.com',
+        name: 'Nut7',
+        role: UserRole.NUTRITIONIST,
+      }),
+    ).rejects.toBe(collision);
+    expect(prisma.user.create).toHaveBeenCalledTimes(5);
+  });
+
   it('updates email and name for an existing user', async () => {
     prisma.user.update.mockResolvedValue({ id: 'user-4' } as any);
 
@@ -1132,7 +1268,29 @@ describe('UsersService', () => {
       include: { nutritionistProfile: true, patientProfile: true },
     });
   });
+
+  it('finds a user by auth provider id', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: 'user-8' } as any);
+
+    const result = await service.findByAuthProviderId('sub-8');
+
+    expect(prisma.user.findUnique).toHaveBeenCalledWith({
+      where: {
+        authProvider_authProviderId: {
+          authProvider: 'SUPABASE',
+          authProviderId: 'sub-8',
+        },
+      },
+      include: { nutritionistProfile: true, patientProfile: true },
+    });
+    expect(result).toEqual({ id: 'user-8' });
+  });
 });
+```
+
+Add the import for `Prisma` at the top of the spec:
+```ts
+import { Prisma, UserRole } from '@prisma/client';
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1146,6 +1304,7 @@ Expected: FAIL with "Cannot find module './users.service'".
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { SUPABASE_PROVIDER } from '../auth/auth.constants';
 import { LocalUser } from '../auth/types/auth-context';
 import { generateReferralCode } from '../common/referral-code';
 
@@ -1157,18 +1316,38 @@ interface CreateWithProfileInput {
   referralCode?: string;
 }
 
+type UserBaseData = {
+  authProvider: string;
+  authProviderId: string;
+  email: string;
+  name: string;
+  role: UserRole;
+};
+
 const INCLUDE_PROFILES = {
   nutritionistProfile: true,
   patientProfile: true,
 } as const;
+
+// Bounded retries to absorb the rare referralCode collision. The DB unique
+// constraint is the source of truth; we regenerate and retry on its P2002.
+const MAX_REFERRAL_ATTEMPTS = 5;
+
+function isReferralCodeCollision(
+  error: Prisma.PrismaClientKnownRequestError,
+): boolean {
+  const target = error.meta?.target;
+  const text = Array.isArray(target) ? target.join(',') : String(target ?? '');
+  return text.includes('referralCode');
+}
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createWithProfile(input: CreateWithProfileInput): Promise<LocalUser> {
-    const base = {
-      authProvider: 'SUPABASE',
+    const base: UserBaseData = {
+      authProvider: SUPABASE_PROVIDER,
       authProviderId: input.authProviderId,
       email: input.email,
       name: input.name,
@@ -1176,13 +1355,7 @@ export class UsersService {
     };
 
     if (input.role === UserRole.NUTRITIONIST) {
-      return this.prisma.user.create({
-        data: {
-          ...base,
-          nutritionistProfile: { create: { referralCode: generateReferralCode() } },
-        },
-        include: INCLUDE_PROFILES,
-      });
+      return this.createNutritionist(base);
     }
 
     let nutritionistId: string | undefined;
@@ -1205,6 +1378,34 @@ export class UsersService {
     });
   }
 
+  private async createNutritionist(base: UserBaseData): Promise<LocalUser> {
+    for (let attempt = 1; attempt <= MAX_REFERRAL_ATTEMPTS; attempt++) {
+      try {
+        return await this.prisma.user.create({
+          data: {
+            ...base,
+            nutritionistProfile: {
+              create: { referralCode: generateReferralCode() },
+            },
+          },
+          include: INCLUDE_PROFILES,
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002' &&
+          isReferralCodeCollision(error) &&
+          attempt < MAX_REFERRAL_ATTEMPTS
+        ) {
+          continue;
+        }
+        throw error;
+      }
+    }
+    // Unreachable: the loop either returns or throws on the final attempt.
+    throw new Error('Failed to generate a unique referral code');
+  }
+
   async updateBasics(
     id: string,
     data: { email: string; name: string },
@@ -1219,22 +1420,15 @@ export class UsersService {
   async findByAuthProviderId(authProviderId: string): Promise<LocalUser | null> {
     return this.prisma.user.findUnique({
       where: {
-        authProvider_authProviderId: { authProvider: 'SUPABASE', authProviderId },
+        authProvider_authProviderId: {
+          authProvider: SUPABASE_PROVIDER,
+          authProviderId,
+        },
       },
       include: INCLUDE_PROFILES,
     });
   }
 }
-```
-
-> Note: the referralCode unique-collision retry is exercised at the DB level. The generator's 32^5 ≈ 33M space makes collisions rare; a hardening retry loop is deferred (logged as out of scope for this sub-project — see spec). `Prisma` import kept for typing of future use is removed if unused — verify lint passes.
-
-- [ ] **Step 4: Remove the unused `Prisma` import if lint flags it**
-
-If `pnpm --filter @nutri-plus/api build` warns about an unused `Prisma` import, delete it from the import line:
-```ts
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
 ```
 
 - [ ] **Step 5: Create `users.module.ts`**
@@ -1253,12 +1447,35 @@ export class UsersModule {}
 - [ ] **Step 6: Run test to verify it passes**
 
 Run: `pnpm --filter @nutri-plus/api test -- users.service`
-Expected: 4 passing tests.
+Expected: 8 passing tests.
+
+- [ ] **Step 6b: Consolidate the JWT strategy onto `findByAuthProviderId`**
+
+Now that `UsersService.findByAuthProviderId` exists, refactor
+`apps/api/src/auth/strategies/supabase.strategy.ts` to delegate the user lookup
+to it instead of duplicating the `findUnique` (so the compound-key name and
+`INCLUDE_PROFILES` shape live in one place). Inject `UsersService` instead of
+`PrismaService`; drop the now-unused `PrismaService` and `SUPABASE_PROVIDER`
+imports. The relevant parts become:
+```ts
+import { UsersService } from '../../users/users.service';
+// ...
+  constructor(
+    config: ConfigService,
+    private readonly users: UsersService,
+  ) { /* super({...}) unchanged */ }
+// ...
+    const user = await this.users.findByAuthProviderId(authProviderId);
+    return { authProviderId, email, name, user };
+```
+`AuthModule` (Task 10) imports `UsersModule`, so `UsersService` is injectable
+into the strategy. Re-run `pnpm --filter @nutri-plus/api build` and the full
+test suite to confirm green.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add apps/api/src/users
+git add apps/api/src/users apps/api/src/auth/strategies/supabase.strategy.ts
 git commit -m "feat(api): add UsersService for user+profile creation and lookups"
 ```
 
@@ -1273,7 +1490,7 @@ git commit -m "feat(api): add UsersService for user+profile creation and lookups
 - [ ] **Step 1: Write the failing test `auth.service.spec.ts`**
 
 ```ts
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
@@ -1291,17 +1508,20 @@ describe('AuthService', () => {
     service = new AuthService(users as unknown as UsersService);
   });
 
-  const newCtx: AuthContext = {
+  const newCtx: AuthContext = Object.freeze({
     authProviderId: 'sub-1',
     email: 'a@x.com',
     name: 'Ann',
     user: null,
-  };
+  });
 
-  it('creates a new user on first sync', async () => {
+  it('creates a new user on first sync and returns it', async () => {
     users.createWithProfile.mockResolvedValue({ id: 'u1' } as any);
 
-    await service.syncUser(newCtx, { role: UserRole.PATIENT, referralCode: 'NUTRI-ABCDE' });
+    const result = await service.syncUser(newCtx, {
+      role: UserRole.PATIENT,
+      referralCode: 'NUTRI-ABCDE',
+    });
 
     expect(users.createWithProfile).toHaveBeenCalledWith({
       authProviderId: 'sub-1',
@@ -1310,22 +1530,24 @@ describe('AuthService', () => {
       role: UserRole.PATIENT,
       referralCode: 'NUTRI-ABCDE',
     });
+    expect(result).toEqual({ id: 'u1' });
   });
 
-  it('updates basics when the user already exists (idempotent)', async () => {
+  it('updates basics when the user already exists (idempotent) and returns it', async () => {
     const existingCtx: AuthContext = {
       ...newCtx,
       user: { id: 'u1', email: 'old@x.com', name: 'Old' } as any,
     };
     users.updateBasics.mockResolvedValue({ id: 'u1' } as any);
 
-    await service.syncUser(existingCtx, { role: UserRole.PATIENT });
+    const result = await service.syncUser(existingCtx, { role: UserRole.PATIENT });
 
     expect(users.updateBasics).toHaveBeenCalledWith('u1', {
       email: 'a@x.com',
       name: 'Ann',
     });
     expect(users.createWithProfile).not.toHaveBeenCalled();
+    expect(result).toEqual({ id: 'u1' });
   });
 
   it('me() returns the resolved local user', () => {
@@ -1333,8 +1555,8 @@ describe('AuthService', () => {
     expect(service.me(ctx)).toEqual({ id: 'u1' });
   });
 
-  it('me() throws when the user has not synced yet', () => {
-    expect(() => service.me(newCtx)).toThrow(NotFoundException);
+  it('me() throws ConflictException when the user has not synced yet', () => {
+    expect(() => service.me(newCtx)).toThrow(ConflictException);
   });
 });
 ```
@@ -1347,7 +1569,7 @@ Expected: FAIL with "Cannot find module './auth.service'".
 - [ ] **Step 3: Implement `auth.service.ts`**
 
 ```ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { AuthContext, LocalUser } from './types/auth-context';
 import { SyncUserDto } from './dto/sync-user.dto';
@@ -1374,19 +1596,29 @@ export class AuthService {
 
   me(ctx: AuthContext): LocalUser {
     if (!ctx.user) {
-      throw new NotFoundException('User not synced. Call POST /v1/auth/sync-user first.');
+      // Authenticated, but no local record yet: the caller must sync first.
+      // 409 (not 404) so clients don't misread it as a missing route.
+      throw new ConflictException(
+        'User not synced. Call POST /v1/auth/sync-user first.',
+      );
     }
     return ctx.user;
   }
 }
 ```
 
+> `me()` returns 409 Conflict (not 404) for an authenticated caller without a
+> local record, so clients distinguish "you must sync first" from a missing
+> route. The Task 9 unit tests assert the returned value of `syncUser` on both
+> branches; `SyncUserDto` drops the redundant `@IsString()` (`@Matches` already
+> implies string).
+
 > The `SyncUserDto` import is created in Task 10 Step 1. If implementing strictly in order, create the DTO first (Task 10 Step 1) before running the build; the unit test above does not import the DTO type at runtime so it passes once `auth.service.ts` compiles. To keep the build green within this task, also create `dto/sync-user.dto.ts` now (see Task 10 Step 1 for its exact contents).
 
 - [ ] **Step 4: Create `dto/sync-user.dto.ts` (also referenced in Task 10)**
 
 ```ts
-import { IsEnum, IsOptional, IsString, Matches } from 'class-validator';
+import { IsEnum, IsOptional, Matches } from 'class-validator';
 import { UserRole } from '@prisma/client';
 
 export class SyncUserDto {
@@ -1394,7 +1626,6 @@ export class SyncUserDto {
   role!: UserRole;
 
   @IsOptional()
-  @IsString()
   @Matches(/^NUTRI-[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{5}$/, {
     message: 'referralCode must match NUTRI-XXXXX',
   })
@@ -1483,11 +1714,14 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
+  private readonly logger = new Logger(AllExceptionsFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -1511,6 +1745,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     }
 
+    // Don't swallow 5xx / unknown errors silently (structured pino logging is
+    // the Observability sub-project; Logger.error is the stopgap).
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      this.logger.error(
+        `Unhandled ${status} on request`,
+        exception instanceof Error ? exception.stack : String(exception),
+      );
+    }
+
     response.status(status).json({ statusCode: status, message, error });
   }
 }
@@ -1519,12 +1762,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
 - [ ] **Step 5: Wire everything in `app.module.ts` (global guards)**
 
 ```ts
-import { Module } from '@nestjs/common';
+import { Module, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
 import { validateEnv } from './config/env.schema';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { SupabaseAuthGuard } from './auth/guards/supabase-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -1534,7 +1778,19 @@ import { RolesGuard } from './auth/guards/roles.guard';
     PrismaModule,
     AuthModule,
   ],
+  // Global pipe/filter/guards are providers (not imperative main.ts calls) so
+  // every bootstrap of AppModule — including e2e Test modules — inherits the
+  // same behavior with no drift.
   providers: [
+    {
+      provide: APP_PIPE,
+      useValue: new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+      }),
+    },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_GUARD, useClass: SupabaseAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
@@ -1542,23 +1798,22 @@ import { RolesGuard } from './auth/guards/roles.guard';
 export class AppModule {}
 ```
 
-> Guard order: NestJS runs `APP_GUARD` providers in registration order, so `SupabaseAuthGuard` (authentication, populates `request.user`) runs before `RolesGuard` (authorization, reads `request.user.user.role`).
+> Guard order: NestJS runs `APP_GUARD` providers in registration order, so `SupabaseAuthGuard` (authentication, populates `request.user`) runs before `RolesGuard` (authorization, reads `request.user.user.role`). Registering the
+> `ValidationPipe` (`APP_PIPE`) and `AllExceptionsFilter` (`APP_FILTER`) as
+> providers means e2e tests that import `AppModule` get them automatically.
 
 - [ ] **Step 6: Wire global pipe + filter in `main.ts`**
 
 ```ts
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { VersioningType } from '@nestjs/common';
 import { AppModule } from './app.module';
-import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  // The global ValidationPipe and exception filter are registered as providers
+  // in AppModule (APP_PIPE / APP_FILTER) so every bootstrap path shares them.
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
-  app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
-  );
-  app.useGlobalFilters(new AllExceptionsFilter());
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
@@ -1587,7 +1842,9 @@ git commit -m "feat(api): wire auth controller, module, global guards, pipe, and
 **Files:**
 - Create: `apps/api/test/jest-e2e.config.ts`, `test/setup-e2e.ts`, `test/helpers/sign-jwt.ts`, `test/auth.e2e-spec.ts`
 
-> Prerequisite: `nutri_plus_test` database exists (created in Task 5 prerequisite). The e2e suite runs migrations against it before tests.
+> The e2e suite creates `nutri_plus_test` if missing (via the `pg` driver against
+> the `postgres` maintenance DB), then runs migrations against it before tests.
+> `createdb` CLI is not required.
 
 - [ ] **Step 1: Create `test/jest-e2e.config.ts`**
 
@@ -1600,7 +1857,14 @@ const config: Config = {
   rootDir: '.',
   testRegex: '.*\\.e2e-spec\\.ts$',
   moduleFileExtensions: ['ts', 'js', 'json'],
-  setupFilesAfterEnv: ['<rootDir>/test/setup-e2e.ts'],
+  // This config lives in test/, so rootDir '.' resolves to apps/api/test —
+  // hence the setup path is `<rootDir>/setup-e2e.ts` (not `<rootDir>/test/...`).
+  setupFilesAfterEnv: ['<rootDir>/setup-e2e.ts'],
+  // ts-jest's tsconfig is set via transform (the `globals` style is deprecated
+  // in ts-jest 29). Points at apps/api/tsconfig.json for esModuleInterop, etc.
+  transform: {
+    '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/../tsconfig.json' }],
+  },
 };
 
 export default config;
@@ -1611,8 +1875,6 @@ export default config;
 ```ts
 import * as jwt from 'jsonwebtoken';
 
-const SECRET = process.env.SUPABASE_JWT_SECRET as string;
-
 interface SignOptions {
   sub: string;
   email: string;
@@ -1620,23 +1882,62 @@ interface SignOptions {
 }
 
 export function signSupabaseJwt({ sub, email, name }: SignOptions): string {
+  // Read at call time (not module load) so the secret can't be captured before
+  // the e2e setup file sets the env.
+  const secret = process.env.SUPABASE_JWT_SECRET;
+  if (!secret) {
+    throw new Error('SUPABASE_JWT_SECRET is not set');
+  }
   return jwt.sign(
     {
       sub,
       email,
       user_metadata: name ? { name } : {},
     },
-    SECRET,
+    secret,
     { algorithm: 'HS256', expiresIn: '1h' },
   );
 }
 ```
 
-- [ ] **Step 3: Create `test/setup-e2e.ts`**
+- [ ] **Step 3a: Create `test/ensure-test-db.ts`**
+
+Creates the test database if it doesn't exist, using the `pg` driver against the
+`postgres` maintenance database (no `createdb` CLI needed).
+
+```ts
+import { Client } from 'pg';
+
+const TEST_DB = 'nutri_plus_test';
+const ADMIN_URL =
+  process.env.ADMIN_DATABASE_URL ??
+  'postgresql://postgres:1234@localhost:5432/postgres';
+
+export async function ensureTestDatabase(): Promise<void> {
+  const client = new Client({ connectionString: ADMIN_URL });
+  await client.connect();
+  try {
+    const { rowCount } = await client.query(
+      'SELECT 1 FROM pg_database WHERE datname = $1',
+      [TEST_DB],
+    );
+    // rowCount is `number | null` in @types/pg; treat null/0 as "not found".
+    if (!rowCount) {
+      // Identifier is a constant, not user input — safe to interpolate.
+      await client.query(`CREATE DATABASE ${TEST_DB}`);
+    }
+  } finally {
+    await client.end();
+  }
+}
+```
+
+- [ ] **Step 3b: Create `test/setup-e2e.ts`**
 
 ```ts
 import { execSync } from 'child_process';
 import { PrismaClient } from '@prisma/client';
+import { ensureTestDatabase } from './ensure-test-db';
 
 // Point the app at the test database for the whole suite.
 process.env.DATABASE_URL =
@@ -1649,7 +1950,8 @@ process.env.OPENAI_API_KEY = 'sk-test';
 
 const prisma = new PrismaClient();
 
-beforeAll(() => {
+beforeAll(async () => {
+  await ensureTestDatabase();
   execSync('pnpm exec prisma migrate deploy', {
     stdio: 'inherit',
     env: process.env,
@@ -1671,12 +1973,11 @@ afterAll(async () => {
 - [ ] **Step 4: Write the e2e test `test/auth.e2e-spec.ts`**
 
 ```ts
-import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
+import { INestApplication, VersioningType } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import * as request from 'supertest';
+import request from 'supertest';
 import { UserRole } from '@prisma/client';
 import { AppModule } from '../src/app.module';
-import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter';
 import { signSupabaseJwt } from './helpers/sign-jwt';
 
 describe('Auth (e2e)', () => {
@@ -1687,11 +1988,10 @@ describe('Auth (e2e)', () => {
       imports: [AppModule],
     }).compile();
     app = moduleRef.createNestApplication();
+    // ValidationPipe + AllExceptionsFilter are global APP_PIPE/APP_FILTER
+    // providers in AppModule, so they apply here automatically. Only URI
+    // versioning is configured on the app instance.
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
-    );
-    app.useGlobalFilters(new AllExceptionsFilter());
     await app.init();
   });
 
@@ -1720,11 +2020,12 @@ describe('Auth (e2e)', () => {
 
   it('is idempotent: a second sync updates instead of duplicating', async () => {
     const token = signSupabaseJwt({ sub: 'nutri-sub', email: 'n@x.com', name: 'Nut' });
-    await request(app.getHttpServer())
+    const firstRes = await request(app.getHttpServer())
       .post('/v1/auth/sync-user')
       .set('Authorization', `Bearer ${token}`)
       .send({ role: UserRole.NUTRITIONIST })
       .expect(200);
+    const referralCode = firstRes.body.nutritionistProfile.referralCode;
 
     const updatedToken = signSupabaseJwt({ sub: 'nutri-sub', email: 'n2@x.com', name: 'Nut2' });
     const res = await request(app.getHttpServer())
@@ -1733,8 +2034,19 @@ describe('Auth (e2e)', () => {
       .send({ role: UserRole.NUTRITIONIST })
       .expect(200);
 
+    expect(res.body.id).toBe(firstRes.body.id);
     expect(res.body.email).toBe('n2@x.com');
     expect(res.body.name).toBe('Nut2');
+    // The referral code is stable across re-syncs (update path leaves it alone).
+    expect(res.body.nutritionistProfile.referralCode).toBe(referralCode);
+  });
+
+  it('returns 409 when authenticated but not yet synced (GET /me)', async () => {
+    const token = signSupabaseJwt({ sub: 'never-synced', email: 'ns@x.com', name: 'NS' });
+    await request(app.getHttpServer())
+      .get('/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(409);
   });
 
   it('links a patient to a nutritionist via referral code', async () => {
@@ -1891,7 +2203,9 @@ git commit -m "docs: add root README with setup and API overview"
 - Testing (unit: AuthService, referral generator; e2e: endpoints + 401/403, test DB) → Tasks 6, 9, 11. ✓
 - pino deferred to Step 09; clinical fields deferred → respected (not in any task). ✓
 
-**Placeholder scan:** No "TBD/TODO" left as work items. The only "deferred" notes (referralCode retry hardening, pino) are explicit out-of-scope per spec, not plan gaps.
+**Placeholder scan:** No "TBD/TODO" left as work items. The referralCode
+collision retry is implemented in Task 8 (bounded P2002 retry). The only remaining
+deferral (pino logging) is explicit out-of-scope per spec, not a plan gap.
 
 **Type consistency:**
 - `AuthContext { authProviderId, email, name, user: LocalUser | null }` — defined Task 7, used identically in Tasks 9, 10, 11. ✓
