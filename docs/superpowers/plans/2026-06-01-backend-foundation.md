@@ -937,13 +937,22 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
 
   async validate(payload: SupabaseJwtPayload): Promise<AuthContext> {
     const authProviderId = payload.sub;
-    const email = payload.email ?? '';
+    // email backs User's @unique, non-null column. A token without it (some
+    // social-OAuth flows) cannot be synced — fail closed rather than writing an
+    // empty string that would collide on the second such user.
+    const email = payload.email;
+    if (!email) {
+      throw new UnauthorizedException('JWT is missing the email claim');
+    }
     const name =
       payload.user_metadata?.name ?? payload.user_metadata?.full_name ?? email;
 
     const user = await this.prisma.user.findUnique({
       where: {
-        authProvider_authProviderId: { authProvider: 'SUPABASE', authProviderId },
+        authProvider_authProviderId: {
+          authProvider: SUPABASE_PROVIDER,
+          authProviderId,
+        },
       },
       include: { nutritionistProfile: true, patientProfile: true },
     });
@@ -952,6 +961,14 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
   }
 }
 ```
+
+> Add `apps/api/src/auth/auth.constants.ts` exporting
+> `export const SUPABASE_PROVIDER = 'SUPABASE';` — shared by the strategy and
+> `UsersService` (Task 8) so the `authProvider` literal never drifts between the
+> write path and the read path (a typo would silently break auth). Import it as
+> `import { SUPABASE_PROVIDER } from '../auth.constants';` and
+> `UnauthorizedException` from `@nestjs/common`. `SupabaseJwtPayload` also
+> declares the standard `iat/exp/aud/iss` claims for accurate typing.
 
 - [ ] **Step 4: Create the decorators**
 
