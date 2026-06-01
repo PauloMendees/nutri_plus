@@ -580,10 +580,42 @@ import { validateEnv } from './config/env.schema';
 export class AppModule {}
 ```
 
+- [ ] **Step 5b: Provide test env defaults for unit tests**
+
+Wiring `ConfigModule` makes `AppModule` run fail-fast env validation at boot, so
+the `app.module.spec.ts` smoke test (and any future test that instantiates
+`AppModule`) needs the 5 vars present. Add a jest `setupFiles` hook with benign
+defaults so the unit suite is self-contained — `??=` ensures it never clobbers a
+real `.env` or CI secrets.
+
+Create `apps/api/test/jest-setup-env.ts`:
+```ts
+// Default env vars for UNIT tests so instantiating AppModule (fail-fast env
+// validation) doesn't require exporting real secrets. ??= never clobbers
+// already-set values (real .env / CI secrets).
+process.env.DATABASE_URL ??=
+  'postgresql://postgres:1234@localhost:5432/nutri_plus?schema=public';
+process.env.SUPABASE_URL ??= 'https://test.supabase.co';
+process.env.SUPABASE_ANON_KEY ??= 'test-anon';
+process.env.SUPABASE_JWT_SECRET ??= 'test-jwt-secret';
+process.env.OPENAI_API_KEY ??= 'sk-test';
+```
+
+Add `setupFiles` to `apps/api/jest.config.ts`:
+```ts
+  setupFiles: ['<rootDir>/../test/jest-setup-env.ts'],
+```
+
+Verify the unit suite passes even with all env vars unset:
+```bash
+env -u DATABASE_URL -u SUPABASE_URL -u SUPABASE_ANON_KEY -u SUPABASE_JWT_SECRET -u OPENAI_API_KEY pnpm --filter @nutri-plus/api test
+```
+Expected: all unit tests pass.
+
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/api/src/config apps/api/src/app.module.ts
+git add apps/api/src/config apps/api/src/app.module.ts apps/api/jest.config.ts apps/api/test/jest-setup-env.ts
 git commit -m "feat(api): validate environment with Zod at boot"
 ```
 

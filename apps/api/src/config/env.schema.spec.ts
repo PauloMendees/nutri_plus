@@ -20,6 +20,12 @@ describe('validateEnv', () => {
   });
 
   it('throws when DATABASE_URL is not a valid url', () => {
-    expect(() => validateEnv({ ...valid, DATABASE_URL: 'not-a-url' })).toThrow();
+    expect(() => validateEnv({ ...valid, DATABASE_URL: 'not-a-url' })).toThrow(
+      /DATABASE_URL/,
+    );
+  });
+
+  it('rejects an out-of-range PORT', () => {
+    expect(() => validateEnv({ ...valid, PORT: '70000' })).toThrow(/PORT/);
   });
 });
