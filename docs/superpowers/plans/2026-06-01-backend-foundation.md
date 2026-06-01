@@ -1857,7 +1857,14 @@ const config: Config = {
   rootDir: '.',
   testRegex: '.*\\.e2e-spec\\.ts$',
   moduleFileExtensions: ['ts', 'js', 'json'],
-  setupFilesAfterEnv: ['<rootDir>/test/setup-e2e.ts'],
+  // This config lives in test/, so rootDir '.' resolves to apps/api/test —
+  // hence the setup path is `<rootDir>/setup-e2e.ts` (not `<rootDir>/test/...`).
+  setupFilesAfterEnv: ['<rootDir>/setup-e2e.ts'],
+  // ts-jest's tsconfig is set via transform (the `globals` style is deprecated
+  // in ts-jest 29). Points at apps/api/tsconfig.json for esModuleInterop, etc.
+  transform: {
+    '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/../tsconfig.json' }],
+  },
 };
 
 export default config;
@@ -1868,8 +1875,6 @@ export default config;
 ```ts
 import * as jwt from 'jsonwebtoken';
 
-const SECRET = process.env.SUPABASE_JWT_SECRET as string;
-
 interface SignOptions {
   sub: string;
   email: string;
@@ -1877,13 +1882,19 @@ interface SignOptions {
 }
 
 export function signSupabaseJwt({ sub, email, name }: SignOptions): string {
+  // Read at call time (not module load) so the secret can't be captured before
+  // the e2e setup file sets the env.
+  const secret = process.env.SUPABASE_JWT_SECRET;
+  if (!secret) {
+    throw new Error('SUPABASE_JWT_SECRET is not set');
+  }
   return jwt.sign(
     {
       sub,
       email,
       user_metadata: name ? { name } : {},
     },
-    SECRET,
+    secret,
     { algorithm: 'HS256', expiresIn: '1h' },
   );
 }
@@ -1910,7 +1921,8 @@ export async function ensureTestDatabase(): Promise<void> {
       'SELECT 1 FROM pg_database WHERE datname = $1',
       [TEST_DB],
     );
-    if (rowCount === 0) {
+    // rowCount is `number | null` in @types/pg; treat null/0 as "not found".
+    if (!rowCount) {
       // Identifier is a constant, not user input — safe to interpolate.
       await client.query(`CREATE DATABASE ${TEST_DB}`);
     }
@@ -1963,7 +1975,7 @@ afterAll(async () => {
 ```ts
 import { INestApplication, VersioningType } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import * as request from 'supertest';
+import request from 'supertest';
 import { UserRole } from '@prisma/client';
 import { AppModule } from '../src/app.module';
 import { signSupabaseJwt } from './helpers/sign-jwt';
@@ -2008,11 +2020,12 @@ describe('Auth (e2e)', () => {
 
   it('is idempotent: a second sync updates instead of duplicating', async () => {
     const token = signSupabaseJwt({ sub: 'nutri-sub', email: 'n@x.com', name: 'Nut' });
-    await request(app.getHttpServer())
+    const firstRes = await request(app.getHttpServer())
       .post('/v1/auth/sync-user')
       .set('Authorization', `Bearer ${token}`)
       .send({ role: UserRole.NUTRITIONIST })
       .expect(200);
+    const referralCode = firstRes.body.nutritionistProfile.referralCode;
 
     const updatedToken = signSupabaseJwt({ sub: 'nutri-sub', email: 'n2@x.com', name: 'Nut2' });
     const res = await request(app.getHttpServer())
@@ -2021,8 +2034,19 @@ describe('Auth (e2e)', () => {
       .send({ role: UserRole.NUTRITIONIST })
       .expect(200);
 
+    expect(res.body.id).toBe(firstRes.body.id);
     expect(res.body.email).toBe('n2@x.com');
     expect(res.body.name).toBe('Nut2');
+    // The referral code is stable across re-syncs (update path leaves it alone).
+    expect(res.body.nutritionistProfile.referralCode).toBe(referralCode);
+  });
+
+  it('returns 409 when authenticated but not yet synced (GET /me)', async () => {
+    const token = signSupabaseJwt({ sub: 'never-synced', email: 'ns@x.com', name: 'NS' });
+    await request(app.getHttpServer())
+      .get('/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(409);
   });
 
   it('links a patient to a nutritionist via referral code', async () => {
