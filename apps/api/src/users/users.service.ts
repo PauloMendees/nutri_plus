@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma, UserRole } from '@prisma/client';
+import { Prisma, UserRole } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SUPABASE_PROVIDER } from '../auth/auth.constants';
 import { LocalUser } from '../auth/types/auth-context';

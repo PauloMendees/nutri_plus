@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { Prisma, UserRole } from '@prisma/client';
+import { Prisma, UserRole } from '../generated/prisma/client';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from './users.service';

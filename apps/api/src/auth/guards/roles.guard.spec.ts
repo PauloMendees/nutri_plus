@@ -1,6 +1,6 @@
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../../generated/prisma/client';
 import { RolesGuard } from './roles.guard';
 
 function ctxWith(user: unknown, handlerRoles: UserRole[] | undefined) {

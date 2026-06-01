@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../src/generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { ensureTestDatabase } from './ensure-test-db';
 
