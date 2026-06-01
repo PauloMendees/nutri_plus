@@ -719,8 +719,15 @@ model PatientProfile {
   nutritionist   NutritionistProfile? @relation(fields: [nutritionistId], references: [id])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+
+  @@index([nutritionistId])
 }
 ```
+
+> `@@index([nutritionistId])`: Prisma does not auto-index FK columns. This index
+> backs the "list a nutritionist's patients" query and keeps the FK
+> non-unique-lookup off a sequential scan. The init migration's SQL includes the
+> matching `CREATE INDEX "PatientProfile_nutritionistId_idx"`.
 
 - [ ] **Step 4: Generate client and create the migration**
 
