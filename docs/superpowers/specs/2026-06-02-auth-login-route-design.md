@@ -67,13 +67,8 @@ the protected endpoints.
 
 ## Contracts
 
-Add to `packages/shared-types/src/v1/auth.ts`:
+The response type stays **local to `apps/api`** (defined in `auth/dto/login.dto.ts`):
 ```ts
-export interface LoginRequest {
-  email: string;
-  password: string;
-}
-
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
@@ -81,15 +76,18 @@ export interface LoginResponse {
   expiresIn: number;
 }
 ```
-`apps/api`'s `LoginDto` implements `LoginRequest`; `AuthService.login` returns
-`LoginResponse`.
+Rationale: `apps/api` does not yet import `@nutri-plus/shared-types` anywhere, so
+adding the first import would couple the API's build/test to `shared-types` being
+built first. For a manual-testing route that's not worth it. Promoting
+`LoginRequest`/`LoginResponse` into `shared-types` is deferred until a real client
+(web/mobile) consumes the contract — at which point the build-ordering is set up
+deliberately.
 
 ## Components / files
 
-- `apps/api/src/auth/dto/login.dto.ts` (new) — `LoginDto`.
-- `apps/api/src/auth/auth.service.ts` — add `login(dto): Promise<LoginResponse>`.
+- `apps/api/src/auth/dto/login.dto.ts` (new) — `LoginDto` + the `LoginResponse` interface.
+- `apps/api/src/auth/auth.service.ts` — inject `ConfigService`; add `login(dto): Promise<LoginResponse>`.
 - `apps/api/src/auth/auth.controller.ts` — add `@Post('login') @Public() @HttpCode(200) login(...)`.
-- `packages/shared-types/src/v1/auth.ts` — add `LoginRequest`/`LoginResponse`.
 - `docs/architecture.md` — note the login proxy (auth authority stays with
   Supabase; backend forwards, never stores passwords).
 - Config: uses existing `SUPABASE_URL` + `SUPABASE_ANON_KEY` (no env changes).
