@@ -20,6 +20,10 @@ Supabase is responsible for:
 
 The backend never stores passwords.
 
+The backend verifies access tokens with the project's **asymmetric JWT signing
+key (ES256)**, fetched from `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`. There
+is no shared `SUPABASE_JWT_SECRET`.
+
 ## Tech Stack
 
 - NestJS
