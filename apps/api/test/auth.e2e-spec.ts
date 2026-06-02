@@ -3,25 +3,37 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { UserRole } from '../src/generated/prisma/client';
 import { AppModule } from '../src/app.module';
-import { signSupabaseJwt } from './helpers/sign-jwt';
+import { signSupabaseJwt, startJwksServer, JwksServer } from './helpers/jwks';
 
 describe('Auth (e2e)', () => {
   let app: INestApplication;
+  let jwks: JwksServer;
 
   beforeAll(async () => {
+    // Start the local JWKS server and point the app at it BEFORE creation, so
+    // the strategy builds its jwksUri/issuer from this URL.
+    jwks = await startJwksServer();
+    process.env.SUPABASE_URL = jwks.url;
+
+    // ConfigModule.forRoot() captures process.env when AppModule is first
+    // imported (synchronously, before compile()). Override ConfigService so the
+    // strategy builds its jwksUri/issuer from the live process.env, not the
+    // snapshot taken at import time.
+    const { ConfigService } = await import('@nestjs/config');
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(ConfigService)
+      .useValue({ getOrThrow: (key: string) => process.env[key] })
+      .compile();
     app = moduleRef.createNestApplication();
-    // ValidationPipe + AllExceptionsFilter are global APP_PIPE/APP_FILTER
-    // providers in AppModule, so they apply here automatically. Only URI
-    // versioning is configured on the app instance.
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
     await app.init();
   });
 
   afterAll(async () => {
     await app.close();
+    await jwks.close();
   });
 
   it('rejects requests without a token (401)', async () => {
