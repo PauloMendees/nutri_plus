@@ -71,7 +71,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    const data = (await response.json()) as SupabaseTokenResponse;
+    let data: SupabaseTokenResponse;
+    try {
+      data = (await response.json()) as SupabaseTokenResponse;
+    } catch {
+      throw new BadGatewayException('Auth provider returned an unexpected response');
+    }
     return {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
