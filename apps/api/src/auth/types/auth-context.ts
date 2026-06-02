@@ -1,4 +1,4 @@
-import { NutritionistProfile, PatientProfile, User } from '@prisma/client';
+import { NutritionistProfile, PatientProfile, User } from '../../generated/prisma/client';
 
 export type LocalUser = User & {
   nutritionistProfile: NutritionistProfile | null;

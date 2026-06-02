@@ -1,5 +1,5 @@
 import { ConflictException } from '@nestjs/common';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../generated/prisma/client';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { AuthContext } from './types/auth-context';

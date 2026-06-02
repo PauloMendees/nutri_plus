@@ -1,7 +1,7 @@
 import { INestApplication, VersioningType } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../src/generated/prisma/client';
 import { AppModule } from '../src/app.module';
 import { signSupabaseJwt } from './helpers/sign-jwt';
 
