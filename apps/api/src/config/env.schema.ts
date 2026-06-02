@@ -4,7 +4,6 @@ export const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().min(1),
-  SUPABASE_JWT_SECRET: z.string().min(1),
   OPENAI_API_KEY: z.string().min(1),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
 });
