@@ -24,6 +24,11 @@ The backend verifies access tokens with the project's **asymmetric JWT signing
 key (ES256)**, fetched from `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`. There
 is no shared `SUPABASE_JWT_SECRET`.
 
+For manual testing before the frontend exists, the backend exposes a thin login
+proxy `POST /v1/auth/login` that forwards email+password to Supabase's password
+grant and returns the session. Supabase remains the auth authority; the backend
+forwards credentials over TLS and never stores them.
+
 ## Tech Stack
 
 - NestJS
