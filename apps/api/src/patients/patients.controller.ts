@@ -25,7 +25,7 @@ export class PatientsController {
   }
 
   @Get(':id')
-  get(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
+  findOne(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
     return this.patients.getPatient(ctx, id);
   }
 
