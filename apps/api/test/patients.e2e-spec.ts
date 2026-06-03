@@ -53,6 +53,9 @@ describe('Patients (e2e)', () => {
     await jwks.close();
   });
 
+  // Fixed subs are intentional: setup-e2e.ts truncates all tables before each
+  // test, so re-syncing with the same sub recreates the actor from scratch
+  // (the sync-user create path), keeping every test independent.
   beforeEach(async () => {
     nutA = await syncUser({
       sub: 'nutA',
@@ -157,6 +160,13 @@ describe('Patients (e2e)', () => {
     expect(res.body).toHaveLength(2);
     expect(res.body[0].weight).toBe(78); // newest first
     expect(res.body[1].weight).toBe(80);
+
+    const detail = await request(app.getHttpServer())
+      .get(`/v1/patients/${patientId()}`)
+      .set('Authorization', `Bearer ${nutA.token}`)
+      .expect(200);
+    expect(detail.body.assessments).toHaveLength(1);
+    expect(detail.body.assessments[0].weight).toBe(78); // latest only (take: 1)
   });
 
   it('rejects a PATIENT token on patient management routes (403)', async () => {
