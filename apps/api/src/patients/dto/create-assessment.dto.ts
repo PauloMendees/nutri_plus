@@ -11,9 +11,9 @@ import {
   Min,
 } from 'class-validator';
 
-// Every field optional. Body metrics are >= 0 (zero is meaningful for some
-// indices; negatives are not). assessmentDate defaults to now() in the DB when
-// omitted.
+// Every field optional. Most body metrics are >= 0 (zero is meaningful for some
+// indices), but weight and basalMetabolicRate must be strictly positive (zero is
+// a data error). assessmentDate defaults to now() in the DB when omitted.
 export class CreateAssessmentDto {
   @IsOptional()
   @Type(() => Date)

@@ -141,6 +141,21 @@ describe('Patients (e2e)', () => {
       .expect(400);
   });
 
+  it('rejects re-assigning a patient via a non-whitelisted field (400) and leaves the link intact', async () => {
+    await request(app.getHttpServer())
+      .patch(`/v1/patients/${patientId()}`)
+      .set('Authorization', `Bearer ${nutA.token}`)
+      .send({ nutritionistId: nutB.body.nutritionistProfile.id })
+      .expect(400);
+
+    // The ownership link is unchanged: the patient still belongs to nutA.
+    const res = await request(app.getHttpServer())
+      .get(`/v1/patients/${patientId()}`)
+      .set('Authorization', `Bearer ${nutA.token}`)
+      .expect(200);
+    expect(res.body.nutritionistId).toBe(nutA.body.nutritionistProfile.id);
+  });
+
   it('creates and lists assessments newest-first', async () => {
     await request(app.getHttpServer())
       .post(`/v1/patients/${patientId()}/assessments`)
