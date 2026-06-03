@@ -222,6 +222,12 @@ The `@CurrentUser()` decorator and `AuthContext` already supply
   - Invalid DTO body → `400`.
 - All existing suites (24 unit + 8 e2e) must remain green.
 
+The dev/runtime database is the hosted **Supabase** Postgres (`.env`
+`DATABASE_URL`); `prisma migrate dev` applies the new migration there. The e2e
+suite is isolated on its own database (`TEST_DATABASE_URL`, default local
+`nutri_plus_test`) and never touches Supabase — so it requires a local Postgres
+to be running.
+
 ## Out of scope
 
 Patient self-service endpoints (step 07), creating/deleting patients via API,
