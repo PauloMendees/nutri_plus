@@ -37,6 +37,9 @@ export class PatientsService {
 
   async updatePatient(ctx: AuthContext, id: string, dto: UpdatePatientDto) {
     await this.requireOwned(ctx, id);
+    // Check-then-act is acceptable here: a nutritionist only ever touches their
+    // own patients and patient re-assignment is out of MVP scope. update() must
+    // target by primary key, so ownership can't be folded into this call.
     return this.prisma.patientProfile.update({ where: { id }, data: dto });
   }
 
@@ -50,7 +53,10 @@ export class PatientsService {
   async listAssessments(ctx: AuthContext, id: string) {
     await this.requireOwned(ctx, id);
     return this.prisma.bodyAssessment.findMany({
-      where: { patientId: id },
+      where: {
+        patientId: id,
+        patient: { nutritionistId: this.nutritionistId(ctx) },
+      },
       orderBy: { assessmentDate: 'desc' },
     });
   }

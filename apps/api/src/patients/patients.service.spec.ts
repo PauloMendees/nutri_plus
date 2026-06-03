@@ -103,6 +103,10 @@ describe('PatientsService', () => {
     const dto = { weight: 80 } as any;
     const result = await service.createAssessment(ctx, 'p1', dto);
 
+    expect(prisma.patientProfile.findFirst).toHaveBeenCalledWith({
+      where: { id: 'p1', nutritionistId: 'nutri-1' },
+      select: { id: true },
+    });
     expect(prisma.bodyAssessment.create).toHaveBeenCalledWith({
       data: { weight: 80, patientId: 'p1' },
     });
@@ -118,14 +122,28 @@ describe('PatientsService', () => {
     expect(prisma.bodyAssessment.create).not.toHaveBeenCalled();
   });
 
+  it('throws ForbiddenException on update when the context has no nutritionist profile', async () => {
+    await expect(
+      service.updatePatient(ctxWithNutritionist(null), 'p1', { height: 180 } as any),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.patientProfile.update).not.toHaveBeenCalled();
+  });
+
   it('lists assessments newest-first for an owned patient', async () => {
     prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
     prisma.bodyAssessment.findMany.mockResolvedValue([{ id: 'a1' }] as any);
 
     const result = await service.listAssessments(ctx, 'p1');
 
+    expect(prisma.patientProfile.findFirst).toHaveBeenCalledWith({
+      where: { id: 'p1', nutritionistId: 'nutri-1' },
+      select: { id: true },
+    });
     expect(prisma.bodyAssessment.findMany).toHaveBeenCalledWith({
-      where: { patientId: 'p1' },
+      where: {
+        patientId: 'p1',
+        patient: { nutritionistId: 'nutri-1' },
+      },
       orderBy: { assessmentDate: 'desc' },
     });
     expect(result).toEqual([{ id: 'a1' }]);
