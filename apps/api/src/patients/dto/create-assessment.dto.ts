@@ -4,6 +4,7 @@ import {
   IsInt,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
   MaxDate,
   MaxLength,
@@ -21,8 +22,7 @@ export class CreateAssessmentDto {
   assessmentDate?: Date;
 
   @IsOptional()
-  @IsNumber()
-  @Min(0)
+  @IsPositive()
   weight?: number;
 
   @IsOptional()
@@ -46,8 +46,7 @@ export class CreateAssessmentDto {
   visceralFat?: number;
 
   @IsOptional()
-  @IsNumber()
-  @Min(0)
+  @IsPositive()
   basalMetabolicRate?: number;
 
   @IsOptional()
