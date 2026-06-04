@@ -5,6 +5,7 @@ describe('validateEnv', () => {
     DATABASE_URL: 'postgresql://postgres:1234@localhost:5432/nutri_plus?schema=public',
     SUPABASE_URL: 'https://x.supabase.co',
     SUPABASE_ANON_KEY: 'anon',
+    SUPABASE_SERVICE_ROLE_KEY: 'service-role',
     OPENAI_API_KEY: 'sk-test',
   };
 
