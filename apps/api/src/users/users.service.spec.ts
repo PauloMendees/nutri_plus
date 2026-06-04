@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Prisma, UserRole } from '../generated/prisma/client';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../prisma/prisma.service';
@@ -148,5 +148,49 @@ describe('UsersService', () => {
       include: { nutritionistProfile: true, patientProfile: true },
     });
     expect(result).toEqual({ id: 'user-8' });
+  });
+
+  it('creates an invited patient linked to the nutritionist with clinical fields', async () => {
+    prisma.user.create.mockResolvedValue({
+      id: 'u1',
+      patientProfile: { id: 'pp1' },
+    } as any);
+
+    await service.createInvitedPatient({
+      authProviderId: 'sub-1',
+      email: 'p@x.com',
+      name: 'Pat',
+      nutritionistId: 'nutri-1',
+      clinical: { height: 165 } as any,
+    });
+
+    const arg = prisma.user.create.mock.calls[0][0] as any;
+    expect(arg.data.role).toBe(UserRole.PATIENT);
+    expect(arg.data.authProvider).toBe('SUPABASE');
+    expect(arg.data.authProviderId).toBe('sub-1');
+    expect(arg.data.email).toBe('p@x.com');
+    expect(arg.data.patientProfile.create).toEqual({
+      nutritionistId: 'nutri-1',
+      height: 165,
+    });
+  });
+
+  it('maps a duplicate email to ConflictException', async () => {
+    const dup = new Prisma.PrismaClientKnownRequestError('Unique constraint', {
+      code: 'P2002',
+      clientVersion: 'test',
+      meta: { target: ['email'] },
+    });
+    prisma.user.create.mockRejectedValue(dup);
+
+    await expect(
+      service.createInvitedPatient({
+        authProviderId: 'sub-2',
+        email: 'dup@x.com',
+        name: 'Dup',
+        nutritionistId: 'nutri-1',
+        clinical: {} as any,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 });
