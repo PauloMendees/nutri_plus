@@ -9,6 +9,7 @@ process.env.DATABASE_URL =
   'postgresql://postgres:1234@localhost:5432/nutri_plus_test?schema=public';
 process.env.SUPABASE_URL = 'https://test.supabase.co';
 process.env.SUPABASE_ANON_KEY = 'test-anon';
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role';
 process.env.OPENAI_API_KEY = 'sk-test';
 
 // Prisma 7 requires a driver adapter for the standalone truncation client.
@@ -26,6 +27,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   // Order matters: children before parents (FK constraints).
+  await prisma.bodyAssessment.deleteMany();
   await prisma.patientProfile.deleteMany();
   await prisma.nutritionistProfile.deleteMany();
   await prisma.user.deleteMany();

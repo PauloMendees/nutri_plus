@@ -14,6 +14,28 @@ enum UserRole {
   PATIENT
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum PatientObjective {
+  WEIGHT_LOSS
+  MUSCLE_GAIN
+  MAINTENANCE
+  RECOMPOSITION
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+}
+
 model User {
   id             String   @id @default(uuid())
   authProvider   String
@@ -48,8 +70,53 @@ model PatientProfile {
   user           User     @relation(fields: [userId], references: [id])
   nutritionistId String?
   nutritionist   NutritionistProfile? @relation(fields: [nutritionistId], references: [id])
+
+  birthDate         DateTime?
+  gender            Gender?
+  height            Float?  // centimeters
+  targetWeight      Float?  // kilograms
+  objective         PatientObjective?
+  activityLevel     ActivityLevel?
+  restrictions      String?
+  allergies         String?
+  medicalConditions String?
+  notes             String?
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  assessments    BodyAssessment[]
+
   @@index([nutritionistId])
+}
+
+// Immutable historical record (see docs/3.1-patient-domain-mode.md): no @updatedAt,
+// and the patient FK uses Prisma's default ON DELETE RESTRICT intentionally —
+// patient deletion is out of MVP scope, so assessments must not be orphaned/cascaded.
+model BodyAssessment {
+  id             String   @id @default(uuid())
+  patientId      String
+  patient        PatientProfile @relation(fields: [patientId], references: [id])
+  assessmentDate DateTime @default(now())
+
+  weight              Float?
+  bodyFatPercentage   Float?
+  muscleMass          Float?
+  leanMass            Float?
+  visceralFat         Float?
+  basalMetabolicRate  Float?
+  bodyWaterPercentage Float?
+  boneMass            Float?
+  metabolicAge        Int?
+
+  waistCircumference  Float?
+  hipCircumference    Float?
+  chestCircumference  Float?
+  armCircumference    Float?
+  thighCircumference  Float?
+
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  @@index([patientId, assessmentDate])
 }
