@@ -1,13 +1,24 @@
-import { INestApplication, VersioningType } from '@nestjs/common';
+import { INestApplication, VersioningType, ConflictException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { UserRole } from '../src/generated/prisma/client';
 import { AppModule } from '../src/app.module';
 import { signSupabaseJwt, startJwksServer, JwksServer } from './helpers/jwks';
+import { SupabaseAdminService } from '../src/supabase/supabase-admin.service';
 
 describe('Patients (e2e)', () => {
   let app: INestApplication;
   let jwks: JwksServer;
+
+  const fakeAdmin = {
+    invitePatient: jest.fn(async (email: string) => {
+      if (email === 'dup@x.com') {
+        throw new ConflictException('A user with this email already exists');
+      }
+      return { id: `sub-${email}` };
+    }),
+    deleteUser: jest.fn(async () => undefined),
+  };
 
   // Sync a user via the existing auth flow; returns the JWT and the sync body.
   async function syncUser(opts: {
@@ -42,6 +53,8 @@ describe('Patients (e2e)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(ConfigService)
       .useValue({ getOrThrow: (key: string) => process.env[key] })
+      .overrideProvider(SupabaseAdminService)
+      .useValue(fakeAdmin)
       .compile();
     app = moduleRef.createNestApplication();
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
@@ -189,5 +202,51 @@ describe('Patients (e2e)', () => {
       .get('/v1/patients')
       .set('Authorization', `Bearer ${patient.token}`)
       .expect(403);
+  });
+
+  describe('POST /v1/patients', () => {
+    it('creates and links a patient, then lists it under the nutritionist', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/v1/patients')
+        .set('Authorization', `Bearer ${nutA.token}`)
+        .send({ name: 'New Patient', email: 'new@x.com', height: 170 })
+        .expect(201);
+
+      expect(res.body.user.email).toBe('new@x.com');
+      expect(res.body.user.name).toBe('New Patient');
+      expect(res.body.nutritionistId).toBe(nutA.body.nutritionistProfile.id);
+      expect(res.body.height).toBe(170);
+
+      const list = await request(app.getHttpServer())
+        .get('/v1/patients')
+        .set('Authorization', `Bearer ${nutA.token}`)
+        .expect(200);
+      const emails = list.body.map((p: any) => p.user.email);
+      expect(emails).toContain('new@x.com');
+    });
+
+    it('rejects a missing email (400)', async () => {
+      await request(app.getHttpServer())
+        .post('/v1/patients')
+        .set('Authorization', `Bearer ${nutA.token}`)
+        .send({ name: 'No Email' })
+        .expect(400);
+    });
+
+    it('returns 409 when the email already exists in Supabase', async () => {
+      await request(app.getHttpServer())
+        .post('/v1/patients')
+        .set('Authorization', `Bearer ${nutA.token}`)
+        .send({ name: 'Dup', email: 'dup@x.com' })
+        .expect(409);
+    });
+
+    it('rejects a PATIENT token (403)', async () => {
+      await request(app.getHttpServer())
+        .post('/v1/patients')
+        .set('Authorization', `Bearer ${patient.token}`)
+        .send({ name: 'X', email: 'x@x.com' })
+        .expect(403);
+    });
   });
 });

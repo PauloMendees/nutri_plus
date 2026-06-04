@@ -124,3 +124,14 @@ Do not implement:
 - image analysis
 - messaging
 - notifications
+
+---
+
+# Nutritionist-Created Patients (update)
+
+Patients can now be **created by the nutritionist** during the consultation via
+`POST /v1/patients` (name + email + optional clinical fields). The backend invites
+the patient through the Supabase Admin API and creates the linked record in one
+step — see `docs/superpowers/specs/2026-06-04-nutritionist-created-patients-design.md`.
+The earlier "patients self-onboard only" assumption no longer holds; `sync-user`
+remains for nutritionist onboarding and for an invited patient's first login.
