@@ -9,5 +9,6 @@ export class CreatePatientDto extends UpdatePatientDto {
   name!: string;
 
   @IsEmail()
+  @MaxLength(320)
   email!: string;
 }
