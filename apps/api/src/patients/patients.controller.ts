@@ -6,6 +6,7 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '../generated/prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -14,6 +15,8 @@ import { PatientsService } from './patients.service';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 
+@ApiTags('patients')
+@ApiBearerAuth()
 @Controller({ path: 'patients', version: '1' })
 @Roles(UserRole.NUTRITIONIST)
 export class PatientsController {
