@@ -72,7 +72,12 @@ export class SupabaseAdminService {
   // masks the original failure that triggered the rollback.
   async deleteUser(id: string): Promise<void> {
     try {
-      await this.client.auth.admin.deleteUser(id);
+      const { error } = await this.client.auth.admin.deleteUser(id);
+      if (error) {
+        this.logger.error(
+          `Failed to roll back invited user ${id} (code=${error.status ?? 'unknown'})`,
+        );
+      }
     } catch (error) {
       this.logger.error(`Failed to roll back invited user ${id}`, error as Error);
     }
