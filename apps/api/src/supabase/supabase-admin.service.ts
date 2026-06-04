@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { AuthApiError, createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Wraps the Supabase Admin API (service-role key). Used to invite a patient by
 // email at creation time and to roll back (delete) the created auth user if the
@@ -42,15 +42,30 @@ export class SupabaseAdminService {
     }
 
     if (result.error) {
-      const status = result.error.status;
+      const code =
+        result.error instanceof AuthApiError ? result.error.code : undefined;
       const message = result.error.message ?? '';
-      if (status === 422 || /already|registered|exists/i.test(message)) {
+      if (
+        code === 'email_exists' ||
+        code === 'user_already_exists' ||
+        /already|registered|exists/i.test(message)
+      ) {
         throw new ConflictException('A user with this email already exists');
       }
+      // No PII: only the error code/status, never the email or response body.
+      this.logger.warn(
+        `Supabase invite failed (code=${code ?? 'unknown'}, status=${result.error.status ?? 'unknown'})`,
+      );
       throw new BadGatewayException('Failed to invite user');
     }
 
-    return { id: result.data.user.id };
+    const userId = result.data.user?.id;
+    if (!userId) {
+      throw new BadGatewayException(
+        'Auth provider returned an unexpected response',
+      );
+    }
+    return { id: userId };
   }
 
   // Best-effort rollback of an invited user. Swallows errors (logged) so it never
