@@ -5,14 +5,51 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/types/auth-context';
+import { UsersService } from '../users/users.service';
+import { SupabaseAdminService } from '../supabase/supabase-admin.service';
 import { UpdatePatientDto } from './dto/update-patient.dto';
+import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 
 const USER_SUMMARY = { select: { id: true, name: true, email: true } } as const;
 
 @Injectable()
 export class PatientsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly users: UsersService,
+    private readonly supabaseAdmin: SupabaseAdminService,
+  ) {}
+
+  // Registers a patient during the consultation: invite via the Supabase Admin
+  // API (creates the auth identity + emails the patient), then create the linked
+  // local record. If the local write fails, the invited auth user is rolled back.
+  async createPatient(ctx: AuthContext, dto: CreatePatientDto) {
+    const nutritionistId = this.nutritionistId(ctx);
+    const { name, email, ...clinical } = dto;
+
+    const { id: authProviderId } = await this.supabaseAdmin.invitePatient(email, {
+      name,
+    });
+
+    let profileId: string;
+    try {
+      const localUser = await this.users.createInvitedPatient({
+        authProviderId,
+        email,
+        name,
+        nutritionistId,
+        clinical,
+      });
+      // A patient is always created with a nested profile, so this is non-null.
+      profileId = localUser.patientProfile!.id;
+    } catch (error) {
+      await this.supabaseAdmin.deleteUser(authProviderId);
+      throw error;
+    }
+
+    return this.getPatient(ctx, profileId);
+  }
 
   async listPatients(ctx: AuthContext) {
     return this.prisma.patientProfile.findMany({

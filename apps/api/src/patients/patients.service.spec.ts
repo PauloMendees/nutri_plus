@@ -1,7 +1,9 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../prisma/prisma.service';
 import { PatientsService } from './patients.service';
+import { UsersService } from '../users/users.service';
+import { SupabaseAdminService } from '../supabase/supabase-admin.service';
 import { AuthContext } from '../auth/types/auth-context';
 
 function ctxWithNutritionist(nutritionistId: string | null): AuthContext {
@@ -20,12 +22,16 @@ function ctxWithNutritionist(nutritionistId: string | null): AuthContext {
 
 describe('PatientsService', () => {
   let prisma: DeepMockProxy<PrismaService>;
+  let users: DeepMockProxy<UsersService>;
+  let supabaseAdmin: DeepMockProxy<SupabaseAdminService>;
   let service: PatientsService;
   const ctx = ctxWithNutritionist('nutri-1');
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
-    service = new PatientsService(prisma);
+    users = mockDeep<UsersService>();
+    supabaseAdmin = mockDeep<SupabaseAdminService>();
+    service = new PatientsService(prisma, users, supabaseAdmin);
   });
 
   it('lists only patients linked to the nutritionist', async () => {
@@ -147,5 +153,55 @@ describe('PatientsService', () => {
       orderBy: { assessmentDate: 'desc' },
     });
     expect(result).toEqual([{ id: 'a1' }]);
+  });
+
+  describe('createPatient', () => {
+    const dto = { name: 'Ann', email: 'a@x.com', height: 160 } as any;
+
+    it('invites the patient then creates the linked local record', async () => {
+      supabaseAdmin.invitePatient.mockResolvedValue({ id: 'sub-new' });
+      users.createInvitedPatient.mockResolvedValue({
+        patientProfile: { id: 'pp1' },
+      } as any);
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'pp1' } as any);
+
+      const result = await service.createPatient(ctx, dto);
+
+      expect(supabaseAdmin.invitePatient).toHaveBeenCalledWith('a@x.com', {
+        name: 'Ann',
+      });
+      expect(users.createInvitedPatient).toHaveBeenCalledWith({
+        authProviderId: 'sub-new',
+        email: 'a@x.com',
+        name: 'Ann',
+        nutritionistId: 'nutri-1',
+        clinical: { height: 160 },
+      });
+      expect(prisma.patientProfile.findFirst).toHaveBeenCalledWith({
+        where: { id: 'pp1', nutritionistId: 'nutri-1' },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
+        },
+      });
+      expect(result).toEqual({ id: 'pp1' });
+    });
+
+    it('rolls back the invited user when the local write fails', async () => {
+      supabaseAdmin.invitePatient.mockResolvedValue({ id: 'sub-new' });
+      users.createInvitedPatient.mockRejectedValue(new ConflictException('dup'));
+
+      await expect(service.createPatient(ctx, dto)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+      expect(supabaseAdmin.deleteUser).toHaveBeenCalledWith('sub-new');
+    });
+
+    it('does not invite when the caller has no nutritionist profile', async () => {
+      await expect(
+        service.createPatient(ctxWithNutritionist(null), dto),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(supabaseAdmin.invitePatient).not.toHaveBeenCalled();
+    });
   });
 });

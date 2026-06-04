@@ -14,6 +14,7 @@ import { AuthContext } from '../auth/types/auth-context';
 import { PatientsService } from './patients.service';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
+import { CreatePatientDto } from './dto/create-patient.dto';
 
 @ApiTags('patients')
 @ApiBearerAuth()
@@ -21,6 +22,11 @@ import { CreateAssessmentDto } from './dto/create-assessment.dto';
 @Roles(UserRole.NUTRITIONIST)
 export class PatientsController {
   constructor(private readonly patients: PatientsService) {}
+
+  @Post()
+  create(@CurrentUser() ctx: AuthContext, @Body() dto: CreatePatientDto) {
+    return this.patients.createPatient(ctx, dto);
+  }
 
   @Get()
   list(@CurrentUser() ctx: AuthContext) {
