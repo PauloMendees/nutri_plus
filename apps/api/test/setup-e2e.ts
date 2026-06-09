@@ -27,6 +27,9 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   // Order matters: children before parents (FK constraints).
+  await prisma.mealItem.deleteMany();
+  await prisma.meal.deleteMany();
+  await prisma.mealPlan.deleteMany();
   await prisma.bodyAssessment.deleteMany();
   await prisma.patientProfile.deleteMany();
   await prisma.nutritionistProfile.deleteMany();
