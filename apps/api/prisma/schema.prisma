@@ -86,6 +86,7 @@ model PatientProfile {
   updatedAt      DateTime @updatedAt
 
   assessments    BodyAssessment[]
+  mealPlans      MealPlan[]
 
   @@index([nutritionistId])
 }
@@ -119,4 +120,52 @@ model BodyAssessment {
   createdAt      DateTime @default(now())
 
   @@index([patientId, assessmentDate])
+}
+
+// A meal plan is a mutable, owned aggregate (plan -> meals -> items). Unlike
+// BodyAssessment (immutable history, RESTRICT), child rows use onDelete: Cascade:
+// deleting a plan, or replacing its tree on PATCH, removes its meals and items in
+// one DB operation. title/name/foodName/quantity are nullable to support drafts
+// (autosave / finish-later); only patientId is required.
+model MealPlan {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     PatientProfile @relation(fields: [patientId], references: [id])
+  title       String?
+  objective   String?
+  aiGenerated Boolean  @default(false) // server-controlled; always false in Step 04
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  meals       Meal[]
+
+  @@index([patientId])
+}
+
+model Meal {
+  id           String   @id @default(uuid())
+  mealPlanId   String
+  mealPlan     MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  name         String?
+  timeLabel    String?
+  instructions String?
+  order        Int      // sequence within the plan; server-assigned from array index
+  createdAt    DateTime @default(now())
+  items        MealItem[]
+
+  @@index([mealPlanId])
+}
+
+model MealItem {
+  id       String  @id @default(uuid())
+  mealId   String
+  meal     Meal    @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  foodName String?
+  quantity String?
+  calories Float?
+  protein  Float?
+  carbs    Float?
+  fats     Float?
+  order    Int     // sequence within the meal; server-assigned from array index
+
+  @@index([mealId])
 }
