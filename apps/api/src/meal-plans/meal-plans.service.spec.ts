@@ -214,6 +214,24 @@ describe('MealPlansService', () => {
       });
     });
 
+    it('clears the whole tree when meals is an empty array', async () => {
+      prisma.mealPlan.findFirst.mockResolvedValue({ id: 'mp1' } as any);
+      prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
+      prisma.meal.deleteMany.mockResolvedValue({ count: 2 } as any);
+      prisma.mealPlan.update.mockResolvedValue({ id: 'mp1' } as any);
+
+      await service.updatePlan(ctx, 'mp1', { meals: [] } as any);
+
+      expect(prisma.meal.deleteMany).toHaveBeenCalledWith({
+        where: { mealPlanId: 'mp1' },
+      });
+      expect(prisma.mealPlan.update).toHaveBeenCalledWith({
+        where: { id: 'mp1' },
+        data: { meals: { create: [] } },
+        include: FULL_TREE,
+      });
+    });
+
     it('throws NotFound and does not write when the plan is not owned', async () => {
       prisma.mealPlan.findFirst.mockResolvedValue(null);
 
