@@ -138,7 +138,9 @@ model MealPlan {
   updatedAt   DateTime @updatedAt
   meals       Meal[]
 
-  @@index([patientId])
+  // Composite to serve `where patientId order by createdAt desc` (the list query)
+  // with a single ordered index scan — mirrors BodyAssessment's @@index.
+  @@index([patientId, createdAt])
 }
 
 model Meal {

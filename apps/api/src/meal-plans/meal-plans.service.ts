@@ -30,7 +30,7 @@ export class MealPlansService {
       data: {
         ...top,
         patientId,
-        ...(meals ? { meals: this.mealsCreateInput(meals) } : {}),
+        meals: meals ? this.mealsCreateInput(meals) : undefined,
       },
       include: FULL_TREE,
     });
@@ -116,13 +116,9 @@ export class MealPlansService {
         timeLabel: m.timeLabel,
         instructions: m.instructions,
         order: i,
-        ...(m.items
-          ? {
-              items: {
-                create: m.items.map((it, j) => ({ ...it, order: j })),
-              },
-            }
-          : {}),
+        items: m.items
+          ? { create: m.items.map((it, j) => ({ ...it, order: j })) }
+          : undefined,
       })),
     };
   }
