@@ -12,7 +12,7 @@ import { MealDto } from './meal.dto';
 // patientId is the only required field — the ownership anchor. Everything else is
 // optional so a nutritionist can save a partial draft and finish later. A minimal
 // valid body is `{ patientId }`. aiGenerated is NOT accepted from input (the global
-// ValidationPipe strips/rejects it); the server always sets false in Step 04.
+// ValidationPipe rejects it with a 400); the server always sets false in Step 04.
 export class CreateMealPlanDto {
   @IsUUID()
   patientId!: string;

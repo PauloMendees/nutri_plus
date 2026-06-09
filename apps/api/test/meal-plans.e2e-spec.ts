@@ -37,6 +37,7 @@ describe('Meal Plans (e2e)', () => {
   let nutA: { token: string; body: any };
   let nutB: { token: string; body: any };
   let patient: { token: string; body: any };
+  let patientB: { token: string; body: any };
 
   beforeAll(async () => {
     jwks = await startJwksServer();
@@ -75,6 +76,13 @@ describe('Meal Plans (e2e)', () => {
       sub: 'patP',
       email: 'p@x.com',
       name: 'Pat P',
+      role: UserRole.PATIENT,
+      referralCode: nutA.body.nutritionistProfile.referralCode,
+    });
+    patientB = await syncUser({
+      sub: 'patB',
+      email: 'pb@x.com',
+      name: 'Pat B',
       role: UserRole.PATIENT,
       referralCode: nutA.body.nutritionistProfile.referralCode,
     });
@@ -270,6 +278,26 @@ describe('Meal Plans (e2e)', () => {
       .set('Authorization', `Bearer ${patient.token}`)
       .expect(200);
     expect(detail.body.meals).toHaveLength(2);
+  });
+
+  it('returns 404 when a patient reads another patient plan via /me/meal-plans', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/v1/meal-plans')
+      .set('Authorization', `Bearer ${nutA.token}`)
+      .send(fullTreeBody())
+      .expect(201);
+
+    // fullTreeBody() targets `patient` (Pat P); patientB must not see it.
+    await request(app.getHttpServer())
+      .get(`/v1/me/meal-plans/${created.body.id}`)
+      .set('Authorization', `Bearer ${patientB.token}`)
+      .expect(404);
+
+    const list = await request(app.getHttpServer())
+      .get('/v1/me/meal-plans')
+      .set('Authorization', `Bearer ${patientB.token}`)
+      .expect(200);
+    expect(list.body).toHaveLength(0);
   });
 
   it('rejects role mismatches (403)', async () => {
