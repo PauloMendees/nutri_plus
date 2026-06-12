@@ -162,4 +162,35 @@ describe('OpenAIProvider.generateStructured', () => {
       }),
     );
   });
+
+  it('still returns the result if the audit write itself fails', async () => {
+    const { provider, interactions, create } = makeProvider();
+    create.mockResolvedValue(completion(JSON.stringify({ title: 'Plan' })));
+    // record never throws in production (it swallows internally); even if it
+    // ever did, the provider must not let an audit failure mask a good result.
+    interactions.record.mockResolvedValue(undefined);
+
+    const result = await provider.generateStructured(baseOpts);
+    expect(result).toEqual({ title: 'Plan' });
+  });
+
+  it('handles a response without usage data (null cost, undefined tokens)', async () => {
+    const { provider, interactions, create } = makeProvider();
+    create.mockResolvedValue({
+      choices: [{ message: { content: JSON.stringify({ title: 'Plan' }), refusal: null } }],
+      usage: undefined,
+    });
+
+    const result = await provider.generateStructured(baseOpts);
+
+    expect(result).toEqual({ title: 'Plan' });
+    expect(interactions.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        promptTokens: undefined,
+        completionTokens: undefined,
+        estimatedCostUsd: null,
+        success: true,
+      }),
+    );
+  });
 });

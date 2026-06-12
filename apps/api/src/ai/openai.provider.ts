@@ -47,7 +47,12 @@ export class OpenAIProvider {
           { role: 'system', content: opts.system },
           { role: 'user', content: opts.user },
         ],
-        response_format: zodResponseFormat(opts.schema as never, opts.schemaName),
+        // Cast to `any` required: zodResponseFormat's z3/z4 overload union
+        // triggers TS2589 ("instantiation is excessively deep") when the
+        // schema parameter carries an unresolved generic T. The cast is purely
+        // structural — runtime behaviour is identical.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        response_format: zodResponseFormat(opts.schema as any, opts.schemaName),
       });
     } catch {
       await this.interactions.record({
