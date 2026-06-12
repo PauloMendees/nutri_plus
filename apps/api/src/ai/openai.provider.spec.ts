@@ -1,5 +1,5 @@
 import { BadGatewayException } from '@nestjs/common';
-import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
+import { mockDeep } from 'jest-mock-extended';
 import { z } from 'zod';
 import { OpenAIProvider } from './openai.provider';
 import { AiInteractionsService } from './ai-interactions.service';

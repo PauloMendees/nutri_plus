@@ -151,8 +151,8 @@ Step 06/07/08 designs must comply with this contract.
 
 ## Dependencies
 
-- `openai` (official SDK; pinned to a version whose `zodResponseFormat`
-  supports Zod 3 — the current 4.x/5.x line)
+- `openai` (official SDK; v6 line — its `zodResponseFormat` helper supports
+  the project's Zod 3)
 - No other new runtime dependencies. `zod` is already present.
 
 ## Testing strategy
