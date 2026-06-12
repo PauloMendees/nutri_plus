@@ -39,6 +39,10 @@ describe('Docs (e2e)', () => {
         '/v1/patients',
         '/v1/patients/{id}',
         '/v1/patients/{id}/assessments',
+        '/v1/meal-plans',
+        '/v1/meal-plans/{id}',
+        '/v1/me/meal-plans',
+        '/v1/me/meal-plans/{id}',
       ]),
     );
   });

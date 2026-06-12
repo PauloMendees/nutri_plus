@@ -1,0 +1,307 @@
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
+import { PrismaService } from '../prisma/prisma.service';
+import { MealPlansService } from './meal-plans.service';
+import { AuthContext } from '../auth/types/auth-context';
+
+const FULL_TREE = {
+  meals: {
+    orderBy: { order: 'asc' },
+    include: { items: { orderBy: { order: 'asc' } } },
+  },
+} as const;
+
+function nutCtx(nutritionistId: string | null): AuthContext {
+  return {
+    authProviderId: 'sub-n',
+    email: 'n@x.com',
+    name: 'Nut',
+    user: {
+      id: 'user-n',
+      role: 'NUTRITIONIST',
+      nutritionistProfile: nutritionistId ? { id: nutritionistId } : null,
+      patientProfile: null,
+    } as any,
+  };
+}
+
+function patCtx(patientProfileId: string | null): AuthContext {
+  return {
+    authProviderId: 'sub-p',
+    email: 'p@x.com',
+    name: 'Pat',
+    user: {
+      id: 'user-p',
+      role: 'PATIENT',
+      nutritionistProfile: null,
+      patientProfile: patientProfileId ? { id: patientProfileId } : null,
+    } as any,
+  };
+}
+
+describe('MealPlansService', () => {
+  let prisma: DeepMockProxy<PrismaService>;
+  let service: MealPlansService;
+  const ctx = nutCtx('nutri-1');
+
+  beforeEach(() => {
+    prisma = mockDeep<PrismaService>();
+    service = new MealPlansService(prisma);
+  });
+
+  describe('createPlan', () => {
+    it('verifies patient ownership then creates the nested tree with server-assigned order', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+      prisma.mealPlan.create.mockResolvedValue({ id: 'mp1' } as any);
+
+      const dto = {
+        patientId: 'p1',
+        title: 'Plan',
+        meals: [{ name: 'Breakfast', items: [{ foodName: 'Egg', quantity: '2' }] }],
+      } as any;
+      const result = await service.createPlan(ctx, dto);
+
+      expect(prisma.patientProfile.findFirst).toHaveBeenCalledWith({
+        where: { id: 'p1', nutritionistId: 'nutri-1' },
+        select: { id: true },
+      });
+      expect(prisma.mealPlan.create).toHaveBeenCalledWith({
+        data: {
+          title: 'Plan',
+          patientId: 'p1',
+          meals: {
+            create: [
+              {
+                name: 'Breakfast',
+                timeLabel: undefined,
+                instructions: undefined,
+                order: 0,
+                items: { create: [{ foodName: 'Egg', quantity: '2', order: 0 }] },
+              },
+            ],
+          },
+        },
+        include: FULL_TREE,
+      });
+      expect(result).toEqual({ id: 'mp1' });
+    });
+
+    it('creates a minimal { patientId } draft with no meals', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+      prisma.mealPlan.create.mockResolvedValue({ id: 'mp1' } as any);
+
+      await service.createPlan(ctx, { patientId: 'p1' } as any);
+
+      expect(prisma.mealPlan.create).toHaveBeenCalledWith({
+        data: { patientId: 'p1' },
+        include: FULL_TREE,
+      });
+    });
+
+    it('throws NotFound and does not create when the patient is not owned', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.createPlan(ctx, { patientId: 'other' } as any),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(prisma.mealPlan.create).not.toHaveBeenCalled();
+    });
+
+    it('throws Forbidden when the caller has no nutritionist profile', async () => {
+      await expect(
+        service.createPlan(nutCtx(null), { patientId: 'p1' } as any),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.patientProfile.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('listPlans', () => {
+    it('lists an owned patient plans newest-first (summary, no items)', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+      prisma.mealPlan.findMany.mockResolvedValue([{ id: 'mp1' }] as any);
+
+      const result = await service.listPlans(ctx, 'p1');
+
+      expect(prisma.mealPlan.findMany).toHaveBeenCalledWith({
+        where: { patientId: 'p1', patient: { nutritionistId: 'nutri-1' } },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(result).toEqual([{ id: 'mp1' }]);
+    });
+
+    it('throws NotFound when the patient is not owned', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue(null);
+
+      await expect(service.listPlans(ctx, 'other')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(prisma.mealPlan.findMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getPlan', () => {
+    it('returns the full ordered tree for an owned plan', async () => {
+      prisma.mealPlan.findFirst.mockResolvedValue({ id: 'mp1' } as any);
+
+      const result = await service.getPlan(ctx, 'mp1');
+
+      expect(prisma.mealPlan.findFirst).toHaveBeenCalledWith({
+        where: { id: 'mp1', patient: { nutritionistId: 'nutri-1' } },
+        include: FULL_TREE,
+      });
+      expect(result).toEqual({ id: 'mp1' });
+    });
+
+    it('throws NotFound for a non-owned plan', async () => {
+      prisma.mealPlan.findFirst.mockResolvedValue(null);
+
+      await expect(service.getPlan(ctx, 'other')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('updatePlan', () => {
+    it('patches only top-level fields and leaves the tree untouched when meals is omitted', async () => {
+      prisma.mealPlan.findFirst.mockResolvedValue({ id: 'mp1' } as any);
+      prisma.mealPlan.update.mockResolvedValue({ id: 'mp1' } as any);
+
+      const result = await service.updatePlan(ctx, 'mp1', { title: 'New' } as any);
+
+      expect(prisma.mealPlan.update).toHaveBeenCalledWith({
+        where: { id: 'mp1' },
+        data: { title: 'New' },
+        include: FULL_TREE,
+      });
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.meal.deleteMany).not.toHaveBeenCalled();
+      expect(result).toEqual({ id: 'mp1' });
+    });
+
+    it('replaces the whole tree in a transaction when meals is present', async () => {
+      prisma.mealPlan.findFirst.mockResolvedValue({ id: 'mp1' } as any);
+      // Run the transaction callback against the same mock.
+      prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
+      prisma.meal.deleteMany.mockResolvedValue({ count: 1 } as any);
+      prisma.mealPlan.update.mockResolvedValue({ id: 'mp1' } as any);
+
+      const dto = {
+        title: 'New',
+        meals: [{ name: 'Lunch', items: [{ foodName: 'Rice', quantity: '100g' }] }],
+      } as any;
+      await service.updatePlan(ctx, 'mp1', dto);
+
+      expect(prisma.meal.deleteMany).toHaveBeenCalledWith({
+        where: { mealPlanId: 'mp1' },
+      });
+      expect(prisma.mealPlan.update).toHaveBeenCalledWith({
+        where: { id: 'mp1' },
+        data: {
+          title: 'New',
+          meals: {
+            create: [
+              {
+                name: 'Lunch',
+                timeLabel: undefined,
+                instructions: undefined,
+                order: 0,
+                items: { create: [{ foodName: 'Rice', quantity: '100g', order: 0 }] },
+              },
+            ],
+          },
+        },
+        include: FULL_TREE,
+      });
+    });
+
+    it('clears the whole tree when meals is an empty array', async () => {
+      prisma.mealPlan.findFirst.mockResolvedValue({ id: 'mp1' } as any);
+      prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
+      prisma.meal.deleteMany.mockResolvedValue({ count: 2 } as any);
+      prisma.mealPlan.update.mockResolvedValue({ id: 'mp1' } as any);
+
+      await service.updatePlan(ctx, 'mp1', { meals: [] } as any);
+
+      expect(prisma.meal.deleteMany).toHaveBeenCalledWith({
+        where: { mealPlanId: 'mp1' },
+      });
+      expect(prisma.mealPlan.update).toHaveBeenCalledWith({
+        where: { id: 'mp1' },
+        data: { meals: { create: [] } },
+        include: FULL_TREE,
+      });
+    });
+
+    it('throws NotFound and does not write when the plan is not owned', async () => {
+      prisma.mealPlan.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.updatePlan(ctx, 'other', { title: 'x' } as any),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(prisma.mealPlan.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deletePlan', () => {
+    it('deletes an owned plan (cascade removes meals/items)', async () => {
+      prisma.mealPlan.findFirst.mockResolvedValue({ id: 'mp1' } as any);
+      prisma.mealPlan.delete.mockResolvedValue({ id: 'mp1' } as any);
+
+      const result = await service.deletePlan(ctx, 'mp1');
+
+      expect(prisma.mealPlan.delete).toHaveBeenCalledWith({ where: { id: 'mp1' } });
+      expect(result).toEqual({ id: 'mp1' });
+    });
+
+    it('throws NotFound and does not delete when the plan is not owned', async () => {
+      prisma.mealPlan.findFirst.mockResolvedValue(null);
+
+      await expect(service.deletePlan(ctx, 'other')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(prisma.mealPlan.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('patient read', () => {
+    const pctx = patCtx('pp1');
+
+    it('lists the patient own plans newest-first', async () => {
+      prisma.mealPlan.findMany.mockResolvedValue([{ id: 'mp1' }] as any);
+
+      const result = await service.listMyPlans(pctx);
+
+      expect(prisma.mealPlan.findMany).toHaveBeenCalledWith({
+        where: { patientId: 'pp1' },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(result).toEqual([{ id: 'mp1' }]);
+    });
+
+    it('returns one own plan with the full tree', async () => {
+      prisma.mealPlan.findFirst.mockResolvedValue({ id: 'mp1' } as any);
+
+      const result = await service.getMyPlan(pctx, 'mp1');
+
+      expect(prisma.mealPlan.findFirst).toHaveBeenCalledWith({
+        where: { id: 'mp1', patientId: 'pp1' },
+        include: FULL_TREE,
+      });
+      expect(result).toEqual({ id: 'mp1' });
+    });
+
+    it('throws NotFound when the plan is not the patient own', async () => {
+      prisma.mealPlan.findFirst.mockResolvedValue(null);
+
+      await expect(service.getMyPlan(pctx, 'other')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('throws Forbidden when the caller has no patient profile', async () => {
+      await expect(service.listMyPlans(patCtx(null))).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
+  });
+});
