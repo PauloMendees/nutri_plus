@@ -178,14 +178,14 @@ enum AIInteractionType {
   OUTSIDE_HOME_SUGGESTION
 }
 
-// Audit trail for every AI call, successful or failed. The patient FK uses the
-// default ON DELETE RESTRICT intentionally (same reasoning as BodyAssessment):
-// audit rows must never cascade away. patientId is nullable because future
+// Audit trail for every AI call, successful or failed. The patient FK is explicitly
+// ON DELETE RESTRICT (nullable FKs default to SetNull in Prisma — not what we
+// want): audit rows must never cascade away or lose their patient linkage. patientId is nullable because future
 // interaction types may not be patient-scoped.
 model AIInteraction {
   id        String   @id @default(uuid())
   patientId String?
-  patient   PatientProfile? @relation(fields: [patientId], references: [id])
+  patient   PatientProfile? @relation(fields: [patientId], references: [id], onDelete: Restrict)
   type      AIInteractionType
   model     String           // literal model used (e.g. "gpt-4o-mini")
   input     Json             // prompt/context sent
