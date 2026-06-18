@@ -28,4 +28,15 @@ describe('validateEnv', () => {
   it('rejects an out-of-range PORT', () => {
     expect(() => validateEnv({ ...valid, PORT: '70000' })).toThrow(/PORT/);
   });
+
+  it('applies model-tier defaults when the vars are omitted', () => {
+    const result = validateEnv(valid);
+    expect(result.OPENAI_MODEL_SMART).toBe('gpt-4o');
+    expect(result.OPENAI_MODEL_FAST).toBe('gpt-4o-mini');
+  });
+
+  it('uses explicit model-tier values when provided', () => {
+    const result = validateEnv({ ...valid, OPENAI_MODEL_FAST: 'gpt-5-mini' });
+    expect(result.OPENAI_MODEL_FAST).toBe('gpt-5-mini');
+  });
 });

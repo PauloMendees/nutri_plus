@@ -87,6 +87,7 @@ model PatientProfile {
 
   assessments    BodyAssessment[]
   mealPlans      MealPlan[]
+  aiInteractions AIInteraction[]
 
   @@index([nutritionistId])
 }
@@ -170,4 +171,33 @@ model MealItem {
   order    Int     // sequence within the meal; server-assigned from array index
 
   @@index([mealId])
+}
+
+enum AIInteractionType {
+  MEAL_PLAN_GENERATION
+  OUTSIDE_HOME_SUGGESTION
+}
+
+// Audit trail for every AI call, successful or failed. The patient FK is explicitly
+// ON DELETE RESTRICT (nullable FKs default to SetNull in Prisma — not what we
+// want): audit rows must never cascade away or lose their patient linkage. patientId is nullable because future
+// interaction types may not be patient-scoped.
+model AIInteraction {
+  id        String   @id @default(uuid())
+  patientId String?
+  patient   PatientProfile? @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  type      AIInteractionType
+  model     String           // literal model used (e.g. "gpt-4o-mini")
+  input     Json             // prompt/context sent
+  response  Json?            // null when the call failed
+  promptTokens     Int?
+  completionTokens Int?
+  latencyMs        Int?
+  estimatedCostUsd Float?
+  success      Boolean
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  @@index([patientId, createdAt])
+  @@index([type, createdAt])
 }
