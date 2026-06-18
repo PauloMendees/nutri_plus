@@ -9,6 +9,7 @@ import { OpenAIProvider } from '../ai/openai.provider';
 import { MealPlansService } from '../meal-plans/meal-plans.service';
 import { MealGenerationService } from './meal-generation.service';
 import { AuthContext } from '../auth/types/auth-context';
+import { AIInteractionType } from '../generated/prisma/client';
 
 const ctx: AuthContext = {
   authProviderId: 'sub-n',
@@ -44,6 +45,11 @@ const aiResponse = {
       name: 'Breakfast',
       timeLabel: '08:00',
       items: [{ foodName: 'Eggs', quantity: '2 units' }],
+    },
+    {
+      name: 'Lunch',
+      timeLabel: null,
+      items: [{ foodName: 'Chicken', quantity: '150g' }],
     },
   ],
 };
@@ -108,7 +114,7 @@ describe('MealGenerationService', () => {
     // Provider invoked with the smart tier, our schema, and targets in the prompt.
     const call = provider.generateStructured.mock.calls[0][0];
     expect(call.tier).toBe('smart');
-    expect(call.type).toBe('MEAL_PLAN_GENERATION');
+    expect(call.type).toBe(AIInteractionType.MEAL_PLAN_GENERATION);
     expect(call.patientId).toBe('p1');
     const userCtx = JSON.parse(call.user);
     expect(userCtx.targets.calories).toBeGreaterThan(0);
@@ -124,6 +130,11 @@ describe('MealGenerationService', () => {
           name: 'Breakfast',
           timeLabel: '08:00',
           items: [{ foodName: 'Eggs', quantity: '2 units' }],
+        },
+        {
+          name: 'Lunch',
+          timeLabel: undefined,
+          items: [{ foodName: 'Chicken', quantity: '150g' }],
         },
       ],
     });
