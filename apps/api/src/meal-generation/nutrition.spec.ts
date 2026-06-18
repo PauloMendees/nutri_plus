@@ -8,6 +8,10 @@ describe('computeAge', () => {
   it('subtracts a year when the birthday has not been reached yet', () => {
     expect(computeAge(new Date('1990-06-20'), new Date('2026-06-17'))).toBe(35);
   });
+
+  it('is timezone-stable at a UTC year boundary', () => {
+    expect(computeAge(new Date('2000-01-01T00:00:00Z'), new Date('2024-01-01T00:00:00Z'))).toBe(24);
+  });
 });
 
 describe('computeBmr', () => {

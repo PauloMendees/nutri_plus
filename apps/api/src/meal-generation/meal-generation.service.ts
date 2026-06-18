@@ -6,11 +6,11 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OpenAIProvider } from '../ai/openai.provider';
-import { MealPlansService } from '../meal-plans/meal-plans.service';
+import { MealPlansService, GeneratedMealInput } from '../meal-plans/meal-plans.service';
 import { AuthContext } from '../auth/types/auth-context';
 import { AIInteractionType } from '../generated/prisma/client';
 import { computeAge, computeTargets, NutritionInputs } from './nutrition';
-import { mealPlanResponseSchema } from './schema/meal-plan-response.schema';
+import { mealPlanResponseSchema, MealPlanResponse } from './schema/meal-plan-response.schema';
 import {
   MEAL_PLAN_SYSTEM_PROMPT,
   buildMealPlanUserPrompt,
@@ -41,7 +41,7 @@ export class MealGenerationService {
     const inputs = this.requireInputs(patient);
     const targets = computeTargets(inputs);
 
-    const generated = await this.provider.generateStructured({
+    const generated = await this.provider.generateStructured<MealPlanResponse>({
       tier: 'smart',
       system: MEAL_PLAN_SYSTEM_PROMPT,
       user: buildMealPlanUserPrompt({
@@ -65,7 +65,7 @@ export class MealGenerationService {
       patientId,
       title: generated.title,
       targets,
-      meals: generated.meals.map((m) => ({
+      meals: generated.meals.map((m): GeneratedMealInput => ({
         name: m.name,
         timeLabel: m.timeLabel ?? undefined,
         items: m.items,

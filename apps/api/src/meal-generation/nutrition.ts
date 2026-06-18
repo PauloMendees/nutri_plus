@@ -63,9 +63,9 @@ export interface NutritionTargets {
 // Whole years between birthDate and now, accounting for whether the birthday has
 // occurred yet this year.
 export function computeAge(birthDate: Date, now: Date): number {
-  let age = now.getFullYear() - birthDate.getFullYear();
-  const monthDelta = now.getMonth() - birthDate.getMonth();
-  if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < birthDate.getDate())) {
+  let age = now.getUTCFullYear() - birthDate.getUTCFullYear();
+  const monthDelta = now.getUTCMonth() - birthDate.getUTCMonth();
+  if (monthDelta < 0 || (monthDelta === 0 && now.getUTCDate() < birthDate.getUTCDate())) {
     age -= 1;
   }
   return age;

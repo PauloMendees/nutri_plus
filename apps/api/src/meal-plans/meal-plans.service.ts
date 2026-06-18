@@ -9,6 +9,12 @@ import { CreateMealPlanDto } from './dto/create-meal-plan.dto';
 import { UpdateMealPlanDto } from './dto/update-meal-plan.dto';
 import { MealDto } from './dto/meal.dto';
 
+export interface GeneratedMealInput {
+  name: string;
+  timeLabel?: string;
+  items: { foodName: string; quantity: string }[];
+}
+
 // Always return meals and their items in their stored order.
 const FULL_TREE = {
   meals: {
@@ -45,11 +51,7 @@ export class MealPlansService {
       patientId: string;
       title?: string;
       targets: { calories: number; protein: number; carbs: number; fats: number };
-      meals: {
-        name: string;
-        timeLabel?: string;
-        items: { foodName: string; quantity: string }[];
-      }[];
+      meals: GeneratedMealInput[];
     },
   ) {
     await this.requireOwnedPatient(ctx, args.patientId);
