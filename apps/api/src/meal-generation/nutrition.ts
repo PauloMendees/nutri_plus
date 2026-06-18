@@ -79,7 +79,7 @@ export function computeBmr(i: {
   gender: Gender;
   measuredBmr?: number | null;
 }): number {
-  if (i.measuredBmr && i.measuredBmr > 0) {
+  if (i.measuredBmr != null && i.measuredBmr > 0) {
     return i.measuredBmr;
   }
   return 10 * i.weightKg + 6.25 * i.heightCm - 5 * i.age + SEX_CONSTANT[i.gender];

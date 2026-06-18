@@ -29,6 +29,12 @@ describe('computeBmr', () => {
     ).toBeCloseTo(1559.5, 2);
   });
 
+  it('uses -78 for PREFER_NOT_TO_SAY (same as OTHER)', () => {
+    expect(
+      computeBmr({ weightKg: 70, heightCm: 170, age: 25, gender: 'PREFER_NOT_TO_SAY' }),
+    ).toBeCloseTo(1559.5, 2);
+  });
+
   it('prefers a measured BMR over the formula', () => {
     expect(
       computeBmr({
