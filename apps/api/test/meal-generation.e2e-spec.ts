@@ -166,17 +166,21 @@ describe('Meal Generation (e2e)', () => {
     expect(generateStructured).not.toHaveBeenCalled();
   });
 
-  it('rejects a patient caller (403) and a missing patientId (400)', async () => {
+  it('rejects a patient-role caller (403)', async () => {
     await request(app.getHttpServer())
       .post('/v1/ai/generate-meal-plan')
       .set('Authorization', `Bearer ${patient.token}`)
       .send({ patientId: patientId() })
       .expect(403);
+    expect(generateStructured).not.toHaveBeenCalled();
+  });
 
+  it('rejects a missing patientId (400)', async () => {
     await request(app.getHttpServer())
       .post('/v1/ai/generate-meal-plan')
       .set('Authorization', `Bearer ${nutA.token}`)
       .send({})
       .expect(400);
+    expect(generateStructured).not.toHaveBeenCalled();
   });
 });
