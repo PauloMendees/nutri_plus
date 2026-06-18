@@ -1,9 +1,11 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import { MealDto } from './meal.dto';
@@ -21,6 +23,26 @@ export class UpdateMealPlanDto {
   @IsString()
   @MaxLength(500)
   objective?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  targetCalories?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  targetProtein?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  targetCarbs?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  targetFats?: number;
 
   @IsOptional()
   @IsArray()

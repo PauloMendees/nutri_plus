@@ -36,6 +36,38 @@ export class MealPlansService {
     });
   }
 
+  // Persists an AI-generated plan: ownership-checked, aiGenerated=true, with the
+  // server-computed daily targets. Reuses the same ordered-tree write as manual
+  // creation so all MealPlan aggregate writes live here.
+  async createGeneratedPlan(
+    ctx: AuthContext,
+    args: {
+      patientId: string;
+      title?: string;
+      targets: { calories: number; protein: number; carbs: number; fats: number };
+      meals: {
+        name: string;
+        timeLabel?: string;
+        items: { foodName: string; quantity: string }[];
+      }[];
+    },
+  ) {
+    await this.requireOwnedPatient(ctx, args.patientId);
+    return this.prisma.mealPlan.create({
+      data: {
+        patientId: args.patientId,
+        title: args.title,
+        aiGenerated: true,
+        targetCalories: args.targets.calories,
+        targetProtein: args.targets.protein,
+        targetCarbs: args.targets.carbs,
+        targetFats: args.targets.fats,
+        meals: this.mealsCreateInput(args.meals),
+      },
+      include: FULL_TREE,
+    });
+  }
+
   async listPlans(ctx: AuthContext, patientId: string) {
     await this.requireOwnedPatient(ctx, patientId);
     return this.prisma.mealPlan.findMany({

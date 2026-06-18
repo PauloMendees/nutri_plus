@@ -263,6 +263,64 @@ describe('MealPlansService', () => {
     });
   });
 
+  describe('createGeneratedPlan', () => {
+    it('verifies ownership and creates an aiGenerated plan with targets and ordered tree', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+      prisma.mealPlan.create.mockResolvedValue({ id: 'mp1' } as any);
+
+      const result = await service.createGeneratedPlan(ctx, {
+        patientId: 'p1',
+        title: 'AI Plan',
+        targets: { calories: 2000, protein: 150, carbs: 200, fats: 56 },
+        meals: [
+          { name: 'Breakfast', timeLabel: '08:00', items: [{ foodName: 'Egg', quantity: '2' }] },
+        ],
+      });
+
+      expect(prisma.patientProfile.findFirst).toHaveBeenCalledWith({
+        where: { id: 'p1', nutritionistId: 'nutri-1' },
+        select: { id: true },
+      });
+      expect(prisma.mealPlan.create).toHaveBeenCalledWith({
+        data: {
+          patientId: 'p1',
+          title: 'AI Plan',
+          aiGenerated: true,
+          targetCalories: 2000,
+          targetProtein: 150,
+          targetCarbs: 200,
+          targetFats: 56,
+          meals: {
+            create: [
+              {
+                name: 'Breakfast',
+                timeLabel: '08:00',
+                instructions: undefined,
+                order: 0,
+                items: { create: [{ foodName: 'Egg', quantity: '2', order: 0 }] },
+              },
+            ],
+          },
+        },
+        include: FULL_TREE,
+      });
+      expect(result).toEqual({ id: 'mp1' });
+    });
+
+    it('throws NotFound and does not create when the patient is not owned', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.createGeneratedPlan(ctx, {
+          patientId: 'other',
+          targets: { calories: 1, protein: 1, carbs: 1, fats: 1 },
+          meals: [],
+        }),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(prisma.mealPlan.create).not.toHaveBeenCalled();
+    });
+  });
+
   describe('patient read', () => {
     const pctx = patCtx('pp1');
 
