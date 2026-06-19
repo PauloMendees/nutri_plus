@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Prisma, UserRole } from '../generated/prisma/client';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../prisma/prisma.service';
+import { SUPABASE_PROVIDER } from '../auth/auth.constants';
 import { UsersService } from './users.service';
 
 describe('UsersService', () => {
@@ -206,7 +207,7 @@ describe('UsersService', () => {
 
     expect(prisma.user.create).toHaveBeenCalledWith({
       data: {
-        authProvider: 'SUPABASE',
+        authProvider: SUPABASE_PROVIDER,
         authProviderId: 'sub-e',
         email: 'e@x.com',
         name: 'Emp',
