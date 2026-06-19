@@ -65,6 +65,7 @@ model NutritionistProfile {
 
   patients     PatientProfile[]
   employees    EmployeeProfile[]
+  appointments Appointment[]
 }
 
 model EmployeeProfile {
@@ -103,8 +104,25 @@ model PatientProfile {
   assessments    BodyAssessment[]
   mealPlans      MealPlan[]
   aiInteractions AIInteraction[]
+  appointments   Appointment[]
 
   @@index([nutritionistId])
+}
+
+model Appointment {
+  id             String   @id @default(uuid())
+  nutritionistId String
+  nutritionist   NutritionistProfile @relation(fields: [nutritionistId], references: [id])
+  patientId      String?
+  patient        PatientProfile? @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  title          String
+  description    String?
+  startsAt       DateTime
+  endsAt         DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([nutritionistId, startsAt])
 }
 
 // Immutable historical record (see docs/3.1-patient-domain-mode.md): no @updatedAt,
