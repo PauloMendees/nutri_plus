@@ -159,6 +159,82 @@ describe('Employees (e2e)', () => {
     expect(list.body).toHaveLength(0);
   });
 
+  it('lets an employee read assessments and meal-plans of the owning nutritionist, and forbids meal-plan writes', async () => {
+    // nutA creates a patient via the invite flow.
+    const patientRes = await request(app.getHttpServer())
+      .post('/v1/patients')
+      .set('Authorization', `Bearer ${nutA.token}`)
+      .send({ name: 'Pat MP', email: 'patmp@x.com', height: 170 })
+      .expect(201);
+    const pid = patientRes.body.id;
+
+    // nutA creates an assessment.
+    await request(app.getHttpServer())
+      .post(`/v1/patients/${pid}/assessments`)
+      .set('Authorization', `Bearer ${nutA.token}`)
+      .send({ weight: 75, assessmentDate: '2026-01-15T00:00:00.000Z' })
+      .expect(201);
+
+    // nutA creates a meal plan.
+    const planRes = await request(app.getHttpServer())
+      .post('/v1/meal-plans')
+      .set('Authorization', `Bearer ${nutA.token}`)
+      .send({ patientId: pid, title: 'Emp Plan' })
+      .expect(201);
+    const planId = planRes.body.id;
+
+    const { emp } = await inviteAndSyncEmployee('emp4@x.com', 'Emp Four');
+
+    // 1. GET /v1/patients/:id/assessments → 200, includes the created assessment.
+    const assessments = await request(app.getHttpServer())
+      .get(`/v1/patients/${pid}/assessments`)
+      .set('Authorization', `Bearer ${emp.token}`)
+      .expect(200);
+    expect(assessments.body).toHaveLength(1);
+    expect(assessments.body[0].weight).toBe(75);
+
+    // 2. GET /v1/meal-plans?patientId=<pid> → 200, includes the created plan.
+    const mealPlanList = await request(app.getHttpServer())
+      .get(`/v1/meal-plans?patientId=${pid}`)
+      .set('Authorization', `Bearer ${emp.token}`)
+      .expect(200);
+    expect(mealPlanList.body.map((p: any) => p.id)).toContain(planId);
+
+    // 3. GET /v1/meal-plans/:id → 200, plan id matches.
+    const mealPlanDetail = await request(app.getHttpServer())
+      .get(`/v1/meal-plans/${planId}`)
+      .set('Authorization', `Bearer ${emp.token}`)
+      .expect(200);
+    expect(mealPlanDetail.body.id).toBe(planId);
+
+    // 5. POST /v1/meal-plans → 403 (write forbidden).
+    await request(app.getHttpServer())
+      .post('/v1/meal-plans')
+      .set('Authorization', `Bearer ${emp.token}`)
+      .send({ patientId: pid })
+      .expect(403);
+
+    // 6. PATCH /v1/meal-plans/:id → 403 (guard fires before service; non-existent id still yields 403).
+    await request(app.getHttpServer())
+      .patch(`/v1/meal-plans/00000000-0000-0000-0000-000000000000`)
+      .set('Authorization', `Bearer ${emp.token}`)
+      .send({ title: 'x' })
+      .expect(403);
+  });
+
+  it('returns role and employeeProfile on GET /v1/auth/me with an EMPLOYEE token', async () => {
+    const { emp } = await inviteAndSyncEmployee('emp5@x.com', 'Emp Five');
+
+    const res = await request(app.getHttpServer())
+      .get('/v1/auth/me')
+      .set('Authorization', `Bearer ${emp.token}`)
+      .expect(200);
+
+    expect(res.body.role).toBe('EMPLOYEE');
+    expect(res.body.employeeProfile).toBeDefined();
+    expect(res.body.employeeProfile.nutritionistId).toBe(nutA.body.nutritionistProfile.id);
+  });
+
   it('rejects a PATIENT token on employee routes (403)', async () => {
     const referralCode = nutA.body.nutritionistProfile.referralCode;
     const patient = await syncUser({
@@ -166,6 +242,12 @@ describe('Employees (e2e)', () => {
     });
     await request(app.getHttpServer())
       .get('/v1/employees')
+      .set('Authorization', `Bearer ${patient.token}`)
+      .expect(403);
+
+    // 7. DELETE /v1/employees/:id with a PATIENT token → 403.
+    await request(app.getHttpServer())
+      .delete('/v1/employees/00000000-0000-0000-0000-000000000000')
       .set('Authorization', `Bearer ${patient.token}`)
       .expect(403);
   });
