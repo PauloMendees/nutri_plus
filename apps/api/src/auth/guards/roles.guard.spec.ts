@@ -41,4 +41,20 @@ describe('RolesGuard', () => {
     );
     expect(guard.canActivate(context)).toBe(false);
   });
+
+  it('allows an EMPLOYEE when EMPLOYEE is in the required set', () => {
+    const { guard, context } = ctxWith(
+      { user: { role: UserRole.EMPLOYEE } },
+      [UserRole.NUTRITIONIST, UserRole.EMPLOYEE],
+    );
+    expect(guard.canActivate(context)).toBe(true);
+  });
+
+  it('denies an EMPLOYEE when only NUTRITIONIST is required', () => {
+    const { guard, context } = ctxWith(
+      { user: { role: UserRole.EMPLOYEE } },
+      [UserRole.NUTRITIONIST],
+    );
+    expect(guard.canActivate(context)).toBe(false);
+  });
 });

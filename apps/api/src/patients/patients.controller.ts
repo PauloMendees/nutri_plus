@@ -29,11 +29,13 @@ export class PatientsController {
   }
 
   @Get()
+  @Roles(UserRole.NUTRITIONIST, UserRole.EMPLOYEE)
   list(@CurrentUser() ctx: AuthContext) {
     return this.patients.listPatients(ctx);
   }
 
   @Get(':id')
+  @Roles(UserRole.NUTRITIONIST, UserRole.EMPLOYEE)
   findOne(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
     return this.patients.getPatient(ctx, id);
   }
@@ -57,6 +59,7 @@ export class PatientsController {
   }
 
   @Get(':id/assessments')
+  @Roles(UserRole.NUTRITIONIST, UserRole.EMPLOYEE)
   listAssessments(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
     return this.patients.listAssessments(ctx, id);
   }
