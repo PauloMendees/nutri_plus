@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { AuthApiError, createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Wraps the Supabase Admin API (service-role key). Used to invite a patient by
+// Wraps the Supabase Admin API (service-role key). Used to invite a user by
 // email at creation time and to roll back (delete) the created auth user if the
 // subsequent local DB write fails.
 @Injectable()
@@ -26,7 +26,7 @@ export class SupabaseAdminService {
   // Creates the Supabase auth identity and emails an invite. Returns the new
   // user's id (the JWT `sub`). Maps "already registered" to 409 and transport
   // failures to 502. Never logs the email or key.
-  async invitePatient(
+  async inviteUser(
     email: string,
     meta: { name: string },
   ): Promise<{ id: string }> {

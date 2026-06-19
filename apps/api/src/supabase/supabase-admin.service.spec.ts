@@ -21,14 +21,14 @@ describe('SupabaseAdminService', () => {
     (service as any).client = { auth: { admin } };
   });
 
-  describe('invitePatient', () => {
+  describe('inviteUser', () => {
     it('returns the new user id and passes name as metadata', async () => {
       admin.inviteUserByEmail.mockResolvedValue({
         data: { user: { id: 'sub-1' } },
         error: null,
       });
 
-      const result = await service.invitePatient('p@x.com', { name: 'Pat' });
+      const result = await service.inviteUser('p@x.com', { name: 'Pat' });
 
       expect(result).toEqual({ id: 'sub-1' });
       expect(admin.inviteUserByEmail).toHaveBeenCalledWith('p@x.com', {
@@ -44,7 +44,7 @@ describe('SupabaseAdminService', () => {
       admin.inviteUserByEmail.mockResolvedValue({ data: { user: null }, error });
 
       await expect(
-        service.invitePatient('p@x.com', { name: 'Pat' }),
+        service.inviteUser('p@x.com', { name: 'Pat' }),
       ).rejects.toBeInstanceOf(ConflictException);
     });
 
@@ -55,7 +55,7 @@ describe('SupabaseAdminService', () => {
       });
 
       await expect(
-        service.invitePatient('p@x.com', { name: 'Pat' }),
+        service.inviteUser('p@x.com', { name: 'Pat' }),
       ).rejects.toBeInstanceOf(ConflictException);
     });
 
@@ -66,7 +66,7 @@ describe('SupabaseAdminService', () => {
       });
 
       await expect(
-        service.invitePatient('p@x.com', { name: 'Pat' }),
+        service.inviteUser('p@x.com', { name: 'Pat' }),
       ).rejects.toBeInstanceOf(BadGatewayException);
     });
 
@@ -74,7 +74,7 @@ describe('SupabaseAdminService', () => {
       admin.inviteUserByEmail.mockRejectedValue(new Error('network down'));
 
       await expect(
-        service.invitePatient('p@x.com', { name: 'Pat' }),
+        service.inviteUser('p@x.com', { name: 'Pat' }),
       ).rejects.toBeInstanceOf(BadGatewayException);
     });
 
@@ -85,7 +85,7 @@ describe('SupabaseAdminService', () => {
       });
 
       await expect(
-        service.invitePatient('p@x.com', { name: 'Pat' }),
+        service.inviteUser('p@x.com', { name: 'Pat' }),
       ).rejects.toBeInstanceOf(BadGatewayException);
     });
   });

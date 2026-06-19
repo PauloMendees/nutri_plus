@@ -185,7 +185,7 @@ describe('PatientsService', () => {
     const dto = { name: 'Ann', email: 'a@x.com', height: 160 } as any;
 
     it('invites the patient then creates the linked local record', async () => {
-      supabaseAdmin.invitePatient.mockResolvedValue({ id: 'sub-new' });
+      supabaseAdmin.inviteUser.mockResolvedValue({ id: 'sub-new' });
       users.createInvitedPatient.mockResolvedValue({
         patientProfile: { id: 'pp1' },
       } as any);
@@ -193,7 +193,7 @@ describe('PatientsService', () => {
 
       const result = await service.createPatient(ctx, dto);
 
-      expect(supabaseAdmin.invitePatient).toHaveBeenCalledWith('a@x.com', {
+      expect(supabaseAdmin.inviteUser).toHaveBeenCalledWith('a@x.com', {
         name: 'Ann',
       });
       expect(users.createInvitedPatient).toHaveBeenCalledWith({
@@ -214,7 +214,7 @@ describe('PatientsService', () => {
     });
 
     it('rolls back the invited user when the local write fails', async () => {
-      supabaseAdmin.invitePatient.mockResolvedValue({ id: 'sub-new' });
+      supabaseAdmin.inviteUser.mockResolvedValue({ id: 'sub-new' });
       users.createInvitedPatient.mockRejectedValue(new ConflictException('dup'));
 
       await expect(service.createPatient(ctx, dto)).rejects.toBeInstanceOf(
@@ -227,7 +227,7 @@ describe('PatientsService', () => {
       await expect(
         service.createPatient(ctxWithNutritionist(null), dto),
       ).rejects.toBeInstanceOf(ForbiddenException);
-      expect(supabaseAdmin.invitePatient).not.toHaveBeenCalled();
+      expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
     });
   });
 });

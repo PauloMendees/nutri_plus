@@ -28,7 +28,7 @@ export class PatientsService {
     const nutritionistId = resolveScopeNutritionistId(ctx);
     const { name, email, ...clinical } = dto;
 
-    const { id: authProviderId } = await this.supabaseAdmin.invitePatient(email, {
+    const { id: authProviderId } = await this.supabaseAdmin.inviteUser(email, {
       name,
     });
 

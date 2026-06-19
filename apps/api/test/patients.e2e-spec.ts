@@ -11,7 +11,7 @@ describe('Patients (e2e)', () => {
   let jwks: JwksServer;
 
   const fakeAdmin = {
-    invitePatient: jest.fn(async (email: string) => {
+    inviteUser: jest.fn(async (email: string) => {
       if (email === 'dup@x.com') {
         throw new ConflictException('A user with this email already exists');
       }
