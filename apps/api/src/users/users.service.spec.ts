@@ -129,7 +129,7 @@ describe('UsersService', () => {
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'user-4' },
       data: { email: 'new@x.com', name: 'New' },
-      include: { nutritionistProfile: true, patientProfile: true },
+      include: { nutritionistProfile: true, patientProfile: true, employeeProfile: true },
     });
   });
 
@@ -145,7 +145,7 @@ describe('UsersService', () => {
           authProviderId: 'sub-8',
         },
       },
-      include: { nutritionistProfile: true, patientProfile: true },
+      include: { nutritionistProfile: true, patientProfile: true, employeeProfile: true },
     });
     expect(result).toEqual({ id: 'user-8' });
   });

@@ -25,6 +25,7 @@ type UserBaseData = {
 const INCLUDE_PROFILES = {
   nutritionistProfile: true,
   patientProfile: true,
+  employeeProfile: true,
 } as const;
 
 // Bounded retries to absorb the rare referralCode collision. The DB unique
