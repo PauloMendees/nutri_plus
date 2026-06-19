@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { PatientsModule } from './patients/patients.module';
 import { MealPlansModule } from './meal-plans/meal-plans.module';
 import { AiModule } from './ai/ai.module';
+import { MealGenerationModule } from './meal-generation/meal-generation.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { SupabaseAuthGuard } from './auth/guards/supabase-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
@@ -19,6 +20,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     PatientsModule,
     MealPlansModule,
     AiModule,
+    MealGenerationModule,
   ],
   // Global pipe/filter/guards are registered as providers (not imperatively in
   // main.ts) so any bootstrap of AppModule — including e2e Test modules —

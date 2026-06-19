@@ -9,6 +9,12 @@ import { CreateMealPlanDto } from './dto/create-meal-plan.dto';
 import { UpdateMealPlanDto } from './dto/update-meal-plan.dto';
 import { MealDto } from './dto/meal.dto';
 
+export interface GeneratedMealInput {
+  name: string;
+  timeLabel?: string;
+  items: { foodName: string; quantity: string }[];
+}
+
 // Always return meals and their items in their stored order.
 const FULL_TREE = {
   meals: {
@@ -31,6 +37,34 @@ export class MealPlansService {
         ...top,
         patientId,
         meals: meals ? this.mealsCreateInput(meals) : undefined,
+      },
+      include: FULL_TREE,
+    });
+  }
+
+  // Persists an AI-generated plan: ownership-checked, aiGenerated=true, with the
+  // server-computed daily targets. Reuses the same ordered-tree write as manual
+  // creation so all MealPlan aggregate writes live here.
+  async createGeneratedPlan(
+    ctx: AuthContext,
+    args: {
+      patientId: string;
+      title?: string;
+      targets: { calories: number; protein: number; carbs: number; fats: number };
+      meals: GeneratedMealInput[];
+    },
+  ) {
+    await this.requireOwnedPatient(ctx, args.patientId);
+    return this.prisma.mealPlan.create({
+      data: {
+        patientId: args.patientId,
+        title: args.title,
+        aiGenerated: true,
+        targetCalories: args.targets.calories,
+        targetProtein: args.targets.protein,
+        targetCarbs: args.targets.carbs,
+        targetFats: args.targets.fats,
+        meals: this.mealsCreateInput(args.meals),
       },
       include: FULL_TREE,
     });

@@ -134,7 +134,12 @@ model MealPlan {
   patient     PatientProfile @relation(fields: [patientId], references: [id])
   title       String?
   objective   String?
-  aiGenerated Boolean  @default(false) // server-controlled; always false in Step 04
+  aiGenerated Boolean  @default(false) // server-controlled; true for AI-generated plans
+  // Server-computed daily nutrition targets (null for manually created plans).
+  targetCalories Float? // kcal/day
+  targetProtein  Float? // g/day
+  targetCarbs    Float? // g/day
+  targetFats     Float? // g/day
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   meals       Meal[]
