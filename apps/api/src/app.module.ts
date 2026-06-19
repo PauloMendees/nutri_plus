@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { PatientsModule } from './patients/patients.module';
 import { EmployeesModule } from './employees/employees.module';
+import { AppointmentsModule } from './appointments/appointments.module';
 import { MealPlansModule } from './meal-plans/meal-plans.module';
 import { AiModule } from './ai/ai.module';
 import { MealGenerationModule } from './meal-generation/meal-generation.module';
@@ -20,6 +21,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     AuthModule,
     PatientsModule,
     EmployeesModule,
+    AppointmentsModule,
     MealPlansModule,
     AiModule,
     MealGenerationModule,
