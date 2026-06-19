@@ -1,10 +1,10 @@
 import {
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/types/auth-context';
+import { resolveScopeNutritionistId } from '../auth/auth-scope';
 import { UsersService } from '../users/users.service';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
 import { UpdatePatientDto } from './dto/update-patient.dto';
@@ -25,10 +25,10 @@ export class PatientsService {
   // API (creates the auth identity + emails the patient), then create the linked
   // local record. If the local write fails, the invited auth user is rolled back.
   async createPatient(ctx: AuthContext, dto: CreatePatientDto) {
-    const nutritionistId = this.nutritionistId(ctx);
+    const nutritionistId = resolveScopeNutritionistId(ctx);
     const { name, email, ...clinical } = dto;
 
-    const { id: authProviderId } = await this.supabaseAdmin.invitePatient(email, {
+    const { id: authProviderId } = await this.supabaseAdmin.inviteUser(email, {
       name,
     });
 
@@ -53,14 +53,14 @@ export class PatientsService {
 
   async listPatients(ctx: AuthContext) {
     return this.prisma.patientProfile.findMany({
-      where: { nutritionistId: this.nutritionistId(ctx) },
+      where: { nutritionistId: resolveScopeNutritionistId(ctx) },
       include: { user: USER_SUMMARY },
     });
   }
 
   async getPatient(ctx: AuthContext, id: string) {
     const patient = await this.prisma.patientProfile.findFirst({
-      where: { id, nutritionistId: this.nutritionistId(ctx) },
+      where: { id, nutritionistId: resolveScopeNutritionistId(ctx) },
       include: {
         user: USER_SUMMARY,
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
@@ -92,28 +92,17 @@ export class PatientsService {
     return this.prisma.bodyAssessment.findMany({
       where: {
         patientId: id,
-        patient: { nutritionistId: this.nutritionistId(ctx) },
+        patient: { nutritionistId: resolveScopeNutritionistId(ctx) },
       },
       orderBy: { assessmentDate: 'desc' },
     });
-  }
-
-  // The authenticated nutritionist's profile id. RolesGuard already guarantees a
-  // NUTRITIONIST-role synced user; this defends against the impossible-but-not-
-  // crashable case of a nutritionist with no profile row.
-  private nutritionistId(ctx: AuthContext): string {
-    const id = ctx.user?.nutritionistProfile?.id;
-    if (!id) {
-      throw new ForbiddenException('Nutritionist profile required');
-    }
-    return id;
   }
 
   // Confirms the patient exists AND is linked to this nutritionist. A non-owned
   // id looks identical to a missing one (404) so existence does not leak.
   private async requireOwned(ctx: AuthContext, id: string): Promise<void> {
     const patient = await this.prisma.patientProfile.findFirst({
-      where: { id, nutritionistId: this.nutritionistId(ctx) },
+      where: { id, nutritionistId: resolveScopeNutritionistId(ctx) },
       select: { id: true },
     });
     if (!patient) {

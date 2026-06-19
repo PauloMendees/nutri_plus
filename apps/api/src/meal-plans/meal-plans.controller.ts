@@ -31,6 +31,7 @@ export class MealPlansController {
   }
 
   @Get()
+  @Roles(UserRole.NUTRITIONIST, UserRole.EMPLOYEE)
   list(
     @CurrentUser() ctx: AuthContext,
     @Query('patientId', ParseUUIDPipe) patientId: string,
@@ -39,6 +40,7 @@ export class MealPlansController {
   }
 
   @Get(':id')
+  @Roles(UserRole.NUTRITIONIST, UserRole.EMPLOYEE)
   findOne(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
     return this.mealPlans.getPlan(ctx, id);
   }

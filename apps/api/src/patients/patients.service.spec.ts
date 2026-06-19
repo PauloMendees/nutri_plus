@@ -20,6 +20,21 @@ function ctxWithNutritionist(nutritionistId: string | null): AuthContext {
   };
 }
 
+function ctxWithEmployee(nutritionistId: string): AuthContext {
+  return {
+    authProviderId: 'sub-e',
+    email: 'e@x.com',
+    name: 'Emp',
+    user: {
+      id: 'user-e',
+      role: 'EMPLOYEE',
+      nutritionistProfile: null,
+      patientProfile: null,
+      employeeProfile: { nutritionistId },
+    } as any,
+  };
+}
+
 describe('PatientsService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let users: DeepMockProxy<UsersService>;
@@ -32,6 +47,17 @@ describe('PatientsService', () => {
     users = mockDeep<UsersService>();
     supabaseAdmin = mockDeep<SupabaseAdminService>();
     service = new PatientsService(prisma, users, supabaseAdmin);
+  });
+
+  it('scopes an employee to the owning nutritionist when listing patients', async () => {
+    prisma.patientProfile.findMany.mockResolvedValue([{ id: 'p1' }] as any);
+
+    await service.listPatients(ctxWithEmployee('nutri-9'));
+
+    expect(prisma.patientProfile.findMany).toHaveBeenCalledWith({
+      where: { nutritionistId: 'nutri-9' },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    });
   });
 
   it('lists only patients linked to the nutritionist', async () => {
@@ -159,7 +185,7 @@ describe('PatientsService', () => {
     const dto = { name: 'Ann', email: 'a@x.com', height: 160 } as any;
 
     it('invites the patient then creates the linked local record', async () => {
-      supabaseAdmin.invitePatient.mockResolvedValue({ id: 'sub-new' });
+      supabaseAdmin.inviteUser.mockResolvedValue({ id: 'sub-new' });
       users.createInvitedPatient.mockResolvedValue({
         patientProfile: { id: 'pp1' },
       } as any);
@@ -167,7 +193,7 @@ describe('PatientsService', () => {
 
       const result = await service.createPatient(ctx, dto);
 
-      expect(supabaseAdmin.invitePatient).toHaveBeenCalledWith('a@x.com', {
+      expect(supabaseAdmin.inviteUser).toHaveBeenCalledWith('a@x.com', {
         name: 'Ann',
       });
       expect(users.createInvitedPatient).toHaveBeenCalledWith({
@@ -188,7 +214,7 @@ describe('PatientsService', () => {
     });
 
     it('rolls back the invited user when the local write fails', async () => {
-      supabaseAdmin.invitePatient.mockResolvedValue({ id: 'sub-new' });
+      supabaseAdmin.inviteUser.mockResolvedValue({ id: 'sub-new' });
       users.createInvitedPatient.mockRejectedValue(new ConflictException('dup'));
 
       await expect(service.createPatient(ctx, dto)).rejects.toBeInstanceOf(
@@ -201,7 +227,7 @@ describe('PatientsService', () => {
       await expect(
         service.createPatient(ctxWithNutritionist(null), dto),
       ).rejects.toBeInstanceOf(ForbiddenException);
-      expect(supabaseAdmin.invitePatient).not.toHaveBeenCalled();
+      expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
     });
   });
 });

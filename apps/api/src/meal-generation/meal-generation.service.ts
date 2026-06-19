@@ -1,5 +1,4 @@
 import {
-  ForbiddenException,
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
@@ -9,6 +8,7 @@ import { OpenAIProvider } from '../ai/openai.provider';
 import { MealPlansService, GeneratedMealInput } from '../meal-plans/meal-plans.service';
 import { AuthContext } from '../auth/types/auth-context';
 import { AIInteractionType } from '../generated/prisma/client';
+import { resolveScopeNutritionistId } from '../auth/auth-scope';
 import { computeAge, computeTargets, NutritionInputs } from './nutrition';
 import { mealPlanResponseSchema, MealPlanResponse } from './schema/meal-plan-response.schema';
 import {
@@ -25,7 +25,7 @@ export class MealGenerationService {
   ) {}
 
   async generate(ctx: AuthContext, patientId: string) {
-    const nutritionistId = this.nutritionistId(ctx);
+    const nutritionistId = resolveScopeNutritionistId(ctx);
 
     // Ownership + data fetch in one scoped query (404 covers missing/not-owned).
     const patient = await this.prisma.patientProfile.findFirst({
@@ -109,11 +109,4 @@ export class MealGenerationService {
     };
   }
 
-  private nutritionistId(ctx: AuthContext): string {
-    const id = ctx.user?.nutritionistProfile?.id;
-    if (!id) {
-      throw new ForbiddenException('Nutritionist profile required');
-    }
-    return id;
-  }
 }

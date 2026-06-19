@@ -25,6 +25,7 @@ type UserBaseData = {
 const INCLUDE_PROFILES = {
   nutritionistProfile: true,
   patientProfile: true,
+  employeeProfile: true,
 } as const;
 
 // Bounded retries to absorb the rare referralCode collision. The DB unique
@@ -44,6 +45,10 @@ export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createWithProfile(input: CreateWithProfileInput): Promise<LocalUser> {
+    if (input.role === UserRole.EMPLOYEE) {
+      throw new BadRequestException('Employees are invite-only and cannot self-register');
+    }
+
     const base: UserBaseData = {
       authProvider: SUPABASE_PROVIDER,
       authProviderId: input.authProviderId,
@@ -96,6 +101,40 @@ export class UsersService {
           role: UserRole.PATIENT,
           patientProfile: {
             create: { nutritionistId: input.nutritionistId, ...input.clinical },
+          },
+        },
+        include: INCLUDE_PROFILES,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('A user with this email already exists');
+      }
+      throw error;
+    }
+  }
+
+  // Creates an EMPLOYEE that a nutritionist invited (the Supabase identity was
+  // already created via the Admin API, so authProviderId is known up front).
+  // Maps the unique-constraint violation (email/identity already used) to 409.
+  async createInvitedEmployee(input: {
+    authProviderId: string;
+    email: string;
+    name: string;
+    nutritionistId: string;
+  }): Promise<LocalUser> {
+    try {
+      return await this.prisma.user.create({
+        data: {
+          authProvider: SUPABASE_PROVIDER,
+          authProviderId: input.authProviderId,
+          email: input.email,
+          name: input.name,
+          role: UserRole.EMPLOYEE,
+          employeeProfile: {
+            create: { nutritionistId: input.nutritionistId },
           },
         },
         include: INCLUDE_PROFILES,

@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Prisma, UserRole } from '../generated/prisma/client';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../prisma/prisma.service';
+import { SUPABASE_PROVIDER } from '../auth/auth.constants';
 import { UsersService } from './users.service';
 
 describe('UsersService', () => {
@@ -129,7 +130,7 @@ describe('UsersService', () => {
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'user-4' },
       data: { email: 'new@x.com', name: 'New' },
-      include: { nutritionistProfile: true, patientProfile: true },
+      include: { nutritionistProfile: true, patientProfile: true, employeeProfile: true },
     });
   });
 
@@ -145,7 +146,7 @@ describe('UsersService', () => {
           authProviderId: 'sub-8',
         },
       },
-      include: { nutritionistProfile: true, patientProfile: true },
+      include: { nutritionistProfile: true, patientProfile: true, employeeProfile: true },
     });
     expect(result).toEqual({ id: 'user-8' });
   });
@@ -190,6 +191,64 @@ describe('UsersService', () => {
         name: 'Dup',
         nutritionistId: 'nutri-1',
         clinical: {} as any,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('creates an EMPLOYEE user with a nested employeeProfile', async () => {
+    prisma.user.create.mockResolvedValue({ id: 'u-e' } as any);
+
+    const result = await service.createInvitedEmployee({
+      authProviderId: 'sub-e',
+      email: 'e@x.com',
+      name: 'Emp',
+      nutritionistId: 'nutri-1',
+    });
+
+    expect(prisma.user.create).toHaveBeenCalledWith({
+      data: {
+        authProvider: SUPABASE_PROVIDER,
+        authProviderId: 'sub-e',
+        email: 'e@x.com',
+        name: 'Emp',
+        role: UserRole.EMPLOYEE,
+        employeeProfile: { create: { nutritionistId: 'nutri-1' } },
+      },
+      include: {
+        nutritionistProfile: true,
+        patientProfile: true,
+        employeeProfile: true,
+      },
+    });
+    expect(result).toEqual({ id: 'u-e' });
+  });
+
+  it('rejects EMPLOYEE self-signup with BadRequestException and does not create a DB row', async () => {
+    await expect(
+      service.createWithProfile({
+        authProviderId: 'sub-emp',
+        email: 'emp@x.com',
+        name: 'Emp',
+        role: UserRole.EMPLOYEE,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('maps a unique-constraint violation to ConflictException for employee', async () => {
+    const p2002 = new Prisma.PrismaClientKnownRequestError('dup', {
+      code: 'P2002',
+      clientVersion: 'test',
+      meta: { target: ['email'] },
+    });
+    prisma.user.create.mockRejectedValue(p2002);
+
+    await expect(
+      service.createInvitedEmployee({
+        authProviderId: 'sub-e',
+        email: 'e@x.com',
+        name: 'Emp',
+        nutritionistId: 'nutri-1',
       }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
