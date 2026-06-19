@@ -193,4 +193,50 @@ describe('UsersService', () => {
       }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
+
+  it('creates an EMPLOYEE user with a nested employeeProfile', async () => {
+    prisma.user.create.mockResolvedValue({ id: 'u-e' } as any);
+
+    const result = await service.createInvitedEmployee({
+      authProviderId: 'sub-e',
+      email: 'e@x.com',
+      name: 'Emp',
+      nutritionistId: 'nutri-1',
+    });
+
+    expect(prisma.user.create).toHaveBeenCalledWith({
+      data: {
+        authProvider: 'SUPABASE',
+        authProviderId: 'sub-e',
+        email: 'e@x.com',
+        name: 'Emp',
+        role: UserRole.EMPLOYEE,
+        employeeProfile: { create: { nutritionistId: 'nutri-1' } },
+      },
+      include: {
+        nutritionistProfile: true,
+        patientProfile: true,
+        employeeProfile: true,
+      },
+    });
+    expect(result).toEqual({ id: 'u-e' });
+  });
+
+  it('maps a unique-constraint violation to ConflictException for employee', async () => {
+    const p2002 = new Prisma.PrismaClientKnownRequestError('dup', {
+      code: 'P2002',
+      clientVersion: 'test',
+      meta: { target: ['email'] },
+    });
+    prisma.user.create.mockRejectedValue(p2002);
+
+    await expect(
+      service.createInvitedEmployee({
+        authProviderId: 'sub-e',
+        email: 'e@x.com',
+        name: 'Emp',
+        nutritionistId: 'nutri-1',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
 });

@@ -112,6 +112,40 @@ export class UsersService {
     }
   }
 
+  // Creates an EMPLOYEE that a nutritionist invited (the Supabase identity was
+  // already created via the Admin API, so authProviderId is known up front).
+  // Maps the unique-constraint violation (email/identity already used) to 409.
+  async createInvitedEmployee(input: {
+    authProviderId: string;
+    email: string;
+    name: string;
+    nutritionistId: string;
+  }): Promise<LocalUser> {
+    try {
+      return await this.prisma.user.create({
+        data: {
+          authProvider: SUPABASE_PROVIDER,
+          authProviderId: input.authProviderId,
+          email: input.email,
+          name: input.name,
+          role: UserRole.EMPLOYEE,
+          employeeProfile: {
+            create: { nutritionistId: input.nutritionistId },
+          },
+        },
+        include: INCLUDE_PROFILES,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('A user with this email already exists');
+      }
+      throw error;
+    }
+  }
+
   private async createNutritionist(base: UserBaseData): Promise<LocalUser> {
     for (let attempt = 1; attempt <= MAX_REFERRAL_ATTEMPTS; attempt++) {
       try {
