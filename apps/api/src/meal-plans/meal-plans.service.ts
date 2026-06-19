@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/types/auth-context';
+import { resolveScopeNutritionistId } from '../auth/auth-scope';
 import { CreateMealPlanDto } from './dto/create-meal-plan.dto';
 import { UpdateMealPlanDto } from './dto/update-meal-plan.dto';
 import { MealDto } from './dto/meal.dto';
@@ -73,14 +74,14 @@ export class MealPlansService {
   async listPlans(ctx: AuthContext, patientId: string) {
     await this.requireOwnedPatient(ctx, patientId);
     return this.prisma.mealPlan.findMany({
-      where: { patientId, patient: { nutritionistId: this.nutritionistId(ctx) } },
+      where: { patientId, patient: { nutritionistId: resolveScopeNutritionistId(ctx) } },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async getPlan(ctx: AuthContext, id: string) {
     const plan = await this.prisma.mealPlan.findFirst({
-      where: { id, patient: { nutritionistId: this.nutritionistId(ctx) } },
+      where: { id, patient: { nutritionistId: resolveScopeNutritionistId(ctx) } },
       include: FULL_TREE,
     });
     if (!plan) {
@@ -157,14 +158,6 @@ export class MealPlansService {
     };
   }
 
-  private nutritionistId(ctx: AuthContext): string {
-    const id = ctx.user?.nutritionistProfile?.id;
-    if (!id) {
-      throw new ForbiddenException('Nutritionist profile required');
-    }
-    return id;
-  }
-
   private patientProfileId(ctx: AuthContext): string {
     const id = ctx.user?.patientProfile?.id;
     if (!id) {
@@ -180,7 +173,7 @@ export class MealPlansService {
     patientId: string,
   ): Promise<void> {
     const patient = await this.prisma.patientProfile.findFirst({
-      where: { id: patientId, nutritionistId: this.nutritionistId(ctx) },
+      where: { id: patientId, nutritionistId: resolveScopeNutritionistId(ctx) },
       select: { id: true },
     });
     if (!patient) {
@@ -190,7 +183,7 @@ export class MealPlansService {
 
   private async requireOwnedPlan(ctx: AuthContext, id: string): Promise<void> {
     const plan = await this.prisma.mealPlan.findFirst({
-      where: { id, patient: { nutritionistId: this.nutritionistId(ctx) } },
+      where: { id, patient: { nutritionistId: resolveScopeNutritionistId(ctx) } },
       select: { id: true },
     });
     if (!plan) {

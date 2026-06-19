@@ -39,6 +39,21 @@ function patCtx(patientProfileId: string | null): AuthContext {
   };
 }
 
+function empCtx(nutritionistId: string): AuthContext {
+  return {
+    authProviderId: 'sub-e',
+    email: 'e@x.com',
+    name: 'Emp',
+    user: {
+      id: 'user-e',
+      role: 'EMPLOYEE',
+      nutritionistProfile: null,
+      patientProfile: null,
+      employeeProfile: { nutritionistId },
+    } as any,
+  };
+}
+
 describe('MealPlansService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let service: MealPlansService;
@@ -136,6 +151,22 @@ describe('MealPlansService', () => {
         NotFoundException,
       );
       expect(prisma.mealPlan.findMany).not.toHaveBeenCalled();
+    });
+
+    it('scopes an employee to the owning nutritionist when listing plans', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'pat-1' } as any);
+      prisma.mealPlan.findMany.mockResolvedValue([] as any);
+
+      await service.listPlans(empCtx('nutri-9'), 'pat-1');
+
+      expect(prisma.patientProfile.findFirst).toHaveBeenCalledWith({
+        where: { id: 'pat-1', nutritionistId: 'nutri-9' },
+        select: { id: true },
+      });
+      expect(prisma.mealPlan.findMany).toHaveBeenCalledWith({
+        where: { patientId: 'pat-1', patient: { nutritionistId: 'nutri-9' } },
+        orderBy: { createdAt: 'desc' },
+      });
     });
   });
 
