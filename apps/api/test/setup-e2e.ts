@@ -31,6 +31,7 @@ beforeEach(async () => {
   await prisma.meal.deleteMany();
   await prisma.mealPlan.deleteMany();
   await prisma.bodyAssessment.deleteMany();
+  await prisma.employeeProfile.deleteMany();
   await prisma.patientProfile.deleteMany();
   await prisma.nutritionistProfile.deleteMany();
   await prisma.user.deleteMany();

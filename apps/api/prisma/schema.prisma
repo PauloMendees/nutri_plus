@@ -12,6 +12,7 @@ datasource db {
 enum UserRole {
   NUTRITIONIST
   PATIENT
+  EMPLOYEE
 }
 
 enum Gender {
@@ -48,6 +49,7 @@ model User {
 
   nutritionistProfile NutritionistProfile?
   patientProfile      PatientProfile?
+  employeeProfile     EmployeeProfile?
 
   @@unique([authProvider, authProviderId])
 }
@@ -62,6 +64,19 @@ model NutritionistProfile {
   updatedAt    DateTime @updatedAt
 
   patients     PatientProfile[]
+  employees    EmployeeProfile[]
+}
+
+model EmployeeProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  nutritionistId String
+  nutritionist   NutritionistProfile @relation(fields: [nutritionistId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([nutritionistId])
 }
 
 model PatientProfile {
