@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppointmentsService } from './appointments.service';
@@ -125,5 +125,110 @@ describe('AppointmentsService.create', () => {
     expect(prisma.appointment.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ nutritionistId: 'nutri-9' }) }),
     );
+  });
+});
+
+describe('AppointmentsService reads/mutations', () => {
+  let prisma: DeepMockProxy<PrismaService>;
+  let service: AppointmentsService;
+  const ctx = nutCtx('nutri-1');
+
+  beforeEach(() => {
+    prisma = mockDeep<PrismaService>();
+    service = new AppointmentsService(prisma);
+  });
+
+  it('lists appointments overlapping [from, to) ordered by startsAt', async () => {
+    prisma.appointment.findMany.mockResolvedValue([] as any);
+
+    await service.list(ctx, {
+      from: T('2026-07-01T00:00:00.000Z'),
+      to: T('2026-07-02T00:00:00.000Z'),
+    });
+
+    expect(prisma.appointment.findMany).toHaveBeenCalledWith({
+      where: {
+        nutritionistId: 'nutri-1',
+        startsAt: { lt: T('2026-07-02T00:00:00.000Z') },
+        endsAt: { gt: T('2026-07-01T00:00:00.000Z') },
+      },
+      orderBy: { startsAt: 'asc' },
+      include: { patient: { select: { id: true, user: { select: { id: true, name: true, email: true } } } } },
+    });
+  });
+
+  it('lists all of the nutritionist appointments when no window is given', async () => {
+    prisma.appointment.findMany.mockResolvedValue([] as any);
+
+    await service.list(ctx, {});
+
+    expect(prisma.appointment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { nutritionistId: 'nutri-1' },
+        orderBy: { startsAt: 'asc' },
+      }),
+    );
+  });
+
+  it('getOne throws NotFoundException when not owned/missing', async () => {
+    prisma.appointment.findFirst.mockResolvedValue(null);
+    await expect(service.getOne(ctx, 'a1')).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.appointment.findFirst).toHaveBeenCalledWith({
+      where: { id: 'a1', nutritionistId: 'nutri-1' },
+      include: { patient: { select: { id: true, user: { select: { id: true, name: true, email: true } } } } },
+    });
+  });
+
+  it('update re-runs the overlap check excluding itself', async () => {
+    prisma.appointment.findFirst
+      .mockResolvedValueOnce({
+        id: 'a1',
+        nutritionistId: 'nutri-1',
+        startsAt: T('2026-07-01T13:00:00.000Z'),
+        endsAt: T('2026-07-01T14:00:00.000Z'),
+      } as any) // requireOwned lookup
+      .mockResolvedValueOnce(null); // conflict lookup
+    prisma.appointment.update.mockResolvedValue({ id: 'a1' } as any);
+
+    await service.update(ctx, 'a1', { endsAt: T('2026-07-01T15:00:00.000Z') });
+
+    // The conflict lookup (2nd findFirst) excludes the appointment itself.
+    expect(prisma.appointment.findFirst).toHaveBeenLastCalledWith({
+      where: {
+        nutritionistId: 'nutri-1',
+        startsAt: { lt: T('2026-07-01T15:00:00.000Z') },
+        endsAt: { gt: T('2026-07-01T13:00:00.000Z') },
+        id: { not: 'a1' },
+      },
+      select: { id: true },
+    });
+    expect(prisma.appointment.update).toHaveBeenCalled();
+  });
+
+  it('update throws NotFoundException when the appointment is not owned', async () => {
+    prisma.appointment.findFirst.mockResolvedValue(null);
+    await expect(
+      service.update(ctx, 'a1', { title: 'x' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.appointment.update).not.toHaveBeenCalled();
+  });
+
+  it('remove deletes an owned appointment', async () => {
+    prisma.appointment.findFirst.mockResolvedValue({ id: 'a1' } as any);
+    prisma.appointment.delete.mockResolvedValue({ id: 'a1' } as any);
+
+    await service.remove(ctx, 'a1');
+
+    expect(prisma.appointment.findFirst).toHaveBeenCalledWith({
+      where: { id: 'a1', nutritionistId: 'nutri-1' },
+      select: { id: true },
+    });
+    expect(prisma.appointment.delete).toHaveBeenCalledWith({ where: { id: 'a1' } });
+  });
+
+  it('remove throws NotFoundException when not owned', async () => {
+    prisma.appointment.findFirst.mockResolvedValue(null);
+    await expect(service.remove(ctx, 'a1')).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.appointment.delete).not.toHaveBeenCalled();
   });
 });
