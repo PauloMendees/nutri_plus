@@ -20,6 +20,21 @@ function ctxWithNutritionist(nutritionistId: string | null): AuthContext {
   };
 }
 
+function ctxWithEmployee(nutritionistId: string): AuthContext {
+  return {
+    authProviderId: 'sub-e',
+    email: 'e@x.com',
+    name: 'Emp',
+    user: {
+      id: 'user-e',
+      role: 'EMPLOYEE',
+      nutritionistProfile: null,
+      patientProfile: null,
+      employeeProfile: { nutritionistId },
+    } as any,
+  };
+}
+
 describe('PatientsService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let users: DeepMockProxy<UsersService>;
@@ -32,6 +47,17 @@ describe('PatientsService', () => {
     users = mockDeep<UsersService>();
     supabaseAdmin = mockDeep<SupabaseAdminService>();
     service = new PatientsService(prisma, users, supabaseAdmin);
+  });
+
+  it('scopes an employee to the owning nutritionist when listing patients', async () => {
+    prisma.patientProfile.findMany.mockResolvedValue([{ id: 'p1' }] as any);
+
+    await service.listPatients(ctxWithEmployee('nutri-9'));
+
+    expect(prisma.patientProfile.findMany).toHaveBeenCalledWith({
+      where: { nutritionistId: 'nutri-9' },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    });
   });
 
   it('lists only patients linked to the nutritionist', async () => {
