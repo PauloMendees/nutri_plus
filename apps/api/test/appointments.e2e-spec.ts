@@ -219,6 +219,11 @@ describe('Appointments (e2e)', () => {
       .set('Authorization', `Bearer ${nutB.token}`)
       .expect(404);
     await request(app.getHttpServer())
+      .patch(`/v1/appointments/${created.body.id}`)
+      .set('Authorization', `Bearer ${nutB.token}`)
+      .send({ title: 'Hijack' })
+      .expect(404);
+    await request(app.getHttpServer())
       .delete(`/v1/appointments/${created.body.id}`)
       .set('Authorization', `Bearer ${nutB.token}`)
       .expect(404);
@@ -233,6 +238,28 @@ describe('Appointments (e2e)', () => {
       .set('Authorization', `Bearer ${nutA.token}`)
       .expect(200);
     expect(list.body).toHaveLength(0);
+  });
+
+  it('allows rescheduling an appointment to a window overlapping its own current slot (exclude-self)', async () => {
+    // Create a single appointment at 13:00-14:00 for nutA.
+    const created = await request(app.getHttpServer())
+      .post('/v1/appointments')
+      .set('Authorization', `Bearer ${nutA.token}`)
+      .send(body())
+      .expect(201);
+
+    // PATCH the same appointment to 13:30-14:30 — this window overlaps the
+    // original 13:00-14:00 slot, but must succeed (200) because correct
+    // exclude-self logic omits the appointment's own row from the conflict
+    // check.  A naive overlap query (without `id != self`) would wrongly
+    // return 409.
+    const updated = await request(app.getHttpServer())
+      .patch(`/v1/appointments/${created.body.id}`)
+      .set('Authorization', `Bearer ${nutA.token}`)
+      .send({ startsAt: '2026-07-01T13:30:00.000Z', endsAt: '2026-07-01T14:30:00.000Z' })
+      .expect(200);
+    expect(updated.body.startsAt).toBe('2026-07-01T13:30:00.000Z');
+    expect(updated.body.endsAt).toBe('2026-07-01T14:30:00.000Z');
   });
 
   it('rejects a PATIENT token on appointment routes (403)', async () => {
