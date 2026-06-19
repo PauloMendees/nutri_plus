@@ -45,6 +45,10 @@ export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createWithProfile(input: CreateWithProfileInput): Promise<LocalUser> {
+    if (input.role === UserRole.EMPLOYEE) {
+      throw new BadRequestException('Employees are invite-only and cannot self-register');
+    }
+
     const base: UserBaseData = {
       authProvider: SUPABASE_PROVIDER,
       authProviderId: input.authProviderId,

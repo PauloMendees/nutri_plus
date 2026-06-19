@@ -141,4 +141,13 @@ describe('Auth (e2e)', () => {
       .send({ role: UserRole.PATIENT, referralCode: 'bad-format' })
       .expect(400);
   });
+
+  it('rejects EMPLOYEE self-signup (400) — employees are invite-only', async () => {
+    const token = signSupabaseJwt({ sub: 'emp-self', email: 'emp@x.com', name: 'Emp' });
+    await request(app.getHttpServer())
+      .post('/v1/auth/sync-user')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ role: UserRole.EMPLOYEE })
+      .expect(400);
+  });
 });

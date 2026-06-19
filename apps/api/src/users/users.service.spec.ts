@@ -223,6 +223,18 @@ describe('UsersService', () => {
     expect(result).toEqual({ id: 'u-e' });
   });
 
+  it('rejects EMPLOYEE self-signup with BadRequestException and does not create a DB row', async () => {
+    await expect(
+      service.createWithProfile({
+        authProviderId: 'sub-emp',
+        email: 'emp@x.com',
+        name: 'Emp',
+        role: UserRole.EMPLOYEE,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
   it('maps a unique-constraint violation to ConflictException for employee', async () => {
     const p2002 = new Prisma.PrismaClientKnownRequestError('dup', {
       code: 'P2002',
