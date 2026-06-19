@@ -2,14 +2,11 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/types/auth-context';
 import { resolveScopeNutritionistId } from '../auth/auth-scope';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
-import { UpdateAppointmentDto } from './dto/update-appointment.dto';
-import { ListAppointmentsQueryDto } from './dto/list-appointments-query.dto';
 
 // Linked patient summary returned with an appointment (patient + their user name/email).
 const PATIENT_SUMMARY = {
