@@ -29,7 +29,14 @@ export async function apiFetch<T>(path: string, opts: ApiFetchOptions = {}): Pro
   });
 
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text; // non-JSON body (e.g. an upstream HTML error page)
+    }
+  }
 
   if (!res.ok) throw new ApiError(res.status, data);
   return data as T;

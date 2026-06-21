@@ -46,4 +46,19 @@ describe('apiFetch', () => {
     });
     await expect(apiFetch('/auth/me', { token: 'x' })).rejects.toBeInstanceOf(ApiError);
   });
+
+  it('yields an ApiError (not a parse error) on a non-JSON error body', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response('<html>502 Bad Gateway</html>', {
+          status: 502,
+          headers: { 'content-type': 'text/html' },
+        }),
+      ),
+    );
+    await expect(apiFetch('/auth/me', { token: 'x' })).rejects.toMatchObject({
+      status: 502,
+      body: '<html>502 Bad Gateway</html>',
+    });
+  });
 });
