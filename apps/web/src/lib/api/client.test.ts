@@ -31,15 +31,18 @@ describe('apiFetch', () => {
   });
 
   it('throws ApiError with the status on a non-2xx response', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ message: 'nope' }), {
-        status: 409,
-        headers: { 'content-type': 'application/json' },
-      }),
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ message: 'nope' }), {
+          status: 409,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
     );
 
     await expect(apiFetch('/auth/me', { token: 'x' })).rejects.toMatchObject({
       status: 409,
+      body: { message: 'nope' },
     });
     await expect(apiFetch('/auth/me', { token: 'x' })).rejects.toBeInstanceOf(ApiError);
   });

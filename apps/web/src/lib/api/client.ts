@@ -28,13 +28,8 @@ export async function apiFetch<T>(path: string, opts: ApiFetchOptions = {}): Pro
     cache: 'no-store',
   });
 
-  let data: unknown = null;
-  try {
-    const text = await res.text();
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    // body already consumed (e.g. in tests) — ignore
-  }
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
 
   if (!res.ok) throw new ApiError(res.status, data);
   return data as T;
