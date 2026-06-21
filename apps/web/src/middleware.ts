@@ -10,7 +10,11 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = target;
     url.search = '';
-    return NextResponse.redirect(url);
+    const redirectResponse = NextResponse.redirect(url);
+    response.cookies.getAll().forEach(({ name, value, ...options }) =>
+      redirectResponse.cookies.set(name, value, options),
+    );
+    return redirectResponse;
   }
 
   return response;
