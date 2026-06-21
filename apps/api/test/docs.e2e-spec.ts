@@ -46,6 +46,8 @@ describe('Docs (e2e)', () => {
         '/v1/ai/generate-meal-plan',
         '/v1/employees',
         '/v1/employees/{id}',
+        '/v1/appointments',
+        '/v1/appointments/{id}',
       ]),
     );
   });
