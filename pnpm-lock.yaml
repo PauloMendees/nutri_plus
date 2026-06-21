@@ -144,6 +144,9 @@ importers:
       '@hookform/resolvers':
         specifier: ^5.4.0
         version: 5.4.0(react-hook-form@7.80.0(react@19.2.4))
+      '@nutri-plus/shared-types':
+        specifier: workspace:^
+        version: link:../../packages/shared-types
       '@supabase/ssr':
         specifier: ^0.12.0
         version: 0.12.0(@supabase/supabase-js@2.108.2)

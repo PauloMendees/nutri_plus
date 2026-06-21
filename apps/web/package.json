@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
+    "@nutri-plus/shared-types": "workspace:^",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
     "@tanstack/react-query": "^5.101.0",
