@@ -47,4 +47,14 @@ describe('GET /auth/callback', () => {
     expect(res.headers.get('location')).toContain('/login?error=');
     expect(syncUser).not.toHaveBeenCalled();
   });
+
+  it('redirects to /login with an error when syncUser throws', async () => {
+    exchangeCodeForSession.mockResolvedValue({ error: null });
+    getSession.mockResolvedValue({ data: { session: { access_token: 'tok' } } });
+    syncUser.mockRejectedValue(new Error('network fail'));
+
+    const res = await GET(req('http://localhost:3001/auth/callback?code=abc'));
+
+    expect(res.headers.get('location')).toContain('/login?error=');
+  });
 });

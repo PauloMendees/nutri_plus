@@ -44,6 +44,7 @@ describe('LoginForm', () => {
       }),
     );
     expect(push).toHaveBeenCalledWith('/');
+    expect(refresh).toHaveBeenCalled();
   });
 
   it('shows a mapped error message on failure', async () => {

@@ -80,7 +80,7 @@ export function LoginForm() {
           />
 
           <div className="flex justify-end">
-            <span className="cursor-not-allowed text-sm font-medium text-primary/60" aria-disabled>
+            <span className="cursor-not-allowed text-sm font-medium text-primary/60" aria-disabled="true">
               Esqueceu a senha?
             </span>
           </div>
