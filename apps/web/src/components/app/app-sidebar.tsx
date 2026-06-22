@@ -52,8 +52,8 @@ export function AppSidebar({ user }: AppSidebarProps) {
         <Logo variant="full" tone="reverse" className="h-7" />
       </SidebarHeader>
 
-      <SidebarContent className="px-2">
-        <SidebarMenu>
+      <SidebarContent className="px-2 py-2">
+        <SidebarMenu className="gap-1.5">
           {NAV_ITEMS.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
@@ -62,8 +62,10 @@ export function AppSidebar({ user }: AppSidebarProps) {
                 <SidebarMenuButton
                   asChild
                   isActive={active}
-                  onClick={() => { if (isMobile) setOpenMobile(false); }}
-                  className="data-[active=true]:shadow-[inset_2px_0_0_var(--sidebar-ring)]"
+                  onClick={() => {
+                    if (isMobile) setOpenMobile(false);
+                  }}
+                  className="h-9 gap-3 data-[active=true]:shadow-[inset_2px_0_0_var(--sidebar-ring)]"
                 >
                   <Link href={item.href}>
                     <Icon />
@@ -76,7 +78,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
         </SidebarMenu>
       </SidebarContent>
 
-      <SidebarFooter className="gap-2">
+      <SidebarFooter className="gap-2 pb-4">
         {user && (
           <div className="flex items-center gap-2 px-2 py-1.5">
             <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-xs font-bold text-sidebar-primary-foreground">
