@@ -14,6 +14,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  useSidebar,
 } from '@/components/ui/sidebar';
 
 type AppSidebarProps = {
@@ -37,6 +38,7 @@ function initials(name: string): string {
 export function AppSidebar({ user }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { isMobile, setOpenMobile } = useSidebar();
 
   async function signOut() {
     await createClient().auth.signOut();
@@ -60,6 +62,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                 <SidebarMenuButton
                   asChild
                   isActive={active}
+                  onClick={() => { if (isMobile) setOpenMobile(false); }}
                   className="data-[active=true]:shadow-[inset_2px_0_0_var(--sidebar-ring)]"
                 >
                   <Link href={item.href}>

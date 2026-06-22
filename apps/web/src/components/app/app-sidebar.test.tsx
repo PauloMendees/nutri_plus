@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarProvider, useSidebar } from '@/components/ui/sidebar';
 
 const push = vi.fn();
 const refresh = vi.fn();
@@ -65,5 +65,44 @@ describe('AppSidebar', () => {
   it('renders the iNutri logo', () => {
     renderSidebar();
     expect(screen.getByRole('img', { name: /inutri/i })).toBeInTheDocument();
+  });
+
+  it('closes the mobile sheet when a nav item is tapped', async () => {
+    const originalMatchMedia = window.matchMedia;
+    const originalInnerWidth = window.innerWidth;
+
+    // useIsMobile reads window.innerWidth, so set it to a mobile value
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 375 });
+    window.matchMedia = ((query: string) => ({
+      matches: true, media: query, onchange: null,
+      addEventListener: () => {}, removeEventListener: () => {},
+      addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+
+    function MobileState() {
+      const { openMobile, setOpenMobile } = useSidebar();
+      return (
+        <>
+          <button onClick={() => setOpenMobile(true)}>force-open</button>
+          <span data-testid="mobile-open">{String(openMobile)}</span>
+        </>
+      );
+    }
+
+    try {
+      render(
+        <SidebarProvider>
+          <MobileState />
+          <AppSidebar user={{ name: 'Dra. Ana', role: 'NUTRITIONIST' }} />
+        </SidebarProvider>,
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'force-open' }));
+      expect(screen.getByTestId('mobile-open')).toHaveTextContent('true');
+      await userEvent.click(screen.getByRole('link', { name: /pacientes/i }));
+      expect(screen.getByTestId('mobile-open')).toHaveTextContent('false');
+    } finally {
+      window.matchMedia = originalMatchMedia;
+      Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: originalInnerWidth });
+    }
   });
 });
