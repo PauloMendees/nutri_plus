@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { resetPasswordSchema, type ResetPasswordValues } from '@/lib/validation/auth';
 import { mapAuthError } from '@/lib/auth/errors';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import {
   Form,
   FormControl,
@@ -55,7 +55,7 @@ export function ResetPasswordForm() {
               <FormItem>
                 <FormLabel>Nova senha</FormLabel>
                 <FormControl>
-                  <Input type="password" autoComplete="new-password" placeholder="••••••••" {...field} />
+                  <PasswordInput autoComplete="new-password" placeholder="••••••••" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -68,7 +68,7 @@ export function ResetPasswordForm() {
               <FormItem>
                 <FormLabel>Confirmar senha</FormLabel>
                 <FormControl>
-                  <Input type="password" autoComplete="new-password" placeholder="••••••••" {...field} />
+                  <PasswordInput autoComplete="new-password" placeholder="••••••••" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

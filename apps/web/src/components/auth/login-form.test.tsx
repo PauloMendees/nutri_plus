@@ -28,7 +28,7 @@ describe('LoginForm', () => {
   it('shows a validation error for an invalid email', async () => {
     render(<LoginForm />);
     await userEvent.type(screen.getByLabelText(/e-mail/i), 'nope');
-    await userEvent.type(screen.getByLabelText(/senha/i), 'secret123');
+    await userEvent.type(screen.getByLabelText(/^senha$/i), 'secret123');
     await userEvent.click(screen.getByRole('button', { name: /entrar/i }));
     expect(await screen.findByText(/e-mail válido/i)).toBeInTheDocument();
     expect(signInWithPassword).not.toHaveBeenCalled();
@@ -38,7 +38,7 @@ describe('LoginForm', () => {
     signInWithPassword.mockResolvedValue({ error: null });
     render(<LoginForm />);
     await userEvent.type(screen.getByLabelText(/e-mail/i), 'ana@clinica.com');
-    await userEvent.type(screen.getByLabelText(/senha/i), 'secret123');
+    await userEvent.type(screen.getByLabelText(/^senha$/i), 'secret123');
     await userEvent.click(screen.getByRole('button', { name: /entrar/i }));
     await waitFor(() =>
       expect(signInWithPassword).toHaveBeenCalledWith({
@@ -54,7 +54,7 @@ describe('LoginForm', () => {
     signInWithPassword.mockResolvedValue({ error: { code: 'invalid_credentials' } });
     render(<LoginForm />);
     await userEvent.type(screen.getByLabelText(/e-mail/i), 'ana@clinica.com');
-    await userEvent.type(screen.getByLabelText(/senha/i), 'secret123');
+    await userEvent.type(screen.getByLabelText(/^senha$/i), 'secret123');
     await userEvent.click(screen.getByRole('button', { name: /entrar/i }));
     expect(await screen.findByText(/inválidos/i)).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();

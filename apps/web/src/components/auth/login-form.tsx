@@ -10,6 +10,7 @@ import { loginSchema, type LoginValues } from '@/lib/validation/auth';
 import { mapAuthError } from '@/lib/auth/errors';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import {
   Form,
   FormControl,
@@ -80,7 +81,7 @@ export function LoginForm() {
               <FormItem>
                 <FormLabel>Senha</FormLabel>
                 <FormControl>
-                  <Input type="password" autoComplete="current-password" placeholder="••••••••" {...field} />
+                  <PasswordInput autoComplete="current-password" placeholder="••••••••" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
