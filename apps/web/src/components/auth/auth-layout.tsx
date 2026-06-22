@@ -24,7 +24,10 @@ export function AuthLayout({ children }: { children: ReactNode }) {
       </aside>
 
       <main className="flex flex-1 items-center justify-center px-6 py-10 md:px-12">
-        <div className="w-full max-w-sm">{children}</div>
+        <div className="w-full max-w-sm space-y-8">
+          <Logo variant="full" className="h-8" />
+          {children}
+        </div>
       </main>
     </div>
   );
