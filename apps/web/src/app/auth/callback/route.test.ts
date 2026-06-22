@@ -57,4 +57,30 @@ describe('GET /auth/callback', () => {
 
     expect(res.headers.get('location')).toContain('/login?error=');
   });
+
+  it('redirects to a safe `next` after exchange without syncing (recovery)', async () => {
+    exchangeCodeForSession.mockResolvedValue({ error: null });
+
+    const res = await GET(
+      req('http://localhost:3001/auth/callback?code=abc&next=/reset-password'),
+    );
+
+    expect(exchangeCodeForSession).toHaveBeenCalledWith('abc');
+    expect(syncUser).not.toHaveBeenCalled();
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('http://localhost:3001/reset-password');
+  });
+
+  it('ignores an unsafe `next` (open-redirect guard) and falls back to signup sync', async () => {
+    exchangeCodeForSession.mockResolvedValue({ error: null });
+    getSession.mockResolvedValue({ data: { session: { access_token: 'tok' } } });
+    syncUser.mockResolvedValue({});
+
+    const res = await GET(
+      req('http://localhost:3001/auth/callback?code=abc&next=//evil.com'),
+    );
+
+    expect(syncUser).toHaveBeenCalledWith('tok', 'NUTRITIONIST');
+    expect(res.headers.get('location')).toBe('http://localhost:3001/');
+  });
 });
