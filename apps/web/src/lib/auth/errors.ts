@@ -4,6 +4,7 @@ const MESSAGES: Record<string, string> = {
   user_already_exists: 'Já existe uma conta com este e-mail.',
   weak_password: 'A senha é muito fraca. Use ao menos 8 caracteres.',
   over_email_send_rate_limit: 'Muitas tentativas. Aguarde alguns minutos e tente de novo.',
+  same_password: 'A nova senha deve ser diferente da atual.',
 };
 
 const GENERIC = 'Algo deu errado. Tente novamente.';

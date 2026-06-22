@@ -22,4 +22,12 @@ describe('decideRedirect', () => {
     expect(decideRedirect(true, '/auth/callback')).toBeNull();
     expect(decideRedirect(true, '/verify-email')).toBeNull();
   });
+
+  it('lets unauthenticated users reach /forgot-password', () => {
+    expect(decideRedirect(false, '/forgot-password')).toBeNull();
+  });
+
+  it('requires a session for /reset-password (unauthenticated → /login)', () => {
+    expect(decideRedirect(false, '/reset-password')).toBe('/login');
+  });
 });

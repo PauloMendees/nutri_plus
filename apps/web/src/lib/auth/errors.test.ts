@@ -15,4 +15,7 @@ describe('mapAuthError', () => {
     expect(mapAuthError({ code: 'something_weird' })).toMatch(/tente novamente/i);
     expect(mapAuthError(null)).toMatch(/tente novamente/i);
   });
+  it('maps same_password', () => {
+    expect(mapAuthError({ code: 'same_password' })).toMatch(/diferente/i);
+  });
 });
