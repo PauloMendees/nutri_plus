@@ -1,14 +1,42 @@
+import { UserRole, type MeResponse } from '@nutri-plus/shared-types';
+import { createClient } from '@/lib/supabase/server';
+import { getMe, syncUser } from '@/lib/api/auth';
+import { ApiError } from '@/lib/api/client';
 import { Logo } from '@/components/brand/logo';
-import { SignOutButton } from '@/components/auth/sign-out-button';
+import { AppSidebar } from '@/components/app/app-sidebar';
+import { MobileNavTrigger } from '@/components/app/mobile-nav-trigger';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+async function loadProfile(token: string): Promise<MeResponse> {
+  try {
+    return await getMe(token);
+  } catch (err) {
+    // Confirmed session but no local profile yet: provision once, then refetch.
+    if (err instanceof ApiError && err.status === 409) {
+      await syncUser(token, UserRole.NUTRITIONIST);
+      return getMe(token);
+    }
+    throw err;
+  }
+}
+
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const me = session?.access_token ? await loadProfile(session.access_token) : null;
+
   return (
-    <div className="min-h-svh bg-muted/30">
-      <header className="flex items-center justify-between border-b bg-background px-6 py-3">
-        <Logo variant="full" className="h-7" />
-        <SignOutButton />
-      </header>
-      <main className="mx-auto max-w-3xl px-6 py-10">{children}</main>
-    </div>
+    <SidebarProvider>
+      <AppSidebar user={me ? { name: me.name, role: me.role } : null} />
+      <SidebarInset>
+        <header className="flex h-14 items-center justify-between border-b bg-background px-4 md:hidden">
+          <Logo variant="full" className="h-6" />
+          <MobileNavTrigger />
+        </header>
+        <main className="flex-1 p-6 md:p-8">{children}</main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
