@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,6 +21,8 @@ import {
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const justReset = searchParams.get('reset') === '1';
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<LoginValues>({
@@ -49,6 +51,12 @@ export function LoginForm() {
         <h2 className="font-heading text-2xl font-bold text-foreground">Bem-vindo de volta</h2>
         <p className="text-sm text-muted-foreground">Entre na sua conta para continuar.</p>
       </div>
+
+      {justReset && (
+        <p className="rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground">
+          Senha alterada. Entre com a nova senha.
+        </p>
+      )}
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
@@ -80,9 +88,12 @@ export function LoginForm() {
           />
 
           <div className="flex justify-end">
-            <span className="cursor-not-allowed text-sm font-medium text-primary/60" aria-disabled="true">
+            <Link
+              href="/forgot-password"
+              className="text-sm font-medium text-primary hover:underline"
+            >
               Esqueceu a senha?
-            </span>
+            </Link>
           </div>
 
           {formError && <p className="text-sm text-destructive">{formError}</p>}
