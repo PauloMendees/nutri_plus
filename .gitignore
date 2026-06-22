@@ -7,3 +7,5 @@ apps/api/src/generated/
 .env
 .env.local
 *.log
+# Visual brainstorming companion mockups (transient)
+.superpowers/brainstorm/
