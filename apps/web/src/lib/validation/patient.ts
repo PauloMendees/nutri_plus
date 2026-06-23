@@ -16,7 +16,7 @@ const optionalBirthDate = z.preprocess(
   z
     .string()
     .refine((v) => !Number.isNaN(Date.parse(v)), 'Data inválida.')
-    .refine((v) => new Date(v) <= new Date(), 'A data não pode ser futura.')
+    .refine((v) => v.slice(0, 10) <= new Date().toISOString().slice(0, 10), 'A data não pode ser futura.')
     .optional(),
 );
 
