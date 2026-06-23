@@ -16,6 +16,11 @@ vi.mock('@/lib/queries/patients', () => ({
   usePatients: () => ({ data: [], isLoading: false }),
 }));
 
+const categoriesQuery = vi.fn();
+vi.mock("@/lib/queries/appointment-categories", () => ({
+  useAppointmentCategories: () => categoriesQuery(),
+}));
+
 import { AppointmentDialog } from './appointment-dialog';
 
 beforeEach(() => {
@@ -23,6 +28,7 @@ beforeEach(() => {
   updateMut.mockReset().mockResolvedValue({});
   deleteMut.mockReset().mockResolvedValue(undefined);
   onOpenChange.mockReset();
+  categoriesQuery.mockReset().mockReturnValue({ data: [] });
 });
 
 const onOpenChange = vi.fn();
@@ -89,5 +95,22 @@ describe('AppointmentDialog (edit)', () => {
     render(<AppointmentDialog open onOpenChange={onOpenChange} mode="edit" appointment={appt} />);
     await userEvent.click(screen.getByRole('button', { name: /excluir/i }));
     await waitFor(() => expect(deleteMut).toHaveBeenCalledWith('a1'));
+  });
+});
+
+describe('AppointmentDialog (category)', () => {
+  it("preselects the default category and fills the title on create", async () => {
+    categoriesQuery.mockReturnValue({
+      data: [
+        { id: "cat-default", nutritionistId: "n1", name: "Consulta", color: "#14BFA6", isDefault: true, createdAt: "", updatedAt: "" },
+      ],
+    });
+    render(
+      <AppointmentDialog open onOpenChange={onOpenChange} mode="create" initialDate={new Date(2026, 5, 23)} />,
+    );
+    await waitFor(() => expect(screen.getByLabelText(/título/i)).toHaveValue("Consulta"));
+    await userEvent.click(screen.getByRole("button", { name: /salvar/i }));
+    await waitFor(() => expect(createMut).toHaveBeenCalledTimes(1));
+    expect(createMut.mock.calls[0][0].categoryId).toBe("cat-default");
   });
 });

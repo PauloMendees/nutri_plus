@@ -6,6 +6,7 @@ export const appointmentFormSchema = z
   .object({
     title: z.string().min(1, 'Informe um título.').max(200, 'Máximo de 200 caracteres.'),
     patientId: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+    categoryId: z.preprocess(emptyToUndefined, z.string().optional()),
     date: z.string().min(1, 'Informe a data.'),
     startTime: z.string().min(1, 'Informe o início.'),
     endTime: z.string().min(1, 'Informe o fim.'),
