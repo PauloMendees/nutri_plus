@@ -23,8 +23,6 @@ type Status = 'checking' | 'ready' | 'invalid';
 
 export function AcceptInvite() {
   const router = useRouter();
-  // Created once. The browser client auto-detects the invite session from the
-  // URL hash (#access_token…&type=invite) on construction.
   const supabase = useMemo(() => createClient(), []);
   const [status, setStatus] = useState<Status>('checking');
   const [formError, setFormError] = useState<string | null>(null);
@@ -37,30 +35,38 @@ export function AcceptInvite() {
   useEffect(() => {
     let active = true;
 
-    // The browser client auto-detects the invite session from the URL hash
-    // (#access_token…&type=invite). The session may surface via getSession()
-    // (which settles after initialization) or via the INITIAL_SESSION/SIGNED_IN
-    // event — so we only treat the link as invalid once initialization itself
-    // reports no session (the INITIAL_SESSION event), never from the first
-    // getSession() resolving early.
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!active) return;
-      if (session) {
-        setStatus('ready');
-      } else if (event === 'INITIAL_SESSION') {
-        setStatus((prev) => (prev === 'ready' ? 'ready' : 'invalid'));
+    // Admin invites arrive via Supabase's implicit flow (#access_token…&type=invite).
+    // The @supabase/ssr browser client defaults to flowType 'pkce', which refuses to
+    // consume an implicit-grant URL (auth-js throws "Not a valid PKCE flow url"), so
+    // detectSessionInUrl never establishes the session. We read the tokens from the
+    // hash and set the session explicitly — setSession ignores flowType.
+    async function establish() {
+      const hash = typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '';
+      const params = new URLSearchParams(hash);
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+
+      if (accessToken && refreshToken) {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        // Strip the tokens from the address bar regardless of the outcome.
+        if (typeof window !== 'undefined') {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+        if (active) setStatus(!error && data.session ? 'ready' : 'invalid');
+        return;
       }
-    });
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (active && data.session) setStatus('ready');
-    });
+      // No invite tokens in the URL — fall back to an existing session (e.g. a revisit).
+      const { data } = await supabase.auth.getSession();
+      if (active) setStatus(data.session ? 'ready' : 'invalid');
+    }
 
+    establish();
     return () => {
       active = false;
-      subscription.unsubscribe();
     };
   }, [supabase]);
 
