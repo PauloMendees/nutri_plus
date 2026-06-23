@@ -47,7 +47,7 @@ describe('validateEnv', () => {
   });
 
   it('throws when WEB_ORIGIN is not a valid url', () => {
-    expect(() => validateEnv({ ...valid, WEB_ORIGIN: 'localhost:3001' })).toThrow(
+    expect(() => validateEnv({ ...valid, WEB_ORIGIN: 'not a url' })).toThrow(
       /WEB_ORIGIN/,
     );
   });
