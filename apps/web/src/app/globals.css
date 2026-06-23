@@ -80,4 +80,10 @@
   h1, h2, h3, h4 {
     @apply font-heading;
   }
+  /* Tailwind v4 Preflight sets buttons to cursor:default — restore the pointer
+     for enabled buttons (and role="button" elements like the calendar chips). */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
 }
