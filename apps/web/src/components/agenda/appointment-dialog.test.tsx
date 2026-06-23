@@ -102,7 +102,7 @@ describe('AppointmentDialog (category)', () => {
   it("preselects the default category and fills the title on create", async () => {
     categoriesQuery.mockReturnValue({
       data: [
-        { id: "cat-default", nutritionistId: "n1", name: "Consulta", color: "#14BFA6", isDefault: true, createdAt: "", updatedAt: "" },
+        { id: "00000000-0000-4000-8000-000000000001", nutritionistId: "n1", name: "Consulta", color: "#14BFA6", isDefault: true, createdAt: "", updatedAt: "" },
       ],
     });
     render(
@@ -111,6 +111,6 @@ describe('AppointmentDialog (category)', () => {
     await waitFor(() => expect(screen.getByLabelText(/título/i)).toHaveValue("Consulta"));
     await userEvent.click(screen.getByRole("button", { name: /salvar/i }));
     await waitFor(() => expect(createMut).toHaveBeenCalledTimes(1));
-    expect(createMut.mock.calls[0][0].categoryId).toBe("cat-default");
+    expect(createMut.mock.calls[0][0].categoryId).toBe("00000000-0000-4000-8000-000000000001");
   });
 });
