@@ -1,3 +1,5 @@
+import type { AppointmentCategorySummary } from './appointment-category';
+
 export interface AppointmentPatientSummary {
   id: string;
   user: { id: string; name: string; email: string };
@@ -15,6 +17,8 @@ export interface Appointment {
   createdAt: string;
   updatedAt: string;
   patient: AppointmentPatientSummary | null;
+  categoryId?: string | null;
+  category?: AppointmentCategorySummary | null;
 }
 
 export interface CreateAppointmentRequest {
@@ -23,6 +27,7 @@ export interface CreateAppointmentRequest {
   endsAt: string;
   description?: string;
   patientId?: string;
+  categoryId?: string;
 }
 
 export interface UpdateAppointmentRequest {
@@ -31,6 +36,7 @@ export interface UpdateAppointmentRequest {
   endsAt?: string;
   description?: string | null;
   patientId?: string | null;
+  categoryId?: string | null;
 }
 
 export interface ListAppointmentsQuery {
