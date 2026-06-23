@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { ChevronLeft } from 'lucide-react';
 import { ApiError } from '@/lib/api/client';
 import { usePatient } from '@/lib/queries/patients';
 import { EditPatientForm } from '@/components/patients/edit-patient-form';
@@ -32,6 +34,14 @@ export function PatientDetail({ id, created }: { id: string; created: boolean })
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      <Link
+        href="/patients"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline"
+      >
+        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+        Voltar para pacientes
+      </Link>
+
       <CreatedBanner show={created} />
 
       <div className="flex items-center gap-3 rounded-xl border bg-card p-4">
