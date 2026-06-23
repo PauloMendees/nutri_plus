@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { ApiError } from '@/lib/api/client';
 
 const push = vi.fn();
 const mutateAsync = vi.fn();
@@ -40,9 +41,7 @@ describe('CreatePatientForm', () => {
   });
 
   it('shows a mapped error when creation fails', async () => {
-    mutateAsync.mockRejectedValue(
-      Object.assign(new Error('x'), { name: 'ApiError', status: 409, body: {} }),
-    );
+    mutateAsync.mockRejectedValue(new ApiError(409, {}));
     render(<CreatePatientForm />);
     await userEvent.type(screen.getByLabelText(/nome/i), 'Maria Silva');
     await userEvent.type(screen.getByLabelText(/e-mail/i), 'maria@x.com');

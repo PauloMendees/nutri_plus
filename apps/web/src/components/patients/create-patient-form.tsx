@@ -13,15 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
-function isApiError(err: unknown): err is ApiError {
-  return (
-    err instanceof ApiError ||
-    (err instanceof Error && (err as ApiError).name === 'ApiError')
-  );
-}
-
 function mapCreateError(err: unknown): string {
-  if (isApiError(err) && (err as ApiError).status === 409) {
+  if (err instanceof ApiError && err.status === 409) {
     return 'Já existe um usuário com este e-mail.';
   }
   return 'Não foi possível criar o paciente. Tente novamente.';
