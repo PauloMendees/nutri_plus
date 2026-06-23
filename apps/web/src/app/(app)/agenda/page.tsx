@@ -1,10 +1,5 @@
-import { PagePlaceholder } from '@/components/app/page-placeholder';
+import { AgendaView } from '@/components/agenda/agenda-view';
 
 export default function AgendaPage() {
-  return (
-    <PagePlaceholder
-      title="Agenda"
-      description="Em breve você poderá agendar e visualizar seus atendimentos aqui."
-    />
-  );
+  return <AgendaView />;
 }
