@@ -36,4 +36,12 @@ describe('AgendaView', () => {
     await userEvent.click(screen.getByRole('button', { name: /novo agendamento/i }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
+
+  it('returns to the current month with Hoje', async () => {
+    render(<AgendaView today={new Date(2026, 5, 23)} />);
+    await userEvent.click(screen.getByRole('button', { name: /próximo mês/i }));
+    expect(screen.getByText('Julho 2026')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /hoje/i }));
+    expect(screen.getByText('Junho 2026')).toBeInTheDocument();
+  });
 });

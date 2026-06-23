@@ -27,7 +27,7 @@ export function AgendaView({ today = new Date() }: { today?: Date }) {
 
   const range = useMemo(() => gridRange(year, month), [year, month]);
   const query = useAppointments({ from: range.from.toISOString(), to: range.to.toISOString() });
-  const appointments = query.data ?? [];
+  const appointments = useMemo(() => query.data ?? [], [query.data]);
   // The calendar shows the full visible grid (incl. adjacent-month days); the
   // list is scoped to the selected month.
   const monthAppointments = useMemo(
@@ -67,6 +67,7 @@ export function AgendaView({ today = new Date() }: { today?: Date }) {
           <button
             type="button"
             onClick={() => setView('month')}
+            aria-pressed={view === 'month'}
             className={cn(
               'rounded-full px-3.5 py-1.5 text-xs font-semibold text-muted-foreground',
               view === 'month' && 'bg-primary text-primary-foreground',
@@ -77,6 +78,7 @@ export function AgendaView({ today = new Date() }: { today?: Date }) {
           <button
             type="button"
             onClick={() => setView('list')}
+            aria-pressed={view === 'list'}
             className={cn(
               'rounded-full px-3.5 py-1.5 text-xs font-semibold text-muted-foreground',
               view === 'list' && 'bg-primary text-primary-foreground',
