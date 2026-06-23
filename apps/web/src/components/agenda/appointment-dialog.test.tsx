@@ -22,6 +22,7 @@ beforeEach(() => {
   createMut.mockReset().mockResolvedValue({});
   updateMut.mockReset().mockResolvedValue({});
   deleteMut.mockReset().mockResolvedValue(undefined);
+  onOpenChange.mockReset();
 });
 
 const onOpenChange = vi.fn();
@@ -77,7 +78,11 @@ describe('AppointmentDialog (edit)', () => {
     expect(screen.getByLabelText(/título/i)).toHaveValue('Retorno');
     await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
     await waitFor(() => expect(updateMut).toHaveBeenCalledTimes(1));
-    expect(updateMut.mock.calls[0][0].id).toBe('a1');
+    const call = updateMut.mock.calls[0][0];
+    expect(call.id).toBe('a1');
+    expect(call.body.description).toBeNull();
+    expect(call.body.patientId).toBeNull();
+    expect(new Date(call.body.startsAt).getHours()).toBe(15);
   });
 
   it('deletes the appointment', async () => {

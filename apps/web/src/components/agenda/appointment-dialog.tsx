@@ -145,7 +145,7 @@ export function AppointmentDialog({
     }
   }
 
-  const pending = form.formState.isSubmitting || create.isPending || update.isPending;
+  const pending = form.formState.isSubmitting || create.isPending || update.isPending || remove.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
