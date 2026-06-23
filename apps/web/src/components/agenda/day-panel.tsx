@@ -27,7 +27,7 @@ export function DayPanel({
         <DialogHeader>
           <DialogTitle>{formatDayHeading(date)}</DialogTitle>
           <p className="text-sm text-muted-foreground">
-            {appointments.length} {appointments.length === 1 ? 'agendamento' : 'agendamentos'}
+            {sorted.length} {sorted.length === 1 ? 'agendamento' : 'agendamentos'}
           </p>
         </DialogHeader>
 

@@ -33,4 +33,20 @@ describe('DayPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: /novo agendamento neste dia/i }));
     expect((onCreate.mock.calls[0][0] as Date).getDate()).toBe(17);
   });
+
+  it('calls onEditAppointment when an appointment row is clicked', async () => {
+    const onEdit = vi.fn();
+    render(
+      <DayPanel
+        open
+        onOpenChange={() => {}}
+        date={new Date(2026, 5, 17)}
+        appointments={[appt]}
+        onEditAppointment={onEdit}
+        onCreateOnDay={() => {}}
+      />,
+    );
+    await userEvent.click(screen.getByText('Consulta'));
+    expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'a1' }));
+  });
 });
