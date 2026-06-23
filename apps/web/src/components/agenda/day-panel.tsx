@@ -34,29 +34,32 @@ export function DayPanel({
         </DialogHeader>
 
         <div className="max-h-[320px] space-y-2 overflow-auto">
-          {sorted.map((a) => (
-            <AppointmentTooltip key={a.id} appointment={a}>
-              <button
-                type="button"
-                onClick={() => onEditAppointment(a)}
-                className="flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left"
-              >
-                <span
-                  className="size-2 shrink-0 rounded-full bg-primary"
-                  style={appointmentColor(a) ? { backgroundColor: appointmentColor(a)! } : undefined}
-                />
-                <span className="min-w-[96px] text-xs font-bold text-muted-foreground">
-                  {formatTimeRange(a.startsAt, a.endsAt)}
-                </span>
-                <span className="text-sm font-semibold">
-                  {a.title}
-                  {a.patient && (
-                    <span className="font-medium text-muted-foreground"> · {a.patient.user.name}</span>
-                  )}
-                </span>
-              </button>
-            </AppointmentTooltip>
-          ))}
+          {sorted.map((a) => {
+            const color = appointmentColor(a);
+            return (
+              <AppointmentTooltip key={a.id} appointment={a}>
+                <button
+                  type="button"
+                  onClick={() => onEditAppointment(a)}
+                  className="flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left"
+                >
+                  <span
+                    className="size-2 shrink-0 rounded-full bg-primary"
+                    style={color ? { backgroundColor: color } : undefined}
+                  />
+                  <span className="min-w-[96px] text-xs font-bold text-muted-foreground">
+                    {formatTimeRange(a.startsAt, a.endsAt)}
+                  </span>
+                  <span className="text-sm font-semibold">
+                    {a.title}
+                    {a.patient && (
+                      <span className="font-medium text-muted-foreground"> · {a.patient.user.name}</span>
+                    )}
+                  </span>
+                </button>
+              </AppointmentTooltip>
+            );
+          })}
         </div>
 
         <DialogFooter>

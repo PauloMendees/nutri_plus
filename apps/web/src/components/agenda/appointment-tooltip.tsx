@@ -21,6 +21,7 @@ export function AppointmentTooltip({
   appointment: Appointment;
   children: ReactNode;
 }) {
+  const color = appointmentColor(appointment);
   return (
     <TooltipProvider delayDuration={200}>
       <Tooltip>
@@ -30,7 +31,7 @@ export function AppointmentTooltip({
             <p className="flex items-center gap-1.5 font-semibold">
               <span
                 className="size-2 shrink-0 rounded-full bg-primary"
-                style={appointmentColor(appointment) ? { backgroundColor: appointmentColor(appointment)! } : undefined}
+                style={color ? { backgroundColor: color } : undefined}
               />
               {appointment.title}
             </p>
