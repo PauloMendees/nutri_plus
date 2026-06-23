@@ -2,20 +2,30 @@
 
 import type { Appointment } from '@nutri-plus/shared-types';
 import { formatDayHeading, formatTimeRange, groupByDay, sameDay } from '@/lib/agenda/dates';
+import { Button } from '@/components/ui/button';
 
 export function AgendaList({
   appointments,
   today = new Date(),
   onEditAppointment,
+  onCreate,
 }: {
   appointments: Appointment[];
   today?: Date;
   onEditAppointment: (appt: Appointment) => void;
+  onCreate?: () => void;
 }) {
   if (appointments.length === 0) {
     return (
       <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
         Nenhum agendamento neste mês.
+        {onCreate && (
+          <div className="mt-4">
+            <Button className="rounded-full" onClick={onCreate}>
+              Novo agendamento
+            </Button>
+          </div>
+        )}
       </div>
     );
   }

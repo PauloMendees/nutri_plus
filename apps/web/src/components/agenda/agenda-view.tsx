@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Appointment } from '@nutri-plus/shared-types';
-import { formatMonthTitle, gridRange } from '@/lib/agenda/dates';
+import { formatMonthTitle, gridRange, groupByDay, toDateInput } from '@/lib/agenda/dates';
 import { useAppointments } from '@/lib/queries/appointments';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -23,11 +23,12 @@ export function AgendaView({ today = new Date() }: { today?: Date }) {
   const [month, setMonth] = useState(today.getMonth());
   const [view, setView] = useState<View>('month');
   const [dialog, setDialog] = useState<DialogState | null>(null);
-  const [dayPanel, setDayPanel] = useState<{ date: Date; appts: Appointment[] } | null>(null);
+  const [dayPanelDate, setDayPanelDate] = useState<Date | null>(null);
 
   const range = useMemo(() => gridRange(year, month), [year, month]);
   const query = useAppointments({ from: range.from.toISOString(), to: range.to.toISOString() });
   const appointments = useMemo(() => query.data ?? [], [query.data]);
+  const byDay = useMemo(() => groupByDay(appointments), [appointments]);
   // The calendar shows the full visible grid (incl. adjacent-month days); the
   // list is scoped to the selected month.
   const monthAppointments = useMemo(
@@ -50,11 +51,11 @@ export function AgendaView({ today = new Date() }: { today?: Date }) {
   }
 
   const openCreate = (initialDate?: Date) => {
-    setDayPanel(null);
+    setDayPanelDate(null);
     setDialog({ mode: 'create', initialDate });
   };
   const openEdit = (appointment: Appointment) => {
-    setDayPanel(null);
+    setDayPanelDate(null);
     setDialog({ mode: 'edit', appointment });
   };
 
@@ -122,18 +123,18 @@ export function AgendaView({ today = new Date() }: { today?: Date }) {
           appointments={appointments}
           onCreateOnDay={openCreate}
           onEditAppointment={openEdit}
-          onOpenDay={(date, appts) => setDayPanel({ date, appts })}
+          onOpenDay={(date) => setDayPanelDate(date)}
         />
       ) : (
-        <AgendaList appointments={monthAppointments} today={today} onEditAppointment={openEdit} />
+        <AgendaList appointments={monthAppointments} today={today} onEditAppointment={openEdit} onCreate={() => openCreate()} />
       )}
 
-      {dayPanel && (
+      {dayPanelDate && (
         <DayPanel
           open
-          onOpenChange={(o) => !o && setDayPanel(null)}
-          date={dayPanel.date}
-          appointments={dayPanel.appts}
+          onOpenChange={(o) => !o && setDayPanelDate(null)}
+          date={dayPanelDate}
+          appointments={byDay.get(toDateInput(dayPanelDate)) ?? []}
           onEditAppointment={openEdit}
           onCreateOnDay={openCreate}
         />

@@ -25,6 +25,14 @@ describe('AgendaList', () => {
     expect(screen.getByText(/nenhum agendamento/i)).toBeInTheDocument();
   });
 
+  it('shows a "Novo agendamento" CTA when onCreate is provided and calls it on click', async () => {
+    const onCreate = vi.fn();
+    render(<AgendaList appointments={[]} onCreate={onCreate} onEditAppointment={() => {}} />);
+    const btn = screen.getByRole('button', { name: /novo agendamento/i });
+    await userEvent.click(btn);
+    expect(onCreate).toHaveBeenCalledTimes(1);
+  });
+
   it('groups appointments under a day heading and edits on click', async () => {
     const onEdit = vi.fn();
     render(
