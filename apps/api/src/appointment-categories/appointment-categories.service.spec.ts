@@ -63,6 +63,14 @@ describe('AppointmentCategoriesService', () => {
     });
   });
 
+  it('throws NotFound when getting a category the nutritionist does not own', async () => {
+    const { prisma, category } = makePrisma();
+    category.findFirst.mockResolvedValue(null);
+    const service = new AppointmentCategoriesService(prisma as never);
+
+    await expect(service.getOne(NUTRITIONIST_CTX, 'x')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('throws NotFound when updating a category the nutritionist does not own', async () => {
     const { prisma, category } = makePrisma();
     category.findFirst.mockResolvedValue(null);

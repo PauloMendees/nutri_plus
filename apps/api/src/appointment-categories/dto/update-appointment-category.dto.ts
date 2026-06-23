@@ -15,6 +15,7 @@ export class UpdateAppointmentCategoryDto {
   name?: string;
 
   @IsOptional()
+  @IsString()
   @Matches(/^#[0-9a-fA-F]{6}$/, { message: 'color must be a #RRGGBB hex' })
   color?: string | null;
 
