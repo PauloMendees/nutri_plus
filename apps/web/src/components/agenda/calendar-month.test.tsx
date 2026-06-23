@@ -90,4 +90,46 @@ describe('CalendarMonth', () => {
     expect(onCreate).toHaveBeenCalledTimes(1);
     expect((onCreate.mock.calls[0][0] as Date).getDate()).toBe(15);
   });
+
+  it('calls onOpenDay with all the day appointments when "+N mais" is clicked', async () => {
+    const onOpenDay = vi.fn();
+    const four = ['08:00', '09:00', '10:00', '11:00'].map((t, i) =>
+      appt(`a${i}`, `2026-06-23T${t}:00`, `Ev${i}`),
+    );
+    render(
+      <CalendarMonth
+        year={2026}
+        month={5}
+        today={new Date(2026, 5, 23)}
+        appointments={four}
+        onCreateOnDay={noop}
+        onEditAppointment={noop}
+        onOpenDay={onOpenDay}
+      />,
+    );
+    await userEvent.click(screen.getByText('+2 mais'));
+    expect(onOpenDay).toHaveBeenCalledTimes(1);
+    expect((onOpenDay.mock.calls[0][0] as Date).getDate()).toBe(23);
+    expect(onOpenDay.mock.calls[0][1]).toHaveLength(4);
+  });
+
+  it('shows all chips and no overflow row when a day has exactly 3 appointments', () => {
+    const three = ['08:00', '09:00', '10:00'].map((t, i) =>
+      appt(`a${i}`, `2026-06-23T${t}:00`, `Ev${i}`),
+    );
+    render(
+      <CalendarMonth
+        year={2026}
+        month={5}
+        today={new Date(2026, 5, 23)}
+        appointments={three}
+        onCreateOnDay={noop}
+        onEditAppointment={noop}
+        onOpenDay={noop}
+      />,
+    );
+    expect(screen.getByText(/Ev0/)).toBeInTheDocument();
+    expect(screen.getByText(/Ev2/)).toBeInTheDocument();
+    expect(screen.queryByText(/mais/)).toBeNull();
+  });
 });
