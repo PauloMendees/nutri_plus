@@ -2,6 +2,7 @@
 
 import type { Appointment } from '@nutri-plus/shared-types';
 import { formatDayHeading, formatTimeRange, groupByDay, sameDay } from '@/lib/agenda/dates';
+import { AppointmentTooltip } from '@/components/agenda/appointment-tooltip';
 import { Button } from '@/components/ui/button';
 
 export function AgendaList({
@@ -48,22 +49,23 @@ export function AgendaList({
             </div>
             <div className="space-y-2">
               {appts.map((a) => (
-                <button
-                  type="button"
-                  key={a.id}
-                  onClick={() => onEditAppointment(a)}
-                  className="flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left"
-                >
-                  <span className="min-w-[96px] text-xs font-bold text-muted-foreground">
-                    {formatTimeRange(a.startsAt, a.endsAt)}
-                  </span>
-                  <span className="text-sm font-semibold">
-                    {a.title}
-                    {a.patient && (
-                      <span className="font-medium text-muted-foreground"> · {a.patient.user.name}</span>
-                    )}
-                  </span>
-                </button>
+                <AppointmentTooltip key={a.id} appointment={a}>
+                  <button
+                    type="button"
+                    onClick={() => onEditAppointment(a)}
+                    className="flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left"
+                  >
+                    <span className="min-w-[96px] text-xs font-bold text-muted-foreground">
+                      {formatTimeRange(a.startsAt, a.endsAt)}
+                    </span>
+                    <span className="text-sm font-semibold">
+                      {a.title}
+                      {a.patient && (
+                        <span className="font-medium text-muted-foreground"> · {a.patient.user.name}</span>
+                      )}
+                    </span>
+                  </button>
+                </AppointmentTooltip>
               ))}
             </div>
           </div>

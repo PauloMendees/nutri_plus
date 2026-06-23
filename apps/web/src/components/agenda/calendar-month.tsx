@@ -2,6 +2,7 @@
 
 import type { Appointment } from '@nutri-plus/shared-types';
 import { formatTime, groupByDay, monthGrid, toDateInput } from '@/lib/agenda/dates';
+import { AppointmentTooltip } from '@/components/agenda/appointment-tooltip';
 import { cn } from '@/lib/utils';
 
 const WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -62,18 +63,19 @@ export function CalendarMonth({
                 {cell.date.getDate()}
               </span>
               {visible.map((a) => (
-                <span
-                  key={a.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEditAppointment(a);
-                  }}
-                  className="truncate rounded border-l-[3px] border-primary bg-secondary px-1.5 py-0.5 text-[10.5px] font-semibold text-secondary-foreground"
-                >
-                  {formatTime(a.startsAt)} {a.title}
-                </span>
+                <AppointmentTooltip key={a.id} appointment={a}>
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditAppointment(a);
+                    }}
+                    className="truncate rounded border-l-[3px] border-primary bg-secondary px-1.5 py-0.5 text-[10.5px] font-semibold text-secondary-foreground"
+                  >
+                    {formatTime(a.startsAt)} {a.title}
+                  </span>
+                </AppointmentTooltip>
               ))}
               {hiddenCount > 0 && (
                 <span

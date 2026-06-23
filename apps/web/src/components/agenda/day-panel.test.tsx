@@ -29,7 +29,8 @@ describe('DayPanel', () => {
         onCreateOnDay={onCreate}
       />,
     );
-    expect(screen.getByText('Consulta')).toBeInTheDocument();
+    // Target the row button by role (the tooltip also renders the title text).
+    expect(screen.getByRole('button', { name: /consulta/i })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /novo agendamento neste dia/i }));
     expect((onCreate.mock.calls[0][0] as Date).getDate()).toBe(17);
   });
@@ -46,7 +47,7 @@ describe('DayPanel', () => {
         onCreateOnDay={() => {}}
       />,
     );
-    await userEvent.click(screen.getByText('Consulta'));
+    await userEvent.click(screen.getByRole('button', { name: /consulta/i }));
     expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: 'a1' }));
   });
 });
