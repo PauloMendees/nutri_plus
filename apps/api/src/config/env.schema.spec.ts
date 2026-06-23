@@ -51,4 +51,12 @@ describe('validateEnv', () => {
       /WEB_ORIGIN/,
     );
   });
+
+  it('throws when WEB_ORIGIN has no http(s) scheme', () => {
+    // A bare host:port parses as a URL (scheme 'localhost:'), so the schema
+    // must additionally require an http(s) scheme — else redirectTo breaks.
+    expect(() => validateEnv({ ...valid, WEB_ORIGIN: 'localhost:3001' })).toThrow(
+      /WEB_ORIGIN/,
+    );
+  });
 });
