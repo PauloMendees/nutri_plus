@@ -1,5 +1,13 @@
 /** Routes reachable without an authenticated session. */
-const PUBLIC_ROUTES = ['/login', '/signup', '/verify-email', '/auth/callback', '/forgot-password'];
+const PUBLIC_ROUTES = [
+  '/login',
+  '/signup',
+  '/verify-email',
+  '/auth/callback',
+  '/forgot-password',
+  '/accept-invite',
+  '/download-app',
+];
 
 /** Routes an authenticated user should be bounced away from (back to the app). */
 const AUTH_ONLY_REDIRECT = ['/login', '/signup'];
