@@ -1,4 +1,5 @@
 import { UserRole, type MeResponse } from '@nutri-plus/shared-types';
+import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getMe, syncUser } from '@/lib/api/auth';
 import { ApiError } from '@/lib/api/client';
@@ -6,6 +7,7 @@ import { Logo } from '@/components/brand/logo';
 import { AppSidebar } from '@/components/app/app-sidebar';
 import { MobileNavTrigger } from '@/components/app/mobile-nav-trigger';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { isWebDashboardRole } from '@/lib/auth/access';
 
 async function loadProfile(token: string): Promise<MeResponse> {
   try {
@@ -26,6 +28,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     data: { session },
   } = await supabase.auth.getSession();
   const me = session?.access_token ? await loadProfile(session.access_token) : null;
+
+  if (me && !isWebDashboardRole(me.role)) {
+    redirect('/download-app');
+  }
 
   return (
     <SidebarProvider>

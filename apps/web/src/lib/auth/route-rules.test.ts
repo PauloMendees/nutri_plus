@@ -30,4 +30,9 @@ describe('decideRedirect', () => {
   it('requires a session for /reset-password (unauthenticated → /login)', () => {
     expect(decideRedirect(false, '/reset-password')).toBe('/login');
   });
+
+  it('lets unauthenticated users reach the patient onboarding routes', () => {
+    expect(decideRedirect(false, '/accept-invite')).toBeNull();
+    expect(decideRedirect(false, '/download-app')).toBeNull();
+  });
 });

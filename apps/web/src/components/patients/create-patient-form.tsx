@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { ChevronLeft } from 'lucide-react';
 import { createPatientSchema, type CreatePatientValues } from '@/lib/validation/patient';
 import { useCreatePatient } from '@/lib/queries/patients';
 import { ApiError } from '@/lib/api/client';
@@ -55,8 +56,12 @@ export function CreatePatientForm() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <Link href="/patients" className="text-sm text-muted-foreground hover:underline">
-        ‹ Voltar para pacientes
+      <Link
+        href="/patients"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline"
+      >
+        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+        Voltar para pacientes
       </Link>
       <h1 className="mt-2 mb-5 font-heading text-2xl font-bold">Novo paciente</h1>
 
