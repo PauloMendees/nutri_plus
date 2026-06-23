@@ -9,3 +9,6 @@ apps/api/src/generated/
 *.log
 # Visual brainstorming companion mockups (transient)
 .superpowers/brainstorm/
+
+# Superpowers brainstorm/SDD scratch
+.superpowers/
