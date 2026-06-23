@@ -10,6 +10,9 @@ vi.mock('@/lib/queries/appointments', () => ({
   useDeleteAppointment: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock('@/lib/queries/patients', () => ({ usePatients: () => ({ data: [] }) }));
+vi.mock('@/lib/queries/appointment-categories', () => ({
+  useAppointmentCategories: () => ({ data: [], isLoading: false }),
+}));
 
 import { AgendaView } from './agenda-view';
 

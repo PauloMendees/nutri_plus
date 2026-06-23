@@ -2,6 +2,7 @@
 
 import type { Appointment } from '@nutri-plus/shared-types';
 import { formatDayHeading, formatTimeRange } from '@/lib/agenda/dates';
+import { appointmentColor } from '@/lib/agenda/colors';
 import { AppointmentTooltip } from '@/components/agenda/appointment-tooltip';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -40,6 +41,10 @@ export function DayPanel({
                 onClick={() => onEditAppointment(a)}
                 className="flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left"
               >
+                <span
+                  className="size-2 shrink-0 rounded-full bg-primary"
+                  style={appointmentColor(a) ? { backgroundColor: appointmentColor(a)! } : undefined}
+                />
                 <span className="min-w-[96px] text-xs font-bold text-muted-foreground">
                   {formatTimeRange(a.startsAt, a.endsAt)}
                 </span>

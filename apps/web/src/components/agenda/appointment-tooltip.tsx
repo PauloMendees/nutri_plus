@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import type { Appointment } from '@nutri-plus/shared-types';
 import { formatDayHeading, formatTimeRange } from '@/lib/agenda/dates';
+import { appointmentColor } from '@/lib/agenda/colors';
 import {
   Tooltip,
   TooltipContent,
@@ -26,7 +27,13 @@ export function AppointmentTooltip({
         <TooltipTrigger asChild>{children}</TooltipTrigger>
         <TooltipContent className="max-w-xs">
           <div className="space-y-0.5 text-left">
-            <p className="font-semibold">{appointment.title}</p>
+            <p className="flex items-center gap-1.5 font-semibold">
+              <span
+                className="size-2 shrink-0 rounded-full bg-primary"
+                style={appointmentColor(appointment) ? { backgroundColor: appointmentColor(appointment)! } : undefined}
+              />
+              {appointment.title}
+            </p>
             <p className="text-background/80">
               {formatDayHeading(new Date(appointment.startsAt))} ·{' '}
               {formatTimeRange(appointment.startsAt, appointment.endsAt)}
