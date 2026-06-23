@@ -6,6 +6,7 @@ import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/brand/logo";
 import { NAV_ITEMS } from "@/components/app/nav-items";
+import { ThemeToggle } from "@/components/app/theme-toggle";
 import {
   Sidebar,
   SidebarHeader,
@@ -100,6 +101,11 @@ export function AppSidebar({ user }: AppSidebarProps) {
       </SidebarContent>
 
       <SidebarFooter className="gap-2 pb-4">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <ThemeToggle />
+          </SidebarMenuItem>
+        </SidebarMenu>
         {user && (
           <div className="flex items-center gap-2 px-2 py-1.5">
             <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-xs font-bold text-sidebar-primary-foreground">

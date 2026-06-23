@@ -68,7 +68,7 @@ export function CreatePatientForm() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <section className="rounded-xl border bg-card p-5">
-            <h3 className="mb-4 font-heading text-sm font-semibold text-[#0a5c45]">Dados do paciente</h3>
+            <h3 className="mb-4 font-heading text-sm font-semibold text-secondary-foreground">Dados do paciente</h3>
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
