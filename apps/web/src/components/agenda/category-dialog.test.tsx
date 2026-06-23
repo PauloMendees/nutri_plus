@@ -18,6 +18,7 @@ beforeEach(() => {
   createMut.mockReset().mockResolvedValue({});
   updateMut.mockReset().mockResolvedValue({});
   deleteMut.mockReset().mockResolvedValue(undefined);
+  onOpenChange.mockReset();
 });
 
 const onOpenChange = vi.fn();

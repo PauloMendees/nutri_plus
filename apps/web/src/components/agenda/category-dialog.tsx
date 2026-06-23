@@ -204,8 +204,7 @@ export function CategoryDialog({
                           </span>
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
-                          A categoria padrão vem pré-selecionada ao criar um agendamento. Só uma
-                          categoria pode ser padrão.
+                          A categoria padrão vem pré-selecionada ao criar um agendamento. Só uma categoria pode ser padrão.
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
