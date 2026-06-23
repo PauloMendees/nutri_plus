@@ -55,12 +55,10 @@ export function toTimeInput(d: Date): string {
 }
 
 export function formatMonthTitle(year: number, month: number): string {
-  const label = new Date(year, month, 1).toLocaleDateString('pt-BR', {
-    month: 'long',
-    year: 'numeric',
-  });
-  const normalized = label.replace(' de ', ' ');
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  // Format the month name alone and append the year — locale-agnostic, avoids
+  // the pt-BR "junho de 2026" connector (and any ICU format-string variance).
+  const name = new Date(year, month, 1).toLocaleDateString('pt-BR', { month: 'long' });
+  return `${name.charAt(0).toUpperCase()}${name.slice(1)} ${year}`;
 }
 
 export function formatDayHeading(d: Date): string {
@@ -68,6 +66,7 @@ export function formatDayHeading(d: Date): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
+// Displays the time in the viewer's local timezone (correct for a local calendar).
 export function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }

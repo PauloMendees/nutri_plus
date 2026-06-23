@@ -28,7 +28,8 @@ describe('gridRange', () => {
   it('spans the first visible cell to the day after the last', () => {
     const { from, to } = gridRange(2026, 5);
     expect(toDateInput(from)).toBe('2026-05-31');
-    expect(to.getTime()).toBeGreaterThan(from.getTime());
+    // Last visible cell is Jul 11 2026; the exclusive end is the day after.
+    expect(toDateInput(to)).toBe('2026-07-12');
   });
 });
 
