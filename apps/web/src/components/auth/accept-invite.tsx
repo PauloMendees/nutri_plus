@@ -36,11 +36,31 @@ export function AcceptInvite() {
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (active) setStatus(data.session ? 'ready' : 'invalid');
+
+    // The browser client auto-detects the invite session from the URL hash
+    // (#access_token…&type=invite). The session may surface via getSession()
+    // (which settles after initialization) or via the INITIAL_SESSION/SIGNED_IN
+    // event — so we only treat the link as invalid once initialization itself
+    // reports no session (the INITIAL_SESSION event), never from the first
+    // getSession() resolving early.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
+      if (session) {
+        setStatus('ready');
+      } else if (event === 'INITIAL_SESSION') {
+        setStatus((prev) => (prev === 'ready' ? 'ready' : 'invalid'));
+      }
     });
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (active && data.session) setStatus('ready');
+    });
+
     return () => {
       active = false;
+      subscription.unsubscribe();
     };
   }, [supabase]);
 

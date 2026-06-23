@@ -13,8 +13,8 @@ export default function DownloadAppPage() {
       <div className="space-y-2">
         <h2 className="font-heading text-2xl font-bold text-foreground">Tudo pronto! 🎉</h2>
         <p className="text-sm text-muted-foreground">
-          Sua senha foi criada. O iNutri para pacientes fica no seu celular — baixe o app para
-          acessar seus planos, avaliações e acompanhamento.
+          O iNutri para pacientes fica no seu celular — baixe o app para acessar seus planos,
+          avaliações e acompanhamento.
         </p>
       </div>
 
