@@ -33,4 +33,8 @@ export class UpdateAppointmentDto {
   @IsOptional()
   @IsUUID()
   patientId?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string | null;
 }

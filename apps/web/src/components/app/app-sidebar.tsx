@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { LogOut } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
-import { Logo } from '@/components/brand/logo';
-import { NAV_ITEMS } from '@/components/app/nav-items';
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { Logo } from "@/components/brand/logo";
+import { NAV_ITEMS } from "@/components/app/nav-items";
 import {
   Sidebar,
   SidebarHeader,
@@ -14,24 +14,27 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   useSidebar,
-} from '@/components/ui/sidebar';
+} from "@/components/ui/sidebar";
 
 type AppSidebarProps = {
   user: { name: string; role: string } | null;
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  NUTRITIONIST: 'Nutricionista',
-  EMPLOYEE: 'Funcionário',
-  PATIENT: 'Paciente',
+  NUTRITIONIST: "Nutricionista",
+  EMPLOYEE: "Funcionário",
+  PATIENT: "Paciente",
 };
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  const first = parts[0][0] ?? '';
-  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  if (parts.length === 0) return "?";
+  const first = parts[0][0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : "";
   return (first + last).toUpperCase();
 }
 
@@ -42,7 +45,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
 
   async function signOut() {
     await createClient().auth.signOut();
-    router.push('/login');
+    router.push("/login");
     router.refresh();
   }
 
@@ -55,13 +58,14 @@ export function AppSidebar({ user }: AppSidebarProps) {
       <SidebarContent className="px-2 py-2">
         <SidebarMenu className="gap-1.5">
           {NAV_ITEMS.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const active =
+              pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
             return (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton
                   asChild
-                  isActive={active}
+                  isActive={active && !item.children}
                   onClick={() => {
                     if (isMobile) setOpenMobile(false);
                   }}
@@ -72,6 +76,23 @@ export function AppSidebar({ user }: AppSidebarProps) {
                     <span>{item.label}</span>
                   </Link>
                 </SidebarMenuButton>
+                {item.children && (
+                  <SidebarMenuSub>
+                    {item.children.map((child) => (
+                      <SidebarMenuSubItem key={child.href}>
+                        <SidebarMenuSubButton
+                          asChild
+                          isActive={pathname === child.href}
+                          onClick={() => {
+                            if (isMobile) setOpenMobile(false);
+                          }}
+                        >
+                          <Link href={child.href}>{child.label}</Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    ))}
+                  </SidebarMenuSub>
+                )}
               </SidebarMenuItem>
             );
           })}
@@ -96,7 +117,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
         )}
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={signOut}>
+            <SidebarMenuButton className="cursor-pointer" onClick={signOut}>
               <LogOut />
               <span>Sair</span>
             </SidebarMenuButton>

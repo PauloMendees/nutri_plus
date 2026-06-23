@@ -38,7 +38,8 @@ describe('AppSidebar', () => {
     renderSidebar();
     expect(screen.getByRole('link', { name: /pacientes/i })).toHaveAttribute('href', '/patients');
     expect(screen.getByRole('link', { name: /funcionários/i })).toHaveAttribute('href', '/employees');
-    expect(screen.getByRole('link', { name: /agenda/i })).toHaveAttribute('href', '/agenda');
+    const agendaLinks = screen.getAllByRole('link', { name: /agenda/i });
+    expect(agendaLinks.some((el) => el.getAttribute('href') === '/agenda')).toBe(true);
   });
 
   it('marks the active item based on the pathname', () => {
@@ -65,6 +66,11 @@ describe('AppSidebar', () => {
   it('renders the iNutri logo', () => {
     renderSidebar();
     expect(screen.getByRole('img', { name: /inutri/i })).toBeInTheDocument();
+  });
+
+  it('renders the Agenda sub-items', () => {
+    renderSidebar();
+    expect(screen.getByRole('link', { name: 'Categorias' })).toBeInTheDocument();
   });
 
   it('closes the mobile sheet when a nav item is tapped', async () => {
