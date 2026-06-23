@@ -238,6 +238,27 @@ describe('AppointmentsService reads/mutations', () => {
     expect(prisma.appointment.update).not.toHaveBeenCalled();
   });
 
+  it('update rejects a categoryId the nutritionist does not own (400)', async () => {
+    prisma.appointment.findFirst
+      .mockResolvedValueOnce({
+        id: 'a1',
+        nutritionistId: 'nutri-1',
+        startsAt: T('2026-07-01T13:00:00.000Z'),
+        endsAt: T('2026-07-01T14:00:00.000Z'),
+      } as any) // requireOwned lookup
+      .mockResolvedValueOnce(null); // conflict lookup
+    (prisma.appointmentCategory as any).findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.update(ctx, 'a1', { categoryId: 'cat-x' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect((prisma.appointmentCategory as any).findFirst).toHaveBeenCalledWith({
+      where: { id: 'cat-x', nutritionistId: 'nutri-1' },
+      select: { id: true },
+    });
+    expect(prisma.appointment.update).not.toHaveBeenCalled();
+  });
+
   it('remove deletes an owned appointment', async () => {
     prisma.appointment.findFirst.mockResolvedValue({ id: 'a1' } as any);
     prisma.appointment.delete.mockResolvedValue({ id: 'a1' } as any);
