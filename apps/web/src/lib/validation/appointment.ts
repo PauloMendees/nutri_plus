@@ -14,7 +14,9 @@ export const appointmentFormSchema = z
       z.string().max(2000, 'Máximo de 2000 caracteres.').optional(),
     ),
   })
-  .refine((v) => v.endTime > v.startTime, {
+  // Skip when either time is empty so the field's own "required" message is the
+  // sole feedback (an empty endTime would otherwise also fail this compare).
+  .refine((v) => !v.startTime || !v.endTime || v.endTime > v.startTime, {
     message: 'O fim deve ser depois do início.',
     path: ['endTime'],
   });
