@@ -6,6 +6,7 @@ describe('validateEnv', () => {
     SUPABASE_URL: 'https://x.supabase.co',
     SUPABASE_ANON_KEY: 'anon',
     SUPABASE_SERVICE_ROLE_KEY: 'service-role',
+    WEB_ORIGIN: 'https://app.test',
     OPENAI_API_KEY: 'sk-test',
   };
 
@@ -38,5 +39,16 @@ describe('validateEnv', () => {
   it('uses explicit model-tier values when provided', () => {
     const result = validateEnv({ ...valid, OPENAI_MODEL_FAST: 'gpt-5-mini' });
     expect(result.OPENAI_MODEL_FAST).toBe('gpt-5-mini');
+  });
+
+  it('throws when WEB_ORIGIN is missing', () => {
+    const { WEB_ORIGIN, ...rest } = valid;
+    expect(() => validateEnv(rest)).toThrow(/WEB_ORIGIN/);
+  });
+
+  it('throws when WEB_ORIGIN is not a valid url', () => {
+    expect(() => validateEnv({ ...valid, WEB_ORIGIN: 'localhost:3001' })).toThrow(
+      /WEB_ORIGIN/,
+    );
   });
 });

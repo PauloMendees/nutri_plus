@@ -14,6 +14,7 @@ import { AuthApiError, createClient, SupabaseClient } from '@supabase/supabase-j
 export class SupabaseAdminService {
   private readonly logger = new Logger(SupabaseAdminService.name);
   private readonly client: SupabaseClient;
+  private readonly webOrigin: string;
 
   constructor(config: ConfigService) {
     this.client = createClient(
@@ -21,6 +22,7 @@ export class SupabaseAdminService {
       config.getOrThrow<string>('SUPABASE_SERVICE_ROLE_KEY'),
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
+    this.webOrigin = config.getOrThrow<string>('WEB_ORIGIN');
   }
 
   // Creates the Supabase auth identity and emails an invite. Returns the new
@@ -36,6 +38,7 @@ export class SupabaseAdminService {
     try {
       result = await this.client.auth.admin.inviteUserByEmail(email, {
         data: { name: meta.name },
+        redirectTo: `${this.webOrigin}/accept-invite`,
       });
     } catch {
       throw new BadGatewayException('Auth provider unavailable');

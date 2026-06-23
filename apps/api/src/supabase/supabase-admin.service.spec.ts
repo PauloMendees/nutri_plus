@@ -12,8 +12,11 @@ describe('SupabaseAdminService', () => {
 
   beforeEach(() => {
     const config = {
-      getOrThrow: (key: string) =>
-        key === 'SUPABASE_URL' ? 'https://x.supabase.co' : 'service-role-key',
+      getOrThrow: (key: string) => {
+        if (key === 'SUPABASE_URL') return 'https://x.supabase.co';
+        if (key === 'WEB_ORIGIN') return 'https://app.test';
+        return 'service-role-key';
+      },
     } as unknown as ConfigService;
     service = new SupabaseAdminService(config);
     admin = { inviteUserByEmail: jest.fn(), deleteUser: jest.fn() };
@@ -33,6 +36,7 @@ describe('SupabaseAdminService', () => {
       expect(result).toEqual({ id: 'sub-1' });
       expect(admin.inviteUserByEmail).toHaveBeenCalledWith('p@x.com', {
         data: { name: 'Pat' },
+        redirectTo: 'https://app.test/accept-invite',
       });
     });
 
@@ -87,6 +91,20 @@ describe('SupabaseAdminService', () => {
       await expect(
         service.inviteUser('p@x.com', { name: 'Pat' }),
       ).rejects.toBeInstanceOf(BadGatewayException);
+    });
+
+    it('points the invite redirect at the web accept-invite route', async () => {
+      admin.inviteUserByEmail.mockResolvedValue({
+        data: { user: { id: 'sub-2' } },
+        error: null,
+      });
+
+      await service.inviteUser('p@x.com', { name: 'Pat' });
+
+      expect(admin.inviteUserByEmail).toHaveBeenCalledWith(
+        'p@x.com',
+        expect.objectContaining({ redirectTo: 'https://app.test/accept-invite' }),
+      );
     });
   });
 
