@@ -15,7 +15,10 @@ import { ListAppointmentsQueryDto } from './dto/list-appointments-query.dto';
 const PATIENT_SUMMARY = {
   select: { id: true, user: { select: { id: true, name: true, email: true } } },
 } as const;
-const APPOINTMENT_INCLUDE = { patient: PATIENT_SUMMARY } as const;
+const APPOINTMENT_INCLUDE = {
+  patient: PATIENT_SUMMARY,
+  category: { select: { id: true, name: true, color: true } },
+} as const;
 
 @Injectable()
 export class AppointmentsService {
@@ -27,12 +30,16 @@ export class AppointmentsService {
     if (dto.patientId) {
       await this.assertPatientOwned(nutritionistId, dto.patientId);
     }
+    if (dto.categoryId) {
+      await this.assertCategoryOwned(nutritionistId, dto.categoryId);
+    }
     await this.assertNoConflict(nutritionistId, dto.startsAt, dto.endsAt);
 
     return this.prisma.appointment.create({
       data: {
         nutritionistId,
         patientId: dto.patientId ?? null,
+        categoryId: dto.categoryId ?? null,
         title: dto.title,
         description: dto.description ?? null,
         startsAt: dto.startsAt,
@@ -89,6 +96,9 @@ export class AppointmentsService {
     if (dto.patientId) {
       await this.assertPatientOwned(nutritionistId, dto.patientId);
     }
+    if (dto.categoryId) {
+      await this.assertCategoryOwned(nutritionistId, dto.categoryId);
+    }
     await this.assertNoConflict(nutritionistId, startsAt, endsAt, id);
 
     return this.prisma.appointment.update({
@@ -99,6 +109,7 @@ export class AppointmentsService {
         startsAt: dto.startsAt,
         endsAt: dto.endsAt,
         patientId: dto.patientId,
+        categoryId: dto.categoryId,
       },
       include: APPOINTMENT_INCLUDE,
     });
@@ -132,6 +143,19 @@ export class AppointmentsService {
     });
     if (!patient) {
       throw new BadRequestException('Invalid patient');
+    }
+  }
+
+  private async assertCategoryOwned(
+    nutritionistId: string,
+    categoryId: string,
+  ): Promise<void> {
+    const category = await this.prisma.appointmentCategory.findFirst({
+      where: { id: categoryId, nutritionistId },
+      select: { id: true },
+    });
+    if (!category) {
+      throw new BadRequestException('Invalid category');
     }
   }
 

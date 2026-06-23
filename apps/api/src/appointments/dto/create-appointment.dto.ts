@@ -30,4 +30,8 @@ export class CreateAppointmentDto {
   @IsOptional()
   @IsUUID()
   patientId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
 }

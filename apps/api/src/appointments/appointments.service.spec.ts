@@ -109,6 +109,25 @@ describe('AppointmentsService.create', () => {
     expect(prisma.appointment.create).not.toHaveBeenCalled();
   });
 
+  it('rejects a categoryId the nutritionist does not own', async () => {
+    prisma.appointment.findFirst.mockResolvedValue(null);
+    (prisma.appointmentCategory as any).findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.create(ctx, {
+        title: 'Consult',
+        categoryId: 'cat-x',
+        startsAt: T('2026-07-01T13:00:00.000Z'),
+        endsAt: T('2026-07-01T14:00:00.000Z'),
+      } as any),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect((prisma.appointmentCategory as any).findFirst).toHaveBeenCalledWith({
+      where: { id: 'cat-x', nutritionistId: 'nutri-1' },
+      select: { id: true },
+    });
+    expect(prisma.appointment.create).not.toHaveBeenCalled();
+  });
+
   it('scopes an EMPLOYEE to the owning nutritionist when creating', async () => {
     prisma.appointment.findFirst.mockResolvedValue(null);
     prisma.appointment.create.mockResolvedValue({ id: 'a1' } as any);
@@ -153,7 +172,10 @@ describe('AppointmentsService reads/mutations', () => {
         endsAt: { gt: T('2026-07-01T00:00:00.000Z') },
       },
       orderBy: { startsAt: 'asc' },
-      include: { patient: { select: { id: true, user: { select: { id: true, name: true, email: true } } } } },
+      include: {
+        patient: { select: { id: true, user: { select: { id: true, name: true, email: true } } } },
+        category: { select: { id: true, name: true, color: true } },
+      },
     });
   });
 
@@ -175,7 +197,10 @@ describe('AppointmentsService reads/mutations', () => {
     await expect(service.getOne(ctx, 'a1')).rejects.toBeInstanceOf(NotFoundException);
     expect(prisma.appointment.findFirst).toHaveBeenCalledWith({
       where: { id: 'a1', nutritionistId: 'nutri-1' },
-      include: { patient: { select: { id: true, user: { select: { id: true, name: true, email: true } } } } },
+      include: {
+        patient: { select: { id: true, user: { select: { id: true, name: true, email: true } } } },
+        category: { select: { id: true, name: true, color: true } },
+      },
     });
   });
 
