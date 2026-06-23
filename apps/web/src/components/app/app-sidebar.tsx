@@ -6,6 +6,7 @@ import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/brand/logo";
 import { NAV_ITEMS } from "@/components/app/nav-items";
+import { ThemeToggle } from "@/components/app/theme-toggle";
 import {
   Sidebar,
   SidebarHeader,
@@ -116,6 +117,9 @@ export function AppSidebar({ user }: AppSidebarProps) {
           </div>
         )}
         <SidebarMenu>
+          <SidebarMenuItem>
+            <ThemeToggle />
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton className="cursor-pointer" onClick={signOut}>
               <LogOut />
