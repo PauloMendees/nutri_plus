@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -23,6 +23,9 @@ type Status = 'checking' | 'ready' | 'invalid';
 
 export function AcceptInvite() {
   const router = useRouter();
+  // Created once. The browser client auto-detects the invite session from the
+  // URL hash (#access_token…&type=invite) on construction.
+  const supabase = useMemo(() => createClient(), []);
   const [status, setStatus] = useState<Status>('checking');
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -32,9 +35,6 @@ export function AcceptInvite() {
   });
 
   useEffect(() => {
-    // The browser client auto-detects the invite session from the URL hash
-    // (#access_token…&type=invite). getSession() resolves after that settles.
-    const supabase = createClient();
     let active = true;
     supabase.auth.getSession().then(({ data }) => {
       if (active) setStatus(data.session ? 'ready' : 'invalid');
@@ -42,16 +42,16 @@ export function AcceptInvite() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [supabase]);
 
   async function onSubmit(values: ResetPasswordValues) {
     setFormError(null);
-    const supabase = createClient();
     const { error } = await supabase.auth.updateUser({ password: values.password });
     if (error) {
       setFormError(mapAuthError(error));
       return;
     }
+    // Best-effort: the password is already set; sign out and continue regardless.
     await supabase.auth.signOut();
     router.push('/download-app');
   }
