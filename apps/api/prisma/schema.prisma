@@ -63,9 +63,10 @@ model NutritionistProfile {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  patients     PatientProfile[]
-  employees    EmployeeProfile[]
-  appointments Appointment[]
+  patients              PatientProfile[]
+  employees             EmployeeProfile[]
+  appointments          Appointment[]
+  appointmentCategories AppointmentCategory[]
 }
 
 model EmployeeProfile {
@@ -115,6 +116,8 @@ model Appointment {
   nutritionist   NutritionistProfile @relation(fields: [nutritionistId], references: [id])
   patientId      String?
   patient        PatientProfile? @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  categoryId     String?
+  category       AppointmentCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   title          String
   description    String?
   startsAt       DateTime
@@ -123,6 +126,20 @@ model Appointment {
   updatedAt      DateTime @updatedAt
 
   @@index([nutritionistId, startsAt])
+}
+
+model AppointmentCategory {
+  id             String   @id @default(uuid())
+  nutritionistId String
+  nutritionist   NutritionistProfile @relation(fields: [nutritionistId], references: [id])
+  name           String
+  color          String?
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  appointments   Appointment[]
+
+  @@index([nutritionistId])
 }
 
 // Immutable historical record (see docs/3.1-patient-domain-mode.md): no @updatedAt,
