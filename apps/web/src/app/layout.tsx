@@ -18,10 +18,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={`${sora.variable} ${jakarta.variable}`}>
+    <html lang="pt-BR" suppressHydrationWarning className={`${sora.variable} ${jakarta.variable}`}>
       <body className="antialiased">
-        <Providers>{children}</Providers>
-        <Toaster position="top-center" richColors />
+        <Providers>
+          {children}
+          <Toaster position="top-center" richColors />
+        </Providers>
       </body>
     </html>
   );
