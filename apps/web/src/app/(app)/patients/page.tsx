@@ -1,10 +1,5 @@
-import { PagePlaceholder } from '@/components/app/page-placeholder';
+import { PatientsList } from '@/components/patients/patients-list';
 
 export default function PatientsPage() {
-  return (
-    <PagePlaceholder
-      title="Pacientes"
-      description="Em breve você poderá cadastrar e acompanhar seus pacientes aqui."
-    />
-  );
+  return <PatientsList />;
 }
