@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import type { AppointmentCategory } from '@nutri-plus/shared-types';
-import { useAppointmentCategories } from '@/lib/queries/appointment-categories';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { CategoryDialog } from '@/components/agenda/category-dialog';
+import { useState } from "react";
+import type { AppointmentCategory } from "@nutri-plus/shared-types";
+import { useAppointmentCategories } from "@/lib/queries/appointment-categories";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CategoryDialog } from "@/components/agenda/category-dialog";
 
 export function CategoriesView() {
   const query = useAppointmentCategories();
@@ -26,8 +26,12 @@ export function CategoriesView() {
         <Skeleton className="h-40 w-full" />
       ) : query.isError ? (
         <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
-          Erro ao carregar as categorias.{' '}
-          <button type="button" className="font-semibold text-primary underline" onClick={() => query.refetch()}>
+          Erro ao carregar as categorias.{" "}
+          <button
+            type="button"
+            className="font-semibold text-primary underline"
+            onClick={() => query.refetch()}
+          >
             Tentar novamente
           </button>
         </div>
@@ -42,11 +46,15 @@ export function CategoriesView() {
               type="button"
               key={category.id}
               onClick={() => setEditing(category)}
-              className="flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left"
+              className="flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left hover:opacity-70 duration-200"
             >
               <span
                 className="size-4 shrink-0 rounded-full border"
-                style={category.color ? { backgroundColor: category.color } : undefined}
+                style={
+                  category.color
+                    ? { backgroundColor: category.color }
+                    : undefined
+                }
               />
               <span className="text-sm font-semibold">{category.name}</span>
               {category.isDefault && (
@@ -59,7 +67,10 @@ export function CategoriesView() {
         </div>
       )}
 
-      <CategoryDialog open={creating} onOpenChange={(o) => !o && setCreating(false)} />
+      <CategoryDialog
+        open={creating}
+        onOpenChange={(o) => !o && setCreating(false)}
+      />
       {editing && (
         <CategoryDialog
           open

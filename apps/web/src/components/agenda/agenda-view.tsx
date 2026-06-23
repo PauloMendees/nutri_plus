@@ -1,32 +1,40 @@
-'use client';
+"use client";
 
-import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import type { Appointment } from '@nutri-plus/shared-types';
-import { formatMonthTitle, gridRange, groupByDay, toDateInput } from '@/lib/agenda/dates';
-import { useAppointments } from '@/lib/queries/appointments';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
-import { CalendarMonth } from '@/components/agenda/calendar-month';
-import { AgendaList } from '@/components/agenda/agenda-list';
-import { DayPanel } from '@/components/agenda/day-panel';
-import { AppointmentDialog } from '@/components/agenda/appointment-dialog';
+import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import type { Appointment } from "@nutri-plus/shared-types";
+import {
+  formatMonthTitle,
+  gridRange,
+  groupByDay,
+  toDateInput,
+} from "@/lib/agenda/dates";
+import { useAppointments } from "@/lib/queries/appointments";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+import { CalendarMonth } from "@/components/agenda/calendar-month";
+import { AgendaList } from "@/components/agenda/agenda-list";
+import { DayPanel } from "@/components/agenda/day-panel";
+import { AppointmentDialog } from "@/components/agenda/appointment-dialog";
 
-type View = 'month' | 'list';
+type View = "month" | "list";
 type DialogState =
-  | { mode: 'create'; initialDate?: Date }
-  | { mode: 'edit'; appointment: Appointment };
+  | { mode: "create"; initialDate?: Date }
+  | { mode: "edit"; appointment: Appointment };
 
 export function AgendaView({ today = new Date() }: { today?: Date }) {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
-  const [view, setView] = useState<View>('month');
+  const [view, setView] = useState<View>("month");
   const [dialog, setDialog] = useState<DialogState | null>(null);
   const [dayPanelDate, setDayPanelDate] = useState<Date | null>(null);
 
   const range = useMemo(() => gridRange(year, month), [year, month]);
-  const query = useAppointments({ from: range.from.toISOString(), to: range.to.toISOString() });
+  const query = useAppointments({
+    from: range.from.toISOString(),
+    to: range.to.toISOString(),
+  });
   const appointments = useMemo(() => query.data ?? [], [query.data]);
   const byDay = useMemo(() => groupByDay(appointments), [appointments]);
   // The calendar shows the full visible grid (incl. adjacent-month days); the
@@ -52,11 +60,11 @@ export function AgendaView({ today = new Date() }: { today?: Date }) {
 
   const openCreate = (initialDate?: Date) => {
     setDayPanelDate(null);
-    setDialog({ mode: 'create', initialDate });
+    setDialog({ mode: "create", initialDate });
   };
   const openEdit = (appointment: Appointment) => {
     setDayPanelDate(null);
-    setDialog({ mode: 'edit', appointment });
+    setDialog({ mode: "edit", appointment });
   };
 
   return (
@@ -67,22 +75,22 @@ export function AgendaView({ today = new Date() }: { today?: Date }) {
         <div className="flex rounded-full border bg-card p-0.5">
           <button
             type="button"
-            onClick={() => setView('month')}
-            aria-pressed={view === 'month'}
+            onClick={() => setView("month")}
+            aria-pressed={view === "month"}
             className={cn(
-              'rounded-full px-3.5 py-1.5 text-xs font-semibold text-muted-foreground',
-              view === 'month' && 'bg-primary text-primary-foreground',
+              "cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-semibold text-muted-foreground",
+              view === "month" && "bg-primary text-primary-foreground ",
             )}
           >
             Mês
           </button>
           <button
             type="button"
-            onClick={() => setView('list')}
-            aria-pressed={view === 'list'}
+            onClick={() => setView("list")}
+            aria-pressed={view === "list"}
             className={cn(
-              'rounded-full px-3.5 py-1.5 text-xs font-semibold text-muted-foreground',
-              view === 'list' && 'bg-primary text-primary-foreground',
+              "cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-semibold text-muted-foreground",
+              view === "list" && "bg-primary text-primary-foreground",
             )}
           >
             Lista
@@ -94,11 +102,25 @@ export function AgendaView({ today = new Date() }: { today?: Date }) {
       </div>
 
       <div className="mb-3 flex items-center gap-2">
-        <Button variant="outline" size="icon" className="rounded-lg" aria-label="Mês anterior" onClick={() => shiftMonth(-1)}>
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-lg"
+          aria-label="Mês anterior"
+          onClick={() => shiftMonth(-1)}
+        >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <span className="min-w-[150px] font-heading text-lg font-bold">{formatMonthTitle(year, month)}</span>
-        <Button variant="outline" size="icon" className="rounded-lg" aria-label="Próximo mês" onClick={() => shiftMonth(1)}>
+        <span className="min-w-37.5 font-heading text-lg font-bold">
+          {formatMonthTitle(year, month)}
+        </span>
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-lg"
+          aria-label="Próximo mês"
+          onClick={() => shiftMonth(1)}
+        >
           <ChevronRight className="h-4 w-4" />
         </Button>
         <Button variant="outline" className="rounded-full" onClick={goToday}>
@@ -110,12 +132,16 @@ export function AgendaView({ today = new Date() }: { today?: Date }) {
         <Skeleton className="h-[560px] w-full" />
       ) : query.isError ? (
         <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
-          Erro ao carregar a agenda.{' '}
-          <button type="button" className="font-semibold text-primary underline" onClick={() => query.refetch()}>
+          Erro ao carregar a agenda.{" "}
+          <button
+            type="button"
+            className="font-semibold text-primary underline"
+            onClick={() => query.refetch()}
+          >
             Tentar novamente
           </button>
         </div>
-      ) : view === 'month' ? (
+      ) : view === "month" ? (
         <CalendarMonth
           year={year}
           month={month}
@@ -126,7 +152,12 @@ export function AgendaView({ today = new Date() }: { today?: Date }) {
           onOpenDay={(date) => setDayPanelDate(date)}
         />
       ) : (
-        <AgendaList appointments={monthAppointments} today={today} onEditAppointment={openEdit} onCreate={() => openCreate()} />
+        <AgendaList
+          appointments={monthAppointments}
+          today={today}
+          onEditAppointment={openEdit}
+          onCreate={() => openCreate()}
+        />
       )}
 
       {dayPanelDate && (
@@ -145,8 +176,10 @@ export function AgendaView({ today = new Date() }: { today?: Date }) {
           open
           onOpenChange={(o) => !o && setDialog(null)}
           mode={dialog.mode}
-          initialDate={dialog.mode === 'create' ? dialog.initialDate : undefined}
-          appointment={dialog.mode === 'edit' ? dialog.appointment : undefined}
+          initialDate={
+            dialog.mode === "create" ? dialog.initialDate : undefined
+          }
+          appointment={dialog.mode === "edit" ? dialog.appointment : undefined}
         />
       )}
     </div>
