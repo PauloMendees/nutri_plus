@@ -9,5 +9,9 @@ describe('DownloadAppPage', () => {
     expect(screen.getByText('App Store')).toBeInTheDocument();
     expect(screen.getByText('Google Play')).toBeInTheDocument();
     expect(screen.getAllByText(/em breve/i)).toHaveLength(2);
+
+    // The badges are informational placeholders — never interactive.
+    expect(screen.queryAllByRole('link')).toHaveLength(0);
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
   });
 });

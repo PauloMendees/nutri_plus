@@ -22,7 +22,6 @@ export default function DownloadAppPage() {
         {STORES.map((store) => (
           <div
             key={store.name}
-            aria-disabled="true"
             className="flex cursor-not-allowed items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3 opacity-60"
           >
             <span className="text-left">
