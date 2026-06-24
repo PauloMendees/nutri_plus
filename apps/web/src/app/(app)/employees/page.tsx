@@ -1,10 +1,5 @@
-import { PagePlaceholder } from '@/components/app/page-placeholder';
+import { EmployeesView } from '@/components/employees/employees-view';
 
 export default function EmployeesPage() {
-  return (
-    <PagePlaceholder
-      title="Funcionários"
-      description="Em breve você poderá convidar e gerenciar sua equipe aqui."
-    />
-  );
+  return <EmployeesView />;
 }
