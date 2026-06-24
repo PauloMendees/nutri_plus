@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -16,6 +17,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { AuthContext } from '../auth/types/auth-context';
 import { EmployeesService } from './employees.service';
 import { InviteEmployeeDto } from './dto/invite-employee.dto';
+import { UpdateEmployeeDto } from './dto/update-employee.dto';
 
 @ApiTags('employees')
 @ApiBearerAuth()
@@ -32,6 +34,15 @@ export class EmployeesController {
   @Get()
   list(@CurrentUser() ctx: AuthContext) {
     return this.employees.listEmployees(ctx);
+  }
+
+  @Patch(':id')
+  update(
+    @CurrentUser() ctx: AuthContext,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateEmployeeDto,
+  ) {
+    return this.employees.updateEmployee(ctx, id, dto);
   }
 
   @Delete(':id')

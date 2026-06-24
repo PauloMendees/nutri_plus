@@ -102,4 +102,38 @@ describe('EmployeesService', () => {
     );
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
+
+  it('updates an owned employee name and returns the refreshed employee', async () => {
+    prisma.employeeProfile.findFirst
+      .mockResolvedValueOnce({ id: 'e1', userId: 'user-e' } as any) // scoped ownership lookup
+      .mockResolvedValueOnce({
+        id: 'e1',
+        user: { id: 'user-e', name: 'New Name', email: 'e@x.com' },
+      } as any); // getEmployee include
+    prisma.user.update.mockResolvedValue({} as any);
+
+    const result = await service.updateEmployee(ctx, 'e1', { name: 'New Name' });
+
+    expect(prisma.employeeProfile.findFirst).toHaveBeenNthCalledWith(1, {
+      where: { id: 'e1', nutritionistId: 'nutri-1' },
+      select: { id: true, userId: true },
+    });
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-e' },
+      data: { name: 'New Name' },
+    });
+    expect(result).toEqual({
+      id: 'e1',
+      user: { id: 'user-e', name: 'New Name', email: 'e@x.com' },
+    });
+  });
+
+  it('throws NotFoundException updating a non-owned employee', async () => {
+    prisma.employeeProfile.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.updateEmployee(ctx, 'e1', { name: 'New Name' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
 });

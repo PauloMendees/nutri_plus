@@ -3,3 +3,4 @@ export * from './auth';
 export * from './patient';
 export * from './appointment';
 export * from './appointment-category';
+export * from './employee';

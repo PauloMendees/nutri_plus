@@ -1,33 +1,13 @@
-import { UserRole, type MeResponse } from '@nutri-plus/shared-types';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
-import { getMe, syncUser } from '@/lib/api/auth';
-import { ApiError } from '@/lib/api/client';
 import { Logo } from '@/components/brand/logo';
 import { AppSidebar } from '@/components/app/app-sidebar';
 import { MobileNavTrigger } from '@/components/app/mobile-nav-trigger';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { isWebDashboardRole } from '@/lib/auth/access';
-
-async function loadProfile(token: string): Promise<MeResponse> {
-  try {
-    return await getMe(token);
-  } catch (err) {
-    // Confirmed session but no local profile yet: provision once, then refetch.
-    if (err instanceof ApiError && err.status === 409) {
-      await syncUser(token, UserRole.NUTRITIONIST);
-      return getMe(token);
-    }
-    throw err;
-  }
-}
+import { getCurrentUser } from '@/lib/auth/current-user';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const me = session?.access_token ? await loadProfile(session.access_token) : null;
+  const me = await getCurrentUser();
 
   if (me && !isWebDashboardRole(me.role)) {
     redirect('/download-app');

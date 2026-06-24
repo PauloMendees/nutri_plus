@@ -16,7 +16,7 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR');
 }
 
-export function PatientsList() {
+export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
   const query = usePatients();
 
   return (
@@ -30,9 +30,11 @@ export function PatientsList() {
             </p>
           )}
         </div>
-        <Button className="rounded-full" asChild>
-          <Link href="/patients/new">+ Novo paciente</Link>
-        </Button>
+        {canCreate && (
+          <Button className="rounded-full" asChild>
+            <Link href="/patients/new">+ Novo paciente</Link>
+          </Button>
+        )}
       </div>
 
       {query.isLoading && (
@@ -58,9 +60,11 @@ export function PatientsList() {
           <p className="max-w-sm text-sm text-muted-foreground">
             Cadastre seu primeiro paciente para começar a acompanhá-lo.
           </p>
-          <Button className="rounded-full" asChild>
-            <Link href="/patients/new">Cadastrar primeiro paciente</Link>
-          </Button>
+          {canCreate && (
+            <Button className="rounded-full" asChild>
+              <Link href="/patients/new">Cadastrar primeiro paciente</Link>
+            </Button>
+          )}
         </div>
       )}
 

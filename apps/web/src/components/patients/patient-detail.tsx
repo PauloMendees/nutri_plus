@@ -14,7 +14,15 @@ function initials(name: string): string {
   return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() || '?';
 }
 
-export function PatientDetail({ id, created }: { id: string; created: boolean }) {
+export function PatientDetail({
+  id,
+  created,
+  canEdit = true,
+}: {
+  id: string;
+  created: boolean;
+  canEdit?: boolean;
+}) {
   const query = usePatient(id);
 
   if (query.isLoading) {
@@ -57,7 +65,7 @@ export function PatientDetail({ id, created }: { id: string; created: boolean })
         </span>
       </div>
 
-      <EditPatientForm patient={patient} />
+      <EditPatientForm patient={patient} canEdit={canEdit} />
 
       <BioimpedanceSection />
     </div>

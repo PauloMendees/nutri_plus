@@ -26,7 +26,13 @@ function toDefaults(p: PatientDetail): UpdatePatientValues {
   } as unknown as UpdatePatientValues;
 }
 
-export function EditPatientForm({ patient }: { patient: PatientDetail }) {
+export function EditPatientForm({
+  patient,
+  canEdit = true,
+}: {
+  patient: PatientDetail;
+  canEdit?: boolean;
+}) {
   const update = useUpdatePatient(patient.id);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -48,14 +54,20 @@ export function EditPatientForm({ patient }: { patient: PatientDetail }) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <PatientClinicalFields control={form.control as any} />
+        {/* A disabled fieldset natively disables every nested control (inputs,
+            selects, textareas) — the read-only view for employees. */}
+        <fieldset disabled={!canEdit} className="m-0 min-w-0 space-y-4 border-0 p-0">
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          <PatientClinicalFields control={form.control as any} />
+        </fieldset>
         {formError && <p className="text-sm text-destructive">{formError}</p>}
-        <div className="flex justify-end">
-          <Button type="submit" className="rounded-full" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? 'Salvando…' : 'Salvar alterações'}
-          </Button>
-        </div>
+        {canEdit && (
+          <div className="flex justify-end">
+            <Button type="submit" className="rounded-full" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting ? 'Salvando…' : 'Salvar alterações'}
+            </Button>
+          </div>
+        )}
       </form>
     </Form>
   );

@@ -4,3 +4,13 @@ import { UserRole } from '@nutri-plus/shared-types';
 export function isWebDashboardRole(role: UserRole): boolean {
   return role !== UserRole.PATIENT;
 }
+
+/** Only nutritionists can create or edit patients (employees are read-only). */
+export function canManagePatients(role: UserRole): boolean {
+  return role === UserRole.NUTRITIONIST;
+}
+
+/** Only nutritionists can view/manage the employees module. */
+export function canManageEmployees(role: UserRole): boolean {
+  return role === UserRole.NUTRITIONIST;
+}
