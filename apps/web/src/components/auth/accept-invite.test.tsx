@@ -7,13 +7,14 @@ const setSession = vi.fn();
 const updateUser = vi.fn();
 const signOut = vi.fn();
 const push = vi.fn();
+const refresh = vi.fn();
 const getMe = vi.fn();
 
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({ auth: { getSession, setSession, updateUser, signOut } }),
 }));
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push, refresh: vi.fn() }),
+  useRouter: () => ({ push, refresh }),
 }));
 vi.mock('@/lib/api/auth', () => ({
   getMe: (...args: unknown[]) => getMe(...args),
@@ -32,6 +33,7 @@ beforeEach(() => {
   updateUser.mockReset();
   signOut.mockReset();
   push.mockReset();
+  refresh.mockReset();
   getMe.mockReset();
   // Defaults: no existing session; setSession resolves with no session unless overridden.
   getSession.mockResolvedValue({ data: { session: null } });
@@ -82,6 +84,7 @@ describe('AcceptInvite', () => {
     await userEvent.click(screen.getByRole('button', { name: /concluir cadastro/i }));
 
     await waitFor(() => expect(push).toHaveBeenCalledWith('/'));
+    expect(refresh).toHaveBeenCalled();
     expect(signOut).not.toHaveBeenCalled();
   });
 
@@ -100,6 +103,23 @@ describe('AcceptInvite', () => {
 
     await waitFor(() => expect(push).toHaveBeenCalledWith('/login'));
     expect(signOut).toHaveBeenCalled();
+  });
+
+  it('falls back to /login when there is no token after updateUser succeeds', async () => {
+    setHash('#access_token=a.b.c&refresh_token=rt123&type=invite');
+    setSession.mockResolvedValue({ data: { session: { user: { id: 'x' } } }, error: null });
+    updateUser.mockResolvedValue({ error: null });
+    getSession.mockResolvedValue({ data: { session: null } });
+    signOut.mockResolvedValue({ error: null });
+    render(<AcceptInvite />);
+
+    await userEvent.type(await screen.findByLabelText(/^senha$/i), 'supersecret');
+    await userEvent.type(screen.getByLabelText(/confirmar senha/i), 'supersecret');
+    await userEvent.click(screen.getByRole('button', { name: /concluir cadastro/i }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/login'));
+    expect(signOut).toHaveBeenCalled();
+    expect(getMe).not.toHaveBeenCalled();
   });
 
   it('shows a mapped error and does not redirect when updateUser fails', async () => {
