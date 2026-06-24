@@ -7,12 +7,16 @@ const setSession = vi.fn();
 const updateUser = vi.fn();
 const signOut = vi.fn();
 const push = vi.fn();
+const getMe = vi.fn();
 
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({ auth: { getSession, setSession, updateUser, signOut } }),
 }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push, refresh: vi.fn() }),
+}));
+vi.mock('@/lib/api/auth', () => ({
+  getMe: (...args: unknown[]) => getMe(...args),
 }));
 
 import { AcceptInvite } from './accept-invite';
@@ -28,6 +32,7 @@ beforeEach(() => {
   updateUser.mockReset();
   signOut.mockReset();
   push.mockReset();
+  getMe.mockReset();
   // Defaults: no existing session; setSession resolves with no session unless overridden.
   getSession.mockResolvedValue({ data: { session: null } });
   setSession.mockResolvedValue({ data: { session: null }, error: null });
@@ -42,9 +47,11 @@ describe('AcceptInvite', () => {
     expect(setSession).not.toHaveBeenCalled();
   });
 
-  it('establishes the session from the invite hash, then sets the password, signs out, and routes to /download-app', async () => {
+  it('establishes the session from the invite hash, then sets the password, and routes a PATIENT to /download-app', async () => {
     setHash('#access_token=a.b.c&refresh_token=rt123&type=invite');
     setSession.mockResolvedValue({ data: { session: { user: { id: 'p1' } } }, error: null });
+    getSession.mockResolvedValue({ data: { session: { access_token: 'tok' } } });
+    getMe.mockResolvedValue({ role: 'PATIENT' });
     updateUser.mockResolvedValue({ error: null });
     signOut.mockResolvedValue({ error: null });
     render(<AcceptInvite />);
@@ -57,8 +64,42 @@ describe('AcceptInvite', () => {
       expect(setSession).toHaveBeenCalledWith({ access_token: 'a.b.c', refresh_token: 'rt123' }),
     );
     await waitFor(() => expect(updateUser).toHaveBeenCalledWith({ password: 'supersecret' }));
+    await waitFor(() => expect(getMe).toHaveBeenCalledWith('tok'));
     expect(signOut).toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith('/download-app');
+  });
+
+  it('routes a non-patient (staff) to the dashboard and keeps the session', async () => {
+    setHash('#access_token=a.b.c&refresh_token=rt123&type=invite');
+    setSession.mockResolvedValue({ data: { session: { user: { id: 'e1' } } }, error: null });
+    getSession.mockResolvedValue({ data: { session: { access_token: 'tok' } } });
+    getMe.mockResolvedValue({ role: 'EMPLOYEE' });
+    updateUser.mockResolvedValue({ error: null });
+    render(<AcceptInvite />);
+
+    await userEvent.type(await screen.findByLabelText(/^senha$/i), 'supersecret');
+    await userEvent.type(screen.getByLabelText(/confirmar senha/i), 'supersecret');
+    await userEvent.click(screen.getByRole('button', { name: /concluir cadastro/i }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/'));
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it('falls back to /login when the role lookup fails', async () => {
+    setHash('#access_token=a.b.c&refresh_token=rt123&type=invite');
+    setSession.mockResolvedValue({ data: { session: { user: { id: 'x' } } }, error: null });
+    getSession.mockResolvedValue({ data: { session: { access_token: 'tok' } } });
+    getMe.mockRejectedValue(new Error('boom'));
+    updateUser.mockResolvedValue({ error: null });
+    signOut.mockResolvedValue({ error: null });
+    render(<AcceptInvite />);
+
+    await userEvent.type(await screen.findByLabelText(/^senha$/i), 'supersecret');
+    await userEvent.type(screen.getByLabelText(/confirmar senha/i), 'supersecret');
+    await userEvent.click(screen.getByRole('button', { name: /concluir cadastro/i }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/login'));
+    expect(signOut).toHaveBeenCalled();
   });
 
   it('shows a mapped error and does not redirect when updateUser fails', async () => {

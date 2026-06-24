@@ -8,6 +8,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { createClient } from '@/lib/supabase/client';
 import { resetPasswordSchema, type ResetPasswordValues } from '@/lib/validation/auth';
 import { mapAuthError } from '@/lib/auth/errors';
+import { getMe } from '@/lib/api/auth';
+import { UserRole } from '@nutri-plus/shared-types';
 import { Button } from '@/components/ui/button';
 import { PasswordInput } from '@/components/ui/password-input';
 import {
@@ -77,9 +79,34 @@ export function AcceptInvite() {
       setFormError(mapAuthError(error));
       return;
     }
-    // Best-effort: the password is already set; sign out and continue regardless.
-    await supabase.auth.signOut();
-    router.push('/download-app');
+
+    // The password is set. Route by role: patients use the mobile app only and
+    // are signed out; staff (employees/nutritionists) keep the session and enter
+    // the web dashboard. If the role can't be determined, fail safe to /login.
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        await supabase.auth.signOut();
+        router.push('/login');
+        return;
+      }
+
+      const me = await getMe(token);
+      if (me.role === UserRole.PATIENT) {
+        await supabase.auth.signOut();
+        router.push('/download-app');
+        return;
+      }
+
+      router.push('/');
+      router.refresh();
+    } catch {
+      await supabase.auth.signOut();
+      router.push('/login');
+    }
   }
 
   if (status === 'checking') {
