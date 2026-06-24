@@ -39,4 +39,15 @@ describe('PatientsList', () => {
     const links = screen.getAllByRole('link', { name: /maria silva/i });
     expect(links[0]).toHaveAttribute('href', '/patients/p1');
   });
+  it('hides the create button when canCreate is false', () => {
+    usePatients.mockReturnValue({ isLoading: false, isError: false, data: [patient] });
+    render(<PatientsList canCreate={false} />);
+    expect(screen.queryByRole('link', { name: /novo paciente/i })).not.toBeInTheDocument();
+  });
+  it('hides the empty-state CTA when canCreate is false', () => {
+    usePatients.mockReturnValue({ isLoading: false, isError: false, data: [] });
+    render(<PatientsList canCreate={false} />);
+    expect(screen.getByText(/nenhum paciente/i)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /cadastrar primeiro paciente/i })).not.toBeInTheDocument();
+  });
 });
