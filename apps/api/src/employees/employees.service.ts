@@ -5,6 +5,7 @@ import { resolveScopeNutritionistId } from '../auth/auth-scope';
 import { UsersService } from '../users/users.service';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
 import { InviteEmployeeDto } from './dto/invite-employee.dto';
+import { UpdateEmployeeDto } from './dto/update-employee.dto';
 
 const USER_SUMMARY = { select: { id: true, name: true, email: true } } as const;
 
@@ -65,6 +66,26 @@ export class EmployeesService {
     ]);
 
     await this.supabaseAdmin.deleteUser(employee.user.authProviderId);
+  }
+
+  // Edit the only mutable field an employee has: the linked User's name. Scope
+  // the lookup to the nutritionist (404 if not owned), then return the employee
+  // through the shared include so the response shape matches list/invite.
+  async updateEmployee(ctx: AuthContext, id: string, dto: UpdateEmployeeDto) {
+    const employee = await this.prisma.employeeProfile.findFirst({
+      where: { id, nutritionistId: resolveScopeNutritionistId(ctx) },
+      select: { id: true, userId: true },
+    });
+    if (!employee) {
+      throw new NotFoundException('Employee not found');
+    }
+
+    await this.prisma.user.update({
+      where: { id: employee.userId },
+      data: { name: dto.name },
+    });
+
+    return this.getEmployee(ctx, employee.id);
   }
 
   private async getEmployee(ctx: AuthContext, id: string) {
