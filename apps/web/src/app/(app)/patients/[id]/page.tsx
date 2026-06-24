@@ -1,4 +1,6 @@
 import { PatientDetail } from '@/components/patients/patient-detail';
+import { getCurrentUser } from '@/lib/auth/current-user';
+import { canManagePatients } from '@/lib/auth/access';
 
 export default async function PatientDetailPage({
   params,
@@ -9,5 +11,7 @@ export default async function PatientDetailPage({
 }) {
   const { id } = await params;
   const { created } = await searchParams;
-  return <PatientDetail id={id} created={created === '1'} />;
+  const me = await getCurrentUser();
+  const canEdit = !!me && canManagePatients(me.role);
+  return <PatientDetail id={id} created={created === '1'} canEdit={canEdit} />;
 }

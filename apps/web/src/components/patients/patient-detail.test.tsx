@@ -68,4 +68,10 @@ describe('PatientDetail', () => {
     await userEvent.click(screen.getByRole('button', { name: /salvar alterações/i }));
     await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
   });
+
+  it('hides Save when canEdit is false', () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} canEdit={false} />);
+    expect(screen.queryByRole('button', { name: /salvar alterações/i })).not.toBeInTheDocument();
+  });
 });
