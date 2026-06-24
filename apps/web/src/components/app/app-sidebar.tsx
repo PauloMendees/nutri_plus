@@ -6,6 +6,7 @@ import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/brand/logo";
 import { NAV_ITEMS } from "@/components/app/nav-items";
+import { UserRole } from "@nutri-plus/shared-types";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import {
   Sidebar,
@@ -22,7 +23,7 @@ import {
 } from "@/components/ui/sidebar";
 
 type AppSidebarProps = {
-  user: { name: string; role: string } | null;
+  user: { name: string; role: UserRole } | null;
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -44,6 +45,11 @@ export function AppSidebar({ user }: AppSidebarProps) {
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
 
+  const role = user?.role;
+  const items = NAV_ITEMS.filter(
+    (item) => !item.canAccess || (role !== undefined && item.canAccess(role)),
+  );
+
   async function signOut() {
     await createClient().auth.signOut();
     router.push("/login");
@@ -58,7 +64,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
 
       <SidebarContent className="px-2 py-2">
         <SidebarMenu className="gap-1.5">
-          {NAV_ITEMS.map((item) => {
+          {items.map((item) => {
             const active =
               pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;

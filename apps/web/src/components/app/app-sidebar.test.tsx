@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SidebarProvider, useSidebar } from '@/components/ui/sidebar';
+import { UserRole } from '@nutri-plus/shared-types';
 
 const push = vi.fn();
 const refresh = vi.fn();
@@ -18,7 +19,9 @@ vi.mock('@/lib/supabase/client', () => ({
 
 import { AppSidebar } from './app-sidebar';
 
-function renderSidebar(user: { name: string; role: string } | null = { name: 'Dra. Ana', role: 'NUTRITIONIST' }) {
+function renderSidebar(
+  user: { name: string; role: UserRole } | null = { name: 'Dra. Ana', role: UserRole.NUTRITIONIST },
+) {
   return render(
     <SidebarProvider>
       <AppSidebar user={user} />
@@ -99,7 +102,7 @@ describe('AppSidebar', () => {
       render(
         <SidebarProvider>
           <MobileState />
-          <AppSidebar user={{ name: 'Dra. Ana', role: 'NUTRITIONIST' }} />
+          <AppSidebar user={{ name: 'Dra. Ana', role: UserRole.NUTRITIONIST }} />
         </SidebarProvider>,
       );
       await userEvent.click(screen.getByRole('button', { name: 'force-open' }));
@@ -110,5 +113,16 @@ describe('AppSidebar', () => {
       window.matchMedia = originalMatchMedia;
       Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: originalInnerWidth });
     }
+  });
+
+  it('hides the Funcionários item for an employee', () => {
+    renderSidebar({ name: 'João', role: UserRole.EMPLOYEE });
+    expect(screen.queryByRole('link', { name: /funcionários/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /pacientes/i })).toBeInTheDocument();
+  });
+
+  it('shows the Funcionários item for a nutritionist', () => {
+    renderSidebar({ name: 'Dra. Ana', role: UserRole.NUTRITIONIST });
+    expect(screen.getByRole('link', { name: /funcionários/i })).toBeInTheDocument();
   });
 });
