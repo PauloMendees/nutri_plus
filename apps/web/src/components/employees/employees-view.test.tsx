@@ -86,4 +86,14 @@ describe('EmployeesView', () => {
     await userEvent.click(screen.getAllByRole('button', { name: /ana paula/i })[0]);
     expect(await screen.findByText(/identidade de acesso/i)).toBeInTheDocument();
   });
+
+  it('opens the edit dialog via keyboard on a desktop row', async () => {
+    useEmployees.mockReturnValue({ isLoading: false, isError: false, data: [employee()] });
+    render(<EmployeesView />);
+    const targets = screen.getAllByRole('button', { name: /ana paula/i });
+    const row = targets[targets.length - 1]; // the <tr role="button">
+    row.focus();
+    await userEvent.keyboard('{Enter}');
+    expect(await screen.findByText(/identidade de acesso/i)).toBeInTheDocument();
+  });
 });

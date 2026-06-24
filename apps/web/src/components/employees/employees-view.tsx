@@ -132,7 +132,15 @@ export function EmployeesView() {
                 {filtered.map((e) => (
                   <tr
                     key={e.id}
+                    role='button'
+                    tabIndex={0}
                     onClick={() => setEditing(e)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setEditing(e);
+                      }
+                    }}
                     className="cursor-pointer border-b last:border-0 hover:bg-muted/40"
                   >
                     <td className="px-4 py-3">
