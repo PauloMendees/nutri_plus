@@ -10,6 +10,7 @@ import { SupabaseAdminService } from '../supabase/supabase-admin.service';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
+import { UpdateAssessmentDto } from './dto/update-assessment.dto';
 
 const USER_SUMMARY = { select: { id: true, name: true, email: true } } as const;
 
@@ -96,6 +97,41 @@ export class PatientsService {
       },
       orderBy: { assessmentDate: 'desc' },
     });
+  }
+
+  async updateAssessment(
+    ctx: AuthContext,
+    patientId: string,
+    assessmentId: string,
+    dto: UpdateAssessmentDto,
+  ) {
+    await this.requireOwned(ctx, patientId);
+    await this.requireAssessment(patientId, assessmentId);
+    return this.prisma.bodyAssessment.update({
+      where: { id: assessmentId },
+      data: dto,
+    });
+  }
+
+  async removeAssessment(
+    ctx: AuthContext,
+    patientId: string,
+    assessmentId: string,
+  ): Promise<void> {
+    await this.requireOwned(ctx, patientId);
+    await this.requireAssessment(patientId, assessmentId);
+    await this.prisma.bodyAssessment.delete({ where: { id: assessmentId } });
+  }
+
+  // The assessment must belong to the (already-owned) patient; otherwise 404.
+  private async requireAssessment(patientId: string, assessmentId: string): Promise<void> {
+    const assessment = await this.prisma.bodyAssessment.findFirst({
+      where: { id: assessmentId, patientId },
+      select: { id: true },
+    });
+    if (!assessment) {
+      throw new NotFoundException('Assessment not found');
+    }
   }
 
   // Confirms the patient exists AND is linked to this nutritionist. A non-owned
