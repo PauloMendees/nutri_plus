@@ -4,3 +4,4 @@ export * from './patient';
 export * from './appointment';
 export * from './appointment-category';
 export * from './employee';
+export * from './assessment';
