@@ -58,7 +58,9 @@ const NUM_NAMES = [...COMPOSITION, ...CIRCUMFERENCES].map((f) => f.name);
 function defaults(assessment?: BodyAssessment): AssessmentValues {
   const str = (v: number | null | undefined) => (v == null ? '' : String(v));
   const base: Record<string, string> = {
-    assessmentDate: assessment?.assessmentDate ? assessment.assessmentDate.slice(0, 10) : '',
+    assessmentDate: assessment?.assessmentDate
+      ? assessment.assessmentDate.slice(0, 10)
+      : new Date().toISOString().slice(0, 10),
     notes: assessment?.notes ?? '',
   };
   for (const name of NUM_NAMES) {

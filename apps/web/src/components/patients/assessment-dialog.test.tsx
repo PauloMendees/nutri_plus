@@ -48,6 +48,7 @@ beforeEach(() => {
 describe('AssessmentDialog', () => {
   it('create: submits the typed weight', async () => {
     render(<AssessmentDialog open onOpenChange={onOpenChange} patientId='p1' />);
+    expect(screen.getByLabelText(/data da avaliação/i)).toHaveValue(new Date().toISOString().slice(0, 10));
     await userEvent.type(screen.getByLabelText(/peso/i), '80');
     await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
     await waitFor(() => expect(createMut).toHaveBeenCalledTimes(1));
