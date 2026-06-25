@@ -10,6 +10,12 @@ vi.mock('@/lib/queries/patients', () => ({
   usePatient: (id: string) => usePatient(id),
   useUpdatePatient: () => ({ mutateAsync, isPending: false }),
 }));
+vi.mock('@/lib/queries/assessments', () => ({
+  useAssessments: () => ({ data: [], isLoading: false, isError: false }),
+  useCreateAssessment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateAssessment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteAssessment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
 vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));
 
 import { PatientDetail } from './patient-detail';
