@@ -181,6 +181,60 @@ describe('PatientsService', () => {
     expect(result).toEqual([{ id: 'a1' }]);
   });
 
+  it('updates an owned assessment', async () => {
+    prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+    prisma.bodyAssessment.findFirst.mockResolvedValue({ id: 'a1' } as any);
+    prisma.bodyAssessment.update.mockResolvedValue({ id: 'a1', weight: 80 } as any);
+
+    const result = await service.updateAssessment(ctx, 'p1', 'a1', { weight: 80 } as any);
+
+    expect(prisma.bodyAssessment.findFirst).toHaveBeenCalledWith({
+      where: { id: 'a1', patientId: 'p1' },
+      select: { id: true },
+    });
+    expect(prisma.bodyAssessment.update).toHaveBeenCalledWith({
+      where: { id: 'a1' },
+      data: { weight: 80 },
+    });
+    expect(result).toEqual({ id: 'a1', weight: 80 });
+  });
+
+  it('does not update an assessment for a non-owned patient', async () => {
+    prisma.patientProfile.findFirst.mockResolvedValue(null);
+    await expect(
+      service.updateAssessment(ctx, 'other', 'a1', { weight: 80 } as any),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.bodyAssessment.update).not.toHaveBeenCalled();
+  });
+
+  it('throws when the assessment does not belong to the patient', async () => {
+    prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+    prisma.bodyAssessment.findFirst.mockResolvedValue(null);
+    await expect(
+      service.updateAssessment(ctx, 'p1', 'a1', { weight: 80 } as any),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.bodyAssessment.update).not.toHaveBeenCalled();
+  });
+
+  it('removes an owned assessment', async () => {
+    prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+    prisma.bodyAssessment.findFirst.mockResolvedValue({ id: 'a1' } as any);
+    prisma.bodyAssessment.delete.mockResolvedValue({ id: 'a1' } as any);
+
+    await service.removeAssessment(ctx, 'p1', 'a1');
+
+    expect(prisma.bodyAssessment.delete).toHaveBeenCalledWith({ where: { id: 'a1' } });
+  });
+
+  it('does not remove an assessment that does not belong to the patient', async () => {
+    prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+    prisma.bodyAssessment.findFirst.mockResolvedValue(null);
+    await expect(service.removeAssessment(ctx, 'p1', 'a1')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+    expect(prisma.bodyAssessment.delete).not.toHaveBeenCalled();
+  });
+
   describe('createPatient', () => {
     const dto = { name: 'Ann', email: 'a@x.com', height: 160 } as any;
 

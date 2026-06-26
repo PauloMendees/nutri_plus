@@ -1,3 +1,5 @@
+import type { BodyAssessment } from './assessment';
+
 export enum Gender {
   MALE = 'MALE',
   FEMALE = 'FEMALE',
@@ -45,9 +47,8 @@ export interface PatientSummary {
   updatedAt: string;
 }
 
-// assessments typed loosely until the bioimpedância slice.
 export interface PatientDetail extends PatientSummary {
-  assessments: unknown[];
+  assessments: BodyAssessment[];
 }
 
 export interface CreatePatientRequest {

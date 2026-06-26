@@ -67,7 +67,7 @@ export function PatientDetail({
 
       <EditPatientForm patient={patient} canEdit={canEdit} />
 
-      <BioimpedanceSection />
+      <BioimpedanceSection patientId={patient.id} canEdit={canEdit} />
     </div>
   );
 }
