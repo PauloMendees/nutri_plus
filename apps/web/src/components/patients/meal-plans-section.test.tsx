@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApiError } from '@/lib/api/client';
 
@@ -12,6 +12,7 @@ vi.mock('@/lib/queries/meal-plans', () => ({
   useGenerateMealPlan: () => ({ mutateAsync: generateMut, isPending: false }),
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
+vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
 
 import { MealPlansSection } from './meal-plans-section';
 import { missingFieldsFromError } from '@/lib/meal-plans/generate-error';
@@ -62,21 +63,10 @@ describe('MealPlansSection', () => {
     expect(screen.getAllByText(/IA/).some((el) => el.tagName === 'SPAN')).toBe(true);
   });
 
-  it('generates and navigates to the new plan', async () => {
+  it('opens the AI dialog when "Gerar com IA" is clicked', async () => {
     useMealPlans.mockReturnValue({ isLoading: false, isError: false, data: [] });
     render(<MealPlansSection patientId="p1" canEdit />);
     await userEvent.click(screen.getByRole('button', { name: /gerar com ia/i }));
-    await waitFor(() => expect(generateMut).toHaveBeenCalledWith(undefined));
-    expect(push).toHaveBeenCalledWith('/patients/p1/planos/m1');
-  });
-
-  it('shows the missing-fields message on a 422', async () => {
-    useMealPlans.mockReturnValue({ isLoading: false, isError: false, data: [] });
-    generateMut.mockRejectedValue(new ApiError(422, { message: 'Cannot generate a plan: missing height, objective' }));
-    render(<MealPlansSection patientId="p1" canEdit />);
-    await userEvent.click(screen.getByRole('button', { name: /gerar com ia/i }));
-    expect(await screen.findByText(/altura/i)).toBeInTheDocument();
-    expect(screen.getByText(/objetivo/i)).toBeInTheDocument();
-    expect(push).not.toHaveBeenCalled();
+    expect(await screen.findByLabelText(/instruções personalizadas/i)).toBeInTheDocument();
   });
 });

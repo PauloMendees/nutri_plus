@@ -2,13 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
 import type { MealPlanSummary } from '@nutri-plus/shared-types';
-import { useGenerateMealPlan, useMealPlans } from '@/lib/queries/meal-plans';
-import { missingFieldsFromError } from '@/lib/meal-plans/generate-error';
+import { useMealPlans } from '@/lib/queries/meal-plans';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AiGenerateDialog } from '@/components/patients/ai-generate-dialog';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR');
@@ -22,26 +20,9 @@ export function MealPlansSection({
   canEdit?: boolean;
 }) {
   const query = useMealPlans(patientId);
-  const generate = useGenerateMealPlan(patientId);
-  const router = useRouter();
-  const [missing, setMissing] = useState<string[] | null>(null);
+  const [generating, setGenerating] = useState(false);
 
   const plans = query.data ?? [];
-
-  async function onGenerate() {
-    setMissing(null);
-    try {
-      const plan = await generate.mutateAsync(undefined);
-      router.push(`/patients/${patientId}/planos/${plan.id}`);
-    } catch (err) {
-      const fields = missingFieldsFromError(err);
-      if (fields) {
-        setMissing(fields);
-      } else {
-        toast.error('Não foi possível gerar o plano. Tente novamente.');
-      }
-    }
-  }
 
   return (
     <section className="space-y-4">
@@ -51,10 +32,9 @@ export function MealPlansSection({
           <div className="flex items-center gap-2">
             <Button
               className="rounded-full shadow-sm shadow-primary/30"
-              onClick={onGenerate}
-              disabled={generate.isPending}
+              onClick={() => setGenerating(true)}
             >
-              {generate.isPending ? 'Gerando…' : '✨ Gerar com IA'}
+              ✨ Gerar com IA
             </Button>
             <Button variant="outline" size="sm" className="rounded-full" asChild>
               <Link href={`/patients/${patientId}/planos/novo`}>Novo plano</Link>
@@ -62,13 +42,6 @@ export function MealPlansSection({
           </div>
         )}
       </div>
-
-      {missing && (
-        <div className="rounded-xl border border-destructive/40 bg-card p-4 text-sm">
-          <p className="font-medium text-destructive">Complete o cadastro do paciente para gerar com IA.</p>
-          <p className="mt-1 text-muted-foreground">Faltando: {missing.join(', ')}.</p>
-        </div>
-      )}
 
       {query.isLoading && (
         <div data-testid="meal-plans-loading" className="rounded-xl border bg-card p-4">
@@ -117,6 +90,14 @@ export function MealPlansSection({
             </Link>
           ))}
         </div>
+      )}
+
+      {canEdit && (
+        <AiGenerateDialog
+          open={generating}
+          onOpenChange={(o) => !o && setGenerating(false)}
+          patientId={patientId}
+        />
       )}
     </section>
   );
