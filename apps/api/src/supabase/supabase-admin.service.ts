@@ -85,4 +85,41 @@ export class SupabaseAdminService {
       this.logger.error(`Failed to roll back invited user ${id}`, error as Error);
     }
   }
+
+  // Ensures the bucket exists (public), uploads the object (overwriting), and
+  // returns its public URL. Storage/transport failures map to 502; never logs
+  // file contents.
+  async uploadPublicObject(
+    bucket: string,
+    path: string,
+    body: Buffer,
+    contentType: string,
+  ): Promise<string> {
+    try {
+      const { data: existing } = await this.client.storage.getBucket(bucket);
+      if (!existing) {
+        await this.client.storage.createBucket(bucket, { public: true });
+      }
+      const { error } = await this.client.storage
+        .from(bucket)
+        .upload(path, body, { contentType, upsert: true });
+      if (error) {
+        throw error;
+      }
+      return this.client.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    } catch {
+      this.logger.warn(`Storage upload failed (bucket=${bucket})`);
+      throw new BadGatewayException('Storage upload failed');
+    }
+  }
+
+  // Best-effort delete; a failure is logged, not thrown (the DB is the source
+  // of truth for whether a logo is set).
+  async removeObject(bucket: string, path: string): Promise<void> {
+    try {
+      await this.client.storage.from(bucket).remove([path]);
+    } catch {
+      this.logger.warn(`Storage remove failed (bucket=${bucket})`);
+    }
+  }
 }
