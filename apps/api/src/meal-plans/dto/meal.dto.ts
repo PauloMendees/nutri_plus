@@ -6,7 +6,7 @@ import {
   MaxLength,
   ValidateNested,
 } from 'class-validator';
-import { MealItemDto } from './meal-item.dto';
+import { MealOptionDto } from './meal-option.dto';
 
 export class MealDto {
   @IsOptional()
@@ -27,6 +27,6 @@ export class MealDto {
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => MealItemDto)
-  items?: MealItemDto[];
+  @Type(() => MealOptionDto)
+  options?: MealOptionDto[];
 }

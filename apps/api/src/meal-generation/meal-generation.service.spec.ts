@@ -44,12 +44,10 @@ const aiResponse = {
     {
       name: 'Café da Manhã',
       timeLabel: '08:00',
-      items: [{ foodName: 'Ovos', quantity: '2 unidades', calories: 140, protein: 12, carbs: 1, fats: 9 }],
-    },
-    {
-      name: 'Almoço',
-      timeLabel: null,
-      items: [{ foodName: 'Frango', quantity: '150g', calories: 165, protein: 31, carbs: 0, fats: 4 }],
+      options: [
+        { label: 'Opção 1', items: [{ foodName: 'Ovos', quantity: '2 unidades', calories: 140, protein: 12, carbs: 1, fats: 9 }] },
+        { label: 'Opção 2', items: [{ foodName: 'Tapioca', quantity: '2 colheres', calories: 150, protein: 11, carbs: 20, fats: 3 }] },
+      ],
     },
   ],
 };
@@ -132,12 +130,10 @@ describe('MealGenerationService', () => {
         {
           name: 'Café da Manhã',
           timeLabel: '08:00',
-          items: [{ foodName: 'Ovos', quantity: '2 unidades', calories: 140, protein: 12, carbs: 1, fats: 9 }],
-        },
-        {
-          name: 'Almoço',
-          timeLabel: undefined,
-          items: [{ foodName: 'Frango', quantity: '150g', calories: 165, protein: 31, carbs: 0, fats: 4 }],
+          options: [
+            { label: 'Opção 1', items: [{ foodName: 'Ovos', quantity: '2 unidades', calories: 140, protein: 12, carbs: 1, fats: 9 }] },
+            { label: 'Opção 2', items: [{ foodName: 'Tapioca', quantity: '2 colheres', calories: 150, protein: 11, carbs: 20, fats: 3 }] },
+          ],
         },
       ],
     });

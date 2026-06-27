@@ -6,13 +6,16 @@ const valid = {
     {
       name: 'Café da Manhã',
       timeLabel: '08:00',
-      items: [{ foodName: 'Ovos', quantity: '2 unidades', calories: 140, protein: 12, carbs: 1, fats: 9 }],
+      options: [
+        { label: 'Opção 1', items: [{ foodName: 'Ovos', quantity: '2 unidades', calories: 140, protein: 12, carbs: 1, fats: 9 }] },
+        { label: 'Opção 2', items: [{ foodName: 'Tapioca', quantity: '2 colheres', calories: 150, protein: 11, carbs: 20, fats: 3 }] },
+      ],
     },
   ],
 };
 
 describe('mealPlanResponseSchema', () => {
-  it('accepts a well-formed plan', () => {
+  it('accepts a well-formed plan with options', () => {
     expect(mealPlanResponseSchema.safeParse(valid).success).toBe(true);
   });
 
@@ -25,25 +28,23 @@ describe('mealPlanResponseSchema', () => {
   });
 
   it('rejects an empty meals array', () => {
-    expect(
-      mealPlanResponseSchema.safeParse({ title: 'x', meals: [] }).success,
-    ).toBe(false);
+    expect(mealPlanResponseSchema.safeParse({ title: 'x', meals: [] }).success).toBe(false);
   });
 
-  it('rejects a meal with no items', () => {
+  it('rejects a meal with no options', () => {
     expect(
       mealPlanResponseSchema.safeParse({
         title: 'x',
-        meals: [{ name: 'Café da Manhã', timeLabel: null, items: [] }],
+        meals: [{ name: 'Café', timeLabel: null, options: [] }],
       }).success,
     ).toBe(false);
   });
 
-  it('rejects a missing foodName', () => {
+  it('rejects an option with no items', () => {
     expect(
       mealPlanResponseSchema.safeParse({
         title: 'x',
-        meals: [{ name: 'B', timeLabel: null, items: [{ quantity: '2', calories: 100, protein: 5, carbs: 10, fats: 2 }] }],
+        meals: [{ name: 'Café', timeLabel: null, options: [{ label: 'Opção 1', items: [] }] }],
       }).success,
     ).toBe(false);
   });
@@ -56,7 +57,7 @@ describe('mealPlanResponseSchema', () => {
           {
             name: 'Almoço',
             timeLabel: null,
-            items: [{ foodName: 'Frango', quantity: '150g', protein: 30, carbs: 0, fats: 4 }],
+            options: [{ label: 'Opção 1', items: [{ foodName: 'Frango', quantity: '150g', protein: 30, carbs: 0, fats: 4 }] }],
           },
         ],
       }).success,

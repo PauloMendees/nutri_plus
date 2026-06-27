@@ -51,4 +51,9 @@ describe('meal-plan prompt', () => {
     expect(parsed.defaultInstructions).toBe('Priorizar alimentos acessíveis');
     expect(parsed.customInstructions).toBe('Apenas 4 refeições');
   });
+
+  it('system prompt instructs exactly two macro-comparable options per meal', () => {
+    expect(MEAL_PLAN_SYSTEM_PROMPT).toMatch(/exactly two/i);
+    expect(MEAL_PLAN_SYSTEM_PROMPT).toMatch(/option/i);
+  });
 });

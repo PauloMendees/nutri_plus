@@ -75,7 +75,7 @@ export class MealGenerationService {
       meals: generated.meals.map((m): GeneratedMealInput => ({
         name: m.name,
         timeLabel: m.timeLabel ?? undefined,
-        items: m.items,
+        options: m.options.map((o) => ({ label: o.label, items: o.items })),
       })),
     });
   }
