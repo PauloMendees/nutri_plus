@@ -109,12 +109,12 @@ describe('Meal Generation (e2e)', () => {
   it('generates and persists an editable AI plan with targets', async () => {
     await completeProfile();
     generateStructured.mockResolvedValue({
-      title: 'Weight Loss Plan',
+      title: 'Plano de Emagrecimento',
       meals: [
         {
-          name: 'Breakfast',
+          name: 'Café da Manhã',
           timeLabel: '08:00',
-          items: [{ foodName: 'Eggs', quantity: '2 units' }],
+          items: [{ foodName: 'Ovos', quantity: '2 unidades', calories: 140, protein: 12, carbs: 1, fats: 9 }],
         },
       ],
     });
@@ -126,11 +126,14 @@ describe('Meal Generation (e2e)', () => {
       .expect(201);
 
     expect(res.body.aiGenerated).toBe(true);
-    expect(res.body.title).toBe('Weight Loss Plan');
+    expect(res.body.title).toBe('Plano de Emagrecimento');
     expect(res.body.targetCalories).toBeGreaterThan(0);
     expect(res.body.targetProtein).toBe(160); // 2.0 g/kg * 80
     expect(res.body.meals).toHaveLength(1);
-    expect(res.body.meals[0].items[0].foodName).toBe('Eggs');
+    expect(res.body.meals[0].items[0].foodName).toBe('Ovos');
+    // Per-item macros estimated by AI must persist.
+    expect(res.body.meals[0].items[0].calories).toBe(140);
+    expect(typeof res.body.meals[0].items[0].protein).toBe('number');
 
     // The provider received the smart tier and targets in the prompt.
     const call = generateStructured.mock.calls[0][0];

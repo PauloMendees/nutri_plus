@@ -8,6 +8,14 @@ describe('meal-plan prompt', () => {
     expect(MEAL_PLAN_SYSTEM_PROMPT).toMatch(/not.*recalculate|do not.*calculat/i);
   });
 
+  it('system prompt instructs per-item macro estimation', () => {
+    expect(MEAL_PLAN_SYSTEM_PROMPT).toMatch(/estimate.*macro|macro.*estim/i);
+  });
+
+  it('system prompt instructs Brazilian Portuguese output', () => {
+    expect(MEAL_PLAN_SYSTEM_PROMPT).toMatch(/Brazilian Portuguese|pt-BR/i);
+  });
+
   it('user prompt is valid JSON carrying the targets and context', () => {
     const json = buildMealPlanUserPrompt({
       age: 30,

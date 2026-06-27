@@ -13,7 +13,7 @@ import { MealDto } from './dto/meal.dto';
 export interface GeneratedMealInput {
   name: string;
   timeLabel?: string;
-  items: { foodName: string; quantity: string }[];
+  items: { foodName: string; quantity: string; calories: number; protein: number; carbs: number; fats: number }[];
 }
 
 // Always return meals and their items in their stored order.

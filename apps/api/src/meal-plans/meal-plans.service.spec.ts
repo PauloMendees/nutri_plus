@@ -304,7 +304,7 @@ describe('MealPlansService', () => {
         title: 'AI Plan',
         targets: { calories: 2000, protein: 150, carbs: 200, fats: 56 },
         meals: [
-          { name: 'Breakfast', timeLabel: '08:00', items: [{ foodName: 'Egg', quantity: '2' }] },
+          { name: 'Breakfast', timeLabel: '08:00', items: [{ foodName: 'Egg', quantity: '2', calories: 140, protein: 12, carbs: 1, fats: 9 }] },
         ],
       });
 
@@ -328,7 +328,7 @@ describe('MealPlansService', () => {
                 timeLabel: '08:00',
                 instructions: undefined,
                 order: 0,
-                items: { create: [{ foodName: 'Egg', quantity: '2', order: 0 }] },
+                items: { create: [{ foodName: 'Egg', quantity: '2', calories: 140, protein: 12, carbs: 1, fats: 9, order: 0 }] },
               },
             ],
           },

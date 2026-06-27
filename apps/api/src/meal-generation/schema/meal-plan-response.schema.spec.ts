@@ -1,12 +1,12 @@
 import { mealPlanResponseSchema } from './meal-plan-response.schema';
 
 const valid = {
-  title: 'Weight Loss Plan',
+  title: 'Plano de Emagrecimento',
   meals: [
     {
-      name: 'Breakfast',
+      name: 'Café da Manhã',
       timeLabel: '08:00',
-      items: [{ foodName: 'Eggs', quantity: '2 units' }],
+      items: [{ foodName: 'Ovos', quantity: '2 unidades', calories: 140, protein: 12, carbs: 1, fats: 9 }],
     },
   ],
 };
@@ -34,7 +34,7 @@ describe('mealPlanResponseSchema', () => {
     expect(
       mealPlanResponseSchema.safeParse({
         title: 'x',
-        meals: [{ name: 'Breakfast', timeLabel: null, items: [] }],
+        meals: [{ name: 'Café da Manhã', timeLabel: null, items: [] }],
       }).success,
     ).toBe(false);
   });
@@ -43,7 +43,22 @@ describe('mealPlanResponseSchema', () => {
     expect(
       mealPlanResponseSchema.safeParse({
         title: 'x',
-        meals: [{ name: 'B', timeLabel: null, items: [{ quantity: '2' }] }],
+        meals: [{ name: 'B', timeLabel: null, items: [{ quantity: '2', calories: 100, protein: 5, carbs: 10, fats: 2 }] }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects an item missing a macro field (e.g. calories)', () => {
+    expect(
+      mealPlanResponseSchema.safeParse({
+        title: 'x',
+        meals: [
+          {
+            name: 'Almoço',
+            timeLabel: null,
+            items: [{ foodName: 'Frango', quantity: '150g', protein: 30, carbs: 0, fats: 4 }],
+          },
+        ],
       }).success,
     ).toBe(false);
   });

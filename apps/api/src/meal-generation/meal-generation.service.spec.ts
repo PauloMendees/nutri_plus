@@ -39,17 +39,17 @@ function completePatient() {
 }
 
 const aiResponse = {
-  title: 'Weight Loss Plan',
+  title: 'Plano de Emagrecimento',
   meals: [
     {
-      name: 'Breakfast',
+      name: 'Café da Manhã',
       timeLabel: '08:00',
-      items: [{ foodName: 'Eggs', quantity: '2 units' }],
+      items: [{ foodName: 'Ovos', quantity: '2 unidades', calories: 140, protein: 12, carbs: 1, fats: 9 }],
     },
     {
-      name: 'Lunch',
+      name: 'Almoço',
       timeLabel: null,
-      items: [{ foodName: 'Chicken', quantity: '150g' }],
+      items: [{ foodName: 'Frango', quantity: '150g', calories: 165, protein: 31, carbs: 0, fats: 4 }],
     },
   ],
 };
@@ -120,21 +120,21 @@ describe('MealGenerationService', () => {
     expect(userCtx.targets.calories).toBeGreaterThan(0);
     expect(userCtx.targets.protein).toBe(160); // 2.0 g/kg * 80
 
-    // Persistence delegated with aiGenerated targets + normalized tree.
+    // Persistence delegated with aiGenerated targets + normalized tree (macros flow through).
     expect(mealPlans.createGeneratedPlan).toHaveBeenCalledWith(ctx, {
       patientId: 'p1',
-      title: 'Weight Loss Plan',
+      title: 'Plano de Emagrecimento',
       targets: userCtx.targets,
       meals: [
         {
-          name: 'Breakfast',
+          name: 'Café da Manhã',
           timeLabel: '08:00',
-          items: [{ foodName: 'Eggs', quantity: '2 units' }],
+          items: [{ foodName: 'Ovos', quantity: '2 unidades', calories: 140, protein: 12, carbs: 1, fats: 9 }],
         },
         {
-          name: 'Lunch',
+          name: 'Almoço',
           timeLabel: undefined,
-          items: [{ foodName: 'Chicken', quantity: '150g' }],
+          items: [{ foodName: 'Frango', quantity: '150g', calories: 165, protein: 31, carbs: 0, fats: 4 }],
         },
       ],
     });
