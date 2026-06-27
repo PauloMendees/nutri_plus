@@ -41,3 +41,31 @@ export async function apiFetch<T>(path: string, opts: ApiFetchOptions = {}): Pro
   if (!res.ok) throw new ApiError(res.status, data);
   return data as T;
 }
+
+export async function apiUpload<T>(
+  path: string,
+  opts: { token: string; formData: FormData; method?: string },
+): Promise<T> {
+  const base = process.env.NEXT_PUBLIC_API_URL;
+  if (!base) throw new Error('NEXT_PUBLIC_API_URL is not set');
+
+  const res = await fetch(`${base}/v1${path}`, {
+    method: opts.method ?? 'POST',
+    headers: { Authorization: `Bearer ${opts.token}` },
+    body: opts.formData,
+    cache: 'no-store',
+  });
+
+  const text = await res.text();
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+  }
+
+  if (!res.ok) throw new ApiError(res.status, data);
+  return data as T;
+}
