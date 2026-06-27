@@ -44,7 +44,7 @@ export class NutritionistSettingsController {
   }
 
   @Post('logo')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 2 * 1024 * 1024 } }))
   uploadLogo(
     @CurrentUser() ctx: AuthContext,
     @UploadedFile(

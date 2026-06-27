@@ -62,7 +62,7 @@ describe('NutritionistSettingsService', () => {
     prisma.nutritionistProfile.update.mockResolvedValue({
       displayName: null, logoUrl: 'https://cdn/nutri-1.png', mealPlanAiInstructions: null,
     } as any);
-    const file = { buffer: Buffer.from('x'), mimetype: 'image/png' };
+    const file = { buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), mimetype: 'image/png' };
     const result = await service.uploadLogo(ctx, file);
     expect(supabaseAdmin.uploadPublicObject).toHaveBeenCalledWith(
       'nutritionist-logos', 'nutri-1.png', file.buffer, 'image/png',
@@ -73,6 +73,13 @@ describe('NutritionistSettingsService', () => {
       select: SELECT,
     });
     expect(result.logoUrl).toBe('https://cdn/nutri-1.png');
+  });
+
+  it('rejects a non-image buffer with BadRequestException and does not call uploadPublicObject', async () => {
+    const file = { buffer: Buffer.from('not-an-image'), mimetype: 'image/png' };
+    await expect(service.uploadLogo(ctx, file)).rejects.toThrow('Arquivo de imagem inválido.');
+    expect(supabaseAdmin.uploadPublicObject).not.toHaveBeenCalled();
+    expect(prisma.nutritionistProfile.update).not.toHaveBeenCalled();
   });
 
   it('removes the logo: clears the URL and best-effort deletes the object', async () => {
