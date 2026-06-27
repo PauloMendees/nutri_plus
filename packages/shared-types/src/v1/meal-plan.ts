@@ -1,7 +1,7 @@
 // Dates are ISO strings over the wire; metric/target fields are nullable in storage.
 export interface MealItem {
   id: string;
-  mealId: string;
+  mealOptionId: string;
   foodName: string | null;
   quantity: string | null;
   calories: number | null;
@@ -11,6 +11,14 @@ export interface MealItem {
   order: number;
 }
 
+export interface MealOption {
+  id: string;
+  mealId: string;
+  label: string | null;
+  order: number;
+  items: MealItem[];
+}
+
 export interface Meal {
   id: string;
   mealPlanId: string;
@@ -18,7 +26,7 @@ export interface Meal {
   timeLabel: string | null;
   instructions: string | null;
   order: number;
-  items: MealItem[];
+  options: MealOption[];
 }
 
 export interface MealPlan {
@@ -47,11 +55,16 @@ export interface MealItemInput {
   fats?: number;
 }
 
+export interface MealOptionInput {
+  label?: string;
+  items?: MealItemInput[];
+}
+
 export interface MealInput {
   name?: string;
   timeLabel?: string;
   instructions?: string;
-  items?: MealItemInput[];
+  options?: MealOptionInput[];
 }
 
 export interface CreateMealPlanRequest {
