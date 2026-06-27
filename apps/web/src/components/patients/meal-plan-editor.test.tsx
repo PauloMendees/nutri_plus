@@ -84,6 +84,17 @@ describe('MealPlanEditor (edit mode)', () => {
     expect(screen.getByText(/não pode ser desfeita/i)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /^excluir$/i }));
     await waitFor(() => expect(deleteMut).toHaveBeenCalledWith('m1'));
+    expect(push).toHaveBeenCalledWith('/patients/p1');
+  });
+
+  it('reorders items within a meal', async () => {
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    const firstMeal = screen.getAllByTestId('meal-card')[0];
+    await userEvent.click(within(firstMeal).getByRole('button', { name: /adicionar item/i }));
+    const foods = () => within(firstMeal).getAllByLabelText('Alimento') as HTMLInputElement[];
+    expect(foods()[0]).toHaveValue('Ovos');
+    await userEvent.click(within(firstMeal).getAllByRole('button', { name: /mover item para baixo/i })[0]);
+    expect(foods()[1]).toHaveValue('Ovos');
   });
 
   it('is read-only for employees: no Salvar, fields disabled', () => {
