@@ -19,11 +19,16 @@ const mealItemSchema = z.object({
   fats: optNum,
 });
 
+const mealOptionSchema = z.object({
+  label: optText(200),
+  items: z.array(mealItemSchema),
+});
+
 const mealSchema = z.object({
   name: optText(200),
   timeLabel: optText(100),
   instructions: optText(2000),
-  items: z.array(mealItemSchema),
+  options: z.array(mealOptionSchema),
 });
 
 export const mealPlanSchema = z.object({

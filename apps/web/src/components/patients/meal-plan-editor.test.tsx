@@ -26,8 +26,12 @@ const plan = {
   createdAt: '', updatedAt: '',
   meals: [
     { id: 'me1', mealPlanId: 'm1', name: 'Café', timeLabel: '08:00', instructions: '', order: 0,
-      items: [{ id: 'it1', mealId: 'me1', foodName: 'Ovos', quantity: '3 unid', calories: 230, protein: 18, carbs: 2, fats: 16, order: 0 }] },
-    { id: 'me2', mealPlanId: 'm1', name: 'Almoço', timeLabel: '12:30', instructions: '', order: 1, items: [] },
+      options: [
+        { id: 'op1', mealId: 'me1', label: 'Opção 1', order: 0,
+          items: [{ id: 'it1', mealOptionId: 'op1', foodName: 'Ovos', quantity: '3 unid', calories: 230, protein: 18, carbs: 2, fats: 16, order: 0 }] },
+      ] },
+    { id: 'me2', mealPlanId: 'm1', name: 'Almoço', timeLabel: '12:30', instructions: '', order: 1,
+      options: [{ id: 'op2', mealId: 'me2', label: 'Opção 1', order: 0, items: [] }] },
   ],
 };
 
@@ -73,7 +77,7 @@ describe('MealPlanEditor (edit mode)', () => {
     const arg = updateMut.mock.calls[0][0];
     expect(arg.id).toBe('m1');
     expect(arg.body.meals).toHaveLength(2);
-    expect(arg.body.meals[0].items[0].foodName).toBe('Ovos');
+    expect(arg.body.meals[0].options[0].items[0].foodName).toBe('Ovos');
   });
 
   it('adds and removes a meal', async () => {
@@ -103,6 +107,32 @@ describe('MealPlanEditor (edit mode)', () => {
     expect(foods()[0]).toHaveValue('Ovos');
     await userEvent.click(within(firstMeal).getAllByRole('button', { name: /mover item para baixo/i })[0]);
     expect(foods()[1]).toHaveValue('Ovos');
+  });
+
+  it('adds and removes an option within a meal', async () => {
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    const firstMeal = screen.getAllByTestId('meal-card')[0];
+    expect(within(firstMeal).getAllByTestId('option-card')).toHaveLength(1);
+    await userEvent.click(within(firstMeal).getByRole('button', { name: /adicionar opção/i }));
+    expect(within(firstMeal).getAllByTestId('option-card')).toHaveLength(2);
+    await userEvent.click(within(firstMeal).getAllByRole('button', { name: /remover opção/i })[1]);
+    expect(within(firstMeal).getAllByTestId('option-card')).toHaveLength(1);
+  });
+
+  it('shows a per-option subtotal', () => {
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    const firstOption = screen.getAllByTestId('option-card')[0];
+    expect(within(firstOption).getByTestId('option-subtotal-calories')).toHaveTextContent('230');
+  });
+
+  it('day total sums only the first option of each meal', async () => {
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    const firstMeal = screen.getAllByTestId('meal-card')[0];
+    // Add a second option with a heavier item; the day total must NOT include it.
+    await userEvent.click(within(firstMeal).getByRole('button', { name: /adicionar opção/i }));
+    const secondOption = within(firstMeal).getAllByTestId('option-card')[1];
+    await userEvent.type(within(secondOption).getByLabelText('Kcal'), '999');
+    expect(screen.getByTestId('total-calories')).toHaveTextContent('230');
   });
 
   it('is read-only for employees: no Salvar, fields disabled', () => {

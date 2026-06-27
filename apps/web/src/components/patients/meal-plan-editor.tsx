@@ -7,6 +7,7 @@ import { ChevronLeft } from 'lucide-react';
 import {
   useFieldArray,
   useForm,
+  useWatch,
   type Control,
   type Resolver,
   type UseFormRegister,
@@ -27,6 +28,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 
+type ItemValues = { foodName: string; quantity: string; calories: string; protein: string; carbs: string; fats: string };
+type OptionValues = { label: string; items: ItemValues[] };
 type FormValues = {
   title: string;
   objective: string;
@@ -34,16 +37,12 @@ type FormValues = {
   targetProtein: string;
   targetCarbs: string;
   targetFats: string;
-  meals: {
-    name: string;
-    timeLabel: string;
-    instructions: string;
-    items: { foodName: string; quantity: string; calories: string; protein: string; carbs: string; fats: string }[];
-  }[];
+  meals: { name: string; timeLabel: string; instructions: string; options: OptionValues[] }[];
 };
 
-const blankItem = () => ({ foodName: '', quantity: '', calories: '', protein: '', carbs: '', fats: '' });
-const blankMeal = () => ({ name: '', timeLabel: '', instructions: '', items: [blankItem()] });
+const blankItem = (): ItemValues => ({ foodName: '', quantity: '', calories: '', protein: '', carbs: '', fats: '' });
+const blankOption = (): OptionValues => ({ label: '', items: [blankItem()] });
+const blankMeal = () => ({ name: '', timeLabel: '', instructions: '', options: [blankOption()] });
 
 function blankDefaults(): FormValues {
   return {
@@ -66,13 +65,16 @@ function toDefaults(plan: MealPlan): FormValues {
       name: m.name ?? '',
       timeLabel: m.timeLabel ?? '',
       instructions: m.instructions ?? '',
-      items: m.items.map((it) => ({
-        foodName: it.foodName ?? '',
-        quantity: it.quantity ?? '',
-        calories: numToStr(it.calories),
-        protein: numToStr(it.protein),
-        carbs: numToStr(it.carbs),
-        fats: numToStr(it.fats),
+      options: m.options.map((o) => ({
+        label: o.label ?? '',
+        items: o.items.map((it) => ({
+          foodName: it.foodName ?? '',
+          quantity: it.quantity ?? '',
+          calories: numToStr(it.calories),
+          protein: numToStr(it.protein),
+          carbs: numToStr(it.carbs),
+          fats: numToStr(it.fats),
+        })),
       })),
     })),
   };
@@ -126,8 +128,10 @@ export function MealPlanEditor({
   }, [query.data]);
 
   const watched = form.watch('meals');
+  // Options are interchangeable alternatives — the day total counts only the first
+  // (primary) option of each meal.
   function totalFor(macro: 'calories' | 'protein' | 'carbs' | 'fats'): number {
-    return sum((watched ?? []).flatMap((m) => (m.items ?? []).map((it) => it[macro])));
+    return sum((watched ?? []).flatMap((m) => (m.options?.[0]?.items ?? []).map((it) => it[macro])));
   }
 
   async function onSubmit(values: FormValues) {
@@ -200,7 +204,7 @@ export function MealPlanEditor({
             </div>
           </div>
 
-          {/* Totals bar */}
+          {/* Totals bar (first option per meal) */}
           <div className="sticky top-0 z-10 flex flex-wrap gap-4 rounded-xl border bg-card p-3">
             {TARGETS.map((t) => {
               const total = totalFor(t.total);
@@ -301,7 +305,7 @@ function MealCard({
   onMoveUp: () => void;
   onMoveDown: () => void;
 }) {
-  const items = useFieldArray({ control, name: `meals.${mealIndex}.items` as const });
+  const options = useFieldArray({ control, name: `meals.${mealIndex}.options` as const });
 
   return (
     <div data-testid="meal-card" className="rounded-xl border bg-card p-4">
@@ -319,7 +323,80 @@ function MealCard({
 
       <Textarea rows={1} placeholder="Instruções (opcional)" aria-label="Instruções" {...register(`meals.${mealIndex}.instructions`)} />
 
-      <div className="mt-3 overflow-x-auto">
+      <div className="mt-3 space-y-3">
+        {options.fields.map((optionField, optionIndex) => (
+          <OptionCard
+            key={optionField.id}
+            control={control}
+            register={register}
+            mealIndex={mealIndex}
+            optionIndex={optionIndex}
+            canEdit={canEdit}
+            isFirst={optionIndex === 0}
+            isLast={optionIndex === options.fields.length - 1}
+            onRemove={() => options.remove(optionIndex)}
+            onMoveUp={() => options.swap(optionIndex, optionIndex - 1)}
+            onMoveDown={() => options.swap(optionIndex, optionIndex + 1)}
+          />
+        ))}
+      </div>
+
+      {canEdit && (
+        <button type="button" className="mt-3 text-xs font-semibold text-primary" onClick={() => options.append(blankOption())} aria-label="Adicionar opção">
+          + Adicionar opção
+        </button>
+      )}
+    </div>
+  );
+}
+
+function OptionCard({
+  control,
+  register,
+  mealIndex,
+  optionIndex,
+  canEdit,
+  isFirst,
+  isLast,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
+}: {
+  control: Control<FormValues>;
+  register: UseFormRegister<FormValues>;
+  mealIndex: number;
+  optionIndex: number;
+  canEdit: boolean;
+  isFirst: boolean;
+  isLast: boolean;
+  onRemove: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+}) {
+  const items = useFieldArray({ control, name: `meals.${mealIndex}.options.${optionIndex}.items` as const });
+  const watchedItems = useWatch({ control, name: `meals.${mealIndex}.options.${optionIndex}.items` }) as ItemValues[] | undefined;
+  const subtotal = (macro: 'calories' | 'protein' | 'carbs' | 'fats') =>
+    sum((watchedItems ?? []).map((it) => it[macro]));
+
+  return (
+    <div data-testid="option-card" className="rounded-lg border bg-background p-3">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <Input
+          className="max-w-40 h-7"
+          placeholder={`Opção ${optionIndex + 1}`}
+          aria-label="Rótulo da opção"
+          {...register(`meals.${mealIndex}.options.${optionIndex}.label`)}
+        />
+        {canEdit && (
+          <span className="ml-auto flex gap-1">
+            <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={onMoveUp} disabled={isFirst} aria-label="Mover opção para cima">↑</Button>
+            <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={onMoveDown} disabled={isLast} aria-label="Mover opção para baixo">↓</Button>
+            <Button type="button" variant="outline" size="sm" className="rounded-full text-destructive" onClick={onRemove} aria-label="Remover opção">✕</Button>
+          </span>
+        )}
+      </div>
+
+      <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
             <tr className="text-left text-[10px] uppercase text-muted-foreground">
@@ -331,12 +408,12 @@ function MealCard({
           <tbody>
             {items.fields.map((itemField, itemIndex) => (
               <tr key={itemField.id}>
-                <td className="py-1 pr-1"><Input className="h-7" aria-label="Alimento" {...register(`meals.${mealIndex}.items.${itemIndex}.foodName`)} /></td>
-                <td className="py-1 pr-1"><Input className="h-7 w-20" aria-label="Quantidade" {...register(`meals.${mealIndex}.items.${itemIndex}.quantity`)} /></td>
+                <td className="py-1 pr-1"><Input className="h-7" aria-label="Alimento" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.foodName`)} /></td>
+                <td className="py-1 pr-1"><Input className="h-7 w-20" aria-label="Quantidade" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`)} /></td>
                 {ITEM_MACROS.map((m) => (
                   <td key={m.key} className="py-1 pr-1">
                     <Input className="h-7 w-16" type="number" inputMode="decimal" step="any" aria-label={m.label}
-                      {...register(`meals.${mealIndex}.items.${itemIndex}.${m.key}` as const)} />
+                      {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.${m.key}` as const)} />
                   </td>
                 ))}
                 {canEdit && (
@@ -352,6 +429,13 @@ function MealCard({
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-muted-foreground">
+        <span data-testid="option-subtotal-calories">{subtotal('calories')} kcal</span>
+        <span data-testid="option-subtotal-protein">P {subtotal('protein')}</span>
+        <span data-testid="option-subtotal-carbs">C {subtotal('carbs')}</span>
+        <span data-testid="option-subtotal-fats">G {subtotal('fats')}</span>
       </div>
 
       {canEdit && (

@@ -10,14 +10,14 @@ describe('mealPlanSchema', () => {
   it('coerces macro strings to numbers', () => {
     const r = mealPlanSchema.safeParse({
       ...base,
-      meals: [{ name: 'Café', timeLabel: '08:00', instructions: '', items: [{ foodName: 'Ovos', quantity: '3', calories: '230', protein: '18', carbs: '2', fats: '16' }] }],
+      meals: [{ name: 'Café', timeLabel: '08:00', instructions: '', options: [{ label: 'Opção 1', items: [{ foodName: 'Ovos', quantity: '3', calories: '230', protein: '18', carbs: '2', fats: '16' }] }] }],
     });
-    expect(r.success && r.data.meals[0].items[0].calories).toBe(230);
+    expect(r.success && r.data.meals[0].options[0].items[0].calories).toBe(230);
   });
   it('rejects a negative macro', () => {
     const r = mealPlanSchema.safeParse({
       ...base,
-      meals: [{ name: 'X', items: [{ foodName: 'Y', calories: '-5' }] }],
+      meals: [{ name: 'X', options: [{ label: 'Opção 1', items: [{ foodName: 'Y', calories: '-5' }] }] }],
     });
     expect(r.success).toBe(false);
   });
