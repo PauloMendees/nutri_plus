@@ -48,17 +48,16 @@ export function MealPlansSection({
       <div className="flex items-center justify-between">
         <h2 className="font-heading text-base font-bold">Planos alimentares</h2>
         {canEdit && (
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="rounded-full" asChild>
-              <Link href={`/patients/${patientId}/planos/novo`}>Novo plano</Link>
-            </Button>
+          <div className="flex items-center gap-2">
             <Button
-              size="sm"
-              className="rounded-full"
+              className="rounded-full shadow-sm shadow-primary/30"
               onClick={onGenerate}
               disabled={generate.isPending}
             >
               {generate.isPending ? 'Gerando…' : '✨ Gerar com IA'}
+            </Button>
+            <Button variant="outline" size="sm" className="rounded-full" asChild>
+              <Link href={`/patients/${patientId}/planos/novo`}>Novo plano</Link>
             </Button>
           </div>
         )}

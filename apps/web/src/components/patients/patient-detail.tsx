@@ -9,6 +9,7 @@ import { BioimpedanceSection } from '@/components/patients/bioimpedance-section'
 import { MealPlansSection } from '@/components/patients/meal-plans-section';
 import { CreatedBanner } from '@/components/patients/created-banner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -66,11 +67,22 @@ export function PatientDetail({
         </span>
       </div>
 
-      <EditPatientForm patient={patient} canEdit={canEdit} />
-
-      <BioimpedanceSection patientId={patient.id} canEdit={canEdit} />
-
-      <MealPlansSection patientId={patient.id} canEdit={canEdit} />
+      <Tabs defaultValue="dados">
+        <TabsList>
+          <TabsTrigger value="dados">Dados</TabsTrigger>
+          <TabsTrigger value="bioimpedancia">Bioimpedância</TabsTrigger>
+          <TabsTrigger value="planos">Planos alimentares</TabsTrigger>
+        </TabsList>
+        <TabsContent value="dados">
+          <EditPatientForm patient={patient} canEdit={canEdit} />
+        </TabsContent>
+        <TabsContent value="bioimpedancia">
+          <BioimpedanceSection patientId={patient.id} canEdit={canEdit} />
+        </TabsContent>
+        <TabsContent value="planos">
+          <MealPlansSection patientId={patient.id} canEdit={canEdit} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
