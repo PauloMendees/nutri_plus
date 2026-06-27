@@ -33,4 +33,22 @@ describe('meal-plan prompt', () => {
     expect(parsed.weightKg).toBe(80);
     expect(parsed.restrictions).toBe('lactose');
   });
+
+  it('system prompt tells the model to follow extra instructions but never override safety/targets', () => {
+    expect(MEAL_PLAN_SYSTEM_PROMPT).toMatch(/instructions/i);
+    expect(MEAL_PLAN_SYSTEM_PROMPT).toMatch(/never.*(override|violate)|do not.*override/i);
+  });
+
+  it('user prompt carries default and custom instructions when given', () => {
+    const json = buildMealPlanUserPrompt({
+      age: 30, weightKg: 80, heightCm: 180, gender: 'MALE', objective: 'WEIGHT_LOSS',
+      activityLevel: 'MODERATE', restrictions: null, allergies: null,
+      targets: { calories: 2000, protein: 150, carbs: 200, fats: 60 },
+      defaultInstructions: 'Priorizar alimentos acessíveis',
+      customInstructions: 'Apenas 4 refeições',
+    });
+    const parsed = JSON.parse(json);
+    expect(parsed.defaultInstructions).toBe('Priorizar alimentos acessíveis');
+    expect(parsed.customInstructions).toBe('Apenas 4 refeições');
+  });
 });

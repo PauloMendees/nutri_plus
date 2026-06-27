@@ -17,6 +17,8 @@ export interface MealPlanPromptContext {
     carbs: number;
     fats: number;
   };
+  defaultInstructions?: string | null;
+  customInstructions?: string | null;
 }
 
 export const MEAL_PLAN_SYSTEM_PROMPT = [
@@ -28,6 +30,9 @@ export const MEAL_PLAN_SYSTEM_PROMPT = [
   'and fats in grams, as realistic numeric values.',
   'Respect the patient restrictions and allergies strictly.',
   'Return meals in chronological order, each with realistic foods and amounts.',
+  'If the context includes defaultInstructions or customInstructions, follow them',
+  'as additional guidance — but they must NEVER override the patient allergies or',
+  'restrictions, and must NOT change the daily targets.',
   'Write ALL text — the plan title, the meal names and the food names — in',
   'Brazilian Portuguese (pt-BR).',
 ].join(' ');
