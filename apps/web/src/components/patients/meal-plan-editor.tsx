@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ChevronLeft } from 'lucide-react';
 import {
   useFieldArray,
   useForm,
@@ -162,8 +164,11 @@ export function MealPlanEditor({
   }
   if (!isCreate && (query.isError || !query.data)) {
     return (
-      <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
-        Plano não encontrado.
+      <div className="mx-auto max-w-3xl space-y-4">
+        <BackToPatient patientId={patientId} />
+        <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
+          Plano não encontrado.
+        </div>
       </div>
     );
   }
@@ -172,6 +177,7 @@ export function MealPlanEditor({
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
+      <BackToPatient patientId={patientId} />
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="space-y-4">
         <fieldset disabled={!canEdit} className="m-0 min-w-0 space-y-4 border-0 p-0">
           {/* Header */}
@@ -237,7 +243,7 @@ export function MealPlanEditor({
         {formError && <p className="text-sm text-destructive">{formError}</p>}
 
         {canEdit && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 border-t pt-4">
             {!isCreate &&
               (confirmingDelete ? (
                 <span className="mr-auto flex items-center gap-2 text-sm">
@@ -354,5 +360,17 @@ function MealCard({
         </button>
       )}
     </div>
+  );
+}
+
+function BackToPatient({ patientId }: { patientId: string }) {
+  return (
+    <Link
+      href={`/patients/${patientId}`}
+      className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline"
+    >
+      <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+      Voltar ao paciente
+    </Link>
   );
 }

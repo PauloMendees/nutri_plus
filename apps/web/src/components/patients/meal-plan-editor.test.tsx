@@ -50,6 +50,14 @@ describe('MealPlanEditor (edit mode)', () => {
     expect(screen.getByTestId('total-calories')).toHaveTextContent('230');
   });
 
+  it('has a back link to the patient', () => {
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    expect(screen.getByRole('link', { name: /voltar ao paciente/i })).toHaveAttribute(
+      'href',
+      '/patients/p1',
+    );
+  });
+
   it('recomputes totals when an item macro changes', async () => {
     render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
     const cal = screen.getByDisplayValue('230');
