@@ -8,6 +8,7 @@ const updateMut = vi.fn();
 const deleteMut = vi.fn();
 const push = vi.fn();
 const replace = vi.fn();
+const downloadMealPlanPdf = vi.fn();
 
 vi.mock('@/lib/queries/meal-plans', () => ({
   useMealPlan: () => useMealPlan(),
@@ -17,6 +18,9 @@ vi.mock('@/lib/queries/meal-plans', () => ({
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, replace }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('@/lib/api/meal-plans', () => ({
+  downloadMealPlanPdf: (...args: unknown[]) => downloadMealPlanPdf(...args),
+}));
 
 import { MealPlanEditor } from './meal-plan-editor';
 
@@ -42,6 +46,7 @@ beforeEach(() => {
   deleteMut.mockReset().mockResolvedValue(undefined);
   push.mockReset();
   replace.mockReset();
+  downloadMealPlanPdf.mockReset().mockResolvedValue(undefined);
 });
 
 describe('MealPlanEditor (edit mode)', () => {
@@ -140,6 +145,22 @@ describe('MealPlanEditor (edit mode)', () => {
     expect(screen.queryByRole('button', { name: /^salvar$/i })).not.toBeInTheDocument();
     expect(screen.getByDisplayValue('Plano A')).toBeDisabled();
   });
+
+  it('shows "Exportar PDF" for an existing plan (nutritionist)', () => {
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    expect(screen.getByRole('button', { name: /exportar pdf/i })).toBeInTheDocument();
+  });
+
+  it('shows "Exportar PDF" for an existing plan (employee, read-only)', () => {
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit={false} />);
+    expect(screen.getByRole('button', { name: /exportar pdf/i })).toBeInTheDocument();
+  });
+
+  it('exports the PDF when clicked', async () => {
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    await userEvent.click(screen.getByRole('button', { name: /exportar pdf/i }));
+    await waitFor(() => expect(downloadMealPlanPdf).toHaveBeenCalledWith('m1'));
+  });
 });
 
 describe('MealPlanEditor (create mode)', () => {
@@ -151,5 +172,10 @@ describe('MealPlanEditor (create mode)', () => {
     expect(createMut.mock.calls[0][0].patientId).toBe('p1');
     expect(createMut.mock.calls[0][0].title).toBe('Novo plano');
     expect(replace).toHaveBeenCalledWith('/patients/p1/planos/new1');
+  });
+
+  it('hides "Exportar PDF" while creating a new plan', () => {
+    render(<MealPlanEditor patientId="p1" canEdit />);
+    expect(screen.queryByRole('button', { name: /exportar pdf/i })).not.toBeInTheDocument();
   });
 });

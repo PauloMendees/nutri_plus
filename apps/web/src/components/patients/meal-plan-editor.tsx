@@ -23,6 +23,7 @@ import {
   useUpdateMealPlan,
 } from '@/lib/queries/meal-plans';
 import { ApiError } from '@/lib/api/client';
+import { downloadMealPlanPdf } from '@/lib/api/meal-plans';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -115,6 +116,7 @@ export function MealPlanEditor({
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(mealPlanSchema) as unknown as Resolver<FormValues>,
@@ -152,6 +154,18 @@ export function MealPlanEditor({
     }
   }
 
+  async function onExport() {
+    if (isCreate) return;
+    setExporting(true);
+    try {
+      await downloadMealPlanPdf(planId!);
+    } catch {
+      toast.error('Não foi possível exportar o PDF.');
+    } finally {
+      setExporting(false);
+    }
+  }
+
   async function onDelete() {
     if (isCreate) return;
     try {
@@ -181,7 +195,21 @@ export function MealPlanEditor({
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <BackToPatient patientId={patientId} />
+      <div className="flex items-center justify-between gap-2">
+        <BackToPatient patientId={patientId} />
+        {!isCreate && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={onExport}
+            disabled={exporting}
+          >
+            {exporting ? 'Exportando…' : 'Exportar PDF'}
+          </Button>
+        )}
+      </div>
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="space-y-4">
         <fieldset disabled={!canEdit} className="m-0 min-w-0 space-y-4 border-0 p-0">
           {/* Header */}

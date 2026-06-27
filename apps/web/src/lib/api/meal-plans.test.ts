@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const browserApiFetch = vi.fn();
+const browserApiDownload = vi.fn();
 vi.mock('@/lib/api/browser', () => ({
   browserApiFetch: (...args: unknown[]) => browserApiFetch(...args),
+  browserApiDownload: (...args: unknown[]) => browserApiDownload(...args),
 }));
 
 import {
@@ -12,9 +14,13 @@ import {
   updateMealPlan,
   deleteMealPlan,
   generateMealPlan,
+  downloadMealPlanPdf,
 } from './meal-plans';
 
-beforeEach(() => browserApiFetch.mockReset().mockResolvedValue(undefined));
+beforeEach(() => {
+  browserApiFetch.mockReset().mockResolvedValue(undefined);
+  browserApiDownload.mockReset().mockResolvedValue(new Blob());
+});
 
 describe('meal-plans API', () => {
   it('lists with the patientId query', async () => {
@@ -56,5 +62,27 @@ describe('meal-plans API', () => {
       method: 'POST',
       body: { patientId: 'p1', instructions: 'Apenas 4 refeições' },
     });
+  });
+});
+
+describe('downloadMealPlanPdf', () => {
+  it('fetches the pdf blob and triggers a download', async () => {
+    const blob = new Blob(['pdf'], { type: 'application/pdf' });
+    browserApiDownload.mockReset().mockResolvedValue(blob);
+    const createObjectURL = vi.fn().mockReturnValue('blob:url');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL } as unknown as typeof URL);
+    const click = vi.fn();
+    const anchor = { href: '', download: '', click, remove: vi.fn() } as unknown as HTMLAnchorElement;
+    vi.spyOn(document, 'createElement').mockReturnValue(anchor);
+    vi.spyOn(document.body, 'appendChild').mockImplementation((n) => n);
+
+    await downloadMealPlanPdf('m1');
+
+    expect(browserApiDownload).toHaveBeenCalledWith('/meal-plans/m1/pdf');
+    expect(createObjectURL).toHaveBeenCalledWith(blob);
+    expect(anchor.download).toBe('plano-alimentar.pdf');
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:url');
   });
 });
