@@ -211,24 +211,36 @@ model Meal {
   instructions String?
   order        Int      // sequence within the plan; server-assigned from array index
   createdAt    DateTime @default(now())
-  items        MealItem[]
+  options      MealOption[]
 
   @@index([mealPlanId])
 }
 
-model MealItem {
-  id       String  @id @default(uuid())
-  mealId   String
-  meal     Meal    @relation(fields: [mealId], references: [id], onDelete: Cascade)
-  foodName String?
-  quantity String?
-  calories Float?
-  protein  Float?
-  carbs    Float?
-  fats     Float?
-  order    Int     // sequence within the meal; server-assigned from array index
+model MealOption {
+  id        String     @id @default(uuid())
+  mealId    String
+  meal      Meal       @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  label     String?
+  order     Int        // sequence within the meal; server-assigned from array index
+  createdAt DateTime   @default(now())
+  items     MealItem[]
 
   @@index([mealId])
+}
+
+model MealItem {
+  id           String     @id @default(uuid())
+  mealOptionId String
+  mealOption   MealOption @relation(fields: [mealOptionId], references: [id], onDelete: Cascade)
+  foodName     String?
+  quantity     String?
+  calories     Float?
+  protein      Float?
+  carbs        Float?
+  fats         Float?
+  order        Int        // sequence within the option; server-assigned from array index
+
+  @@index([mealOptionId])
 }
 
 enum AIInteractionType {
