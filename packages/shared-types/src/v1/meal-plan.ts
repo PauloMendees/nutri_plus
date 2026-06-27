@@ -69,4 +69,5 @@ export type UpdateMealPlanRequest = Omit<CreateMealPlanRequest, 'patientId'>;
 
 export interface GenerateMealPlanRequest {
   patientId: string;
+  instructions?: string;
 }
