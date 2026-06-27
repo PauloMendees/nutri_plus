@@ -66,7 +66,7 @@ describe('MealPlansSection', () => {
     useMealPlans.mockReturnValue({ isLoading: false, isError: false, data: [] });
     render(<MealPlansSection patientId="p1" canEdit />);
     await userEvent.click(screen.getByRole('button', { name: /gerar com ia/i }));
-    await waitFor(() => expect(generateMut).toHaveBeenCalledWith('p1'));
+    await waitFor(() => expect(generateMut).toHaveBeenCalledWith(undefined));
     expect(push).toHaveBeenCalledWith('/patients/p1/planos/m1');
   });
 

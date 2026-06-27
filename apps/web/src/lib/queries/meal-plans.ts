@@ -56,7 +56,7 @@ export function useDeleteMealPlan(patientId: string) {
 export function useGenerateMealPlan(patientId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => generateMealPlan(id),
+    mutationFn: (instructions?: string) => generateMealPlan(patientId, instructions),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['meal-plans', patientId] }),
   });
 }

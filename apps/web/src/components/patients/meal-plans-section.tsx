@@ -31,7 +31,7 @@ export function MealPlansSection({
   async function onGenerate() {
     setMissing(null);
     try {
-      const plan = await generate.mutateAsync(patientId);
+      const plan = await generate.mutateAsync(undefined);
       router.push(`/patients/${patientId}/planos/${plan.id}`);
     } catch (err) {
       const fields = missingFieldsFromError(err);

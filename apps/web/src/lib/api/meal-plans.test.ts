@@ -43,11 +43,18 @@ describe('meal-plans API', () => {
     await deleteMealPlan('m1');
     expect(browserApiFetch).toHaveBeenCalledWith('/meal-plans/m1', { method: 'DELETE' });
   });
-  it('generates via the ai endpoint', async () => {
+  it('generates via the ai endpoint (no instructions)', async () => {
     await generateMealPlan('p1');
     expect(browserApiFetch).toHaveBeenCalledWith('/ai/generate-meal-plan', {
       method: 'POST',
-      body: { patientId: 'p1' },
+      body: { patientId: 'p1', instructions: undefined },
+    });
+  });
+  it('generates with custom instructions', async () => {
+    await generateMealPlan('p1', 'Apenas 4 refeições');
+    expect(browserApiFetch).toHaveBeenCalledWith('/ai/generate-meal-plan', {
+      method: 'POST',
+      body: { patientId: 'p1', instructions: 'Apenas 4 refeições' },
     });
   });
 });
