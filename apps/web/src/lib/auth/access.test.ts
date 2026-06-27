@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { UserRole } from '@nutri-plus/shared-types';
-import { canManageEmployees, canManagePatients, isWebDashboardRole } from './access';
+import { canManageEmployees, canManagePatients, canManageSettings, isWebDashboardRole } from './access';
 
 describe('isWebDashboardRole', () => {
   it('allows nutritionists in the web dashboard', () => {
@@ -25,5 +25,13 @@ describe('canManageEmployees', () => {
     expect(canManageEmployees(UserRole.NUTRITIONIST)).toBe(true);
     expect(canManageEmployees(UserRole.EMPLOYEE)).toBe(false);
     expect(canManageEmployees(UserRole.PATIENT)).toBe(false);
+  });
+});
+
+describe('canManageSettings', () => {
+  it('allows only nutritionists', () => {
+    expect(canManageSettings(UserRole.NUTRITIONIST)).toBe(true);
+    expect(canManageSettings(UserRole.EMPLOYEE)).toBe(false);
+    expect(canManageSettings(UserRole.PATIENT)).toBe(false);
   });
 });
