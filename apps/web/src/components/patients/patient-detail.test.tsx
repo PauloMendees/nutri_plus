@@ -16,6 +16,11 @@ vi.mock('@/lib/queries/assessments', () => ({
   useUpdateAssessment: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteAssessment: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+vi.mock('@/lib/queries/meal-plans', () => ({
+  useMealPlans: () => ({ data: [], isLoading: false, isError: false }),
+  useGenerateMealPlan: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));
 
 import { PatientDetail } from './patient-detail';

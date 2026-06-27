@@ -6,6 +6,7 @@ import { ApiError } from '@/lib/api/client';
 import { usePatient } from '@/lib/queries/patients';
 import { EditPatientForm } from '@/components/patients/edit-patient-form';
 import { BioimpedanceSection } from '@/components/patients/bioimpedance-section';
+import { MealPlansSection } from '@/components/patients/meal-plans-section';
 import { CreatedBanner } from '@/components/patients/created-banner';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -68,6 +69,8 @@ export function PatientDetail({
       <EditPatientForm patient={patient} canEdit={canEdit} />
 
       <BioimpedanceSection patientId={patient.id} canEdit={canEdit} />
+
+      <MealPlansSection patientId={patient.id} canEdit={canEdit} />
     </div>
   );
 }
