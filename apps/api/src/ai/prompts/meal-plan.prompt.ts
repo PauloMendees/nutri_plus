@@ -11,6 +11,8 @@ export interface MealPlanPromptContext {
   activityLevel: string;
   restrictions: string | null;
   allergies: string | null;
+  medicalConditions: string | null;
+  patientNotes: string | null;
   targets: {
     calories: number;
     protein: number;
@@ -28,8 +30,16 @@ export const MEAL_PLAN_SYSTEM_PROMPT = [
   'do NOT recalculate or change the daily targets.',
   'For EACH food item, estimate its macros: calories (kcal) plus protein, carbs',
   'and fats in grams, as realistic numeric values.',
-  'Respect the patient restrictions and allergies strictly.',
-  'Return meals in chronological order, each with realistic foods and amounts.',
+  'Respect the patient restrictions, allergies and medicalConditions strictly —',
+  'never include a food that conflicts with them.',
+  'The patientNotes field is free text (often Portuguese) written by the',
+  'nutritionist about THIS patient; treat it as BINDING, with the same weight as',
+  'the restrictions. It may state foods the patient DISLIKES or refuses (never',
+  'include those foods or close variants of them), foods/preferences to favor, and',
+  'a MEAL SCHEDULE (which meals the patient has and at what times). When',
+  'patientNotes describes the meals and their times, build the plan with EXACTLY',
+  'those meals at those times — do not invent extra meals or use different times.',
+  'Otherwise return meals in chronological order, each with realistic foods and amounts.',
   'For EACH meal, provide EXACTLY TWO interchangeable options labeled "Opção 1"',
   'and "Opção 2". The two options must be macro-comparable, so that switching',
   'between them does not change the daily targets. Each option is its own list of',

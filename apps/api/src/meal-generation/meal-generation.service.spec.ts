@@ -34,6 +34,8 @@ function completePatient() {
     activityLevel: 'MODERATE',
     restrictions: 'lactose',
     allergies: null,
+    medicalConditions: null,
+    notes: 'sem nozes; almoço às 12:30',
     assessments: [{ weight: 80, basalMetabolicRate: null }],
   };
 }
@@ -120,6 +122,7 @@ describe('MealGenerationService', () => {
     expect(userCtx.targets.protein).toBe(160); // 2.0 g/kg * 80
     expect(userCtx.defaultInstructions).toBe('Evitar ultraprocessados');
     expect(userCtx.customInstructions).toBeNull();
+    expect(userCtx.patientNotes).toBe('sem nozes; almoço às 12:30');
 
     // Persistence delegated with aiGenerated targets + normalized tree (macros flow through).
     expect(mealPlans.createGeneratedPlan).toHaveBeenCalledWith(ctx, {
