@@ -1,7 +1,11 @@
-import { IsUUID } from 'class-validator';
+import { IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 
-// patientId is the only input; all clinical data is read from stored records.
 export class GenerateMealPlanDto {
   @IsUUID()
   patientId!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  instructions?: string;
 }

@@ -16,6 +16,11 @@ vi.mock('@/lib/queries/assessments', () => ({
   useUpdateAssessment: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteAssessment: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+vi.mock('@/lib/queries/meal-plans', () => ({
+  useMealPlans: () => ({ data: [], isLoading: false, isError: false }),
+  useGenerateMealPlan: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));
 
 import { PatientDetail } from './patient-detail';
@@ -51,12 +56,23 @@ describe('PatientDetail', () => {
     expect(screen.getByText(/não encontrado/i)).toBeInTheDocument();
   });
 
-  it('renders the read-only header and the bioimpedância placeholder', () => {
+  it('renders the persistent header and the three section tabs', () => {
     usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
     render(<PatientDetail id="p1" created={false} />);
     expect(screen.getByText('Maria Silva')).toBeInTheDocument();
     expect(screen.getByText('maria@x.com')).toBeInTheDocument();
-    expect(screen.getByText(/nenhuma avaliação ainda/i)).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /dados/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /bioimpedância/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /planos alimentares/i })).toBeInTheDocument();
+  });
+
+  it('reveals the bioimpedância placeholder when its tab is selected', async () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} />);
+    // Bioimpedância lives in an inactive tab, so it is not mounted by default.
+    expect(screen.queryByText(/nenhuma avaliação ainda/i)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('tab', { name: /bioimpedância/i }));
+    expect(await screen.findByText(/nenhuma avaliação ainda/i)).toBeInTheDocument();
   });
 
   it('shows the post-create banner only when created', () => {

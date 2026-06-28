@@ -13,14 +13,22 @@ import { MealDto } from './dto/meal.dto';
 export interface GeneratedMealInput {
   name: string;
   timeLabel?: string;
-  items: { foodName: string; quantity: string }[];
+  options: {
+    label?: string;
+    items: { foodName: string; quantity: string; calories: number; protein: number; carbs: number; fats: number }[];
+  }[];
 }
 
-// Always return meals and their items in their stored order.
+// Always return meals, their options, and the option items in stored order.
 const FULL_TREE = {
   meals: {
     orderBy: { order: 'asc' },
-    include: { items: { orderBy: { order: 'asc' } } },
+    include: {
+      options: {
+        orderBy: { order: 'asc' },
+        include: { items: { orderBy: { order: 'asc' } } },
+      },
+    },
   },
 } as const;
 
@@ -142,8 +150,8 @@ export class MealPlansService {
 
   // --- Helpers ---
 
-  // Server-assigns `order` from array position at every level. Items/meals are
-  // never trusted to carry their own order.
+  // Server-assigns `order` from array position at every level. Nothing is trusted
+  // to carry its own order.
   private mealsCreateInput(meals: MealDto[]) {
     return {
       create: meals.map((m, i) => ({
@@ -151,8 +159,16 @@ export class MealPlansService {
         timeLabel: m.timeLabel,
         instructions: m.instructions,
         order: i,
-        items: m.items
-          ? { create: m.items.map((it, j) => ({ ...it, order: j })) }
+        options: m.options
+          ? {
+              create: m.options.map((o, j) => ({
+                label: o.label,
+                order: j,
+                items: o.items
+                  ? { create: o.items.map((it, k) => ({ ...it, order: k })) }
+                  : undefined,
+              })),
+            }
           : undefined,
       })),
     };

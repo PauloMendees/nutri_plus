@@ -14,3 +14,8 @@ export function canManagePatients(role: UserRole): boolean {
 export function canManageEmployees(role: UserRole): boolean {
   return role === UserRole.NUTRITIONIST;
 }
+
+/** Only nutritionists can open the settings page. */
+export function canManageSettings(role: UserRole): boolean {
+  return role === UserRole.NUTRITIONIST;
+}

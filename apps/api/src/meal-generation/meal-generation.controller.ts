@@ -19,6 +19,6 @@ export class MealGenerationController {
     @CurrentUser() ctx: AuthContext,
     @Body() dto: GenerateMealPlanDto,
   ) {
-    return this.mealGeneration.generate(ctx, dto.patientId);
+    return this.mealGeneration.generate(ctx, dto.patientId, dto.instructions);
   }
 }

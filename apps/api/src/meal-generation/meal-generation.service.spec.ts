@@ -39,17 +39,15 @@ function completePatient() {
 }
 
 const aiResponse = {
-  title: 'Weight Loss Plan',
+  title: 'Plano de Emagrecimento',
   meals: [
     {
-      name: 'Breakfast',
+      name: 'Café da Manhã',
       timeLabel: '08:00',
-      items: [{ foodName: 'Eggs', quantity: '2 units' }],
-    },
-    {
-      name: 'Lunch',
-      timeLabel: null,
-      items: [{ foodName: 'Chicken', quantity: '150g' }],
+      options: [
+        { label: 'Opção 1', items: [{ foodName: 'Ovos', quantity: '2 unidades', calories: 140, protein: 12, carbs: 1, fats: 9 }] },
+        { label: 'Opção 2', items: [{ foodName: 'Tapioca', quantity: '2 colheres', calories: 150, protein: 11, carbs: 20, fats: 3 }] },
+      ],
     },
   ],
 };
@@ -106,6 +104,7 @@ describe('MealGenerationService', () => {
 
   it('generates with computed targets and persists via createGeneratedPlan', async () => {
     prisma.patientProfile.findFirst.mockResolvedValue(completePatient() as any);
+    prisma.nutritionistProfile.findUnique.mockResolvedValue({ mealPlanAiInstructions: 'Evitar ultraprocessados' } as any);
     provider.generateStructured.mockResolvedValue(aiResponse as any);
     mealPlans.createGeneratedPlan.mockResolvedValue({ id: 'mp1' } as any);
 
@@ -119,22 +118,22 @@ describe('MealGenerationService', () => {
     const userCtx = JSON.parse(call.user);
     expect(userCtx.targets.calories).toBeGreaterThan(0);
     expect(userCtx.targets.protein).toBe(160); // 2.0 g/kg * 80
+    expect(userCtx.defaultInstructions).toBe('Evitar ultraprocessados');
+    expect(userCtx.customInstructions).toBeNull();
 
-    // Persistence delegated with aiGenerated targets + normalized tree.
+    // Persistence delegated with aiGenerated targets + normalized tree (macros flow through).
     expect(mealPlans.createGeneratedPlan).toHaveBeenCalledWith(ctx, {
       patientId: 'p1',
-      title: 'Weight Loss Plan',
+      title: 'Plano de Emagrecimento',
       targets: userCtx.targets,
       meals: [
         {
-          name: 'Breakfast',
+          name: 'Café da Manhã',
           timeLabel: '08:00',
-          items: [{ foodName: 'Eggs', quantity: '2 units' }],
-        },
-        {
-          name: 'Lunch',
-          timeLabel: undefined,
-          items: [{ foodName: 'Chicken', quantity: '150g' }],
+          options: [
+            { label: 'Opção 1', items: [{ foodName: 'Ovos', quantity: '2 unidades', calories: 140, protein: 12, carbs: 1, fats: 9 }] },
+            { label: 'Opção 2', items: [{ foodName: 'Tapioca', quantity: '2 colheres', calories: 150, protein: 11, carbs: 20, fats: 3 }] },
+          ],
         },
       ],
     });
@@ -151,5 +150,22 @@ describe('MealGenerationService', () => {
       BadGatewayException,
     );
     expect(mealPlans.createGeneratedPlan).not.toHaveBeenCalled();
+  });
+
+  it('passes per-call custom instructions and the nutritionist default into the prompt', async () => {
+    prisma.patientProfile.findFirst.mockResolvedValue(completePatient() as any);
+    prisma.nutritionistProfile.findUnique.mockResolvedValue({ mealPlanAiInstructions: 'Evitar ultraprocessados' } as any);
+    provider.generateStructured.mockResolvedValue(aiResponse as any);
+    mealPlans.createGeneratedPlan.mockResolvedValue({ id: 'mp1' } as any);
+
+    await service.generate(ctx, 'p1', 'Apenas 4 refeições');
+
+    expect(prisma.nutritionistProfile.findUnique).toHaveBeenCalledWith({
+      where: { id: 'nutri-1' },
+      select: { mealPlanAiInstructions: true },
+    });
+    const userCtx = JSON.parse(provider.generateStructured.mock.calls[0][0].user);
+    expect(userCtx.defaultInstructions).toBe('Evitar ultraprocessados');
+    expect(userCtx.customInstructions).toBe('Apenas 4 refeições');
   });
 });

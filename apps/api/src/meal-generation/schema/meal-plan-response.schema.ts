@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
-// The shape the AI must return. Constraints (`.min(1)`) enforce doc 06's
-// "reject empty meals / malformed" at the provider's Zod gate. timeLabel is
-// nullable (not optional) because OpenAI structured-output strict mode requires
-// every property to be present. No macro fields: the AI never returns derived
-// numbers (Step 05 contract).
+// The shape the AI must return. Every property is present (OpenAI structured-
+// output strict mode). Per-item macros are AI ESTIMATES; the daily targets remain
+// server-computed and are NOT here. Each meal carries interchangeable options
+// (the prompt asks for exactly two, macro-comparable); strict mode does not enforce
+// array length, so the schema requires >= 1 option and >= 1 item per option.
 export const mealPlanResponseSchema = z.object({
   title: z.string(),
   meals: z
@@ -12,11 +12,22 @@ export const mealPlanResponseSchema = z.object({
       z.object({
         name: z.string(),
         timeLabel: z.string().nullable(),
-        items: z
+        options: z
           .array(
             z.object({
-              foodName: z.string(),
-              quantity: z.string(),
+              label: z.string(),
+              items: z
+                .array(
+                  z.object({
+                    foodName: z.string(),
+                    quantity: z.string(),
+                    calories: z.number(),
+                    protein: z.number(),
+                    carbs: z.number(),
+                    fats: z.number(),
+                  }),
+                )
+                .min(1),
             }),
           )
           .min(1),

@@ -7,7 +7,12 @@ import { AuthContext } from '../auth/types/auth-context';
 const FULL_TREE = {
   meals: {
     orderBy: { order: 'asc' },
-    include: { items: { orderBy: { order: 'asc' } } },
+    include: {
+      options: {
+        orderBy: { order: 'asc' },
+        include: { items: { orderBy: { order: 'asc' } } },
+      },
+    },
   },
 } as const;
 
@@ -72,7 +77,9 @@ describe('MealPlansService', () => {
       const dto = {
         patientId: 'p1',
         title: 'Plan',
-        meals: [{ name: 'Breakfast', items: [{ foodName: 'Egg', quantity: '2' }] }],
+        meals: [
+          { name: 'Breakfast', options: [{ label: 'Opção 1', items: [{ foodName: 'Egg', quantity: '2' }] }] },
+        ],
       } as any;
       const result = await service.createPlan(ctx, dto);
 
@@ -91,7 +98,15 @@ describe('MealPlansService', () => {
                 timeLabel: undefined,
                 instructions: undefined,
                 order: 0,
-                items: { create: [{ foodName: 'Egg', quantity: '2', order: 0 }] },
+                options: {
+                  create: [
+                    {
+                      label: 'Opção 1',
+                      order: 0,
+                      items: { create: [{ foodName: 'Egg', quantity: '2', order: 0 }] },
+                    },
+                  ],
+                },
               },
             ],
           },
@@ -218,7 +233,7 @@ describe('MealPlansService', () => {
 
       const dto = {
         title: 'New',
-        meals: [{ name: 'Lunch', items: [{ foodName: 'Rice', quantity: '100g' }] }],
+        meals: [{ name: 'Lunch', options: [{ label: 'Opção 1', items: [{ foodName: 'Rice', quantity: '100g' }] }] }],
       } as any;
       await service.updatePlan(ctx, 'mp1', dto);
 
@@ -236,7 +251,15 @@ describe('MealPlansService', () => {
                 timeLabel: undefined,
                 instructions: undefined,
                 order: 0,
-                items: { create: [{ foodName: 'Rice', quantity: '100g', order: 0 }] },
+                options: {
+                  create: [
+                    {
+                      label: 'Opção 1',
+                      order: 0,
+                      items: { create: [{ foodName: 'Rice', quantity: '100g', order: 0 }] },
+                    },
+                  ],
+                },
               },
             ],
           },
@@ -304,7 +327,13 @@ describe('MealPlansService', () => {
         title: 'AI Plan',
         targets: { calories: 2000, protein: 150, carbs: 200, fats: 56 },
         meals: [
-          { name: 'Breakfast', timeLabel: '08:00', items: [{ foodName: 'Egg', quantity: '2' }] },
+          {
+            name: 'Breakfast',
+            timeLabel: '08:00',
+            options: [
+              { label: 'Opção 1', items: [{ foodName: 'Egg', quantity: '2', calories: 140, protein: 12, carbs: 1, fats: 9 }] },
+            ],
+          },
         ],
       });
 
@@ -328,7 +357,15 @@ describe('MealPlansService', () => {
                 timeLabel: '08:00',
                 instructions: undefined,
                 order: 0,
-                items: { create: [{ foodName: 'Egg', quantity: '2', order: 0 }] },
+                options: {
+                  create: [
+                    {
+                      label: 'Opção 1',
+                      order: 0,
+                      items: { create: [{ foodName: 'Egg', quantity: '2', calories: 140, protein: 12, carbs: 1, fats: 9, order: 0 }] },
+                    },
+                  ],
+                },
               },
             ],
           },

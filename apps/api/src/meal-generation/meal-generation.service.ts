@@ -24,7 +24,7 @@ export class MealGenerationService {
     private readonly mealPlans: MealPlansService,
   ) {}
 
-  async generate(ctx: AuthContext, patientId: string) {
+  async generate(ctx: AuthContext, patientId: string, instructions?: string) {
     const nutritionistId = resolveScopeNutritionistId(ctx);
 
     // Ownership + data fetch in one scoped query (404 covers missing/not-owned).
@@ -41,6 +41,11 @@ export class MealGenerationService {
     const inputs = this.requireInputs(patient);
     const targets = computeTargets(inputs);
 
+    const settings = await this.prisma.nutritionistProfile.findUnique({
+      where: { id: nutritionistId },
+      select: { mealPlanAiInstructions: true },
+    });
+
     const generated = await this.provider.generateStructured<MealPlanResponse>({
       tier: 'smart',
       system: MEAL_PLAN_SYSTEM_PROMPT,
@@ -54,6 +59,8 @@ export class MealGenerationService {
         restrictions: patient.restrictions ?? null,
         allergies: patient.allergies ?? null,
         targets,
+        defaultInstructions: settings?.mealPlanAiInstructions ?? null,
+        customInstructions: instructions ?? null,
       }),
       schema: mealPlanResponseSchema,
       schemaName: 'meal_plan',
@@ -68,7 +75,7 @@ export class MealGenerationService {
       meals: generated.meals.map((m): GeneratedMealInput => ({
         name: m.name,
         timeLabel: m.timeLabel ?? undefined,
-        items: m.items,
+        options: m.options.map((o) => ({ label: o.label, items: o.items })),
       })),
     });
   }
