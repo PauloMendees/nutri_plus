@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '../generated/prisma/client';
@@ -19,6 +20,7 @@ import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
 import { CreatePatientDto } from './dto/create-patient.dto';
+import { ListPatientsQueryDto } from './dto/list-patients-query.dto';
 
 @ApiTags('patients')
 @ApiBearerAuth()
@@ -34,8 +36,8 @@ export class PatientsController {
 
   @Get()
   @Roles(UserRole.NUTRITIONIST, UserRole.EMPLOYEE)
-  list(@CurrentUser() ctx: AuthContext) {
-    return this.patients.listPatients(ctx);
+  list(@CurrentUser() ctx: AuthContext, @Query() query: ListPatientsQueryDto) {
+    return this.patients.listPatients(ctx, query);
   }
 
   @Get(':id')
