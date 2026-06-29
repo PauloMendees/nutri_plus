@@ -8,9 +8,13 @@ import { createPatient, getPatient, listPatients, updatePatient } from './patien
 beforeEach(() => browserApiFetch.mockReset());
 
 describe('patients API', () => {
-  it('lists patients', async () => {
+  it('lists patients with no params (bare path)', async () => {
     await listPatients();
     expect(browserApiFetch).toHaveBeenCalledWith('/patients');
+  });
+  it('lists patients with search + pagination query', async () => {
+    await listPatients({ search: 'ana', page: 2, pageSize: 20 });
+    expect(browserApiFetch).toHaveBeenCalledWith('/patients?search=ana&page=2&pageSize=20');
   });
   it('gets one patient', async () => {
     await getPatient('p1');
