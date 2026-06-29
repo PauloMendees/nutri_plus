@@ -96,7 +96,7 @@ export function AppointmentDialog({
   initialDate?: Date;
   appointment?: Appointment;
 }) {
-  const patients = usePatients();
+  const patients = usePatients({ pageSize: 100 });
   const categories = useAppointmentCategories();
   const create = useCreateAppointment();
   const update = useUpdateAppointment();
