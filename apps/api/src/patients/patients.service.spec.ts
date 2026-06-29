@@ -101,9 +101,10 @@ describe('PatientsService', () => {
     );
   });
 
-  it('updates an owned patient with only the provided fields', async () => {
+  it('updates an owned patient and returns the full detail (user + latest assessment)', async () => {
     prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
-    prisma.patientProfile.update.mockResolvedValue({ id: 'p1' } as any);
+    const full = { id: 'p1', user: { id: 'u1', name: 'Ann', email: 'a@x.com' }, assessments: [] };
+    prisma.patientProfile.update.mockResolvedValue(full as any);
 
     const dto = { height: 180 } as any;
     const result = await service.updatePatient(ctx, 'p1', dto);
@@ -112,11 +113,18 @@ describe('PatientsService', () => {
       where: { id: 'p1', nutritionistId: 'nutri-1' },
       select: { id: true },
     });
+    // The PATCH response must carry the same shape as GET (user + latest
+    // assessment) so the cached detail stays complete — otherwise the patient
+    // page crashes on patient.user after save.
     expect(prisma.patientProfile.update).toHaveBeenCalledWith({
       where: { id: 'p1' },
       data: dto,
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
+      },
     });
-    expect(result).toEqual({ id: 'p1' });
+    expect(result).toEqual(full);
   });
 
   it('does not update when the patient is not owned', async () => {

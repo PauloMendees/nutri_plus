@@ -78,7 +78,17 @@ export class PatientsService {
     // Check-then-act is acceptable here: a nutritionist only ever touches their
     // own patients and patient re-assignment is out of MVP scope. update() must
     // target by primary key, so ownership can't be folded into this call.
-    return this.prisma.patientProfile.update({ where: { id }, data: dto });
+    // Return the full PatientDetail shape (same include as getPatient) so the
+    // PATCH response matches its declared type and clients can cache it without
+    // losing the user/assessments relations.
+    return this.prisma.patientProfile.update({
+      where: { id },
+      data: dto,
+      include: {
+        user: USER_SUMMARY,
+        assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
+      },
+    });
   }
 
   async createAssessment(ctx: AuthContext, id: string, dto: CreateAssessmentDto) {
