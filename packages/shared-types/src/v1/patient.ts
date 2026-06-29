@@ -51,6 +51,12 @@ export interface PatientDetail extends PatientSummary {
   assessments: BodyAssessment[];
 }
 
+export interface ListPatientsParams {
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
 export interface CreatePatientRequest {
   name: string;
   email: string;

@@ -52,11 +52,40 @@ export class PatientsService {
     return this.getPatient(ctx, profileId);
   }
 
-  async listPatients(ctx: AuthContext) {
-    return this.prisma.patientProfile.findMany({
-      where: { nutritionistId: resolveScopeNutritionistId(ctx) },
-      include: { user: USER_SUMMARY },
-    });
+  async listPatients(
+    ctx: AuthContext,
+    params: { search?: string; page?: number; pageSize?: number } = {},
+  ) {
+    const page = params.page ?? 1;
+    const pageSize = params.pageSize ?? 20;
+    const search = params.search?.trim();
+
+    const where = {
+      nutritionistId: resolveScopeNutritionistId(ctx),
+      ...(search
+        ? {
+            user: {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' as const } },
+                { email: { contains: search, mode: 'insensitive' as const } },
+              ],
+            },
+          }
+        : {}),
+    };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.patientProfile.findMany({
+        where,
+        include: { user: USER_SUMMARY },
+        orderBy: { user: { name: 'asc' } },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.patientProfile.count({ where }),
+    ]);
+
+    return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
 
   async getPatient(ctx: AuthContext, id: string) {

@@ -13,7 +13,7 @@ vi.mock('@/lib/queries/appointments', () => ({
   useDeleteAppointment: () => ({ mutateAsync: deleteMut, isPending: false }),
 }));
 vi.mock('@/lib/queries/patients', () => ({
-  usePatients: () => ({ data: [], isLoading: false }),
+  usePatients: () => ({ data: { items: [], total: 0, page: 1, pageSize: 100, totalPages: 0 }, isLoading: false }),
 }));
 
 const categoriesQuery = vi.fn();

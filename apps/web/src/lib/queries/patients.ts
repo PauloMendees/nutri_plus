@@ -1,9 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { CreatePatientRequest, UpdatePatientRequest } from '@nutri-plus/shared-types';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { CreatePatientRequest, ListPatientsParams, UpdatePatientRequest } from '@nutri-plus/shared-types';
 import { createPatient, getPatient, listPatients, updatePatient } from '@/lib/api/patients';
 
-export function usePatients() {
-  return useQuery({ queryKey: ['patients'], queryFn: listPatients });
+export function usePatients(params: ListPatientsParams = {}) {
+  return useQuery({
+    queryKey: ['patients', params],
+    queryFn: () => listPatients(params),
+    placeholderData: keepPreviousData,
+  });
 }
 
 export function usePatient(id: string) {

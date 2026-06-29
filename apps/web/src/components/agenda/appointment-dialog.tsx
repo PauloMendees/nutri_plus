@@ -96,7 +96,7 @@ export function AppointmentDialog({
   initialDate?: Date;
   appointment?: Appointment;
 }) {
-  const patients = usePatients();
+  const patients = usePatients({ pageSize: 100 });
   const categories = useAppointmentCategories();
   const create = useCreateAppointment();
   const update = useUpdateAppointment();
@@ -269,7 +269,7 @@ export function AppointmentDialog({
                     </FormControl>
                     <SelectContent>
                       <SelectItem value={NO_PATIENT}>Sem paciente</SelectItem>
-                      {(patients.data ?? []).map((p) => (
+                      {(patients.data?.items ?? []).map((p) => (
                         <SelectItem key={p.id} value={p.id}>
                           {p.user.name}
                         </SelectItem>

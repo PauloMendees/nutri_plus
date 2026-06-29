@@ -49,27 +49,65 @@ describe('PatientsService', () => {
     service = new PatientsService(prisma, users, supabaseAdmin);
   });
 
-  it('scopes an employee to the owning nutritionist when listing patients', async () => {
-    prisma.patientProfile.findMany.mockResolvedValue([{ id: 'p1' }] as any);
+  it('scopes an employee to the owning nutritionist and paginates', async () => {
+    prisma.$transaction.mockResolvedValue([[{ id: 'p1' }], 1] as any);
 
-    await service.listPatients(ctxWithEmployee('nutri-9'));
+    const result = await service.listPatients(ctxWithEmployee('nutri-9'));
 
     expect(prisma.patientProfile.findMany).toHaveBeenCalledWith({
       where: { nutritionistId: 'nutri-9' },
       include: { user: { select: { id: true, name: true, email: true } } },
+      orderBy: { user: { name: 'asc' } },
+      skip: 0,
+      take: 20,
     });
+    expect(prisma.patientProfile.count).toHaveBeenCalledWith({
+      where: { nutritionistId: 'nutri-9' },
+    });
+    expect(result).toEqual({ items: [{ id: 'p1' }], total: 1, page: 1, pageSize: 20, totalPages: 1 });
   });
 
-  it('lists only patients linked to the nutritionist', async () => {
-    prisma.patientProfile.findMany.mockResolvedValue([{ id: 'p1' }] as any);
+  it('lists only patients linked to the nutritionist (default page 1, size 20)', async () => {
+    prisma.$transaction.mockResolvedValue([[{ id: 'p1' }], 1] as any);
 
     const result = await service.listPatients(ctx);
 
     expect(prisma.patientProfile.findMany).toHaveBeenCalledWith({
       where: { nutritionistId: 'nutri-1' },
       include: { user: { select: { id: true, name: true, email: true } } },
+      orderBy: { user: { name: 'asc' } },
+      skip: 0,
+      take: 20,
     });
-    expect(result).toEqual([{ id: 'p1' }]);
+    expect(prisma.patientProfile.count).toHaveBeenCalledWith({
+      where: { nutritionistId: 'nutri-1' },
+    });
+    expect(result).toEqual({ items: [{ id: 'p1' }], total: 1, page: 1, pageSize: 20, totalPages: 1 });
+  });
+
+  it('filters by name/email (case-insensitive) and applies skip/take per page', async () => {
+    prisma.$transaction.mockResolvedValue([[{ id: 'p1' }], 35] as any);
+
+    const result = await service.listPatients(ctx, { search: 'ana', page: 2, pageSize: 10 });
+
+    const where = {
+      nutritionistId: 'nutri-1',
+      user: {
+        OR: [
+          { name: { contains: 'ana', mode: 'insensitive' } },
+          { email: { contains: 'ana', mode: 'insensitive' } },
+        ],
+      },
+    };
+    expect(prisma.patientProfile.findMany).toHaveBeenCalledWith({
+      where,
+      include: { user: { select: { id: true, name: true, email: true } } },
+      orderBy: { user: { name: 'asc' } },
+      skip: 10,
+      take: 10,
+    });
+    expect(prisma.patientProfile.count).toHaveBeenCalledWith({ where });
+    expect(result).toEqual({ items: [{ id: 'p1' }], total: 35, page: 2, pageSize: 10, totalPages: 4 });
   });
 
   it('throws ForbiddenException when the context has no nutritionist profile', async () => {
