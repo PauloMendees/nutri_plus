@@ -4,7 +4,7 @@ import type {
   MealPlanSummary,
   UpdateMealPlanRequest,
 } from '@nutri-plus/shared-types';
-import { browserApiFetch } from '@/lib/api/browser';
+import { browserApiFetch, browserApiDownload } from '@/lib/api/browser';
 
 export function listMealPlans(patientId: string): Promise<MealPlanSummary[]> {
   return browserApiFetch<MealPlanSummary[]>(`/meal-plans?patientId=${patientId}`);
@@ -31,4 +31,16 @@ export function generateMealPlan(patientId: string, instructions?: string): Prom
     method: 'POST',
     body: { patientId, instructions },
   });
+}
+
+export async function downloadMealPlanPdf(id: string): Promise<void> {
+  const blob = await browserApiDownload(`/meal-plans/${id}/pdf`);
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = 'plano-alimentar.pdf';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }

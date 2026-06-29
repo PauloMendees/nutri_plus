@@ -58,6 +58,8 @@ export class MealGenerationService {
         activityLevel: inputs.activityLevel,
         restrictions: patient.restrictions ?? null,
         allergies: patient.allergies ?? null,
+        medicalConditions: patient.medicalConditions ?? null,
+        patientNotes: patient.notes ?? null,
         targets,
         defaultInstructions: settings?.mealPlanAiInstructions ?? null,
         customInstructions: instructions ?? null,

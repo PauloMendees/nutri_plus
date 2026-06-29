@@ -42,6 +42,19 @@ export async function apiFetch<T>(path: string, opts: ApiFetchOptions = {}): Pro
   return data as T;
 }
 
+export async function apiDownload(path: string, opts: { token: string }): Promise<Blob> {
+  const base = process.env.NEXT_PUBLIC_API_URL;
+  if (!base) throw new Error('NEXT_PUBLIC_API_URL is not set');
+
+  const res = await fetch(`${base}/v1${path}`, {
+    headers: { Authorization: `Bearer ${opts.token}`, Accept: 'application/pdf' },
+    cache: 'no-store',
+  });
+
+  if (!res.ok) throw new ApiError(res.status, await res.text().catch(() => null));
+  return res.blob();
+}
+
 export async function apiUpload<T>(
   path: string,
   opts: { token: string; formData: FormData; method?: string },

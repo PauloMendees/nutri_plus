@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { apiFetch, ApiError } from './client';
+import { apiFetch, apiDownload, ApiError } from './client';
 
 const ORIGINAL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -9,6 +9,28 @@ beforeEach(() => {
 afterEach(() => {
   process.env.NEXT_PUBLIC_API_URL = ORIGINAL;
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+describe('apiDownload', () => {
+  it('GETs the path with the bearer token + pdf Accept and returns the blob', async () => {
+    const blob = new Blob(['pdf'], { type: 'application/pdf' });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await apiDownload('/meal-plans/m1/pdf', { token: 'tok' });
+
+    expect(fetchMock).toHaveBeenCalledWith('http://api.test/v1/meal-plans/m1/pdf', {
+      headers: { Authorization: 'Bearer tok', Accept: 'application/pdf' },
+      cache: 'no-store',
+    });
+    expect(result).toBe(blob);
+  });
+
+  it('throws ApiError on a non-ok response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, text: () => Promise.resolve('nope') }));
+    await expect(apiDownload('/meal-plans/x/pdf', { token: 't' })).rejects.toBeInstanceOf(ApiError);
+  });
 });
 
 describe('apiFetch', () => {

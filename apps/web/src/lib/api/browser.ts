@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
-import { apiFetch, apiUpload } from '@/lib/api/client';
+import { apiFetch, apiUpload, apiDownload } from '@/lib/api/client';
 
 export async function browserToken(): Promise<string> {
   const {
@@ -26,4 +26,9 @@ export async function browserApiUpload<T>(
 ): Promise<T> {
   const token = await browserToken();
   return apiUpload<T>(path, { token, formData, method });
+}
+
+export async function browserApiDownload(path: string): Promise<Blob> {
+  const token = await browserToken();
+  return apiDownload(path, { token });
 }
