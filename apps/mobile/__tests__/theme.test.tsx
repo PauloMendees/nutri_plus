@@ -7,8 +7,8 @@ jest.mock('../lib/supabase', () => ({
 import Login from '../app/(auth)/login';
 
 describe('themed login', () => {
-  it('renders the branded title with NativeWind classes', async () => {
+  it('renders the branded iNutri logo', async () => {
     await render(<Login />);
-    expect(screen.getByText('iNutri')).toBeTruthy();
+    expect(screen.getByLabelText('iNutri')).toBeTruthy();
   });
 });

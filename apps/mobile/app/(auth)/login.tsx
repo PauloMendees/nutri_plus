@@ -7,6 +7,7 @@ import { loginSchema, type LoginValues } from '../../lib/validation/auth';
 import { mapAuthError } from '../../lib/auth/errors';
 import { Button } from '../../components/ui/button';
 import { TextField } from '../../components/ui/text-field';
+import { Logo } from '../../components/brand/logo';
 
 export default function Login() {
   const [formError, setFormError] = useState<string | null>(null);
@@ -34,11 +35,11 @@ export default function Login() {
 
   return (
     <ScrollView contentContainerClassName="flex-1 justify-center bg-background p-6" keyboardShouldPersistTaps="handled">
-      <View className="gap-6">
-        <View className="gap-1">
-          <Text className="font-heading text-3xl text-primary">iNutri</Text>
-          <Text className="font-heading-semibold text-xl text-foreground">Bem-vindo de volta</Text>
-          <Text className="font-sans text-base text-muted-foreground">Entre na sua conta para continuar.</Text>
+      <View className="gap-8">
+        <View className="items-center gap-2">
+          <Logo tone="dark" width={132} />
+          <Text className="mt-2 font-heading-semibold text-2xl text-foreground text-center">Bem-vindo de volta</Text>
+          <Text className="font-sans text-base text-muted-foreground text-center">Entre na sua conta para continuar.</Text>
         </View>
 
         <View className="gap-4">
