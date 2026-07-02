@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '../../lib/supabase';
@@ -7,6 +7,7 @@ import { loginSchema, type LoginValues } from '../../lib/validation/auth';
 import { mapAuthError } from '../../lib/auth/errors';
 import { Button } from '../../components/ui/button';
 import { TextField } from '../../components/ui/text-field';
+import { Screen } from '../../components/ui/screen';
 import { Logo } from '../../components/brand/logo';
 
 export default function Login() {
@@ -34,7 +35,7 @@ export default function Login() {
   }
 
   return (
-    <ScrollView contentContainerClassName="flex-1 justify-center bg-background p-6" keyboardShouldPersistTaps="handled">
+    <Screen contentContainerClassName="grow justify-center p-6">
       <View className="gap-8">
         <View className="items-center gap-2">
           <Logo tone="dark" width={132} />
@@ -82,6 +83,6 @@ export default function Login() {
           <Button label="Entrar" onPress={handleSubmit(onSubmit)} loading={isSubmitting} />
         </View>
       </View>
-    </ScrollView>
+    </Screen>
   );
 }
