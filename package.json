@@ -12,10 +12,5 @@
   "devDependencies": {
     "turbo": "^2.1.0",
     "typescript": "^5.5.4"
-  },
-  "pnpm": {
-    "overrides": {
-      "@react-native/jest-preset": "0.86.0"
-    }
   }
 }
