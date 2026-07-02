@@ -9,7 +9,7 @@ const config: ExpoConfig = {
   userInterfaceStyle: 'dark',
   ios: { supportsTablet: true },
   android: {},
-  plugins: ['expo-router', 'expo-secure-store', 'expo-font'],
+  plugins: ['expo-router', 'expo-secure-store', 'expo-font', 'expo-splash-screen'],
   experiments: { typedRoutes: true },
 };
 
