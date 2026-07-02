@@ -6,7 +6,9 @@
   "dependencies": {
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@expo-google-fonts/sora": "^0.4.2",
+    "@expo/dom-webview": "~56.0.6",
     "@expo/html-elements": "^0.10.1",
+    "@expo/log-box": "~56.0.14",
     "@expo/metro-runtime": "~56.0.16",
     "@gluestack-ui/core": "^3.0.10",
     "@gluestack-ui/utils": "^3.0.11",
