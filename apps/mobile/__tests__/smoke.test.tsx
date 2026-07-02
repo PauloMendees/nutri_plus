@@ -1,9 +1,14 @@
 import { render, screen } from '@testing-library/react-native';
-import Index from '../app/index';
+
+jest.mock('../lib/supabase', () => ({
+  supabase: { auth: { signInWithPassword: jest.fn() } },
+}));
+
+import Login from '../app/(auth)/login';
 
 describe('scaffold smoke', () => {
-  it('renders the index screen', async () => {
-    await render(<Index />);
+  it('renders the login screen', async () => {
+    await render(<Login />);
     expect(screen.getByText('iNutri')).toBeTruthy();
   });
 });

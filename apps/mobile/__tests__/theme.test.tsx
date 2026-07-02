@@ -1,9 +1,14 @@
 import { render, screen } from '@testing-library/react-native';
-import Index from '../app/index';
 
-describe('themed index', () => {
+jest.mock('../lib/supabase', () => ({
+  supabase: { auth: { signInWithPassword: jest.fn() } },
+}));
+
+import Login from '../app/(auth)/login';
+
+describe('themed login', () => {
   it('renders the branded title with NativeWind classes', async () => {
-    await render(<Index />);
+    await render(<Login />);
     expect(screen.getByText('iNutri')).toBeTruthy();
   });
 });
