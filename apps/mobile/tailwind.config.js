@@ -151,7 +151,7 @@ module.exports = {
         heading: ['Sora_700Bold'],
         'heading-semibold': ['Sora_600SemiBold'],
         sans: ['PlusJakartaSans_400Regular'],
-        medium: ['PlusJakartaSans_500Medium'],
+        'sans-medium': ['PlusJakartaSans_500Medium'],
         body: undefined,
         mono: undefined,
         jakarta: ['var(--font-plus-jakarta-sans)'],

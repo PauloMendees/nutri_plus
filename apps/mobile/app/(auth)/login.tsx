@@ -38,7 +38,7 @@ export default function Login() {
         <View className="gap-1">
           <Text className="font-heading text-3xl text-primary">iNutri</Text>
           <Text className="font-heading-semibold text-xl text-foreground">Bem-vindo de volta</Text>
-          <Text className="text-base text-muted-foreground">Entre na sua conta para continuar.</Text>
+          <Text className="font-sans text-base text-muted-foreground">Entre na sua conta para continuar.</Text>
         </View>
 
         <View className="gap-4">
@@ -76,7 +76,7 @@ export default function Login() {
             )}
           />
 
-          {formError ? <Text className="text-sm text-destructive">{formError}</Text> : null}
+          {formError ? <Text className="font-sans text-sm text-destructive">{formError}</Text> : null}
 
           <Button label="Entrar" onPress={handleSubmit(onSubmit)} loading={isSubmitting} />
         </View>

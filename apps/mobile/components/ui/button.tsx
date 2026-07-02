@@ -21,7 +21,7 @@ export function Button({
       {loading ? (
         <ActivityIndicator color="#04241b" />
       ) : (
-        <Text className="font-medium text-base text-primary-foreground">{label}</Text>
+        <Text className="font-sans-medium text-base text-primary-foreground">{label}</Text>
       )}
     </Pressable>
   );
