@@ -16,6 +16,7 @@ export default function ResetPassword() {
   const { email } = useLocalSearchParams<{ email?: string }>();
   const [formError, setFormError] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
+  const [verified, setVerified] = useState(false);
 
   const {
     control,
@@ -46,14 +47,17 @@ export default function ResetPassword() {
 
   async function onSubmit(values: ResetPasswordValues) {
     setFormError(null);
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      email: email ?? '',
-      token: values.code,
-      type: 'recovery',
-    });
-    if (verifyError) {
-      setFormError('Código inválido ou expirado. Peça um novo.');
-      return;
+    if (!verified) {
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: email ?? '',
+        token: values.code,
+        type: 'recovery',
+      });
+      if (verifyError) {
+        setFormError('Código inválido ou expirado. Peça um novo.');
+        return;
+      }
+      setVerified(true);
     }
     const { error: updateError } = await supabase.auth.updateUser({ password: values.password });
     if (updateError) {

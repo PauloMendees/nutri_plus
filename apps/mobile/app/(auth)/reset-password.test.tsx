@@ -82,6 +82,24 @@ describe('Reset password screen', () => {
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
+  it('lets the user fix the password and resubmit without re-verifying the code', async () => {
+    mockUpdateUser
+      .mockResolvedValueOnce({ error: { code: 'weak_password', message: 'weak' } })
+      .mockResolvedValueOnce({ error: null });
+    await render(<ResetPassword />);
+    await fillValid();
+    await fireEvent.press(screen.getByRole('button', { name: /salvar e entrar/i }));
+    expect(await screen.findByText('A senha é muito fraca. Use ao menos 8 caracteres.')).toBeTruthy();
+
+    await fireEvent.changeText(screen.getByLabelText('Nova senha'), 'password2');
+    await fireEvent.changeText(screen.getByLabelText('Confirmar senha'), 'password2');
+    await fireEvent.press(screen.getByRole('button', { name: /salvar e entrar/i }));
+
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(app)'));
+    expect(mockVerifyOtp).toHaveBeenCalledTimes(1);
+    expect(mockUpdateUser).toHaveBeenCalledTimes(2);
+  });
+
   it('resends the code when tapped', async () => {
     await render(<ResetPassword />);
     await fireEvent.press(screen.getByText('Reenviar código'));
