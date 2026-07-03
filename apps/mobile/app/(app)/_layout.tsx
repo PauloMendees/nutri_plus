@@ -1,4 +1,5 @@
 import { Redirect, Tabs } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useSession } from '../../lib/auth';
 
 export default function AppLayout() {
@@ -10,12 +11,31 @@ export default function AppLayout() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#14bfa6',
+        tabBarInactiveTintColor: '#8a9a92',
         tabBarStyle: { backgroundColor: '#141d19', borderTopColor: '#243029' },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Início' }} />
-      <Tabs.Screen name="planos" options={{ title: 'Planos' }} />
-      <Tabs.Screen name="perfil" options={{ title: 'Perfil' }} />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Evolução',
+          tabBarIcon: ({ color, size }) => <Ionicons name="pulse" color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="planos"
+        options={{
+          title: 'Planos',
+          tabBarIcon: ({ color, size }) => <Ionicons name="restaurant" color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="configuracoes"
+        options={{
+          title: 'Config',
+          tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" color={color} size={size} />,
+        }}
+      />
     </Tabs>
   );
 }
