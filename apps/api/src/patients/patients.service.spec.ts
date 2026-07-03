@@ -35,6 +35,21 @@ function ctxWithEmployee(nutritionistId: string): AuthContext {
   };
 }
 
+function ctxWithPatient(patientProfileId: string | null, height: number | null): AuthContext {
+  return {
+    authProviderId: 'sub-p',
+    email: 'p@x.com',
+    name: 'Ana',
+    user: {
+      id: 'user-p',
+      role: 'PATIENT',
+      nutritionistProfile: null,
+      employeeProfile: null,
+      patientProfile: patientProfileId ? { id: patientProfileId, height } : null,
+    } as any,
+  };
+}
+
 describe('PatientsService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let users: DeepMockProxy<UsersService>;
@@ -279,6 +294,36 @@ describe('PatientsService', () => {
       NotFoundException,
     );
     expect(prisma.bodyAssessment.delete).not.toHaveBeenCalled();
+  });
+
+  describe('listMyAssessments', () => {
+    it("returns the caller's assessments ordered by date, with name and height", async () => {
+      const rows = [
+        { id: 'a1', patientId: 'pp-1', assessmentDate: new Date('2026-01-01'), weight: 80 },
+        { id: 'a2', patientId: 'pp-1', assessmentDate: new Date('2026-02-01'), weight: 79 },
+      ];
+      prisma.bodyAssessment.findMany.mockResolvedValue(rows as any);
+
+      const result = await service.listMyAssessments(ctxWithPatient('pp-1', 170));
+
+      expect(prisma.bodyAssessment.findMany).toHaveBeenCalledWith({
+        where: { patientId: 'pp-1' },
+        orderBy: { assessmentDate: 'asc' },
+      });
+      expect(result).toEqual({ name: 'Ana', height: 170, assessments: rows });
+    });
+
+    it('returns an empty list when the patient has no assessments', async () => {
+      prisma.bodyAssessment.findMany.mockResolvedValue([] as any);
+      const result = await service.listMyAssessments(ctxWithPatient('pp-2', null));
+      expect(result).toEqual({ name: 'Ana', height: null, assessments: [] });
+    });
+
+    it('rejects a caller without a patient profile', async () => {
+      await expect(service.listMyAssessments(ctxWithPatient(null, null))).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+    });
   });
 
   describe('createPatient', () => {

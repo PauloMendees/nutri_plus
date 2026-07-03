@@ -1,10 +1,7 @@
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/types/auth-context';
-import { resolveScopeNutritionistId } from '../auth/auth-scope';
+import { resolveScopeNutritionistId, resolveScopePatientId } from '../auth/auth-scope';
 import { UsersService } from '../users/users.service';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
 import { UpdatePatientDto } from './dto/update-patient.dto';
@@ -160,6 +157,22 @@ export class PatientsService {
     await this.requireOwned(ctx, patientId);
     await this.requireAssessment(patientId, assessmentId);
     await this.prisma.bodyAssessment.delete({ where: { id: assessmentId } });
+  }
+
+  // Patient-facing: the caller reads their OWN body assessments (evolution).
+  // Scope resolves to the caller's own patientProfile (same seam as the
+  // nutritionist surface). Read-only — a nutritionist enters assessments on web.
+  async listMyAssessments(ctx: AuthContext) {
+    const patientId = resolveScopePatientId(ctx);
+    const assessments = await this.prisma.bodyAssessment.findMany({
+      where: { patientId },
+      orderBy: { assessmentDate: 'asc' },
+    });
+    return {
+      name: ctx.name,
+      height: ctx.user?.patientProfile?.height ?? null,
+      assessments,
+    };
   }
 
   // The assessment must belong to the (already-owned) patient; otherwise 404.

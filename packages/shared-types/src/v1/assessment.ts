@@ -41,3 +41,10 @@ export interface CreateAssessmentRequest {
 }
 
 export type UpdateAssessmentRequest = CreateAssessmentRequest;
+
+// Response of GET /v1/me/assessments — the caller's own evolution.
+export interface MyEvolutionResponse {
+  name: string;
+  height: number | null;
+  assessments: BodyAssessment[];
+}

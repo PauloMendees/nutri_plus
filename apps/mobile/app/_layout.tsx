@@ -7,6 +7,7 @@ import {
   PlusJakartaSans_400Regular,
   PlusJakartaSans_500Medium,
 } from '@expo-google-fonts/plus-jakarta-sans';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GluestackUIProvider } from '../components/ui/gluestack-ui-provider';
 import { AuthProvider } from '../lib/auth';
 import { queryClient } from '../lib/query';
@@ -29,12 +30,14 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <GluestackUIProvider mode="dark">
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <Stack screenOptions={{ headerShown: false }} />
-        </AuthProvider>
-      </QueryClientProvider>
-    </GluestackUIProvider>
+    <SafeAreaProvider>
+      <GluestackUIProvider mode="dark">
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <Stack screenOptions={{ headerShown: false }} />
+          </AuthProvider>
+        </QueryClientProvider>
+      </GluestackUIProvider>
+    </SafeAreaProvider>
   );
 }

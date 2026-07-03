@@ -1,12 +1,176 @@
-import { Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
+import type { BodyAssessment } from '@nutri-plus/shared-types';
+import { Screen } from '../../components/ui/screen';
+import { Button } from '../../components/ui/button';
+import { LineChart } from '../../components/chart/line-chart';
+import { useMyEvolution } from '../../lib/queries/assessments';
+
+// pt-BR number with 1 decimal and comma; '—' for null/undefined.
+function fmt(v: number | null | undefined, digits = 1): string {
+  if (v === null || v === undefined) return '—';
+  return v.toFixed(digits).replace('.', ',');
+}
+
+function bmi(weight: number | null, height: number | null): number | null {
+  if (weight === null || height === null || height <= 0) return null;
+  return weight / (height / 100) ** 2;
+}
+
+// ISO 'YYYY-MM-DD...' → 'DD/MM/YYYY' (tz-safe: no Date parsing).
+function formatDate(iso: string): string {
+  return iso.slice(0, 10).split('-').reverse().join('/');
+}
+
+type Metric = keyof Pick<BodyAssessment, 'weight' | 'bodyFatPercentage' | 'muscleMass'>;
+
+// The headline metrics shown both as snapshot tiles and as trend charts.
+const METRICS: { key: Metric; label: string; unit?: string; trendLabel: string }[] = [
+  { key: 'weight', label: 'Peso', unit: 'kg', trendLabel: 'Peso (kg)' },
+  { key: 'bodyFatPercentage', label: '% Gordura', unit: '%', trendLabel: '% Gordura' },
+  { key: 'muscleMass', label: 'Massa muscular', unit: 'kg', trendLabel: 'Massa muscular (kg)' },
+];
+
+function Tile({ label, value, unit, delta }: { label: string; value: string; unit?: string; delta: number | null }) {
+  return (
+    <View className="min-w-[45%] flex-1 gap-1 rounded-xl border border-border bg-card p-3">
+      <Text className="font-sans text-sm text-muted-foreground">{label}</Text>
+      <Text className="font-heading text-xl text-foreground">
+        {value}
+        {unit ? <Text className="font-sans text-sm text-muted-foreground"> {unit}</Text> : null}
+      </Text>
+      {delta !== null ? (
+        <Text className="font-sans text-xs text-primary">
+          {delta >= 0 ? '▲' : '▼'} {fmt(Math.abs(delta))}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+function Trend({ label, points }: { label: string; points: { x: number; y: number }[] }) {
+  return (
+    <View className="gap-2 rounded-xl border border-border bg-card p-3">
+      <Text className="font-sans text-sm text-muted-foreground">{label}</Text>
+      {points.length >= 2 ? (
+        <LineChart data={points} />
+      ) : (
+        <Text className="font-sans text-xs text-muted-foreground">Sem histórico suficiente para tendência ainda.</Text>
+      )}
+    </View>
+  );
+}
+
+function GridRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View className="flex-row justify-between border-b border-border py-2">
+      <Text className="font-sans text-sm text-muted-foreground">{label}</Text>
+      <Text className="font-sans text-sm text-foreground">{value}</Text>
+    </View>
+  );
+}
 
 export default function Home() {
+  const query = useMyEvolution();
+
+  if (query.isLoading) {
+    return (
+      <View testID="evolution-loading" className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator color="#14bfa6" />
+      </View>
+    );
+  }
+
+  if (query.isError) {
+    return (
+      <View className="flex-1 items-center justify-center gap-4 bg-background p-6">
+        <Text className="font-sans text-center text-base text-muted-foreground">
+          Não foi possível carregar sua evolução.
+        </Text>
+        <Button label="Tentar de novo" onPress={() => query.refetch()} />
+      </View>
+    );
+  }
+
+  const { name, height, assessments } = query.data!;
+
+  if (assessments.length === 0) {
+    return (
+      <Screen contentContainerClassName="grow justify-center p-6">
+        <View className="items-center gap-2">
+          <Text className="font-heading text-2xl text-foreground">Olá, {name}</Text>
+          <Text className="font-sans text-center text-base text-muted-foreground">
+            Suas avaliações aparecerão aqui após sua consulta.
+          </Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  const latest = assessments.at(-1)!;
+  const previous = assessments.length >= 2 ? assessments.at(-2)! : null;
+
+  const deltaOf = (key: keyof BodyAssessment): number | null => {
+    const cur = latest[key];
+    const prev = previous ? previous[key] : null;
+    return typeof cur === 'number' && typeof prev === 'number' ? cur - prev : null;
+  };
+
+  const curBmi = bmi(latest.weight, height);
+  const prevBmi = previous ? bmi(previous.weight, height) : null;
+  const bmiDelta = curBmi !== null && prevBmi !== null ? curBmi - prevBmi : null;
+
+  const trend = (key: Metric) =>
+    assessments
+      .filter((a) => a[key] !== null)
+      .map((a, i) => ({ x: i, y: a[key] as number }));
+
+  const grid: { label: string; value: string }[] = [
+    { label: 'Gordura visceral', value: fmt(latest.visceralFat, 0) },
+    { label: 'Taxa metabólica basal', value: fmt(latest.basalMetabolicRate, 0) },
+    { label: 'Água corporal (%)', value: fmt(latest.bodyWaterPercentage) },
+    { label: 'Massa óssea (kg)', value: fmt(latest.boneMass) },
+    { label: 'Idade metabólica', value: fmt(latest.metabolicAge, 0) },
+    { label: 'Cintura (cm)', value: fmt(latest.waistCircumference) },
+    { label: 'Quadril (cm)', value: fmt(latest.hipCircumference) },
+    { label: 'Tórax (cm)', value: fmt(latest.chestCircumference) },
+    { label: 'Braço (cm)', value: fmt(latest.armCircumference) },
+    { label: 'Coxa (cm)', value: fmt(latest.thighCircumference) },
+  ];
+
   return (
-    <View className="flex-1 items-center justify-center gap-2 bg-background p-6">
-      <Text className="font-heading text-2xl text-foreground">Olá!</Text>
-      <Text className="font-sans text-center text-base text-muted-foreground">
-        Seus planos alimentares aparecerão aqui em breve.
-      </Text>
-    </View>
+    <Screen contentContainerClassName="grow p-6">
+      <View className="gap-6">
+        <View className="gap-1">
+          <Text className="font-heading text-2xl text-foreground">Olá, {name}</Text>
+          <Text className="font-sans text-base text-muted-foreground">Sua evolução</Text>
+        </View>
+
+        <View className="gap-2">
+          <Text className="font-sans text-sm text-muted-foreground">
+            Última avaliação · {formatDate(latest.assessmentDate)}
+          </Text>
+          <View className="flex-row flex-wrap gap-3">
+            {METRICS.map((m) => (
+              <Tile key={m.key} label={m.label} value={fmt(latest[m.key])} unit={m.unit} delta={deltaOf(m.key)} />
+            ))}
+            <Tile label="IMC" value={fmt(curBmi)} delta={bmiDelta} />
+          </View>
+        </View>
+
+        <View className="gap-3">
+          <Text className="font-heading text-lg text-foreground">Tendências</Text>
+          {METRICS.map((m) => (
+            <Trend key={m.key} label={m.trendLabel} points={trend(m.key)} />
+          ))}
+        </View>
+
+        <View className="gap-1">
+          <Text className="font-heading text-lg text-foreground">Detalhes da última avaliação</Text>
+          {grid.map((row) => (
+            <GridRow key={row.label} label={row.label} value={row.value} />
+          ))}
+        </View>
+      </View>
+    </Screen>
   );
 }
