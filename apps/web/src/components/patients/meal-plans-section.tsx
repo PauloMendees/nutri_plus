@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import type { MealPlanSummary } from '@nutri-plus/shared-types';
-import { useMealPlans } from '@/lib/queries/meal-plans';
+import { useMealPlans, useSetMealPlanVisibility } from '@/lib/queries/meal-plans';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AiGenerateDialog } from '@/components/patients/ai-generate-dialog';
@@ -20,6 +20,7 @@ export function MealPlansSection({
   canEdit?: boolean;
 }) {
   const query = useMealPlans(patientId);
+  const visibility = useSetMealPlanVisibility(patientId);
   const [generating, setGenerating] = useState(false);
 
   const plans = query.data ?? [];
@@ -70,24 +71,40 @@ export function MealPlansSection({
       {plans.length > 0 && (
         <div className="space-y-2">
           {plans.map((p: MealPlanSummary) => (
-            <Link
+            <div
               key={p.id}
-              href={`/patients/${patientId}/planos/${p.id}`}
               className="flex items-center gap-3 rounded-xl border bg-card p-4 hover:bg-muted/40"
             >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-semibold">{p.title ?? 'Sem título'}</span>
-                <span className="block truncate text-sm text-muted-foreground">
-                  {p.objective ?? '—'} · {formatDate(p.createdAt)}
-                  {p.targetCalories != null && ` · ${p.targetCalories} kcal`}
+              <Link
+                href={`/patients/${patientId}/planos/${p.id}`}
+                className="flex min-w-0 flex-1 items-center gap-3"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">{p.title ?? 'Sem título'}</span>
+                  <span className="block truncate text-sm text-muted-foreground">
+                    {p.objective ?? '—'} · {formatDate(p.createdAt)}
+                    {p.targetCalories != null && ` · ${p.targetCalories} kcal`}
+                  </span>
                 </span>
-              </span>
-              {p.aiGenerated && (
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold uppercase text-secondary-foreground">
-                  IA
-                </span>
+                {p.aiGenerated && (
+                  <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold uppercase text-secondary-foreground">
+                    IA
+                  </span>
+                )}
+              </Link>
+              {canEdit && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={p.visibleToPatient ? 'default' : 'outline'}
+                  className="shrink-0 rounded-full"
+                  disabled={visibility.isPending}
+                  onClick={() => visibility.mutate({ id: p.id, visibleToPatient: !p.visibleToPatient })}
+                >
+                  {p.visibleToPatient ? 'Disponível ✓' : 'Disponibilizar'}
+                </Button>
               )}
-            </Link>
+            </div>
           ))}
         </div>
       )}

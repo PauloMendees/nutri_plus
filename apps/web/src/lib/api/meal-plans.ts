@@ -26,6 +26,13 @@ export function deleteMealPlan(id: string): Promise<void> {
   return browserApiFetch<void>(`/meal-plans/${id}`, { method: 'DELETE' });
 }
 
+export function setMealPlanVisibility(id: string, visibleToPatient: boolean): Promise<MealPlan> {
+  return browserApiFetch<MealPlan>(`/meal-plans/${id}/visibility`, {
+    method: 'PATCH',
+    body: { visibleToPatient },
+  });
+}
+
 export function generateMealPlan(patientId: string, instructions?: string): Promise<MealPlan> {
   return browserApiFetch<MealPlan>('/ai/generate-meal-plan', {
     method: 'POST',
