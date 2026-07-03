@@ -128,18 +128,26 @@ export class MealPlansService {
     return this.prisma.mealPlan.delete({ where: { id } });
   }
 
+  async setVisibility(ctx: AuthContext, id: string, visibleToPatient: boolean) {
+    await this.requireOwnedPlan(ctx, id);
+    return this.prisma.mealPlan.update({
+      where: { id },
+      data: { visibleToPatient },
+    });
+  }
+
   // --- Patient surface (ownership via the caller's own patientProfile.id) ---
 
   async listMyPlans(ctx: AuthContext) {
     return this.prisma.mealPlan.findMany({
-      where: { patientId: this.patientProfileId(ctx) },
+      where: { patientId: this.patientProfileId(ctx), visibleToPatient: true },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async getMyPlan(ctx: AuthContext, id: string) {
     const plan = await this.prisma.mealPlan.findFirst({
-      where: { id, patientId: this.patientProfileId(ctx) },
+      where: { id, patientId: this.patientProfileId(ctx), visibleToPatient: true },
       include: FULL_TREE,
     });
     if (!plan) {

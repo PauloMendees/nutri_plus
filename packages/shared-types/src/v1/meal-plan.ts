@@ -35,6 +35,7 @@ export interface MealPlan {
   title: string | null;
   objective: string | null;
   aiGenerated: boolean;
+  visibleToPatient: boolean;
   targetCalories: number | null;
   targetProtein: number | null;
   targetCarbs: number | null;
@@ -83,4 +84,8 @@ export type UpdateMealPlanRequest = Omit<CreateMealPlanRequest, 'patientId'>;
 export interface GenerateMealPlanRequest {
   patientId: string;
   instructions?: string;
+}
+
+export interface SetMealPlanVisibilityRequest {
+  visibleToPatient: boolean;
 }

@@ -398,7 +398,7 @@ describe('MealPlansService', () => {
       const result = await service.listMyPlans(pctx);
 
       expect(prisma.mealPlan.findMany).toHaveBeenCalledWith({
-        where: { patientId: 'pp1' },
+        where: { patientId: 'pp1', visibleToPatient: true },
         orderBy: { createdAt: 'desc' },
       });
       expect(result).toEqual([{ id: 'mp1' }]);
@@ -410,7 +410,7 @@ describe('MealPlansService', () => {
       const result = await service.getMyPlan(pctx, 'mp1');
 
       expect(prisma.mealPlan.findFirst).toHaveBeenCalledWith({
-        where: { id: 'mp1', patientId: 'pp1' },
+        where: { id: 'mp1', patientId: 'pp1', visibleToPatient: true },
         include: FULL_TREE,
       });
       expect(result).toEqual({ id: 'mp1' });
@@ -428,6 +428,37 @@ describe('MealPlansService', () => {
       await expect(service.listMyPlans(patCtx(null))).rejects.toBeInstanceOf(
         ForbiddenException,
       );
+    });
+  });
+
+  describe('patient visibility', () => {
+    it('listMyPlans filters to visible plans only', async () => {
+      prisma.mealPlan.findMany.mockResolvedValue([] as any);
+      await service.listMyPlans(patCtx('pp-1'));
+      expect(prisma.mealPlan.findMany).toHaveBeenCalledWith({
+        where: { patientId: 'pp-1', visibleToPatient: true },
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+
+    it('getMyPlan requires the plan to be visible', async () => {
+      prisma.mealPlan.findFirst.mockResolvedValue({ id: 'm1' } as any);
+      await service.getMyPlan(patCtx('pp-1'), 'm1');
+      expect(prisma.mealPlan.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'm1', patientId: 'pp-1', visibleToPatient: true },
+        }),
+      );
+    });
+
+    it('setVisibility checks ownership then updates only the flag', async () => {
+      prisma.mealPlan.findFirst.mockResolvedValue({ id: 'm1' } as any); // requireOwnedPlan
+      prisma.mealPlan.update.mockResolvedValue({ id: 'm1', visibleToPatient: true } as any);
+      await service.setVisibility(ctx, 'm1', true);
+      expect(prisma.mealPlan.update).toHaveBeenCalledWith({
+        where: { id: 'm1' },
+        data: { visibleToPatient: true },
+      });
     });
   });
 });

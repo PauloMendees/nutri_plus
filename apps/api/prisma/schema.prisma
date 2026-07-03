@@ -188,6 +188,7 @@ model MealPlan {
   title       String?
   objective   String?
   aiGenerated Boolean  @default(false) // server-controlled; true for AI-generated plans
+  visibleToPatient Boolean @default(false) // nutritionist opt-in; patient app only shows visible plans
   // Server-computed daily nutrition targets (null for manually created plans).
   targetCalories Float? // kcal/day
   targetProtein  Float? // g/day
