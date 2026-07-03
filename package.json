@@ -7,7 +7,11 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "lint": "turbo run lint",
-    "dev": "turbo run dev"
+    "dev": "turbo run dev",
+    "mobile": "pnpm --filter @nutri-plus/mobile start",
+    "mobile:clear": "pnpm --filter @nutri-plus/mobile start -- --clear",
+    "mobile:ios": "pnpm --filter @nutri-plus/mobile ios",
+    "mobile:android": "pnpm --filter @nutri-plus/mobile android"
   },
   "devDependencies": {
     "turbo": "^2.1.0",
