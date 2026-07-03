@@ -13,18 +13,34 @@ export class MealPlanPdfService {
     private readonly mealPlans: MealPlansService,
   ) {}
 
+  // Nutritionist/employee: branding from the caller's own nutritionist scope.
   async generate(ctx: AuthContext, id: string): Promise<Buffer> {
     const plan = await this.mealPlans.getPlan(ctx, id); // scoped read; 404 propagates
+    return this.build(plan, resolveScopeNutritionistId(ctx));
+  }
 
-    const nutritionistId = resolveScopeNutritionistId(ctx);
-    const branding = await this.prisma.nutritionistProfile.findUnique({
-      where: { id: nutritionistId },
-      select: { displayName: true, logoUrl: true },
+  // Patient: plan read via the patient-scoped (visible-only) getMyPlan; branding
+  // from the plan's own patient's nutritionist (the caller has no nutritionist scope).
+  async generateForPatient(ctx: AuthContext, id: string): Promise<Buffer> {
+    const plan = await this.mealPlans.getMyPlan(ctx, id); // scoped + visible-only read; 404 propagates
+    const owner = await this.prisma.patientProfile.findUnique({
+      where: { id: plan.patientId },
+      select: { nutritionistId: true },
     });
+    return this.build(plan, owner?.nutritionistId ?? null);
+  }
+
+  private async build(plan: unknown, nutritionistId: string | null): Promise<Buffer> {
+    const branding = nutritionistId
+      ? await this.prisma.nutritionistProfile.findUnique({
+          where: { id: nutritionistId },
+          select: { displayName: true, logoUrl: true },
+        })
+      : null;
 
     const logoDataUrl = await this.fetchLogo(branding?.logoUrl ?? null);
 
-    const doc = buildMealPlanDocDefinition(plan as unknown as PdfMealPlan, {
+    const doc = buildMealPlanDocDefinition(plan as PdfMealPlan, {
       displayName: branding?.displayName ?? null,
       logoDataUrl,
     });
