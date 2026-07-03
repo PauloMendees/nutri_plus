@@ -23,6 +23,13 @@ function formatDate(iso: string): string {
 
 type Metric = keyof Pick<BodyAssessment, 'weight' | 'bodyFatPercentage' | 'muscleMass'>;
 
+// The headline metrics shown both as snapshot tiles and as trend charts.
+const METRICS: { key: Metric; label: string; unit?: string; trendLabel: string }[] = [
+  { key: 'weight', label: 'Peso', unit: 'kg', trendLabel: 'Peso (kg)' },
+  { key: 'bodyFatPercentage', label: '% Gordura', unit: '%', trendLabel: '% Gordura' },
+  { key: 'muscleMass', label: 'Massa muscular', unit: 'kg', trendLabel: 'Massa muscular (kg)' },
+];
+
 function Tile({ label, value, unit, delta }: { label: string; value: string; unit?: string; delta: number | null }) {
   return (
     <View className="min-w-[45%] flex-1 gap-1 rounded-xl border border-border bg-card p-3">
@@ -99,8 +106,8 @@ export default function Home() {
     );
   }
 
-  const latest = assessments[assessments.length - 1];
-  const previous = assessments.length >= 2 ? assessments[assessments.length - 2] : null;
+  const latest = assessments.at(-1)!;
+  const previous = assessments.length >= 2 ? assessments.at(-2)! : null;
 
   const deltaOf = (key: keyof BodyAssessment): number | null => {
     const cur = latest[key];
@@ -143,18 +150,18 @@ export default function Home() {
             Última avaliação · {formatDate(latest.assessmentDate)}
           </Text>
           <View className="flex-row flex-wrap gap-3">
-            <Tile label="Peso" value={fmt(latest.weight)} unit="kg" delta={deltaOf('weight')} />
-            <Tile label="% Gordura" value={fmt(latest.bodyFatPercentage)} unit="%" delta={deltaOf('bodyFatPercentage')} />
-            <Tile label="Massa muscular" value={fmt(latest.muscleMass)} unit="kg" delta={deltaOf('muscleMass')} />
+            {METRICS.map((m) => (
+              <Tile key={m.key} label={m.label} value={fmt(latest[m.key])} unit={m.unit} delta={deltaOf(m.key)} />
+            ))}
             <Tile label="IMC" value={fmt(curBmi)} delta={bmiDelta} />
           </View>
         </View>
 
         <View className="gap-3">
           <Text className="font-heading text-lg text-foreground">Tendências</Text>
-          <Trend label="Peso (kg)" points={trend('weight')} />
-          <Trend label="% Gordura" points={trend('bodyFatPercentage')} />
-          <Trend label="Massa muscular (kg)" points={trend('muscleMass')} />
+          {METRICS.map((m) => (
+            <Trend key={m.key} label={m.trendLabel} points={trend(m.key)} />
+          ))}
         </View>
 
         <View className="gap-1">

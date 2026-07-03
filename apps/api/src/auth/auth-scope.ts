@@ -17,3 +17,14 @@ export function resolveScopeNutritionistId(ctx: AuthContext): string {
   }
   throw new ForbiddenException('Nutritionist scope required');
 }
+
+// The PatientProfile.id the caller is authorized to act within: their own.
+// RolesGuard has already gated the route to PATIENT; this turns the role into a
+// concrete data scope, mirroring resolveScopeNutritionistId (the same seam).
+export function resolveScopePatientId(ctx: AuthContext): string {
+  const user = ctx.user;
+  if (user?.role === UserRole.PATIENT && user.patientProfile) {
+    return user.patientProfile.id;
+  }
+  throw new ForbiddenException('Patient profile required');
+}
