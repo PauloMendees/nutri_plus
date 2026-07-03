@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -160,6 +161,21 @@ export class PatientsService {
     await this.requireOwned(ctx, patientId);
     await this.requireAssessment(patientId, assessmentId);
     await this.prisma.bodyAssessment.delete({ where: { id: assessmentId } });
+  }
+
+  // Patient-facing: the caller reads their OWN body assessments (evolution).
+  // Ownership comes from the caller's own patientProfile, like the meal-plan
+  // patient surface. Read-only — a nutritionist enters assessments on the web.
+  async listMyAssessments(ctx: AuthContext) {
+    const profile = ctx.user?.patientProfile;
+    if (!profile) {
+      throw new ForbiddenException('Patient profile required');
+    }
+    const assessments = await this.prisma.bodyAssessment.findMany({
+      where: { patientId: profile.id },
+      orderBy: { assessmentDate: 'asc' },
+    });
+    return { name: ctx.name, height: profile.height ?? null, assessments };
   }
 
   // The assessment must belong to the (already-owned) patient; otherwise 404.
