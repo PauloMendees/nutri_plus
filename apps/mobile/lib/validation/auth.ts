@@ -6,3 +6,21 @@ export const loginSchema = z.object({
 });
 
 export type LoginValues = z.infer<typeof loginSchema>;
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().email('Informe um e-mail válido.'),
+});
+
+export const resetPasswordSchema = z
+  .object({
+    code: z.string().regex(/^\d{6}$/, 'Informe o código de 6 dígitos.'),
+    password: z.string().min(8, 'A senha deve ter ao menos 8 caracteres.'),
+    confirmPassword: z.string(),
+  })
+  .refine((v) => v.password === v.confirmPassword, {
+    message: 'As senhas não coincidem.',
+    path: ['confirmPassword'],
+  });
+
+export type ForgotPasswordValues = z.infer<typeof forgotPasswordSchema>;
+export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
