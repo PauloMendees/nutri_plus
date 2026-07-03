@@ -5,10 +5,16 @@ jest.mock('../../lib/supabase', () => ({
   supabase: { auth: { signInWithPassword: (a: unknown) => mockSignInWithPassword(a) } },
 }));
 
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({
+  router: { push: (h: unknown) => mockPush(h), replace: jest.fn() },
+}));
+
 import Login from './login';
 
 beforeEach(() => {
   mockSignInWithPassword.mockReset().mockResolvedValue({ error: null });
+  mockPush.mockReset();
 });
 
 describe('Login screen', () => {
@@ -37,5 +43,11 @@ describe('Login screen', () => {
     await fireEvent.changeText(screen.getByLabelText('Senha'), 'wrong');
     await fireEvent.press(screen.getByRole('button', { name: /entrar/i }));
     expect(await screen.findByText('E-mail ou senha inválidos.')).toBeTruthy();
+  });
+
+  it('navigates to forgot-password from the link', async () => {
+    await render(<Login />);
+    await fireEvent.press(screen.getByText('Esqueci minha senha'));
+    expect(mockPush).toHaveBeenCalledWith('/forgot-password');
   });
 });

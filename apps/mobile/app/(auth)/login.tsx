@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Text, View } from 'react-native';
+import { router } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '../../lib/supabase';
@@ -81,6 +82,12 @@ export default function Login() {
           {formError ? <Text className="font-sans text-sm text-destructive">{formError}</Text> : null}
 
           <Button label="Entrar" onPress={handleSubmit(onSubmit)} loading={isSubmitting} />
+          <Text
+            onPress={() => router.push('/forgot-password')}
+            className="text-center font-sans text-sm text-primary"
+          >
+            Esqueci minha senha
+          </Text>
         </View>
       </View>
     </Screen>

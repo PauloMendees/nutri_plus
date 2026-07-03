@@ -4,6 +4,10 @@ jest.mock('../lib/supabase', () => ({
   supabase: { auth: { signInWithPassword: jest.fn() } },
 }));
 
+jest.mock('expo-router', () => ({
+  router: { push: jest.fn(), replace: jest.fn() },
+}));
+
 import Login from '../app/(auth)/login';
 
 describe('themed login', () => {
