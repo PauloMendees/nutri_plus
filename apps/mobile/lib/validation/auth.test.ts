@@ -26,12 +26,12 @@ describe('forgotPasswordSchema', () => {
 });
 
 describe('resetPasswordSchema', () => {
-  const base = { code: '123456', password: 'password1', confirmPassword: 'password1' };
-  it('rejects a code that is not 6 digits', () => {
-    const r = resetPasswordSchema.safeParse({ ...base, code: '12a45' });
+  const base = { code: '12345678', password: 'password1', confirmPassword: 'password1' };
+  it('rejects a code that is not 8 digits', () => {
+    const r = resetPasswordSchema.safeParse({ ...base, code: '123456' });
     expect(r.success).toBe(false);
     const msgs = r.success ? [] : r.error.issues.map((i) => i.message);
-    expect(msgs).toContain('Informe o código de 6 dígitos.');
+    expect(msgs).toContain('Informe o código de 8 dígitos.');
   });
   it('rejects a short password', () => {
     const r = resetPasswordSchema.safeParse({ ...base, password: 'short', confirmPassword: 'short' });

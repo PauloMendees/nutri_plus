@@ -29,7 +29,7 @@ beforeEach(() => {
 });
 
 async function fillValid() {
-  await fireEvent.changeText(screen.getByLabelText('Código'), '123456');
+  await fireEvent.changeText(screen.getByLabelText('Código'), '12345678');
   await fireEvent.changeText(screen.getByLabelText('Nova senha'), 'password1');
   await fireEvent.changeText(screen.getByLabelText('Confirmar senha'), 'password1');
 }
@@ -47,7 +47,7 @@ describe('Reset password screen', () => {
     await fillValid();
     await fireEvent.press(screen.getByRole('button', { name: /salvar e entrar/i }));
     await waitFor(() =>
-      expect(mockVerifyOtp).toHaveBeenCalledWith({ email: 'a@x.com', token: '123456', type: 'recovery' }),
+      expect(mockVerifyOtp).toHaveBeenCalledWith({ email: 'a@x.com', token: '12345678', type: 'recovery' }),
     );
     await waitFor(() => expect(mockUpdateUser).toHaveBeenCalledWith({ password: 'password1' }));
     expect(mockReplace).toHaveBeenCalledWith('/(app)');
@@ -65,7 +65,7 @@ describe('Reset password screen', () => {
 
   it('shows the zod message for non-matching passwords and calls no supabase', async () => {
     await render(<ResetPassword />);
-    await fireEvent.changeText(screen.getByLabelText('Código'), '123456');
+    await fireEvent.changeText(screen.getByLabelText('Código'), '12345678');
     await fireEvent.changeText(screen.getByLabelText('Nova senha'), 'password1');
     await fireEvent.changeText(screen.getByLabelText('Confirmar senha'), 'password2');
     await fireEvent.press(screen.getByRole('button', { name: /salvar e entrar/i }));

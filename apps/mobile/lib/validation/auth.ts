@@ -13,7 +13,7 @@ export const forgotPasswordSchema = z.object({
 
 export const resetPasswordSchema = z
   .object({
-    code: z.string().regex(/^\d{6}$/, 'Informe o código de 6 dígitos.'),
+    code: z.string().regex(/^\d{8}$/, 'Informe o código de 8 dígitos.'),
     password: z.string().min(8, 'A senha deve ter ao menos 8 caracteres.'),
     confirmPassword: z.string(),
   })

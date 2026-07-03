@@ -88,9 +88,9 @@ export default function ResetPassword() {
                 onChangeText={onChange}
                 onBlur={onBlur}
                 keyboardType="number-pad"
-                maxLength={6}
+                maxLength={8}
                 autoComplete="one-time-code"
-                placeholder="000000"
+                placeholder="00000000"
                 error={errors.code?.message}
               />
             )}
