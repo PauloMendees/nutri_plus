@@ -1,18 +1,22 @@
 import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useColorScheme } from 'nativewind';
 import { useSession } from '../../lib/auth';
+import { getTabBarColors } from '../../lib/theme';
 
 export default function AppLayout() {
   const { session, loading } = useSession();
+  const { colorScheme } = useColorScheme();
   if (loading) return null;
   if (!session) return <Redirect href="/(auth)/login" />;
+  const tab = getTabBarColors(colorScheme);
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#14bfa6',
-        tabBarInactiveTintColor: '#8a9a92',
-        tabBarStyle: { backgroundColor: '#141d19', borderTopColor: '#243029' },
+        tabBarActiveTintColor: tab.active,
+        tabBarInactiveTintColor: tab.inactive,
+        tabBarStyle: { backgroundColor: tab.background, borderTopColor: tab.border },
       }}
     >
       <Tabs.Screen
