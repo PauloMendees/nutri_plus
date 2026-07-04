@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { NutritionistContact } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/types/auth-context';
 import { resolveScopeNutritionistId, resolveScopePatientId } from '../auth/auth-scope';
@@ -172,6 +173,28 @@ export class PatientsService {
       name: ctx.name,
       height: ctx.user?.patientProfile?.height ?? null,
       assessments,
+    };
+  }
+
+  // The patient's own nutritionist, basic fields only. resolveScopePatientId
+  // enforces the PATIENT scope; the linked id lives on the loaded profile.
+  async getMyNutritionist(ctx: AuthContext): Promise<NutritionistContact | null> {
+    resolveScopePatientId(ctx);
+    const nutritionistId = ctx.user?.patientProfile?.nutritionistId ?? null;
+    if (!nutritionistId) return null;
+
+    const profile = await this.prisma.nutritionistProfile.findUnique({
+      where: { id: nutritionistId },
+      include: { user: { select: { name: true, email: true } } },
+    });
+    if (!profile) return null;
+
+    return {
+      name: profile.user.name,
+      displayName: profile.displayName,
+      email: profile.user.email,
+      crn: profile.crn,
+      logoUrl: profile.logoUrl,
     };
   }
 

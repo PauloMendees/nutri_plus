@@ -50,6 +50,22 @@ function ctxWithPatient(patientProfileId: string | null, height: number | null):
   };
 }
 
+function ctxPatient(patientProfileId: string | null, nutritionistId: string | null = null): AuthContext {
+  return {
+    authProviderId: 'sub-p',
+    email: 'p@x.com',
+    name: 'Ana',
+    user: {
+      id: 'user-p',
+      authProviderId: 'auth-p',
+      role: 'PATIENT',
+      nutritionistProfile: null,
+      employeeProfile: null,
+      patientProfile: patientProfileId ? { id: patientProfileId, nutritionistId } : null,
+    } as any,
+  };
+}
+
 describe('PatientsService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let users: DeepMockProxy<UsersService>;
@@ -373,6 +389,43 @@ describe('PatientsService', () => {
         service.createPatient(ctxWithNutritionist(null), dto),
       ).rejects.toBeInstanceOf(ForbiddenException);
       expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getMyNutritionist', () => {
+    it('maps the linked nutritionist profile + user fields', async () => {
+      prisma.nutritionistProfile.findUnique.mockResolvedValue({
+        displayName: 'Dra. Bia',
+        crn: 'CRN-123',
+        logoUrl: 'https://logo',
+        user: { name: 'Beatriz', email: 'bia@x.com' },
+      } as any);
+
+      const result = await service.getMyNutritionist(ctxPatient('pp-1', 'nutri-1'));
+
+      expect(prisma.nutritionistProfile.findUnique).toHaveBeenCalledWith({
+        where: { id: 'nutri-1' },
+        include: { user: { select: { name: true, email: true } } },
+      });
+      expect(result).toEqual({
+        name: 'Beatriz',
+        displayName: 'Dra. Bia',
+        email: 'bia@x.com',
+        crn: 'CRN-123',
+        logoUrl: 'https://logo',
+      });
+    });
+
+    it('returns null when the patient has no nutritionist', async () => {
+      const result = await service.getMyNutritionist(ctxPatient('pp-1', null));
+      expect(result).toBeNull();
+      expect(prisma.nutritionistProfile.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('rejects a caller without a patient profile', async () => {
+      await expect(service.getMyNutritionist(ctxPatient(null))).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
     });
   });
 });
