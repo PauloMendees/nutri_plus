@@ -6,6 +6,12 @@ import type { MealPlanSummary } from '@nutri-plus/shared-types';
 import { useMealPlans, useSetMealPlanVisibility } from '@/lib/queries/meal-plans';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { AiGenerateDialog } from '@/components/patients/ai-generate-dialog';
 
 function formatDate(iso: string): string {
@@ -93,16 +99,25 @@ export function MealPlansSection({
                 )}
               </Link>
               {canEdit && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={p.visibleToPatient ? 'default' : 'outline'}
-                  className="shrink-0 rounded-full"
-                  disabled={visibility.isPending}
-                  onClick={() => visibility.mutate({ id: p.id, visibleToPatient: !p.visibleToPatient })}
-                >
-                  {p.visibleToPatient ? 'Disponível ✓' : 'Disponibilizar'}
-                </Button>
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={p.visibleToPatient ? 'default' : 'outline'}
+                        className="shrink-0 rounded-full"
+                        disabled={visibility.isPending}
+                        onClick={() => visibility.mutate({ id: p.id, visibleToPatient: !p.visibleToPatient })}
+                      >
+                        {p.visibleToPatient ? 'Disponível ✓' : 'Disponibilizar'}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      Quando disponível, este plano aparece no aplicativo do paciente. Caso contrário, só você o vê.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </div>
           ))}
