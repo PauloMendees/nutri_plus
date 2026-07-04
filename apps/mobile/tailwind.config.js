@@ -24,16 +24,31 @@ module.exports = {
         // --- nutri-plus web palette (dark-first) — takes precedence over
         // gluestack's own numeric scale for these keys; used by our
         // `className` styling (bg-background, text-primary, etc.). ---
-        background: '#0d1411',
-        foreground: '#e7ece9',
-        card: '#141d19',
-        border: '#243029',
-        input: '#2c3a33',
-        primary: { DEFAULT: '#14bfa6', foreground: '#04241b' },
-        secondary: { DEFAULT: '#1a2520', foreground: '#a7d8c9' },
-        muted: { DEFAULT: '#161f1b', foreground: '#8a9a92' },
-        accent: { DEFAULT: '#1a2520', foreground: '#a7d8c9' },
-        destructive: { DEFAULT: '#e5484d', foreground: '#ffffff' },
+        background: 'rgb(var(--background)/<alpha-value>)',
+        foreground: 'rgb(var(--foreground)/<alpha-value>)',
+        card: 'rgb(var(--card)/<alpha-value>)',
+        border: 'rgb(var(--border)/<alpha-value>)',
+        input: 'rgb(var(--input)/<alpha-value>)',
+        primary: {
+          DEFAULT: 'rgb(var(--primary)/<alpha-value>)',
+          foreground: 'rgb(var(--primary-foreground)/<alpha-value>)',
+        },
+        secondary: {
+          DEFAULT: 'rgb(var(--secondary)/<alpha-value>)',
+          foreground: 'rgb(var(--secondary-foreground)/<alpha-value>)',
+        },
+        muted: {
+          DEFAULT: 'rgb(var(--muted)/<alpha-value>)',
+          foreground: 'rgb(var(--muted-foreground)/<alpha-value>)',
+        },
+        accent: {
+          DEFAULT: 'rgb(var(--accent)/<alpha-value>)',
+          foreground: 'rgb(var(--accent-foreground)/<alpha-value>)',
+        },
+        destructive: {
+          DEFAULT: 'rgb(var(--destructive)/<alpha-value>)',
+          foreground: 'rgb(var(--destructive-foreground)/<alpha-value>)',
+        },
         // --- gluestack-ui internal token scales (used by @gluestack-ui/*
         // components via CSS vars from components/ui/gluestack-ui-provider) ---
         tertiary: {
