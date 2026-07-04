@@ -113,14 +113,20 @@ export class MealPlansService {
 
     // Tree provided: replace it wholesale (delete existing meals -> cascade
     // removes their items -> recreate), atomically.
-    return this.prisma.$transaction(async (tx) => {
-      await tx.meal.deleteMany({ where: { mealPlanId: id } });
-      return tx.mealPlan.update({
-        where: { id },
-        data: { ...top, meals: this.mealsCreateInput(meals) },
-        include: FULL_TREE,
-      });
-    });
+    // Deleting + recreating the whole meals/options/items tree and reading it
+    // back over a remote DB can take ~6-7s for a full plan — past Prisma's 5s
+    // default interactive-transaction timeout (→ P2028 → 500). Give it room.
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.meal.deleteMany({ where: { mealPlanId: id } });
+        return tx.mealPlan.update({
+          where: { id },
+          data: { ...top, meals: this.mealsCreateInput(meals) },
+          include: FULL_TREE,
+        });
+      },
+      { timeout: 20000, maxWait: 10000 },
+    );
   }
 
   async deletePlan(ctx: AuthContext, id: string) {
