@@ -428,4 +428,37 @@ describe('PatientsService', () => {
       );
     });
   });
+
+  describe('deleteMyAccount', () => {
+    it('tears down patient rows in Restrict-safe order, then the auth user', async () => {
+      prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
+
+      await service.deleteMyAccount(ctxPatient('pp-1', 'nutri-1'));
+
+      expect(prisma.outsideHomeRequest.deleteMany).toHaveBeenCalledWith({ where: { patientId: 'pp-1' } });
+      expect(prisma.aIInteraction.deleteMany).toHaveBeenCalledWith({ where: { patientId: 'pp-1' } });
+      expect(prisma.appointment.deleteMany).toHaveBeenCalledWith({ where: { patientId: 'pp-1' } });
+      expect(prisma.bodyAssessment.deleteMany).toHaveBeenCalledWith({ where: { patientId: 'pp-1' } });
+      expect(prisma.mealPlan.deleteMany).toHaveBeenCalledWith({ where: { patientId: 'pp-1' } });
+      expect(prisma.patientProfile.delete).toHaveBeenCalledWith({ where: { id: 'pp-1' } });
+      expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'user-p' } });
+
+      // children before the profile; profile before the user
+      const order = (m: { mock: { invocationCallOrder: number[] } }) => m.mock.invocationCallOrder[0];
+      expect(order(prisma.bodyAssessment.deleteMany)).toBeLessThan(order(prisma.patientProfile.delete));
+      expect(order(prisma.mealPlan.deleteMany)).toBeLessThan(order(prisma.patientProfile.delete));
+      expect(order(prisma.patientProfile.delete)).toBeLessThan(order(prisma.user.delete));
+
+      // frees the email; reads the id off ctx.user, not the top-level sub
+      expect(supabaseAdmin.deleteUser).toHaveBeenCalledWith('auth-p');
+    });
+
+    it('rejects a caller without a patient profile and touches nothing', async () => {
+      await expect(service.deleteMyAccount(ctxPatient(null))).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(supabaseAdmin.deleteUser).not.toHaveBeenCalled();
+    });
+  });
 });

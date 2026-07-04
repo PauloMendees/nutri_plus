@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '../generated/prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -16,5 +16,11 @@ export class MeController {
   @Get('nutritionist')
   getNutritionist(@CurrentUser() ctx: AuthContext) {
     return this.patients.getMyNutritionist(ctx);
+  }
+
+  @Delete()
+  @HttpCode(204)
+  deleteAccount(@CurrentUser() ctx: AuthContext) {
+    return this.patients.deleteMyAccount(ctx);
   }
 }

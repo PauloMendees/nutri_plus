@@ -198,6 +198,31 @@ export class PatientsService {
     };
   }
 
+  // Permanently deletes the calling patient's account. Children are removed
+  // first (Appointment/BodyAssessment/AIInteraction use onDelete: Restrict;
+  // MealPlan children cascade), then the profile, then the local user — all in
+  // one transaction. Only after it commits do we remove the Supabase auth user,
+  // which frees the email for a future invite. deleteUser is best-effort (logs,
+  // never throws), so a provider hiccup leaves an orphan to clean up rather than
+  // resurrecting the now-deleted local data.
+  async deleteMyAccount(ctx: AuthContext): Promise<void> {
+    const patientId = resolveScopePatientId(ctx);
+    const userId = ctx.user!.id;
+    const authProviderId = ctx.user!.authProviderId;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.outsideHomeRequest.deleteMany({ where: { patientId } });
+      await tx.aIInteraction.deleteMany({ where: { patientId } });
+      await tx.appointment.deleteMany({ where: { patientId } });
+      await tx.bodyAssessment.deleteMany({ where: { patientId } });
+      await tx.mealPlan.deleteMany({ where: { patientId } });
+      await tx.patientProfile.delete({ where: { id: patientId } });
+      await tx.user.delete({ where: { id: userId } });
+    });
+
+    await this.supabaseAdmin.deleteUser(authProviderId);
+  }
+
   // The assessment must belong to the (already-owned) patient; otherwise 404.
   private async requireAssessment(patientId: string, assessmentId: string): Promise<void> {
     const assessment = await this.prisma.bodyAssessment.findFirst({
