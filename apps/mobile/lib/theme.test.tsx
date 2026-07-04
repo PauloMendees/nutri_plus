@@ -30,15 +30,20 @@ function Probe() {
 describe('getTabBarColors', () => {
   it('returns the light palette for light', () => {
     expect(getTabBarColors('light')).toEqual({
-      active: '#0f9e88',
-      inactive: '#5c6b64',
-      background: '#ffffff',
-      border: '#dbe5e0',
+      active: 'rgb(15, 158, 136)',
+      inactive: 'rgb(92, 107, 100)',
+      background: 'rgb(255, 255, 255)',
+      border: 'rgb(219, 229, 224)',
     });
   });
 
   it('returns the dark palette for dark or unknown', () => {
-    const dark = { active: '#14bfa6', inactive: '#8a9a92', background: '#141d19', border: '#243029' };
+    const dark = {
+      active: 'rgb(20, 191, 166)',
+      inactive: 'rgb(138, 154, 146)',
+      background: 'rgb(20, 29, 25)',
+      border: 'rgb(36, 48, 41)',
+    };
     expect(getTabBarColors('dark')).toEqual(dark);
     expect(getTabBarColors(null)).toEqual(dark);
   });

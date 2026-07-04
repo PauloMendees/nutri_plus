@@ -89,24 +89,25 @@ export default function ConfiguracoesIndex() {
         <View className="gap-2">
           <Text className="font-sans-medium text-sm uppercase text-muted-foreground">Aparência</Text>
           <View className="flex-row gap-2">
-            {THEME_OPTIONS.map((opt) => (
-              <Pressable
-                key={opt.value}
-                accessibilityRole="button"
-                onPress={() => setMode(opt.value)}
-                className={`flex-1 items-center rounded-xl border p-3 ${
-                  mode === opt.value ? 'border-primary bg-secondary' : 'border-border bg-card'
-                }`}
-              >
-                <Text
-                  className={`font-sans-medium text-sm ${
-                    mode === opt.value ? 'text-primary' : 'text-foreground'
+            {THEME_OPTIONS.map((opt) => {
+              const active = mode === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  accessibilityRole="button"
+                  onPress={() => setMode(opt.value)}
+                  className={`flex-1 items-center rounded-xl border p-3 ${
+                    active ? 'border-primary bg-secondary' : 'border-border bg-card'
                   }`}
                 >
-                  {opt.label}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text
+                    className={`font-sans-medium text-sm ${active ? 'text-primary' : 'text-foreground'}`}
+                  >
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 

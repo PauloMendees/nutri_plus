@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { SEMANTIC_DARK, SEMANTIC_LIGHT } from '../components/ui/gluestack-ui-provider/config';
 import type { ModeType } from '../components/ui/gluestack-ui-provider';
 
 const STORAGE_KEY = 'theme-preference';
-const MODES: ModeType[] = ['light', 'dark', 'system'];
 
 type ThemeState = { mode: ModeType; setMode: (mode: ModeType) => void };
 
@@ -16,8 +16,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     SecureStore.getItemAsync(STORAGE_KEY).then((stored) => {
-      if (stored && (MODES as string[]).includes(stored)) {
-        setModeState(stored as ModeType);
+      if (stored === 'light' || stored === 'dark' || stored === 'system') {
+        setModeState(stored);
       }
     });
   }, []);
@@ -37,10 +37,18 @@ export function useTheme(): ThemeState {
 }
 
 // The tab bar sets native tint/background colors (not className styles), so it
-// reads concrete hex per resolved scheme rather than the CSS vars.
+// can't read the CSS vars. It derives rgb() strings for the resolved scheme
+// from the same SEMANTIC_* token maps the palette uses — one source of truth.
+function rgb(triplet: string): string {
+  return `rgb(${triplet.split(' ').join(', ')})`;
+}
+
 export function getTabBarColors(scheme: 'light' | 'dark' | null | undefined) {
-  if (scheme === 'light') {
-    return { active: '#0f9e88', inactive: '#5c6b64', background: '#ffffff', border: '#dbe5e0' };
-  }
-  return { active: '#14bfa6', inactive: '#8a9a92', background: '#141d19', border: '#243029' };
+  const tokens = scheme === 'light' ? SEMANTIC_LIGHT : SEMANTIC_DARK;
+  return {
+    active: rgb(tokens['--primary']),
+    inactive: rgb(tokens['--muted-foreground']),
+    background: rgb(tokens['--card']),
+    border: rgb(tokens['--border']),
+  };
 }
