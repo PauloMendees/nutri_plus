@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native';
-import { useSession } from '../../lib/auth';
-import { Button } from '../../components/ui/button';
+import { useSession } from '../../../lib/auth';
+import { Button } from '../../../components/ui/button';
 
 export default function Configuracoes() {
   const { session, signOut } = useSession();

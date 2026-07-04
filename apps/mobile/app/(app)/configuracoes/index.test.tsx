@@ -1,11 +1,11 @@
 import { render, screen, fireEvent } from '@testing-library/react-native';
 
 const mockSignOut = jest.fn();
-jest.mock('../../lib/auth', () => ({
+jest.mock('../../../lib/auth', () => ({
   useSession: () => ({ session: { user: { email: 'ana@x.com' } }, signOut: mockSignOut }),
 }));
 
-import Configuracoes from './configuracoes';
+import Configuracoes from './index';
 
 beforeEach(() => mockSignOut.mockReset());
 
