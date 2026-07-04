@@ -19,6 +19,7 @@ import { MealPlansService } from './meal-plans.service';
 import { MealPlanPdfService } from './meal-plan-pdf.service';
 import { CreateMealPlanDto } from './dto/create-meal-plan.dto';
 import { UpdateMealPlanDto } from './dto/update-meal-plan.dto';
+import { SetVisibilityDto } from './dto/set-visibility.dto';
 
 @ApiTags('meal-plans')
 @ApiBearerAuth()
@@ -67,6 +68,16 @@ export class MealPlansController {
     @Body() dto: UpdateMealPlanDto,
   ) {
     return this.mealPlans.updatePlan(ctx, id, dto);
+  }
+
+  @Patch(':id/visibility')
+  @Roles(UserRole.NUTRITIONIST, UserRole.EMPLOYEE)
+  setVisibility(
+    @CurrentUser() ctx: AuthContext,
+    @Param('id') id: string,
+    @Body() dto: SetVisibilityDto,
+  ) {
+    return this.mealPlans.setVisibility(ctx, id, dto.visibleToPatient);
   }
 
   @Delete(':id')

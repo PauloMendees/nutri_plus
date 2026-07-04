@@ -5,11 +5,13 @@ import { ApiError } from '@/lib/api/client';
 
 const useMealPlans = vi.fn();
 const generateMut = vi.fn();
+const visibilityMutate = vi.fn();
 const push = vi.fn();
 
 vi.mock('@/lib/queries/meal-plans', () => ({
   useMealPlans: () => useMealPlans(),
   useGenerateMealPlan: () => ({ mutateAsync: generateMut, isPending: false }),
+  useSetMealPlanVisibility: () => ({ mutate: visibilityMutate, isPending: false }),
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
@@ -28,6 +30,7 @@ function plan(over = {}) {
 beforeEach(() => {
   useMealPlans.mockReset();
   generateMut.mockReset().mockResolvedValue(plan());
+  visibilityMutate.mockReset();
   push.mockReset();
 });
 
@@ -68,5 +71,16 @@ describe('MealPlansSection', () => {
     render(<MealPlansSection patientId="p1" canEdit />);
     await userEvent.click(screen.getByRole('button', { name: /gerar com ia/i }));
     expect(await screen.findByLabelText(/instruções personalizadas/i)).toBeInTheDocument();
+  });
+
+  it('toggles a hidden plan to visible', async () => {
+    useMealPlans.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: [plan({ visibleToPatient: false })],
+    });
+    render(<MealPlansSection patientId="p1" canEdit />);
+    await userEvent.click(screen.getByRole('button', { name: /disponibilizar/i }));
+    expect(visibilityMutate).toHaveBeenCalledWith({ id: 'm1', visibleToPatient: true });
   });
 });

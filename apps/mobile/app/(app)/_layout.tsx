@@ -30,6 +30,13 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
+        name="fora-de-casa"
+        options={{
+          title: 'Fora de casa',
+          tabBarIcon: ({ color, size }) => <Ionicons name="compass-outline" color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
         name="configuracoes"
         options={{
           title: 'Config',

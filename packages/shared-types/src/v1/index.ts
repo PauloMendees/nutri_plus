@@ -8,3 +8,4 @@ export * from './employee';
 export * from './assessment';
 export * from './meal-plan';
 export * from './nutritionist-settings';
+export * from './outside-home';

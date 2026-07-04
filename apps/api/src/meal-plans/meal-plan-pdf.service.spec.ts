@@ -6,6 +6,8 @@ import { MealPlanPdfService } from './meal-plan-pdf.service';
 import { AuthContext } from '../auth/types/auth-context';
 import * as printer from './pdf/pdf-printer';
 
+jest.mock('./pdf/meal-plan-doc', () => ({ buildMealPlanDocDefinition: jest.fn().mockReturnValue({}) }));
+
 const ctx: AuthContext = {
   authProviderId: 'sub-n',
   email: 'n@x.com',
@@ -68,5 +70,39 @@ describe('MealPlanPdfService', () => {
     const buf = await service.generate(ctx, 'mp1');
     expect(Buffer.isBuffer(buf)).toBe(true);
     expect(renderSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+const patientCtx = {
+  authProviderId: 's',
+  email: 'p@x.com',
+  name: 'Ana',
+  user: { id: 'u', role: 'PATIENT', patientProfile: { id: 'pp-1' } },
+} as unknown as AuthContext;
+
+describe('MealPlanPdfService.generateForPatient', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('reads via getMyPlan and resolves branding from the patient nutritionist', async () => {
+    jest.spyOn(printer, 'renderPdf').mockResolvedValue(Buffer.from('PDF'));
+    const prisma = mockDeep<PrismaService>();
+    const mealPlans = mockDeep<MealPlansService>();
+    mealPlans.getMyPlan.mockResolvedValue({ id: 'm1', patientId: 'pp-1', meals: [] } as any);
+    prisma.patientProfile.findUnique.mockResolvedValue({ nutritionistId: 'nut-1' } as any);
+    prisma.nutritionistProfile.findUnique.mockResolvedValue({ displayName: 'Dra X', logoUrl: null } as any);
+
+    const svc = new MealPlanPdfService(prisma, mealPlans);
+    const buf = await svc.generateForPatient(patientCtx, 'm1');
+
+    expect(mealPlans.getMyPlan).toHaveBeenCalledWith(patientCtx, 'm1');
+    expect(prisma.patientProfile.findUnique).toHaveBeenCalledWith({
+      where: { id: 'pp-1' },
+      select: { nutritionistId: true },
+    });
+    expect(prisma.nutritionistProfile.findUnique).toHaveBeenCalledWith({
+      where: { id: 'nut-1' },
+      select: { displayName: true, logoUrl: true },
+    });
+    expect(buf).toEqual(Buffer.from('PDF'));
   });
 });

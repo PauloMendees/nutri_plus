@@ -109,6 +109,7 @@ model PatientProfile {
   mealPlans      MealPlan[]
   aiInteractions AIInteraction[]
   appointments   Appointment[]
+  outsideHomeRequests OutsideHomeRequest[]
 
   @@index([nutritionistId])
 }
@@ -188,6 +189,7 @@ model MealPlan {
   title       String?
   objective   String?
   aiGenerated Boolean  @default(false) // server-controlled; true for AI-generated plans
+  visibleToPatient Boolean @default(false) // nutritionist opt-in; patient app only shows visible plans
   // Server-computed daily nutrition targets (null for manually created plans).
   targetCalories Float? // kcal/day
   targetProtein  Float? // g/day
@@ -270,4 +272,17 @@ model AIInteraction {
 
   @@index([patientId, createdAt])
   @@index([type, createdAt])
+}
+
+// A patient's "fora de casa" (outside-home) request: they describe where they
+// are and the AI suggests what to eat, aligned to their plan/goal/restrictions.
+model OutsideHomeRequest {
+  id           String   @id @default(uuid())
+  patientId    String
+  patient      PatientProfile @relation(fields: [patientId], references: [id])
+  message      String
+  aiSuggestion String
+  createdAt    DateTime @default(now())
+
+  @@index([patientId, createdAt])
 }

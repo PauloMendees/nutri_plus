@@ -6,6 +6,7 @@ import {
   generateMealPlan,
   getMealPlan,
   listMealPlans,
+  setMealPlanVisibility,
   updateMealPlan,
 } from '@/lib/api/meal-plans';
 
@@ -49,6 +50,15 @@ export function useDeleteMealPlan(patientId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteMealPlan(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['meal-plans', patientId] }),
+  });
+}
+
+export function useSetMealPlanVisibility(patientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, visibleToPatient }: { id: string; visibleToPatient: boolean }) =>
+      setMealPlanVisibility(id, visibleToPatient),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['meal-plans', patientId] }),
   });
 }
