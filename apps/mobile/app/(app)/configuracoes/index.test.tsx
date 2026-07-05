@@ -9,7 +9,8 @@ jest.mock('../../../lib/auth', () => ({
 const mockSetMode = jest.fn();
 let mockMode = 'system';
 jest.mock('../../../lib/theme', () => ({
-  useTheme: () => ({ mode: mockMode, setMode: mockSetMode }),
+  useTheme: () => ({ mode: mockMode, setMode: mockSetMode, scheme: 'dark' }),
+  useThemeColor: () => 'rgb(0, 0, 0)',
 }));
 
 let mockNutritionist: { isLoading: boolean; data: unknown };

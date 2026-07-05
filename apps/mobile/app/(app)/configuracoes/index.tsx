@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useSession } from '../../../lib/auth';
-import { useTheme } from '../../../lib/theme';
+import { useTheme, useThemeColor } from '../../../lib/theme';
 import { useMyNutritionist } from '../../../lib/queries/nutritionist';
 import { apiFetch } from '../../../lib/api';
 import { Screen } from '../../../components/ui/screen';
@@ -18,6 +19,9 @@ export default function ConfiguracoesIndex() {
   const { signOut } = useSession();
   const { mode, setMode } = useTheme();
   const nutritionist = useMyNutritionist();
+  const primaryColor = useThemeColor('--primary');
+  const foregroundColor = useThemeColor('--foreground');
+  const destructiveColor = useThemeColor('--destructive');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -53,7 +57,7 @@ export default function ConfiguracoesIndex() {
           <Text className="font-sans-medium text-sm uppercase text-muted-foreground">Meu nutricionista</Text>
           <View className="flex-row items-center gap-3 rounded-xl border border-border bg-card p-4">
             {nutritionist.isLoading ? (
-              <ActivityIndicator color="#14bfa6" />
+              <ActivityIndicator color={primaryColor} />
             ) : nutritionist.data ? (
               <>
                 {nutritionist.data.logoUrl ? (
@@ -114,8 +118,9 @@ export default function ConfiguracoesIndex() {
         <Pressable
           accessibilityRole="button"
           onPress={signOut}
-          className="rounded-xl border border-border bg-card p-4"
+          className="flex-row items-center gap-3 rounded-xl border border-border bg-card p-4"
         >
+          <Ionicons name="log-out-outline" size={20} color={foregroundColor} />
           <Text className="font-sans-medium text-base text-foreground">Sair</Text>
         </Pressable>
 
@@ -124,9 +129,10 @@ export default function ConfiguracoesIndex() {
             accessibilityRole="button"
             onPress={confirmDelete}
             disabled={deleting}
-            className="rounded-xl border border-destructive p-4"
+            className="flex-row items-center justify-center gap-2 rounded-xl border border-destructive p-4"
           >
-            <Text className="text-center font-sans-medium text-base text-destructive">
+            <Ionicons name="trash-outline" size={20} color={destructiveColor} />
+            <Text className="font-sans-medium text-base text-destructive">
               {deleting ? 'Apagando…' : 'Apagar minha conta'}
             </Text>
           </Pressable>
