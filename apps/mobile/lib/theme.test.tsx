@@ -16,10 +16,11 @@ beforeEach(() => {
 });
 
 function Probe() {
-  const { mode, setMode } = useTheme();
+  const { mode, setMode, scheme } = useTheme();
   return (
     <>
       <Text>mode:{mode}</Text>
+      <Text>scheme:{scheme}</Text>
       <Pressable accessibilityRole="button" onPress={() => setMode('light')}>
         <Text>set-light</Text>
       </Pressable>
@@ -70,7 +71,7 @@ describe('ThemeProvider', () => {
     expect(mockGet).toHaveBeenCalledWith('theme-preference');
   });
 
-  it('persists and applies a new preference', async () => {
+  it('persists a new preference and resolves the scheme to it', async () => {
     await render(
       <ThemeProvider>
         <Probe />
@@ -78,6 +79,9 @@ describe('ThemeProvider', () => {
     );
     await fireEvent.press(screen.getByRole('button', { name: 'set-light' }));
     expect(await screen.findByText('mode:light')).toBeTruthy();
+    // The resolved scheme must follow an explicit selection immediately,
+    // regardless of the device scheme — the fix for "Claro does nothing".
+    expect(screen.getByText('scheme:light')).toBeTruthy();
     await waitFor(() => expect(mockSet).toHaveBeenCalledWith('theme-preference', 'light'));
   });
 });

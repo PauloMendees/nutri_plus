@@ -1,11 +1,22 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useColorScheme } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { SEMANTIC_DARK, SEMANTIC_LIGHT } from '../components/ui/gluestack-ui-provider/config';
+import {
+  SEMANTIC_DARK,
+  SEMANTIC_LIGHT,
+  resolveScheme,
+} from '../components/ui/gluestack-ui-provider/config';
 import type { ModeType } from '../components/ui/gluestack-ui-provider';
 
 const STORAGE_KEY = 'theme-preference';
 
-type ThemeState = { mode: ModeType; setMode: (mode: ModeType) => void };
+type ThemeState = {
+  mode: ModeType;
+  setMode: (mode: ModeType) => void;
+  // The resolved scheme ('system' collapsed to the device scheme) — consumers
+  // that need concrete colors (tab bar, native props) read this.
+  scheme: 'light' | 'dark';
+};
 
 const ThemeContext = createContext<ThemeState | undefined>(undefined);
 
@@ -13,6 +24,8 @@ const ThemeContext = createContext<ThemeState | undefined>(undefined);
 // stored preference loads — avoids a blank frame while SecureStore reads.
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ModeType>('system');
+  const deviceScheme = useColorScheme();
+  const scheme = resolveScheme(mode, deviceScheme);
 
   useEffect(() => {
     SecureStore.getItemAsync(STORAGE_KEY).then((stored) => {
@@ -27,7 +40,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     SecureStore.setItemAsync(STORAGE_KEY, next);
   }
 
-  return <ThemeContext.Provider value={{ mode, setMode }}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={{ mode, setMode, scheme }}>{children}</ThemeContext.Provider>
+  );
 }
 
 export function useTheme(): ThemeState {
@@ -51,4 +66,13 @@ export function getTabBarColors(scheme: 'light' | 'dark' | null | undefined) {
     background: rgb(tokens['--card']),
     border: rgb(tokens['--border']),
   };
+}
+
+// Resolves a semantic token (e.g. '--foreground') to a concrete rgb() color for
+// the active scheme — for native props (icons, ActivityIndicator) that can't
+// read the CSS-var className tokens.
+export function useThemeColor(token: keyof typeof SEMANTIC_DARK): string {
+  const { scheme } = useTheme();
+  const tokens = scheme === 'light' ? SEMANTIC_LIGHT : SEMANTIC_DARK;
+  return rgb(tokens[token]);
 }

@@ -1,15 +1,14 @@
 import { Redirect, Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useColorScheme } from 'nativewind';
 import { useSession } from '../../lib/auth';
-import { getTabBarColors } from '../../lib/theme';
+import { getTabBarColors, useTheme } from '../../lib/theme';
 
 export default function AppLayout() {
   const { session, loading } = useSession();
-  const { colorScheme } = useColorScheme();
+  const { scheme } = useTheme();
   if (loading) return null;
   if (!session) return <Redirect href="/(auth)/login" />;
-  const tab = getTabBarColors(colorScheme);
+  const tab = getTabBarColors(scheme);
   return (
     <Tabs
       screenOptions={{

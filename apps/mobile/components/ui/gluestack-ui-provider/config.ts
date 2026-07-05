@@ -40,6 +40,18 @@ export const SEMANTIC_LIGHT: Record<string, string> = {
   '--destructive-foreground': '255 255 255',
 };
 
+// Resolves a theme preference to a concrete scheme. Explicit light/dark win;
+// 'system' follows the device (dark when the OS scheme is unknown). Kept here
+// (not in lib/theme) so both the provider and lib/theme import it without a
+// circular dependency.
+export function resolveScheme(
+  mode: 'light' | 'dark' | 'system',
+  device: 'light' | 'dark' | null | undefined,
+): 'light' | 'dark' {
+  if (mode === 'light' || mode === 'dark') return mode;
+  return device === 'light' ? 'light' : 'dark';
+}
+
 export const config = {
   light: vars({
     '--color-primary-0': '179 179 179',
