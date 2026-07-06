@@ -4,6 +4,9 @@ const mockMutate = jest.fn();
 let mockState: any = { mutate: mockMutate, isPending: false, isError: false, data: undefined };
 jest.mock('../../lib/queries/outside-home', () => ({ useOutsideHome: () => mockState }));
 
+// Only BrandHeader (in the render tree) touches the theme, and it reads `scheme`.
+jest.mock('../../lib/theme', () => ({ useTheme: () => ({ scheme: 'dark' }) }));
+
 import ForaDeCasa from './fora-de-casa';
 
 beforeEach(() => {

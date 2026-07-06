@@ -3,6 +3,9 @@ import { render, screen, fireEvent } from '@testing-library/react-native';
 const mockUseMyEvolution = jest.fn();
 jest.mock('../../lib/queries/assessments', () => ({ useMyEvolution: () => mockUseMyEvolution() }));
 
+// Only BrandHeader (in the render tree) touches the theme, and it reads `scheme`.
+jest.mock('../../lib/theme', () => ({ useTheme: () => ({ scheme: 'dark' }) }));
+
 import Home from './index';
 
 const two = {

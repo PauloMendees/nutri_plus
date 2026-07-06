@@ -1,6 +1,7 @@
 import { ActivityIndicator, Text, View } from 'react-native';
 import type { BodyAssessment } from '@nutri-plus/shared-types';
 import { Screen } from '../../components/ui/screen';
+import { BrandHeader } from '../../components/brand/brand-header';
 import { Button } from '../../components/ui/button';
 import { LineChart } from '../../components/chart/line-chart';
 import { useMyEvolution } from '../../lib/queries/assessments';
@@ -95,7 +96,7 @@ export default function Home() {
 
   if (assessments.length === 0) {
     return (
-      <Screen contentContainerClassName="grow justify-center p-6">
+      <Screen header={<BrandHeader />} contentContainerClassName="grow justify-center p-6">
         <View className="items-center gap-2">
           <Text className="font-heading text-2xl text-foreground">Olá, {name}</Text>
           <Text className="font-sans text-center text-base text-muted-foreground">
@@ -138,7 +139,7 @@ export default function Home() {
   ];
 
   return (
-    <Screen contentContainerClassName="grow p-6">
+    <Screen header={<BrandHeader />} contentContainerClassName="grow p-6">
       <View className="gap-6">
         <View className="gap-1">
           <Text className="font-heading text-2xl text-foreground">Olá, {name}</Text>

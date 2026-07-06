@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { Screen } from '../../components/ui/screen';
+import { BrandHeader } from '../../components/brand/brand-header';
 import { TextField } from '../../components/ui/text-field';
 import { Button } from '../../components/ui/button';
 import { useOutsideHome } from '../../lib/queries/outside-home';
@@ -10,7 +11,7 @@ export default function ForaDeCasa() {
   const outside = useOutsideHome();
 
   return (
-    <Screen contentContainerClassName="grow p-6">
+    <Screen header={<BrandHeader />} contentContainerClassName="grow p-6">
       <View className="gap-4">
         <View className="gap-1">
           <Text className="font-heading text-2xl text-foreground">Fora de casa</Text>

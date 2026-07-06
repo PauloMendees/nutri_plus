@@ -7,6 +7,7 @@ import { useTheme, useThemeColor } from '../../../lib/theme';
 import { useMyNutritionist } from '../../../lib/queries/nutritionist';
 import { apiFetch } from '../../../lib/api';
 import { Screen } from '../../../components/ui/screen';
+import { BrandHeader } from '../../../components/brand/brand-header';
 import type { ModeType } from '../../../components/ui/gluestack-ui-provider';
 
 const THEME_OPTIONS: { label: string; value: ModeType }[] = [
@@ -49,7 +50,7 @@ export default function ConfiguracoesIndex() {
   }
 
   return (
-    <Screen contentContainerClassName="grow p-6">
+    <Screen header={<BrandHeader />} contentContainerClassName="grow p-6">
       <View className="gap-8">
         <Text className="font-heading text-2xl text-foreground">Configurações</Text>
 
