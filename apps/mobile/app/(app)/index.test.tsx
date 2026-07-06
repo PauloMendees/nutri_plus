@@ -3,6 +3,11 @@ import { render, screen, fireEvent } from '@testing-library/react-native';
 const mockUseMyEvolution = jest.fn();
 jest.mock('../../lib/queries/assessments', () => ({ useMyEvolution: () => mockUseMyEvolution() }));
 
+jest.mock('../../lib/theme', () => ({
+  useTheme: () => ({ mode: 'system', setMode: jest.fn(), scheme: 'dark' }),
+  useThemeColor: () => 'rgb(0, 0, 0)',
+}));
+
 import Home from './index';
 
 const two = {

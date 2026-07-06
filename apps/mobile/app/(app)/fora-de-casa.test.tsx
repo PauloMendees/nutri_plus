@@ -4,6 +4,11 @@ const mockMutate = jest.fn();
 let mockState: any = { mutate: mockMutate, isPending: false, isError: false, data: undefined };
 jest.mock('../../lib/queries/outside-home', () => ({ useOutsideHome: () => mockState }));
 
+jest.mock('../../lib/theme', () => ({
+  useTheme: () => ({ mode: 'system', setMode: jest.fn(), scheme: 'dark' }),
+  useThemeColor: () => 'rgb(0, 0, 0)',
+}));
+
 import ForaDeCasa from './fora-de-casa';
 
 beforeEach(() => {
