@@ -75,9 +75,11 @@ The four main tab screens pass `header={<BrandHeader />}` to their `Screen`:
 - `app/(app)/fora-de-casa.tsx` (Fora de casa).
 - `app/(app)/configuracoes/index.tsx` (Configurações).
 
-For consistency, states that currently render a bare centered `View` (e.g. a
-brief loading spinner) are wrapped in `Screen` with the same `header` so the bar
-does not pop in after load.
+The header goes on the **content** render states (data + empty) and the planos
+single-plan view. The brief loading/error spinner states (bare full-screen
+`View`s) are intentionally left header-free — this keeps the change focused (no
+`View`→`Screen` conversions); on a slow first load the bar appears with the
+content. The brand is present on every state a user actually dwells on.
 
 ## Testing
 
