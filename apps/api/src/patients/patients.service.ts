@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { NutritionistContact } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/types/auth-context';
 import { resolveScopeNutritionistId, resolveScopePatientId } from '../auth/auth-scope';
@@ -173,6 +174,53 @@ export class PatientsService {
       height: ctx.user?.patientProfile?.height ?? null,
       assessments,
     };
+  }
+
+  // The patient's own nutritionist, basic fields only. resolveScopePatientId
+  // enforces the PATIENT scope; the linked id lives on the loaded profile.
+  async getMyNutritionist(ctx: AuthContext): Promise<NutritionistContact | null> {
+    resolveScopePatientId(ctx);
+    const nutritionistId = ctx.user?.patientProfile?.nutritionistId ?? null;
+    if (!nutritionistId) return null;
+
+    const profile = await this.prisma.nutritionistProfile.findUnique({
+      where: { id: nutritionistId },
+      include: { user: { select: { name: true, email: true } } },
+    });
+    if (!profile) return null;
+
+    return {
+      name: profile.user.name,
+      displayName: profile.displayName,
+      email: profile.user.email,
+      crn: profile.crn,
+      logoUrl: profile.logoUrl,
+    };
+  }
+
+  // Permanently deletes the calling patient's account. Children are removed
+  // first (Appointment/BodyAssessment/AIInteraction use onDelete: Restrict;
+  // MealPlan children cascade), then the profile, then the local user — all in
+  // one transaction. Only after it commits do we remove the Supabase auth user,
+  // which frees the email for a future invite. deleteUser is best-effort (logs,
+  // never throws), so a provider hiccup leaves an orphan to clean up rather than
+  // resurrecting the now-deleted local data.
+  async deleteMyAccount(ctx: AuthContext): Promise<void> {
+    const patientId = resolveScopePatientId(ctx);
+    const userId = ctx.user!.id;
+    const authProviderId = ctx.user!.authProviderId;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.outsideHomeRequest.deleteMany({ where: { patientId } });
+      await tx.aIInteraction.deleteMany({ where: { patientId } });
+      await tx.appointment.deleteMany({ where: { patientId } });
+      await tx.bodyAssessment.deleteMany({ where: { patientId } });
+      await tx.mealPlan.deleteMany({ where: { patientId } });
+      await tx.patientProfile.delete({ where: { id: patientId } });
+      await tx.user.delete({ where: { id: userId } });
+    });
+
+    await this.supabaseAdmin.deleteUser(authProviderId);
   }
 
   // The assessment must belong to the (already-owned) patient; otherwise 404.

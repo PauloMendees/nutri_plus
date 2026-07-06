@@ -1,6 +1,57 @@
 'use client';
 import { vars } from 'nativewind';
 
+// nutri-plus semantic tokens — the flat palette consumed by className styling
+// (bg-background, text-primary, etc.). Defined per scheme so the app recolors
+// when the color scheme flips. Values are space-separated RGB triplets.
+export const SEMANTIC_DARK: Record<string, string> = {
+  '--background': '13 20 17',
+  '--foreground': '231 236 233',
+  '--card': '20 29 25',
+  '--border': '36 48 41',
+  '--input': '44 58 51',
+  '--primary': '20 191 166',
+  '--primary-foreground': '4 36 27',
+  '--secondary': '26 37 32',
+  '--secondary-foreground': '167 216 201',
+  '--muted': '22 31 27',
+  '--muted-foreground': '138 154 146',
+  '--accent': '26 37 32',
+  '--accent-foreground': '167 216 201',
+  '--destructive': '229 72 77',
+  '--destructive-foreground': '255 255 255',
+};
+
+export const SEMANTIC_LIGHT: Record<string, string> = {
+  '--background': '246 250 248',
+  '--foreground': '13 20 17',
+  '--card': '255 255 255',
+  '--border': '219 229 224',
+  '--input': '238 243 240',
+  '--primary': '15 158 136',
+  '--primary-foreground': '255 255 255',
+  '--secondary': '230 244 239',
+  '--secondary-foreground': '15 95 78',
+  '--muted': '238 243 240',
+  '--muted-foreground': '92 107 100',
+  '--accent': '230 244 239',
+  '--accent-foreground': '15 95 78',
+  '--destructive': '220 38 38',
+  '--destructive-foreground': '255 255 255',
+};
+
+// Resolves a theme preference to a concrete scheme. Explicit light/dark win;
+// 'system' follows the device (dark when the OS scheme is unknown). Kept here
+// (not in lib/theme) so both the provider and lib/theme import it without a
+// circular dependency.
+export function resolveScheme(
+  mode: 'light' | 'dark' | 'system',
+  device: 'light' | 'dark' | null | undefined,
+): 'light' | 'dark' {
+  if (mode === 'light' || mode === 'dark') return mode;
+  return device === 'light' ? 'light' : 'dark';
+}
+
 export const config = {
   light: vars({
     '--color-primary-0': '179 179 179',
@@ -153,6 +204,7 @@ export const config = {
     '--color-indicator-primary': '55 55 55',
     '--color-indicator-info': '83 153 236',
     '--color-indicator-error': '185 28 28',
+    ...SEMANTIC_LIGHT,
   }),
   dark: vars({
     '--color-primary-0': '166 166 166',
@@ -305,5 +357,6 @@ export const config = {
     '--color-indicator-primary': '247 247 247',
     '--color-indicator-info': '161 199 245',
     '--color-indicator-error': '232 70 69',
+    ...SEMANTIC_DARK,
   }),
 };

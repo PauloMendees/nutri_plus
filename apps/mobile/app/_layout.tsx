@@ -10,10 +10,24 @@ import {
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GluestackUIProvider } from '../components/ui/gluestack-ui-provider';
 import { AuthProvider } from '../lib/auth';
+import { ThemeProvider, useTheme } from '../lib/theme';
 import { queryClient } from '../lib/query';
 import '../global.css';
 
 SplashScreen.preventAutoHideAsync();
+
+function ThemedApp() {
+  const { mode } = useTheme();
+  return (
+    <GluestackUIProvider mode={mode}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+        </AuthProvider>
+      </QueryClientProvider>
+    </GluestackUIProvider>
+  );
+}
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -31,13 +45,9 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <GluestackUIProvider mode="dark">
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <Stack screenOptions={{ headerShown: false }} />
-          </AuthProvider>
-        </QueryClientProvider>
-      </GluestackUIProvider>
+      <ThemeProvider>
+        <ThemedApp />
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

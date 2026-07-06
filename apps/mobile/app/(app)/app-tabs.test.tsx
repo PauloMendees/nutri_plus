@@ -15,6 +15,10 @@ jest.mock('expo-router', () => {
   };
 });
 jest.mock('../../lib/auth', () => ({ useSession: () => mockSessionState }));
+jest.mock('../../lib/theme', () => ({
+  useTheme: () => ({ mode: 'system', setMode: jest.fn(), scheme: 'dark' }),
+  getTabBarColors: () => ({ active: '#000', inactive: '#000', background: '#000', border: '#000' }),
+}));
 jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
 
 import AppLayout from './_layout';

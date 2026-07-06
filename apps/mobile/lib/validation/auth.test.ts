@@ -1,4 +1,4 @@
-import { loginSchema, forgotPasswordSchema, resetPasswordSchema } from './auth';
+import { loginSchema, forgotPasswordSchema, resetPasswordSchema, changePasswordSchema } from './auth';
 
 describe('loginSchema', () => {
   it('rejects an invalid email and an empty password', () => {
@@ -47,5 +47,34 @@ describe('resetPasswordSchema', () => {
   });
   it('accepts a valid reset', () => {
     expect(resetPasswordSchema.safeParse(base).success).toBe(true);
+  });
+});
+
+describe('changePasswordSchema', () => {
+  const base = { currentPassword: 'old12345', password: 'new12345', confirmPassword: 'new12345' };
+
+  it('accepts a valid change', () => {
+    expect(changePasswordSchema.safeParse(base).success).toBe(true);
+  });
+
+  it('requires the current password', () => {
+    const r = changePasswordSchema.safeParse({ ...base, currentPassword: '' });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0].message).toBe('Informe sua senha atual.');
+  });
+
+  it('requires at least 8 chars for the new password', () => {
+    const r = changePasswordSchema.safeParse({ ...base, password: 'short', confirmPassword: 'short' });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0].message).toBe('A senha deve ter ao menos 8 caracteres.');
+  });
+
+  it('rejects a mismatched confirmation', () => {
+    const r = changePasswordSchema.safeParse({ ...base, confirmPassword: 'different' });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues[0].message).toBe('As senhas não coincidem.');
+      expect(r.error.issues[0].path).toEqual(['confirmPassword']);
+    }
   });
 });
