@@ -9,6 +9,12 @@ const VIEW_W = 300;
 const VIEW_H = 120;
 const PAD_X = 8;
 const PAD_Y = 12;
+// Value-label placement: sit LABEL_GAP above the point, but flip to LABEL_DROP
+// below it when the point is within LABEL_TOP_MIN of the top edge (so the text
+// doesn't clip off the top of the chart).
+const LABEL_GAP = 8;
+const LABEL_DROP = 16;
+const LABEL_TOP_MIN = 10;
 
 // pt-BR value label: integers as-is, otherwise one decimal with a comma.
 export function labelOf(y: number): string {
@@ -61,12 +67,13 @@ export function LineChart({
       {points.map((p, i) => {
         // Anchor edge labels inward so they don't clip at the chart's sides;
         // drop the label below the point when it sits near the top edge.
-        const anchor = i === 0 ? 'start' : i === lastIndex ? 'end' : 'middle';
-        const labelY = p.cy - 8 < 10 ? p.cy + 16 : p.cy - 8;
+        const isLast = i === lastIndex;
+        const anchor = i === 0 ? 'start' : isLast ? 'end' : 'middle';
+        const labelY = p.cy - LABEL_GAP < LABEL_TOP_MIN ? p.cy + LABEL_DROP : p.cy - LABEL_GAP;
         return (
           <Fragment key={i}>
             <Circle
-              testID={i === lastIndex ? 'line-chart-dot' : undefined}
+              testID={isLast ? 'line-chart-dot' : undefined}
               cx={p.cx}
               cy={p.cy}
               r={3}

@@ -1,14 +1,8 @@
 import Svg, { Path } from 'react-native-svg';
-
-type LogoTone = 'color' | 'reverse' | 'dark';
+import { LOGO_TONES, type LogoTone } from './logo-tones';
 
 type LogoProps = {
-  /**
-   * `color` — teal + green, for light surfaces (mirrors the web logo).
-   * `reverse` — solid white, for saturated/colored surfaces.
-   * `dark` — teal accents kept, the green parts lifted to the light
-   *   foreground so the mark stays legible on the near-black app background.
-   */
+  /** See `LOGO_TONES` in ./logo-tones for what each tone means. */
   tone?: LogoTone;
   width?: number;
 };
@@ -18,14 +12,8 @@ type LogoProps = {
 const VIEWBOX_WIDTH = 640;
 const VIEWBOX_HEIGHT = 504;
 
-const TONES: Record<LogoTone, { teal: string; green: string }> = {
-  color: { teal: '#14BFA6', green: '#0A5C45' },
-  reverse: { teal: '#FFFFFF', green: '#FFFFFF' },
-  dark: { teal: '#14BFA6', green: '#E7ECE9' },
-};
-
 export function Logo({ tone = 'color', width = 140 }: LogoProps) {
-  const { teal, green } = TONES[tone];
+  const { teal, green } = LOGO_TONES[tone];
   const height = (width * VIEWBOX_HEIGHT) / VIEWBOX_WIDTH;
 
   return (

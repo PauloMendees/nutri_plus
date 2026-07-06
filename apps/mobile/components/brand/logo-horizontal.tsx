@@ -1,13 +1,8 @@
 import Svg, { Path } from 'react-native-svg';
-
-type LogoTone = 'color' | 'reverse' | 'dark';
+import { LOGO_TONES, type LogoTone } from './logo-tones';
 
 type LogoHorizontalProps = {
-  /**
-   * `color` — teal + green, for light surfaces. `reverse` — solid white, for
-   * saturated surfaces. `dark` — teal accents kept, green parts lifted to the
-   * light foreground so the mark stays legible on the near-black app background.
-   */
+  /** See `LOGO_TONES` in ./logo-tones for what each tone means. */
   tone?: LogoTone;
   height?: number;
 };
@@ -16,12 +11,6 @@ type LogoHorizontalProps = {
 // apps/web/public/brand/inutri-logo-horizontal.svg.
 const VIEWBOX_WIDTH = 952;
 const VIEWBOX_HEIGHT = 300;
-
-export const LOGO_TONES: Record<LogoTone, { teal: string; green: string }> = {
-  color: { teal: '#14BFA6', green: '#0A5C45' },
-  reverse: { teal: '#FFFFFF', green: '#FFFFFF' },
-  dark: { teal: '#14BFA6', green: '#E7ECE9' },
-};
 
 export function LogoHorizontal({ tone = 'color', height = 24 }: LogoHorizontalProps) {
   const { teal, green } = LOGO_TONES[tone];
