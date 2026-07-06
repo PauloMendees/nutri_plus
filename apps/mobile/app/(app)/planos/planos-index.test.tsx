@@ -8,6 +8,12 @@ jest.mock('../../../components/meal-plan/meal-plan-view', () => ({
     return <Text>view:{planId}</Text>;
   },
 }));
+jest.mock('../../../components/brand/brand-header', () => ({
+  BrandHeader: () => {
+    const { Text } = require('react-native');
+    return <Text>BrandHeader</Text>;
+  },
+}));
 jest.mock('expo-router', () => ({
   Link: ({ children }: { children: unknown }) => children,
 }));

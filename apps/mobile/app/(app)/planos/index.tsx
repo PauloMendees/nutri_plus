@@ -4,6 +4,7 @@ import type { MealPlanSummary } from '@nutri-plus/shared-types';
 import { Screen } from '../../../components/ui/screen';
 import { Button } from '../../../components/ui/button';
 import { MealPlanView } from '../../../components/meal-plan/meal-plan-view';
+import { BrandHeader } from '../../../components/brand/brand-header';
 import { useMyMealPlans } from '../../../lib/queries/meal-plans';
 
 function formatDate(iso: string | undefined): string {
@@ -35,7 +36,7 @@ export default function PlanosIndex() {
 
   if (plans.length === 0) {
     return (
-      <Screen contentContainerClassName="grow justify-center p-6">
+      <Screen header={<BrandHeader />} contentContainerClassName="grow justify-center p-6">
         <Text className="font-sans text-center text-base text-muted-foreground">
           Nenhum plano disponível ainda.
         </Text>
@@ -44,11 +45,11 @@ export default function PlanosIndex() {
   }
 
   if (plans.length === 1) {
-    return <MealPlanView planId={plans[0].id} />;
+    return <MealPlanView planId={plans[0].id} header={<BrandHeader />} />;
   }
 
   return (
-    <Screen contentContainerClassName="grow p-6">
+    <Screen header={<BrandHeader />} contentContainerClassName="grow p-6">
       <View className="gap-3">
         <Text className="font-heading text-2xl text-foreground">Seus planos</Text>
         {plans.map((p: MealPlanSummary) => (

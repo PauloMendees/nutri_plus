@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { Screen } from '../ui/screen';
 import { Button } from '../ui/button';
@@ -8,7 +8,7 @@ function fmt(v: number | null | undefined): string {
   return v === null || v === undefined ? '—' : String(v);
 }
 
-export function MealPlanView({ planId }: { planId: string }) {
+export function MealPlanView({ planId, header }: { planId: string; header?: ReactNode }) {
   const query = useMyMealPlan(planId);
   const [downloading, setDownloading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -46,7 +46,7 @@ export function MealPlanView({ planId }: { planId: string }) {
   }
 
   return (
-    <Screen contentContainerClassName="grow p-6">
+    <Screen header={header} contentContainerClassName="grow p-6">
       <View className="gap-6">
         <View className="gap-1">
           <Text className="font-heading text-2xl text-foreground">{plan.title ?? 'Plano alimentar'}</Text>
