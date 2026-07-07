@@ -73,3 +73,53 @@ describe('TransactionsService CRUD', () => {
     expect(transaction.delete).not.toHaveBeenCalled();
   });
 });
+
+describe('TransactionsService statement', () => {
+  const CTX2 = { user: { role: 'NUTRITIONIST', nutritionistProfile: { id: 'nut-1' } } } as never;
+
+  it('computes opening balance, per-row running balance (newest-first), and totals', async () => {
+    const { prisma, transaction } = makePrisma();
+    // before `from`: +100 income → opening balance 100
+    transaction.findMany
+      .mockResolvedValueOnce([{ type: 'INCOME', amountCents: 100 }]) // opening query
+      .mockResolvedValueOnce([
+        { id: 'a', type: 'INCOME', amountCents: 500, occurredOn: new Date('2026-07-02'), category: null },
+        { id: 'b', type: 'EXPENSE', amountCents: 200, occurredOn: new Date('2026-07-05'), category: null },
+      ]); // period query (ascending)
+    const service = new TransactionsService(prisma as never);
+
+    const result = await service.getStatement(CTX2, {
+      from: new Date('2026-07-01'),
+      to: new Date('2026-08-01'),
+    });
+
+    expect(result.openingBalanceCents).toBe(100);
+    expect(result.totals).toEqual({ incomeCents: 500, expenseCents: 200, netCents: 300 });
+    // newest-first: b (balance 100+500-200=400), then a (100+500=600)
+    expect(result.items.map((i) => [i.id, i.balanceCents])).toEqual([
+      ['b', 400],
+      ['a', 600],
+    ]);
+  });
+});
+
+describe('TransactionsService monthly summary', () => {
+  const CTX2 = { user: { role: 'NUTRITIONIST', nutritionistProfile: { id: 'nut-1' } } } as never;
+
+  it('buckets income/expense by month and zero-fills the range', async () => {
+    const { prisma, transaction } = makePrisma();
+    transaction.findMany.mockResolvedValue([
+      { type: 'INCOME', amountCents: 300, occurredOn: new Date('2026-07-10') },
+      { type: 'EXPENSE', amountCents: 120, occurredOn: new Date('2026-07-20') },
+    ]);
+    const service = new TransactionsService(prisma as never);
+
+    const result = await service.getMonthlySummary(CTX2, { months: 3 });
+
+    expect(result).toHaveLength(3);
+    const july = result.find((m) => m.month === '2026-07');
+    expect(july).toEqual({ month: '2026-07', incomeCents: 300, expenseCents: 120 });
+    // every bucket present, even zero months
+    expect(result.every((m) => typeof m.incomeCents === 'number')).toBe(true);
+  });
+});

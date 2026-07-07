@@ -92,4 +92,69 @@ export class TransactionsService {
       throw new BadRequestException('Invalid category for this transaction type');
     }
   }
+
+  async getStatement(ctx: AuthContext, params: { from: Date; to: Date }) {
+    const nutritionistId = resolveScopeNutritionistId(ctx);
+
+    const before = await this.prisma.transaction.findMany({
+      where: { nutritionistId, occurredOn: { lt: params.from } },
+      select: { type: true, amountCents: true },
+    });
+    const openingBalanceCents = before.reduce((sum, t) => sum + signed(t), 0);
+
+    const periodAsc = await this.prisma.transaction.findMany({
+      where: { nutritionistId, occurredOn: { gte: params.from, lt: params.to } },
+      orderBy: [{ occurredOn: 'asc' }, { createdAt: 'asc' }],
+      include: TRANSACTION_INCLUDE,
+    });
+
+    let running = openingBalanceCents;
+    let incomeCents = 0;
+    let expenseCents = 0;
+    const withBalanceAsc = periodAsc.map((t) => {
+      running += signed(t);
+      if (t.type === 'INCOME') incomeCents += t.amountCents;
+      else expenseCents += t.amountCents;
+      return { ...t, balanceCents: running };
+    });
+
+    return {
+      openingBalanceCents,
+      totals: { incomeCents, expenseCents, netCents: incomeCents - expenseCents },
+      items: withBalanceAsc.reverse(), // newest-first for display
+    };
+  }
+
+  async getMonthlySummary(ctx: AuthContext, params: { months?: number }) {
+    const nutritionistId = resolveScopeNutritionistId(ctx);
+    const months = params.months ?? 12;
+    const now = new Date();
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
+
+    const rows = await this.prisma.transaction.findMany({
+      where: { nutritionistId, occurredOn: { gte: start } },
+      select: { type: true, amountCents: true, occurredOn: true },
+    });
+
+    const buckets = new Map<string, { incomeCents: number; expenseCents: number }>();
+    for (let i = 0; i < months; i++) {
+      const d = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + i, 1));
+      buckets.set(monthKey(d), { incomeCents: 0, expenseCents: 0 });
+    }
+    for (const r of rows) {
+      const bucket = buckets.get(monthKey(r.occurredOn));
+      if (!bucket) continue;
+      if (r.type === 'INCOME') bucket.incomeCents += r.amountCents;
+      else bucket.expenseCents += r.amountCents;
+    }
+    return [...buckets.entries()].map(([month, v]) => ({ month, ...v }));
+  }
+}
+
+function signed(t: { type: TransactionType; amountCents: number }): number {
+  return t.type === 'INCOME' ? t.amountCents : -t.amountCents;
+}
+
+function monthKey(date: Date): string {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 }

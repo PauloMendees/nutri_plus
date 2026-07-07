@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '../generated/prisma/client';
@@ -18,6 +19,8 @@ import { AuthContext } from '../auth/types/auth-context';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
+import { StatementQueryDto } from './dto/statement-query.dto';
+import { MonthlySummaryQueryDto } from './dto/monthly-summary-query.dto';
 
 @ApiTags('transactions')
 @ApiBearerAuth()
@@ -29,6 +32,16 @@ export class TransactionsController {
   @Post()
   create(@CurrentUser() ctx: AuthContext, @Body() dto: CreateTransactionDto) {
     return this.transactions.create(ctx, dto);
+  }
+
+  @Get('statement')
+  statement(@CurrentUser() ctx: AuthContext, @Query() query: StatementQueryDto) {
+    return this.transactions.getStatement(ctx, query);
+  }
+
+  @Get('monthly-summary')
+  monthlySummary(@CurrentUser() ctx: AuthContext, @Query() query: MonthlySummaryQueryDto) {
+    return this.transactions.getMonthlySummary(ctx, query);
   }
 
   @Get(':id')
