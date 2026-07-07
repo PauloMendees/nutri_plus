@@ -72,6 +72,30 @@ describe('TransactionsService CRUD', () => {
     await expect(service.remove(CTX, 't1')).rejects.toBeInstanceOf(NotFoundException);
     expect(transaction.delete).not.toHaveBeenCalled();
   });
+
+  it('rejects a bare type flip that would strand a now-mismatched category', async () => {
+    const { prisma, transaction, transactionCategory } = makePrisma();
+    transaction.findFirst.mockResolvedValue({ id: 't1', type: 'INCOME', categoryId: 'cat-1' });
+    transactionCategory.findFirst.mockResolvedValue({ type: 'INCOME' });
+    const service = new TransactionsService(prisma as never);
+
+    await expect(service.update(CTX, 't1', { type: 'EXPENSE' } as never)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(transaction.update).not.toHaveBeenCalled();
+  });
+
+  it('allows a type flip when categoryId is explicitly cleared', async () => {
+    const { prisma, transaction, transactionCategory } = makePrisma();
+    transaction.findFirst.mockResolvedValue({ id: 't1', type: 'INCOME', categoryId: 'cat-1' });
+    transaction.update.mockResolvedValue({ id: 't1' });
+    const service = new TransactionsService(prisma as never);
+
+    await service.update(CTX, 't1', { type: 'EXPENSE', categoryId: null } as never);
+
+    expect(transactionCategory.findFirst).not.toHaveBeenCalled();
+    expect(transaction.update).toHaveBeenCalled();
+  });
 });
 
 describe('TransactionsService statement', () => {
@@ -108,18 +132,26 @@ describe('TransactionsService monthly summary', () => {
 
   it('buckets income/expense by month and zero-fills the range', async () => {
     const { prisma, transaction } = makePrisma();
+    const now = new Date();
     transaction.findMany.mockResolvedValue([
-      { type: 'INCOME', amountCents: 300, occurredOn: new Date('2026-07-10') },
-      { type: 'EXPENSE', amountCents: 120, occurredOn: new Date('2026-07-20') },
+      { type: 'INCOME', amountCents: 300, occurredOn: now },
+      { type: 'EXPENSE', amountCents: 120, occurredOn: now },
     ]);
     const service = new TransactionsService(prisma as never);
 
     const result = await service.getMonthlySummary(CTX2, { months: 3 });
 
     expect(result).toHaveLength(3);
-    const july = result.find((m) => m.month === '2026-07');
-    expect(july).toEqual({ month: '2026-07', incomeCents: 300, expenseCents: 120 });
-    // every bucket present, even zero months
-    expect(result.every((m) => typeof m.incomeCents === 'number')).toBe(true);
+    // the current month is always the last bucket in the range
+    const currentMonth = result[result.length - 1];
+    expect(currentMonth).toEqual({
+      month: currentMonth.month,
+      incomeCents: 300,
+      expenseCents: 120,
+    });
+    // every bucket present, even zero months, with numeric totals
+    expect(
+      result.every((m) => typeof m.incomeCents === 'number' && typeof m.expenseCents === 'number'),
+    ).toBe(true);
   });
 });

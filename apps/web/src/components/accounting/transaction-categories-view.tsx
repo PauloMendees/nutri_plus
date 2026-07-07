@@ -26,7 +26,14 @@ export function TransactionCategoriesView() {
         <Skeleton className="h-40 w-full" />
       ) : query.isError ? (
         <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
-          Erro ao carregar as categorias.
+          Erro ao carregar as categorias.{' '}
+          <button
+            type="button"
+            className="font-semibold text-primary underline"
+            onClick={() => query.refetch()}
+          >
+            Tentar novamente
+          </button>
         </div>
       ) : (query.data ?? []).length === 0 ? (
         <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
@@ -45,8 +52,8 @@ export function TransactionCategoriesView() {
               <span
                 className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
                   category.type === 'INCOME'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-red-100 text-red-700'
+                    ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300'
+                    : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
                 }`}
               >
                 {category.type === 'INCOME' ? 'Receita' : 'Despesa'}

@@ -53,6 +53,9 @@ export class TransactionsService {
     const nextType = dto.type ?? existing.type;
     if (dto.categoryId) {
       await this.assertCategoryMatches(nutritionistId, dto.categoryId, nextType);
+    } else if (dto.categoryId === undefined && dto.type && dto.type !== existing.type && existing.categoryId) {
+      // A bare type flip must not strand a now-mismatched category.
+      await this.assertCategoryMatches(nutritionistId, existing.categoryId, nextType);
     }
     return this.prisma.transaction.update({
       where: { id },
