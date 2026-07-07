@@ -37,6 +37,11 @@ enum ActivityLevel {
   VERY_ACTIVE
 }
 
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
 model User {
   id             String   @id @default(uuid())
   authProvider   String
@@ -70,6 +75,8 @@ model NutritionistProfile {
   employees             EmployeeProfile[]
   appointments          Appointment[]
   appointmentCategories AppointmentCategory[]
+  transactions          Transaction[]
+  transactionCategories TransactionCategory[]
 }
 
 model EmployeeProfile {
@@ -285,4 +292,34 @@ model OutsideHomeRequest {
   createdAt    DateTime @default(now())
 
   @@index([patientId, createdAt])
+}
+
+model TransactionCategory {
+  id             String              @id @default(uuid())
+  nutritionistId String
+  nutritionist   NutritionistProfile @relation(fields: [nutritionistId], references: [id])
+  name           String
+  type           TransactionType
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  transactions Transaction[]
+
+  @@index([nutritionistId, type])
+}
+
+model Transaction {
+  id             String               @id @default(uuid())
+  nutritionistId String
+  nutritionist   NutritionistProfile  @relation(fields: [nutritionistId], references: [id])
+  type           TransactionType
+  categoryId     String?
+  category       TransactionCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  amountCents    Int
+  occurredOn     DateTime
+  description    String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([nutritionistId, occurredOn])
 }
