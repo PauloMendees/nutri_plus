@@ -2,6 +2,7 @@
 
 import type { AccountingStatement, StatementItem } from '@nutri-plus/shared-types';
 import { formatBRL } from '@/lib/format/currency';
+import { AMOUNT_TEXT_CLASS } from '@/lib/format/transaction-style';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
@@ -56,7 +57,7 @@ export function StatementTable({
                 </td>
                 <td
                   className={`p-3 text-right tabular-nums font-medium ${
-                    income ? 'text-green-600' : 'text-red-600'
+                    AMOUNT_TEXT_CLASS[item.type]
                   }`}
                 >
                   {`${income ? '+' : '-'}${formatBRL(item.amountCents)}`}

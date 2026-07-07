@@ -99,17 +99,19 @@ export class TransactionsService {
   async getStatement(ctx: AuthContext, params: { from: Date; to: Date }) {
     const nutritionistId = resolveScopeNutritionistId(ctx);
 
-    const before = await this.prisma.transaction.findMany({
-      where: { nutritionistId, occurredOn: { lt: params.from } },
-      select: { type: true, amountCents: true },
-    });
+    // The opening-balance and period queries are independent — run concurrently.
+    const [before, periodAsc] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where: { nutritionistId, occurredOn: { lt: params.from } },
+        select: { type: true, amountCents: true },
+      }),
+      this.prisma.transaction.findMany({
+        where: { nutritionistId, occurredOn: { gte: params.from, lt: params.to } },
+        orderBy: [{ occurredOn: 'asc' }, { createdAt: 'asc' }],
+        include: TRANSACTION_INCLUDE,
+      }),
+    ]);
     const openingBalanceCents = before.reduce((sum, t) => sum + signed(t), 0);
-
-    const periodAsc = await this.prisma.transaction.findMany({
-      where: { nutritionistId, occurredOn: { gte: params.from, lt: params.to } },
-      orderBy: [{ occurredOn: 'asc' }, { createdAt: 'asc' }],
-      include: TRANSACTION_INCLUDE,
-    });
 
     let running = openingBalanceCents;
     let incomeCents = 0;

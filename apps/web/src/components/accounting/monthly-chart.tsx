@@ -13,6 +13,7 @@ import {
 import type { MonthlyAccountingSummary } from '@nutri-plus/shared-types';
 import { useMonthlySummary } from '@/lib/queries/transactions';
 import { formatBRL } from '@/lib/format/currency';
+import { AMOUNT_HEX } from '@/lib/format/transaction-style';
 import { Card } from '@/components/ui/card';
 
 const MONTH_ABBR = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -53,8 +54,8 @@ export function MonthlyChart() {
             labelClassName="text-foreground"
           />
           <Legend />
-          <Bar name="Entradas" dataKey="income" fill="#16a34a" radius={[4, 4, 0, 0]} />
-          <Bar name="Saídas" dataKey="expense" fill="#dc2626" radius={[4, 4, 0, 0]} />
+          <Bar name="Entradas" dataKey="income" fill={AMOUNT_HEX.income} radius={[4, 4, 0, 0]} />
+          <Bar name="Saídas" dataKey="expense" fill={AMOUNT_HEX.expense} radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </Card>
