@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { TransactionCategory } from '@nutri-plus/shared-types';
 import { useTransactionCategories } from '@/lib/queries/transaction-categories';
+import { TYPE_BADGE_CLASS } from '@/lib/format/transaction-style';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TransactionCategoryDialog } from '@/components/accounting/transaction-category-dialog';
@@ -51,9 +52,7 @@ export function TransactionCategoriesView() {
               <span className="text-sm font-semibold">{category.name}</span>
               <span
                 className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                  category.type === 'INCOME'
-                    ? 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300'
-                    : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
+                  TYPE_BADGE_CLASS[category.type]
                 }`}
               >
                 {category.type === 'INCOME' ? 'Receita' : 'Despesa'}
