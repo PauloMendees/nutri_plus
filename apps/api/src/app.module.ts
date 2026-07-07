@@ -8,6 +8,8 @@ import { PatientsModule } from './patients/patients.module';
 import { EmployeesModule } from './employees/employees.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { AppointmentCategoriesModule } from './appointment-categories/appointment-categories.module';
+import { TransactionCategoriesModule } from './transaction-categories/transaction-categories.module';
+import { TransactionsModule } from './transactions/transactions.module';
 import { MealPlansModule } from './meal-plans/meal-plans.module';
 import { AiModule } from './ai/ai.module';
 import { MealGenerationModule } from './meal-generation/meal-generation.module';
@@ -26,6 +28,8 @@ import { RolesGuard } from './auth/guards/roles.guard';
     EmployeesModule,
     AppointmentsModule,
     AppointmentCategoriesModule,
+    TransactionCategoriesModule,
+    TransactionsModule,
     MealPlansModule,
     AiModule,
     MealGenerationModule,

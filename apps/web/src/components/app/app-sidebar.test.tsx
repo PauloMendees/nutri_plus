@@ -73,7 +73,26 @@ describe('AppSidebar', () => {
 
   it('renders the Agenda sub-items', () => {
     renderSidebar();
-    expect(screen.getByRole('link', { name: 'Categorias' })).toBeInTheDocument();
+    const categoriasLinks = screen.getAllByRole('link', { name: 'Categorias' });
+    expect(categoriasLinks.some((el) => el.getAttribute('href') === '/agenda/categorias')).toBe(
+      true,
+    );
+  });
+
+  it('renders the Contabilidade item and its sub-items', () => {
+    renderSidebar();
+    expect(screen.getByRole('link', { name: /contabilidade/i })).toHaveAttribute(
+      'href',
+      '/contabilidade',
+    );
+    expect(screen.getByRole('link', { name: 'Extrato' })).toHaveAttribute(
+      'href',
+      '/contabilidade',
+    );
+    const categoriasLinks = screen.getAllByRole('link', { name: 'Categorias' });
+    expect(
+      categoriasLinks.some((el) => el.getAttribute('href') === '/contabilidade/categorias'),
+    ).toBe(true);
   });
 
   it('closes the mobile sheet when a nav item is tapped', async () => {
