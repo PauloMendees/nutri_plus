@@ -1,4 +1,4 @@
-import { Users, Briefcase, Calendar, Settings, type LucideIcon } from 'lucide-react';
+import { Users, Briefcase, Calendar, Settings, Landmark, type LucideIcon } from 'lucide-react';
 import { UserRole } from '@nutri-plus/shared-types';
 import { canManageEmployees, canManageSettings } from '@/lib/auth/access';
 
@@ -25,6 +25,15 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { label: 'Agenda', href: '/agenda' },
       { label: 'Categorias', href: '/agenda/categorias' },
+    ],
+  },
+  {
+    label: 'Contabilidade',
+    href: '/contabilidade',
+    icon: Landmark,
+    children: [
+      { label: 'Extrato', href: '/contabilidade' },
+      { label: 'Categorias', href: '/contabilidade/categorias' },
     ],
   },
   { label: 'Configurações', href: '/configuracoes', icon: Settings, canAccess: canManageSettings },
