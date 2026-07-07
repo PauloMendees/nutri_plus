@@ -10,3 +10,4 @@ export * from './meal-plan';
 export * from './nutritionist-settings';
 export * from './outside-home';
 export * from './nutritionist-contact';
+export * from './accounting';
