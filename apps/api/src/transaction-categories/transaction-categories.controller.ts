@@ -12,13 +12,14 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { TransactionType, UserRole } from '../generated/prisma/client';
+import { UserRole } from '../generated/prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AuthContext } from '../auth/types/auth-context';
 import { TransactionCategoriesService } from './transaction-categories.service';
 import { CreateTransactionCategoryDto } from './dto/create-transaction-category.dto';
 import { UpdateTransactionCategoryDto } from './dto/update-transaction-category.dto';
+import { ListTransactionCategoriesQueryDto } from './dto/list-transaction-categories-query.dto';
 
 @ApiTags('transaction-categories')
 @ApiBearerAuth()
@@ -33,8 +34,8 @@ export class TransactionCategoriesController {
   }
 
   @Get()
-  list(@CurrentUser() ctx: AuthContext, @Query('type') type?: TransactionType) {
-    return this.categories.list(ctx, type);
+  list(@CurrentUser() ctx: AuthContext, @Query() query: ListTransactionCategoriesQueryDto) {
+    return this.categories.list(ctx, query.type);
   }
 
   @Get(':id')
