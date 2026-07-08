@@ -1,15 +1,45 @@
 generator client {
-  provider = "prisma-client-js"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  runtime      = "nodejs"
+  moduleFormat = "cjs"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum UserRole {
   NUTRITIONIST
   PATIENT
+  EMPLOYEE
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum PatientObjective {
+  WEIGHT_LOSS
+  MUSCLE_GAIN
+  MAINTENANCE
+  RECOMPOSITION
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
 }
 
 model User {
@@ -24,6 +54,7 @@ model User {
 
   nutritionistProfile NutritionistProfile?
   patientProfile      PatientProfile?
+  employeeProfile     EmployeeProfile?
 
   @@unique([authProvider, authProviderId])
 }
@@ -34,10 +65,30 @@ model NutritionistProfile {
   user         User     @relation(fields: [userId], references: [id])
   crn          String?
   referralCode String   @unique
+  displayName            String?
+  logoUrl                String?
+  mealPlanAiInstructions String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  patients     PatientProfile[]
+  patients              PatientProfile[]
+  employees             EmployeeProfile[]
+  appointments          Appointment[]
+  appointmentCategories AppointmentCategory[]
+  transactions          Transaction[]
+  transactionCategories TransactionCategory[]
+}
+
+model EmployeeProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  nutritionistId String
+  nutritionist   NutritionistProfile @relation(fields: [nutritionistId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([nutritionistId])
 }
 
 model PatientProfile {
@@ -46,8 +97,229 @@ model PatientProfile {
   user           User     @relation(fields: [userId], references: [id])
   nutritionistId String?
   nutritionist   NutritionistProfile? @relation(fields: [nutritionistId], references: [id])
+
+  birthDate         DateTime?
+  gender            Gender?
+  height            Float?  // centimeters
+  targetWeight      Float?  // kilograms
+  objective         PatientObjective?
+  activityLevel     ActivityLevel?
+  restrictions      String?
+  allergies         String?
+  medicalConditions String?
+  notes             String?
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  assessments    BodyAssessment[]
+  mealPlans      MealPlan[]
+  aiInteractions AIInteraction[]
+  appointments   Appointment[]
+  outsideHomeRequests OutsideHomeRequest[]
+
   @@index([nutritionistId])
+}
+
+model Appointment {
+  id             String   @id @default(uuid())
+  nutritionistId String
+  nutritionist   NutritionistProfile @relation(fields: [nutritionistId], references: [id])
+  patientId      String?
+  patient        PatientProfile? @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  categoryId     String?
+  category       AppointmentCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  title          String
+  description    String?
+  startsAt       DateTime
+  endsAt         DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([nutritionistId, startsAt])
+}
+
+model AppointmentCategory {
+  id             String   @id @default(uuid())
+  nutritionistId String
+  nutritionist   NutritionistProfile @relation(fields: [nutritionistId], references: [id])
+  name           String
+  color          String?
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  appointments   Appointment[]
+
+  @@index([nutritionistId])
+}
+
+// Immutable historical record (see docs/3.1-patient-domain-mode.md): no @updatedAt,
+// and the patient FK uses Prisma's default ON DELETE RESTRICT intentionally —
+// patient deletion is out of MVP scope, so assessments must not be orphaned/cascaded.
+model BodyAssessment {
+  id             String   @id @default(uuid())
+  patientId      String
+  patient        PatientProfile @relation(fields: [patientId], references: [id])
+  assessmentDate DateTime @default(now())
+
+  weight              Float?
+  bodyFatPercentage   Float?
+  muscleMass          Float?
+  leanMass            Float?
+  visceralFat         Float?
+  basalMetabolicRate  Float?
+  bodyWaterPercentage Float?
+  boneMass            Float?
+  metabolicAge        Int?
+
+  waistCircumference  Float?
+  hipCircumference    Float?
+  chestCircumference  Float?
+  armCircumference    Float?
+  thighCircumference  Float?
+
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  @@index([patientId, assessmentDate])
+}
+
+// A meal plan is a mutable, owned aggregate (plan -> meals -> items). Unlike
+// BodyAssessment (immutable history, RESTRICT), child rows use onDelete: Cascade:
+// deleting a plan, or replacing its tree on PATCH, removes its meals and items in
+// one DB operation. title/name/foodName/quantity are nullable to support drafts
+// (autosave / finish-later); only patientId is required.
+model MealPlan {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     PatientProfile @relation(fields: [patientId], references: [id])
+  title       String?
+  objective   String?
+  aiGenerated Boolean  @default(false) // server-controlled; true for AI-generated plans
+  visibleToPatient Boolean @default(false) // nutritionist opt-in; patient app only shows visible plans
+  // Server-computed daily nutrition targets (null for manually created plans).
+  targetCalories Float? // kcal/day
+  targetProtein  Float? // g/day
+  targetCarbs    Float? // g/day
+  targetFats     Float? // g/day
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  meals       Meal[]
+
+  // Composite to serve `where patientId order by createdAt desc` (the list query)
+  // with a single ordered index scan — mirrors BodyAssessment's @@index.
+  @@index([patientId, createdAt])
+}
+
+model Meal {
+  id           String   @id @default(uuid())
+  mealPlanId   String
+  mealPlan     MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  name         String?
+  timeLabel    String?
+  instructions String?
+  order        Int      // sequence within the plan; server-assigned from array index
+  createdAt    DateTime @default(now())
+  options      MealOption[]
+
+  @@index([mealPlanId])
+}
+
+model MealOption {
+  id        String     @id @default(uuid())
+  mealId    String
+  meal      Meal       @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  label     String?
+  order     Int        // sequence within the meal; server-assigned from array index
+  createdAt DateTime   @default(now())
+  items     MealItem[]
+
+  @@index([mealId])
+}
+
+model MealItem {
+  id           String     @id @default(uuid())
+  mealOptionId String
+  mealOption   MealOption @relation(fields: [mealOptionId], references: [id], onDelete: Cascade)
+  foodName     String?
+  quantity     String?
+  calories     Float?
+  protein      Float?
+  carbs        Float?
+  fats         Float?
+  order        Int        // sequence within the option; server-assigned from array index
+
+  @@index([mealOptionId])
+}
+
+enum AIInteractionType {
+  MEAL_PLAN_GENERATION
+  OUTSIDE_HOME_SUGGESTION
+}
+
+// Audit trail for every AI call, successful or failed. The patient FK is explicitly
+// ON DELETE RESTRICT (nullable FKs default to SetNull in Prisma — not what we
+// want): audit rows must never cascade away or lose their patient linkage. patientId is nullable because future
+// interaction types may not be patient-scoped.
+model AIInteraction {
+  id        String   @id @default(uuid())
+  patientId String?
+  patient   PatientProfile? @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  type      AIInteractionType
+  model     String           // literal model used (e.g. "gpt-4o-mini")
+  input     Json             // prompt/context sent
+  response  Json?            // null when the call failed
+  promptTokens     Int?
+  completionTokens Int?
+  latencyMs        Int?
+  estimatedCostUsd Float?
+  success      Boolean
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  @@index([patientId, createdAt])
+  @@index([type, createdAt])
+}
+
+// A patient's "fora de casa" (outside-home) request: they describe where they
+// are and the AI suggests what to eat, aligned to their plan/goal/restrictions.
+model OutsideHomeRequest {
+  id           String   @id @default(uuid())
+  patientId    String
+  patient      PatientProfile @relation(fields: [patientId], references: [id])
+  message      String
+  aiSuggestion String
+  createdAt    DateTime @default(now())
+
+  @@index([patientId, createdAt])
+}
+
+model TransactionCategory {
+  id             String              @id @default(uuid())
+  nutritionistId String
+  nutritionist   NutritionistProfile @relation(fields: [nutritionistId], references: [id])
+  name           String
+  type           TransactionType
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  transactions Transaction[]
+
+  @@index([nutritionistId, type])
+}
+
+model Transaction {
+  id             String               @id @default(uuid())
+  nutritionistId String
+  nutritionist   NutritionistProfile  @relation(fields: [nutritionistId], references: [id])
+  type           TransactionType
+  categoryId     String?
+  category       TransactionCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  amountCents    Int
+  occurredOn     DateTime
+  description    String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([nutritionistId, occurredOn])
 }

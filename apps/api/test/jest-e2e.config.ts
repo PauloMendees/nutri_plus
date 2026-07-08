@@ -10,6 +10,10 @@ const config: Config = {
   transform: {
     '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/../tsconfig.json' }],
   },
+  // jose@6 is pure ESM; map it to a CJS shim so jwks-rsa can be required in Jest's
+  // CommonJS transform context. The shim implements importJWK/exportSPKI/decodeJwt/
+  // decodeProtectedHeader via Node's built-in Web Crypto API.
+  moduleNameMapper: { '^jose$': '<rootDir>/../__mocks__/jose.js' },
 };
 
 export default config;

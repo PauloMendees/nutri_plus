@@ -1,7 +1,8 @@
-import { BadRequestException } from '@nestjs/common';
-import { Prisma, UserRole } from '@prisma/client';
+import { BadRequestException, ConflictException } from '@nestjs/common';
+import { Prisma, UserRole } from '../generated/prisma/client';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../prisma/prisma.service';
+import { SUPABASE_PROVIDER } from '../auth/auth.constants';
 import { UsersService } from './users.service';
 
 describe('UsersService', () => {
@@ -129,7 +130,7 @@ describe('UsersService', () => {
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: 'user-4' },
       data: { email: 'new@x.com', name: 'New' },
-      include: { nutritionistProfile: true, patientProfile: true },
+      include: { nutritionistProfile: true, patientProfile: true, employeeProfile: true },
     });
   });
 
@@ -145,8 +146,110 @@ describe('UsersService', () => {
           authProviderId: 'sub-8',
         },
       },
-      include: { nutritionistProfile: true, patientProfile: true },
+      include: { nutritionistProfile: true, patientProfile: true, employeeProfile: true },
     });
     expect(result).toEqual({ id: 'user-8' });
+  });
+
+  it('creates an invited patient linked to the nutritionist with clinical fields', async () => {
+    prisma.user.create.mockResolvedValue({
+      id: 'u1',
+      patientProfile: { id: 'pp1' },
+    } as any);
+
+    await service.createInvitedPatient({
+      authProviderId: 'sub-1',
+      email: 'p@x.com',
+      name: 'Pat',
+      nutritionistId: 'nutri-1',
+      clinical: { height: 165 } as any,
+    });
+
+    const arg = prisma.user.create.mock.calls[0][0] as any;
+    expect(arg.data.role).toBe(UserRole.PATIENT);
+    expect(arg.data.authProvider).toBe('SUPABASE');
+    expect(arg.data.authProviderId).toBe('sub-1');
+    expect(arg.data.email).toBe('p@x.com');
+    expect(arg.data.patientProfile.create).toEqual({
+      nutritionistId: 'nutri-1',
+      height: 165,
+    });
+  });
+
+  it('maps a duplicate email to ConflictException', async () => {
+    const dup = new Prisma.PrismaClientKnownRequestError('Unique constraint', {
+      code: 'P2002',
+      clientVersion: 'test',
+      meta: { target: ['email'] },
+    });
+    prisma.user.create.mockRejectedValue(dup);
+
+    await expect(
+      service.createInvitedPatient({
+        authProviderId: 'sub-2',
+        email: 'dup@x.com',
+        name: 'Dup',
+        nutritionistId: 'nutri-1',
+        clinical: {} as any,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('creates an EMPLOYEE user with a nested employeeProfile', async () => {
+    prisma.user.create.mockResolvedValue({ id: 'u-e' } as any);
+
+    const result = await service.createInvitedEmployee({
+      authProviderId: 'sub-e',
+      email: 'e@x.com',
+      name: 'Emp',
+      nutritionistId: 'nutri-1',
+    });
+
+    expect(prisma.user.create).toHaveBeenCalledWith({
+      data: {
+        authProvider: SUPABASE_PROVIDER,
+        authProviderId: 'sub-e',
+        email: 'e@x.com',
+        name: 'Emp',
+        role: UserRole.EMPLOYEE,
+        employeeProfile: { create: { nutritionistId: 'nutri-1' } },
+      },
+      include: {
+        nutritionistProfile: true,
+        patientProfile: true,
+        employeeProfile: true,
+      },
+    });
+    expect(result).toEqual({ id: 'u-e' });
+  });
+
+  it('rejects EMPLOYEE self-signup with BadRequestException and does not create a DB row', async () => {
+    await expect(
+      service.createWithProfile({
+        authProviderId: 'sub-emp',
+        email: 'emp@x.com',
+        name: 'Emp',
+        role: UserRole.EMPLOYEE,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('maps a unique-constraint violation to ConflictException for employee', async () => {
+    const p2002 = new Prisma.PrismaClientKnownRequestError('dup', {
+      code: 'P2002',
+      clientVersion: 'test',
+      meta: { target: ['email'] },
+    });
+    prisma.user.create.mockRejectedValue(p2002);
+
+    await expect(
+      service.createInvitedEmployee({
+        authProviderId: 'sub-e',
+        email: 'e@x.com',
+        name: 'Emp',
+        nutritionistId: 'nutri-1',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 });

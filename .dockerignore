@@ -1,0 +1,27 @@
+# Reinstalled / rebuilt inside the image — never copy the host copies.
+node_modules
+**/node_modules
+dist
+**/dist
+apps/api/src/generated
+
+# Framework / tool caches
+**/.next
+**/.expo
+**/.turbo
+.turbo
+
+# VCS & local cruft
+.git
+.gitignore
+**/*.log
+**/.DS_Store
+**/coverage
+
+# Secrets — must never be baked into the image (env is set in Render's dashboard)
+**/.env
+**/.env.*
+
+# Not needed to build or run the API
+**/*.spec.ts
+.superpowers

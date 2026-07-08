@@ -4,8 +4,14 @@ export const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().min(1),
-  SUPABASE_JWT_SECRET: z.string().min(1),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  // Must be an absolute http(s) origin — `z.string().url()` alone accepts
+  // schemeless values like 'localhost:3001' (parsed as scheme 'localhost:'),
+  // which would yield a broken invite redirectTo.
+  WEB_ORIGIN: z.string().url().regex(/^https?:\/\//, 'must be an http(s) URL'),
   OPENAI_API_KEY: z.string().min(1),
+  OPENAI_MODEL_SMART: z.string().min(1).default('gpt-4o'),
+  OPENAI_MODEL_FAST: z.string().min(1).default('gpt-4o-mini'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
 });
 

@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { passportJwtSecret } from 'jwks-rsa';
 import { UsersService } from '../../users/users.service';
 import { AuthContext } from '../types/auth-context';
 import { SupabaseJwtPayload } from '../types/supabase-jwt-payload';
@@ -12,11 +13,20 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
     config: ConfigService,
     private readonly users: UsersService,
   ) {
+    const supabaseUrl = config.getOrThrow<string>('SUPABASE_URL');
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: config.getOrThrow<string>('SUPABASE_JWT_SECRET'),
-      algorithms: ['HS256'],
+      algorithms: ['ES256'],
+      issuer: `${supabaseUrl}/auth/v1`,
+      audience: 'authenticated',
+      // Supabase signs access tokens with an asymmetric ES256 key; fetch the
+      // public key by `kid` from the project's JWKS endpoint.
+      secretOrKeyProvider: passportJwtSecret({
+        jwksUri: `${supabaseUrl}/auth/v1/.well-known/jwks.json`,
+        cache: true,
+        rateLimit: true,
+      }),
     });
   }
 

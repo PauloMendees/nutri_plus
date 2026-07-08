@@ -1,0 +1,87 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  StreamableFile,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { UserRole } from '../generated/prisma/client';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { AuthContext } from '../auth/types/auth-context';
+import { MealPlansService } from './meal-plans.service';
+import { MealPlanPdfService } from './meal-plan-pdf.service';
+import { CreateMealPlanDto } from './dto/create-meal-plan.dto';
+import { UpdateMealPlanDto } from './dto/update-meal-plan.dto';
+import { SetVisibilityDto } from './dto/set-visibility.dto';
+
+@ApiTags('meal-plans')
+@ApiBearerAuth()
+@Controller({ path: 'meal-plans', version: '1' })
+@Roles(UserRole.NUTRITIONIST)
+export class MealPlansController {
+  constructor(
+    private readonly mealPlans: MealPlansService,
+    private readonly mealPlanPdf: MealPlanPdfService,
+  ) {}
+
+  @Post()
+  create(@CurrentUser() ctx: AuthContext, @Body() dto: CreateMealPlanDto) {
+    return this.mealPlans.createPlan(ctx, dto);
+  }
+
+  @Get()
+  @Roles(UserRole.NUTRITIONIST, UserRole.EMPLOYEE)
+  list(
+    @CurrentUser() ctx: AuthContext,
+    @Query('patientId', ParseUUIDPipe) patientId: string,
+  ) {
+    return this.mealPlans.listPlans(ctx, patientId);
+  }
+
+  @Get(':id')
+  @Roles(UserRole.NUTRITIONIST, UserRole.EMPLOYEE)
+  findOne(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
+    return this.mealPlans.getPlan(ctx, id);
+  }
+
+  @Get(':id/pdf')
+  @Roles(UserRole.NUTRITIONIST, UserRole.EMPLOYEE)
+  async pdf(@CurrentUser() ctx: AuthContext, @Param('id') id: string): Promise<StreamableFile> {
+    const buffer = await this.mealPlanPdf.generate(ctx, id);
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: 'attachment; filename="plano-alimentar.pdf"',
+    });
+  }
+
+  @Patch(':id')
+  update(
+    @CurrentUser() ctx: AuthContext,
+    @Param('id') id: string,
+    @Body() dto: UpdateMealPlanDto,
+  ) {
+    return this.mealPlans.updatePlan(ctx, id, dto);
+  }
+
+  @Patch(':id/visibility')
+  @Roles(UserRole.NUTRITIONIST, UserRole.EMPLOYEE)
+  setVisibility(
+    @CurrentUser() ctx: AuthContext,
+    @Param('id') id: string,
+    @Body() dto: SetVisibilityDto,
+  ) {
+    return this.mealPlans.setVisibility(ctx, id, dto.visibleToPatient);
+  }
+
+  @Delete(':id')
+  remove(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
+    return this.mealPlans.deletePlan(ctx, id);
+  }
+}

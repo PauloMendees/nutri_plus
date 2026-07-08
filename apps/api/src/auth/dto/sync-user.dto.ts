@@ -1,5 +1,5 @@
 import { IsEnum, IsOptional, Matches } from 'class-validator';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../../generated/prisma/client';
 
 export class SyncUserDto {
   @IsEnum(UserRole)

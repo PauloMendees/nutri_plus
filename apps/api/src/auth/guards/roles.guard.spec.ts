@@ -1,6 +1,6 @@
 import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { UserRole } from '@prisma/client';
+import { UserRole } from '../../generated/prisma/client';
 import { RolesGuard } from './roles.guard';
 
 function ctxWith(user: unknown, handlerRoles: UserRole[] | undefined) {
@@ -37,6 +37,22 @@ describe('RolesGuard', () => {
   it('denies when role does not match', () => {
     const { guard, context } = ctxWith(
       { user: { role: UserRole.PATIENT } },
+      [UserRole.NUTRITIONIST],
+    );
+    expect(guard.canActivate(context)).toBe(false);
+  });
+
+  it('allows an EMPLOYEE when EMPLOYEE is in the required set', () => {
+    const { guard, context } = ctxWith(
+      { user: { role: UserRole.EMPLOYEE } },
+      [UserRole.NUTRITIONIST, UserRole.EMPLOYEE],
+    );
+    expect(guard.canActivate(context)).toBe(true);
+  });
+
+  it('denies an EMPLOYEE when only NUTRITIONIST is required', () => {
+    const { guard, context } = ctxWith(
+      { user: { role: UserRole.EMPLOYEE } },
       [UserRole.NUTRITIONIST],
     );
     expect(guard.canActivate(context)).toBe(false);

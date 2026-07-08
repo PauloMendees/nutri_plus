@@ -1,4 +1,5 @@
 export enum UserRole {
   NUTRITIONIST = 'NUTRITIONIST',
   PATIENT = 'PATIENT',
+  EMPLOYEE = 'EMPLOYEE',
 }

@@ -1,0 +1,38 @@
+# Render Blueprint for the NutriPlus API.
+# Secret VALUES are entered in the Render dashboard (sync: false), never here.
+services:
+  - type: web
+    name: nutri-plus-api
+    runtime: docker
+    plan: starter
+    # Co-locate with your Supabase project's region. Options include:
+    # oregon | ohio | virginia | frankfurt | singapore
+    region: oregon
+    dockerfilePath: apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    # Runs once per release, before traffic switches to the new instance.
+    # Reads DATABASE_URL via apps/api/prisma.config.ts.
+    preDeployCommand: pnpm --filter @nutri-plus/api exec prisma migrate deploy
+    envVars:
+      # Supabase pooler (Supavisor) SESSION-mode URL — Render is IPv4-only and
+      # the direct Supabase host is IPv6-only. Use port 5432 on
+      # aws-0-<region>.pooler.supabase.com, NOT db.<ref>.supabase.co.
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      # The deployed web origin (drives CORS). Placeholder until the web is deployed.
+      - key: WEB_ORIGIN
+        sync: false
+      # Optional — omit to use the app defaults (gpt-4o / gpt-4o-mini).
+      - key: OPENAI_MODEL_SMART
+        sync: false
+      - key: OPENAI_MODEL_FAST
+        sync: false
