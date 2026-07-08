@@ -47,4 +47,5 @@ export interface MyEvolutionResponse {
   name: string;
   height: number | null;
   assessments: BodyAssessment[];
+  canLog: boolean;
 }
