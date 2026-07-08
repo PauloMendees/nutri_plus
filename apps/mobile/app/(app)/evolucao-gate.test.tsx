@@ -23,4 +23,33 @@ describe('Evolução self-log gate', () => {
     const { queryByText } = await render(<Home />);
     expect(queryByText('Registrar medição')).toBeNull();
   });
+
+  it('shows "Registrar medição" on the main render (non-empty assessments) when canLog is true', async () => {
+    const assessments = [
+      {
+        id: 'a1',
+        patientId: 'p',
+        assessmentDate: '2026-01-10',
+        weight: 80,
+        bodyFatPercentage: 30,
+        muscleMass: 30,
+        leanMass: null,
+        visceralFat: 10,
+        basalMetabolicRate: 1500,
+        bodyWaterPercentage: 50,
+        boneMass: 3,
+        metabolicAge: 40,
+        waistCircumference: 90,
+        hipCircumference: null,
+        chestCircumference: null,
+        armCircumference: null,
+        thighCircumference: null,
+        notes: null,
+        createdAt: '2026-01-10',
+      },
+    ];
+    mockUseMyEvolution.mockReturnValue({ isLoading: false, isError: false, data: { ...base, assessments, canLog: true } });
+    const { getByText } = await render(<Home />);
+    expect(getByText('Registrar medição')).toBeTruthy();
+  });
 });
