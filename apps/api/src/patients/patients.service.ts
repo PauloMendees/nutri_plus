@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { NutritionistContact } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/types/auth-context';
@@ -173,7 +173,20 @@ export class PatientsService {
       name: ctx.name,
       height: ctx.user?.patientProfile?.height ?? null,
       assessments,
+      canLog: ctx.user?.patientProfile?.canLogAssessments ?? false,
     };
+  }
+
+  // Patient-facing: the caller adds a NEW assessment for themselves. Gated by
+  // the nutritionist-controlled flag — enforced here regardless of the app UI.
+  async createMyAssessment(ctx: AuthContext, dto: CreateAssessmentDto) {
+    const patientId = resolveScopePatientId(ctx);
+    if (!ctx.user?.patientProfile?.canLogAssessments) {
+      throw new ForbiddenException('Not allowed to log assessments');
+    }
+    return this.prisma.bodyAssessment.create({
+      data: { ...dto, patientId },
+    });
   }
 
   // The patient's own nutritionist, basic fields only. resolveScopePatientId

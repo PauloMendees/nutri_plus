@@ -50,6 +50,21 @@ function ctxWithPatient(patientProfileId: string | null, height: number | null):
   };
 }
 
+function ctxPatientCanLog(patientProfileId: string, canLogAssessments: boolean): AuthContext {
+  return {
+    authProviderId: 'sub-p',
+    email: 'p@x.com',
+    name: 'Ana',
+    user: {
+      id: 'user-p',
+      role: 'PATIENT',
+      nutritionistProfile: null,
+      employeeProfile: null,
+      patientProfile: { id: patientProfileId, height: null, canLogAssessments },
+    } as any,
+  };
+}
+
 function ctxPatient(patientProfileId: string | null, nutritionistId: string | null = null): AuthContext {
   return {
     authProviderId: 'sub-p',
@@ -326,19 +341,47 @@ describe('PatientsService', () => {
         where: { patientId: 'pp-1' },
         orderBy: { assessmentDate: 'asc' },
       });
-      expect(result).toEqual({ name: 'Ana', height: 170, assessments: rows });
+      expect(result).toEqual({ name: 'Ana', height: 170, assessments: rows, canLog: false });
     });
 
     it('returns an empty list when the patient has no assessments', async () => {
       prisma.bodyAssessment.findMany.mockResolvedValue([] as any);
       const result = await service.listMyAssessments(ctxWithPatient('pp-2', null));
-      expect(result).toEqual({ name: 'Ana', height: null, assessments: [] });
+      expect(result).toEqual({ name: 'Ana', height: null, assessments: [], canLog: false });
     });
 
     it('rejects a caller without a patient profile', async () => {
       await expect(service.listMyAssessments(ctxWithPatient(null, null))).rejects.toBeInstanceOf(
         ForbiddenException,
       );
+    });
+  });
+
+  describe('createMyAssessment', () => {
+    it('creates when the patient may self-log', async () => {
+      const ctx = ctxPatientCanLog('patient-1', true);
+      prisma.bodyAssessment.create.mockResolvedValue({ id: 'a1' } as any);
+      await service.createMyAssessment(ctx, { weight: 80 } as any);
+      expect(prisma.bodyAssessment.create).toHaveBeenCalledWith({
+        data: { weight: 80, patientId: 'patient-1' },
+      });
+    });
+
+    it('rejects with 403 when the patient may not self-log', async () => {
+      const ctx = ctxPatientCanLog('patient-1', false);
+      await expect(service.createMyAssessment(ctx, { weight: 80 } as any)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(prisma.bodyAssessment.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('listMyAssessments canLog', () => {
+    it('includes canLog from the patient profile', async () => {
+      const ctx = ctxPatientCanLog('patient-1', true);
+      prisma.bodyAssessment.findMany.mockResolvedValue([] as any);
+      const res = await service.listMyAssessments(ctx);
+      expect(res.canLog).toBe(true);
     });
   });
 
