@@ -42,11 +42,12 @@ stores.
 
 - `version: '1.0.0'`.
 - `ios: { supportsTablet: true, bundleIdentifier: 'com.inutri.app' }`.
-- `android: { package: 'com.inutri.app', adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#14BFA6' } }`.
+- `android: { package: 'com.inutri.app', adaptiveIcon: { foregroundImage: './assets/adaptive-icon.png', backgroundColor: '#FFFFFF' } }`.
 - `icon: './assets/icon.png'`.
 - Convert the bare `'expo-splash-screen'` plugin to configured form:
   `['expo-splash-screen', { image: './assets/splash-icon.png', backgroundColor: '#FFFFFF', imageWidth: 200 }]`.
-- Add `expo-dev-client` to `plugins` (for the development profile).
+- Add the `expo-dev-client` dependency (used by the `development` build
+  profile; no `plugins` entry required).
 - `extra: { eas: { projectId: '<filled by eas init>' } }` and `owner` — set once
   after `eas init`.
 - Build numbers are **not** hardcoded — managed remotely (see eas.json
@@ -54,10 +55,14 @@ stores.
 
 ### 2. `apps/mobile/assets/` (rendered from `docs/brand/logos/icon.svg`)
 
-- `icon.png` — 1024×1024, teal `#14BFA6` background + white mark (opaque).
-- `adaptive-icon.png` — 1024×1024 Android foreground, white mark centered within
-  the ~66% safe zone (transparent; background color set in app.config).
-- `splash-icon.png` — teal mark on transparent, shown on white splash background.
+- `icon.png` — 1024×1024, white background + the two-tone brand mark (opaque).
+  (The mark is two-tone teal `#14BFA6` + dark green `#0A5C45`, so it sits on
+  white — a teal background would swallow the teal stroke.)
+- `adaptive-icon.png` — 1024×1024 Android foreground, brand mark centered within
+  the safe zone (transparent; background color `#FFFFFF` set in app.config).
+- `splash-icon.png` — brand mark on transparent, shown on the white splash background.
+- Rendered from `docs/brand/logos/icon.svg` via `qlmanage` (macOS Quick Look);
+  the stroked paths require `fill="none"` on the root `<svg>`.
 
 ### 3. `apps/mobile/eas.json`
 
@@ -83,19 +88,17 @@ stores.
   },
   "submit": {
     "production": {
-      "ios": {
-        "appleId": "<your Apple ID email>",
-        "ascAppId": "<App Store Connect app ID>",
-        "appleTeamId": "<Apple Team ID>"
-      },
-      "android": {
-        "serviceAccountKeyPath": "../path/to/play-service-account.json",
-        "track": "internal"
-      }
+      "android": { "track": "internal" }
     }
   }
 }
 ```
+
+`submit` is intentionally minimal (no broken placeholders): `eas submit -p ios`
+prompts for the Apple ID / App Store Connect app interactively, and Android
+needs a Play service-account key (`--android-package`-linked) supplied via
+`GOOGLE_SERVICE_ACCOUNT_KEY_PATH` or the `serviceAccountKeyPath` field once you
+have it.
 
 ### 4. `apps/mobile/package.json`
 
