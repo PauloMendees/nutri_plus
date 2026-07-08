@@ -26,6 +26,7 @@ function toDefaults(p: PatientDetail): UpdatePatientValues {
     allergies: p.allergies ?? "",
     medicalConditions: p.medicalConditions ?? "",
     notes: p.notes ?? "",
+    canLogAssessments: p.canLogAssessments,
   } as unknown as UpdatePatientValues;
 }
 
@@ -69,6 +70,30 @@ export function EditPatientForm({
         >
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <PatientClinicalFields control={form.control as any} />
+          <div className="flex items-center justify-between gap-3 rounded-xl border p-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Bioimpedância no app</p>
+              <p className="text-xs text-muted-foreground">
+                Permitir que o paciente registre bioimpedância no app.
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant={form.watch("canLogAssessments") ? "default" : "outline"}
+              className="shrink-0 rounded-full"
+              aria-pressed={Boolean(form.watch("canLogAssessments"))}
+              onClick={() =>
+                form.setValue("canLogAssessments", !form.watch("canLogAssessments"), {
+                  shouldDirty: true,
+                })
+              }
+            >
+              {form.watch("canLogAssessments")
+                ? "Permitido: registrar bioimpedância ✓"
+                : "Permitir registrar bioimpedância"}
+            </Button>
+          </div>
         </fieldset>
         {formError && <p className="text-sm text-destructive">{formError}</p>}
         {canEdit && (
