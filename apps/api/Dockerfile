@@ -1,5 +1,7 @@
 # ---------- builder ----------
-FROM node:20-bookworm-slim AS builder
+# Node 24 (matches .nvmrc). Must be >=22 so @supabase/supabase-js finds a native
+# global `WebSocket` — createClient's RealtimeClient constructor throws otherwise.
+FROM node:24-bookworm-slim AS builder
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 # openssl for Prisma's engine tooling; ca-certificates for TLS to Postgres.
@@ -31,7 +33,7 @@ RUN pnpm --filter @nutri-plus/api exec prisma generate \
  && pnpm --filter @nutri-plus/api build
 
 # ---------- runner ----------
-FROM node:20-bookworm-slim AS runner
+FROM node:24-bookworm-slim AS runner
 ENV NODE_ENV=production
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
