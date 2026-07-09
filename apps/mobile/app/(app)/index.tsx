@@ -150,10 +150,6 @@ export default function Home() {
           <Text className="font-sans text-base text-muted-foreground">Sua evolução</Text>
         </View>
 
-        {canLog ? (
-          <Button label="Registrar medição" onPress={() => router.push('/nova-medicao')} />
-        ) : null}
-
         <View className="gap-2">
           <Text className="font-sans text-sm text-muted-foreground">
             Última avaliação · {formatDate(latest.assessmentDate)}
@@ -179,6 +175,10 @@ export default function Home() {
             <GridRow key={row.label} label={row.label} value={row.value} />
           ))}
         </View>
+
+        {canLog ? (
+          <Button label="Registrar medição" onPress={() => router.push('/nova-medicao')} />
+        ) : null}
       </View>
     </Screen>
   );

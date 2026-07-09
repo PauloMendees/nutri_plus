@@ -46,6 +46,7 @@ export default function AppLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" color={color} size={size} />,
         }}
       />
+      <Tabs.Screen name="nova-medicao" options={{ href: null }} />
     </Tabs>
   );
 }
