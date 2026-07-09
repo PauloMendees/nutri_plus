@@ -8,6 +8,7 @@ const PUBLIC_ROUTES = [
   '/accept-invite',
   '/download-app',
   '/privacy',
+  '/suporte',
 ];
 
 /** Routes an authenticated user should be bounced away from (back to the app). */

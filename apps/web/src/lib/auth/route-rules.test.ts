@@ -36,8 +36,10 @@ describe('decideRedirect', () => {
     expect(decideRedirect(false, '/download-app')).toBeNull();
   });
 
-  it('lets anyone reach the public privacy policy', () => {
-    expect(decideRedirect(false, '/privacy')).toBeNull();
-    expect(decideRedirect(true, '/privacy')).toBeNull();
+  it('lets anyone reach the public info pages (privacy, support)', () => {
+    for (const p of ['/privacy', '/suporte']) {
+      expect(decideRedirect(false, p)).toBeNull();
+      expect(decideRedirect(true, p)).toBeNull();
+    }
   });
 });
