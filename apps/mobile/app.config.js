@@ -1,8 +1,8 @@
-import type { ExpoConfig } from 'expo/config';
-
-const config: ExpoConfig = {
+/** @type {import('expo/config').ExpoConfig} */
+const config = {
   name: 'iNutri',
   slug: 'nutri-plus-mobile',
+  owner: 'paulo-mendes-tecnologia',
   scheme: 'nutriplus',
   version: '1.0.0',
   orientation: 'portrait',
@@ -34,12 +34,12 @@ const config: ExpoConfig = {
   experiments: { typedRoutes: true },
   extra: {
     eas: {
-      // Run `eas init` (on your Expo account) and paste the printed projectId
-      // here, or set the EAS_PROJECT_ID env var. Build numbers are managed
-      // remotely (see eas.json: appVersionSource "remote" + autoIncrement).
+      // Set by `eas init` (project @paulo-mendes-tecnologia/nutri-plus-mobile).
+      // Paste the printed projectId here, or set the EAS_PROJECT_ID env var.
+      // Build numbers are managed remotely (eas.json: appVersionSource "remote").
       projectId: process.env.EAS_PROJECT_ID,
     },
   },
 };
 
-export default config;
+module.exports = config;
