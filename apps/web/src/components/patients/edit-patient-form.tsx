@@ -55,6 +55,8 @@ export function EditPatientForm({
     }
   }
 
+  const canLog = form.watch("canLogAssessments");
+
   return (
     <Form {...form}>
       <form
@@ -80,16 +82,16 @@ export function EditPatientForm({
             <Button
               type="button"
               size="sm"
-              variant={form.watch("canLogAssessments") ? "default" : "outline"}
+              variant={canLog ? "default" : "outline"}
               className="shrink-0 rounded-full"
-              aria-pressed={Boolean(form.watch("canLogAssessments"))}
+              aria-pressed={Boolean(canLog)}
               onClick={() =>
-                form.setValue("canLogAssessments", !form.watch("canLogAssessments"), {
+                form.setValue("canLogAssessments", !canLog, {
                   shouldDirty: true,
                 })
               }
             >
-              {form.watch("canLogAssessments")
+              {canLog
                 ? "Permitido: registrar bioimpedância ✓"
                 : "Permitir registrar bioimpedância"}
             </Button>

@@ -33,6 +33,7 @@ const FIELDS: { key: keyof AssessmentValues; label: string }[] = [
 export default function NovaMedicao() {
   const create = useCreateMyAssessment();
   const [formError, setFormError] = useState<string | null>(null);
+  const todayIso = today();
 
   const {
     control,
@@ -41,7 +42,7 @@ export default function NovaMedicao() {
   } = useForm<AssessmentValues>({
     resolver: zodResolver(assessmentSchema) as Resolver<AssessmentValues>,
     // All numeric fields start empty (strings); zod coerces on submit.
-    defaultValues: { assessmentDate: today() } as unknown as AssessmentValues,
+    defaultValues: { assessmentDate: todayIso } as unknown as AssessmentValues,
   });
 
   async function onSubmit(values: AssessmentValues) {
@@ -71,10 +72,10 @@ export default function NovaMedicao() {
             render={({ field: { value, onChange, onBlur } }) => (
               <TextField
                 label="Data (AAAA-MM-DD)"
-                value={(value as string) ?? ''}
+                value={value ?? ''}
                 onChangeText={onChange}
                 onBlur={onBlur}
-                placeholder={today()}
+                placeholder={todayIso}
                 error={errors.assessmentDate?.message}
               />
             )}
@@ -105,7 +106,7 @@ export default function NovaMedicao() {
             render={({ field: { value, onChange, onBlur } }) => (
               <TextField
                 label="Observações"
-                value={(value as string) ?? ''}
+                value={value ?? ''}
                 onChangeText={onChange}
                 onBlur={onBlur}
                 multiline
