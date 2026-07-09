@@ -181,6 +181,7 @@ model BodyAssessment {
 
   notes          String?
   createdAt      DateTime @default(now())
+  loggedByPatient Boolean  @default(false)
 
   @@index([patientId, assessmentDate])
 }

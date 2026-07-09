@@ -19,6 +19,7 @@ export interface BodyAssessment {
   thighCircumference: number | null;
   notes: string | null;
   createdAt: string;
+  loggedByPatient: boolean;
 }
 
 export interface CreateAssessmentRequest {
