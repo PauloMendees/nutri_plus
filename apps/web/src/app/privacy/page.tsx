@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 // Required by the Apple App Store / Google Play for the patient app.
 
 const UPDATED_AT = '9 de julho de 2026';
-const CONTACT_EMAIL = 'privacidade@inutri.life';
+const CONTACT_EMAIL = 'contato@inutri.life';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
