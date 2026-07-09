@@ -34,10 +34,9 @@ const config = {
   experiments: { typedRoutes: true },
   extra: {
     eas: {
-      // Set by `eas init` (project @paulo-mendes-tecnologia/nutri-plus-mobile).
-      // Paste the printed projectId here, or set the EAS_PROJECT_ID env var.
+      // EAS project @paulo-mendes-tecnologia/nutri-plus-mobile.
       // Build numbers are managed remotely (eas.json: appVersionSource "remote").
-      projectId: process.env.EAS_PROJECT_ID,
+      projectId: '6b0a41da-200c-40b8-bfc5-81dc5362f2d4',
     },
   },
 };
