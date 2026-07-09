@@ -363,7 +363,7 @@ describe('PatientsService', () => {
       prisma.bodyAssessment.create.mockResolvedValue({ id: 'a1' } as any);
       await service.createMyAssessment(ctx, { weight: 80 } as any);
       expect(prisma.bodyAssessment.create).toHaveBeenCalledWith({
-        data: { weight: 80, patientId: 'patient-1' },
+        data: { weight: 80, patientId: 'patient-1', loggedByPatient: true },
       });
     });
 
@@ -373,6 +373,15 @@ describe('PatientsService', () => {
         ForbiddenException,
       );
       expect(prisma.bodyAssessment.create).not.toHaveBeenCalled();
+    });
+
+    it('marks the assessment as logged by the patient', async () => {
+      const ctx = ctxPatientCanLog('patient-1', true);
+      prisma.bodyAssessment.create.mockResolvedValue({ id: 'a1' } as any);
+      await service.createMyAssessment(ctx, { weight: 80 } as any);
+      expect(prisma.bodyAssessment.create).toHaveBeenCalledWith({
+        data: { weight: 80, patientId: 'patient-1', loggedByPatient: true },
+      });
     });
   });
 

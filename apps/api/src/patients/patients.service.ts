@@ -185,7 +185,7 @@ export class PatientsService {
       throw new ForbiddenException('Not allowed to log assessments');
     }
     return this.prisma.bodyAssessment.create({
-      data: { ...dto, patientId },
+      data: { ...dto, patientId, loggedByPatient: true },
     });
   }
 
