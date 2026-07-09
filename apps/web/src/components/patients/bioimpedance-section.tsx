@@ -11,7 +11,7 @@ import {
   YAxis,
 } from 'recharts';
 import type { BodyAssessment } from '@nutri-plus/shared-types';
-import { Smartphone } from "lucide-react";
+import { Smartphone } from 'lucide-react';
 import { useAssessments } from '@/lib/queries/assessments';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from '@/components/ui/tooltip';
 import { AssessmentDialog } from '@/components/patients/assessment-dialog';
 
 type MetricKey = Extract<
