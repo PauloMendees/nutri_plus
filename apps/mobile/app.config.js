@@ -1,8 +1,8 @@
-import type { ExpoConfig } from 'expo/config';
-
-const config: ExpoConfig = {
+/** @type {import('expo/config').ExpoConfig} */
+const config = {
   name: 'iNutri',
   slug: 'nutri-plus-mobile',
+  owner: 'paulo-mendes-tecnologia',
   scheme: 'nutriplus',
   version: '1.0.0',
   orientation: 'portrait',
@@ -12,7 +12,7 @@ const config: ExpoConfig = {
   // in-app light/dark toggle.
   userInterfaceStyle: 'automatic',
   ios: {
-    supportsTablet: true,
+    supportsTablet: false,
     bundleIdentifier: 'com.inutri.app',
   },
   android: {
@@ -34,12 +34,11 @@ const config: ExpoConfig = {
   experiments: { typedRoutes: true },
   extra: {
     eas: {
-      // Run `eas init` (on your Expo account) and paste the printed projectId
-      // here, or set the EAS_PROJECT_ID env var. Build numbers are managed
-      // remotely (see eas.json: appVersionSource "remote" + autoIncrement).
-      projectId: process.env.EAS_PROJECT_ID,
+      // EAS project @paulo-mendes-tecnologia/nutri-plus-mobile.
+      // Build numbers are managed remotely (eas.json: appVersionSource "remote").
+      projectId: '6b0a41da-200c-40b8-bfc5-81dc5362f2d4',
     },
   },
 };
 
-export default config;
+module.exports = config;

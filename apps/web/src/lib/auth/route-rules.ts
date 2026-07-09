@@ -7,6 +7,7 @@ const PUBLIC_ROUTES = [
   '/forgot-password',
   '/accept-invite',
   '/download-app',
+  '/privacy',
 ];
 
 /** Routes an authenticated user should be bounced away from (back to the app). */
