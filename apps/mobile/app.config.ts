@@ -12,7 +12,7 @@ const config: ExpoConfig = {
   // in-app light/dark toggle.
   userInterfaceStyle: 'automatic',
   ios: {
-    supportsTablet: true,
+    supportsTablet: false,
     bundleIdentifier: 'com.inutri.app',
   },
   android: {
