@@ -11,10 +11,17 @@ import {
   YAxis,
 } from 'recharts';
 import type { BodyAssessment } from '@nutri-plus/shared-types';
+import { Smartphone } from "lucide-react";
 import { useAssessments } from '@/lib/queries/assessments';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Tooltip as UiTooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { AssessmentDialog } from '@/components/patients/assessment-dialog';
 
 type MetricKey = Extract<
@@ -190,7 +197,26 @@ export function BioimpedanceSection({
               <tbody>
                 {data.map((a) => (
                   <tr key={a.id} className="border-b last:border-0">
-                    <td className="px-4 py-3">{fmtDate(a.assessmentDate)}</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-1.5">
+                        {a.loggedByPatient && (
+                          <TooltipProvider>
+                            <UiTooltip>
+                              <TooltipTrigger asChild>
+                                <span
+                                  aria-label="Registrado pelo paciente"
+                                  className="text-muted-foreground"
+                                >
+                                  <Smartphone className="h-3.5 w-3.5" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>Registrado pelo paciente pelo app</TooltipContent>
+                            </UiTooltip>
+                          </TooltipProvider>
+                        )}
+                        {fmtDate(a.assessmentDate)}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">{fmt(a.weight)}</td>
                     <td className="px-4 py-3">{fmt(a.bodyFatPercentage)}</td>
                     <td className="px-4 py-3">{fmt(a.muscleMass)}</td>

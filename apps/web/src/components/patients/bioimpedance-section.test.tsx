@@ -53,6 +53,7 @@ function assessment(over: Record<string, unknown> = {}) {
     thighCircumference: null,
     notes: null,
     createdAt: '2026-05-12T00:00:00.000Z',
+    loggedByPatient: false,
     ...over,
   };
 }
@@ -102,5 +103,25 @@ describe('BioimpedanceSection', () => {
     render(<BioimpedanceSection patientId="p1" canEdit={false} />);
     expect(screen.queryByRole('button', { name: /nova avaliação/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /editar/i })).not.toBeInTheDocument();
+  });
+
+  it('flags patient-logged rows with an icon + tooltip trigger', () => {
+    useAssessments.mockReturnValue({
+      data: [assessment({ id: 'a1', loggedByPatient: true })],
+      isLoading: false,
+      isError: false,
+    });
+    render(<BioimpedanceSection patientId="p1" />);
+    expect(screen.getByLabelText('Registrado pelo paciente')).toBeInTheDocument();
+  });
+
+  it('does not flag nutritionist-logged rows', () => {
+    useAssessments.mockReturnValue({
+      data: [assessment({ id: 'a1', loggedByPatient: false })],
+      isLoading: false,
+      isError: false,
+    });
+    render(<BioimpedanceSection patientId="p1" />);
+    expect(screen.queryByLabelText('Registrado pelo paciente')).not.toBeInTheDocument();
   });
 });
