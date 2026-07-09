@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import type { PatientDetail } from '@nutri-plus/shared-types';
 
 const mutateAsync = vi.fn();
@@ -23,6 +23,7 @@ const patient = {
   allergies: null,
   medicalConditions: null,
   notes: null,
+  canLogAssessments: false,
   nutritionistId: 'n1',
   createdAt: '2026-05-12T00:00:00.000Z',
   updatedAt: '2026-05-12T00:00:00.000Z',
@@ -42,5 +43,19 @@ describe('EditPatientForm', () => {
     render(<EditPatientForm patient={patient} canEdit={false} />);
     expect(screen.queryByRole('button', { name: /salvar alterações/i })).not.toBeInTheDocument();
     expect(screen.getByLabelText(/altura/i)).toBeDisabled();
+  });
+
+  it('toggles self-log permission and submits it', async () => {
+    mutateAsync.mockResolvedValue({});
+    render(<EditPatientForm patient={patient} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /registrar bioimpedância/i }));
+    fireEvent.click(screen.getByRole('button', { name: /salvar alterações/i }));
+
+    await vi.waitFor(() =>
+      expect(mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ canLogAssessments: true }),
+      ),
+    );
   });
 });

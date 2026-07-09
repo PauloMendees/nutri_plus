@@ -108,6 +108,7 @@ model PatientProfile {
   allergies         String?
   medicalConditions String?
   notes             String?
+  canLogAssessments Boolean @default(false)
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -180,6 +181,7 @@ model BodyAssessment {
 
   notes          String?
   createdAt      DateTime @default(now())
+  loggedByPatient Boolean  @default(false)
 
   @@index([patientId, assessmentDate])
 }

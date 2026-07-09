@@ -19,6 +19,7 @@ export interface BodyAssessment {
   thighCircumference: number | null;
   notes: string | null;
   createdAt: string;
+  loggedByPatient: boolean;
 }
 
 export interface CreateAssessmentRequest {
@@ -47,4 +48,5 @@ export interface MyEvolutionResponse {
   name: string;
   height: number | null;
   assessments: BodyAssessment[];
+  canLog: boolean;
 }

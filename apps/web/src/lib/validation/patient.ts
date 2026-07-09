@@ -33,7 +33,10 @@ const clinicalShape = {
   notes: optionalText(2000),
 };
 
-export const updatePatientSchema = z.object(clinicalShape);
+export const updatePatientSchema = z.object({
+  ...clinicalShape,
+  canLogAssessments: z.boolean().optional(),
+});
 
 export const createPatientSchema = z.object({
   name: z.string().min(2, 'Informe o nome do paciente.').max(200),

@@ -9,6 +9,7 @@
     "lint": "turbo run lint",
     "dev": "turbo run dev",
     "mobile": "pnpm --filter @nutri-plus/mobile start",
+    "mobile:go": "pnpm --filter @nutri-plus/mobile start -- --go",
     "mobile:clear": "pnpm --filter @nutri-plus/mobile start -- --clear",
     "mobile:ios": "pnpm --filter @nutri-plus/mobile ios",
     "mobile:android": "pnpm --filter @nutri-plus/mobile android"

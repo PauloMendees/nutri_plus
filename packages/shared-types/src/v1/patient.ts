@@ -43,6 +43,7 @@ export interface PatientSummary {
   allergies: string | null;
   medicalConditions: string | null;
   notes: string | null;
+  canLogAssessments: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -72,4 +73,6 @@ export interface CreatePatientRequest {
   notes?: string;
 }
 
-export type UpdatePatientRequest = Omit<CreatePatientRequest, 'name' | 'email'>;
+export type UpdatePatientRequest = Omit<CreatePatientRequest, 'name' | 'email'> & {
+  canLogAssessments?: boolean;
+};

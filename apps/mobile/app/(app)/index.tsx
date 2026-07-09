@@ -1,4 +1,5 @@
 import { ActivityIndicator, Text, View } from 'react-native';
+import { router } from 'expo-router';
 import type { BodyAssessment } from '@nutri-plus/shared-types';
 import { Screen } from '../../components/ui/screen';
 import { BrandHeader } from '../../components/brand/brand-header';
@@ -92,7 +93,7 @@ export default function Home() {
     );
   }
 
-  const { name, height, assessments } = query.data!;
+  const { name, height, assessments, canLog } = query.data!;
 
   if (assessments.length === 0) {
     return (
@@ -102,6 +103,9 @@ export default function Home() {
           <Text className="font-sans text-center text-base text-muted-foreground">
             Suas avaliações aparecerão aqui após sua consulta.
           </Text>
+          {canLog ? (
+            <Button label="Registrar medição" onPress={() => router.push('/nova-medicao')} />
+          ) : null}
         </View>
       </Screen>
     );
@@ -171,6 +175,10 @@ export default function Home() {
             <GridRow key={row.label} label={row.label} value={row.value} />
           ))}
         </View>
+
+        {canLog ? (
+          <Button label="Registrar medição" onPress={() => router.push('/nova-medicao')} />
+        ) : null}
       </View>
     </Screen>
   );
