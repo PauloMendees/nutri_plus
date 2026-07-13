@@ -6,7 +6,7 @@ import type {
   PatientSummary,
   UpdatePatientRequest,
 } from '@nutri-plus/shared-types';
-import { browserApiFetch } from '@/lib/api/browser';
+import { browserApiFetch, browserApiUpload } from '@/lib/api/browser';
 
 export function listPatients(
   params: ListPatientsParams = {},
@@ -30,4 +30,14 @@ export function createPatient(body: CreatePatientRequest): Promise<PatientDetail
 
 export function updatePatient(id: string, body: UpdatePatientRequest): Promise<PatientDetail> {
   return browserApiFetch<PatientDetail>(`/patients/${id}`, { method: 'PATCH', body });
+}
+
+export function uploadPatientPhoto(id: string, file: File): Promise<PatientDetail> {
+  const formData = new FormData();
+  formData.append('file', file);
+  return browserApiUpload<PatientDetail>(`/patients/${id}/photo`, formData);
+}
+
+export function deletePatientPhoto(id: string): Promise<PatientDetail> {
+  return browserApiFetch<PatientDetail>(`/patients/${id}/photo`, { method: 'DELETE' });
 }
