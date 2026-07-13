@@ -89,3 +89,21 @@ export interface GenerateMealPlanRequest {
 export interface SetMealPlanVisibilityRequest {
   visibleToPatient: boolean;
 }
+
+export interface AdjustMealPlanRequest {
+  planId: string;
+  instructions: string;
+}
+
+// Unpersisted revision returned by POST /ai/adjust-meal-plan — shaped to
+// repopulate the web meal-plan editor form. Targets/objective are carried from
+// the existing plan; the nutritionist reviews and saves via the normal update.
+export interface MealPlanDraft {
+  title?: string;
+  objective?: string;
+  targetCalories?: number;
+  targetProtein?: number;
+  targetCarbs?: number;
+  targetFats?: number;
+  meals: MealInput[];
+}
