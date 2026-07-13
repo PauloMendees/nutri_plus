@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreateMealPlanRequest, UpdateMealPlanRequest } from '@nutri-plus/shared-types';
 import {
+  adjustMealPlan,
   createMealPlan,
   deleteMealPlan,
   generateMealPlan,
@@ -68,5 +69,11 @@ export function useGenerateMealPlan(patientId: string) {
   return useMutation({
     mutationFn: (instructions?: string) => generateMealPlan(patientId, instructions),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['meal-plans', patientId] }),
+  });
+}
+
+export function useAdjustMealPlan(planId: string) {
+  return useMutation({
+    mutationFn: (instructions: string) => adjustMealPlan(planId, instructions),
   });
 }
