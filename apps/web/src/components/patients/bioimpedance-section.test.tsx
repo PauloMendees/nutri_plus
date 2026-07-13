@@ -11,6 +11,11 @@ vi.mock('@/lib/queries/assessments', () => ({
   useDeleteAssessment: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
+const downloadAssessmentsPdf = vi.fn();
+vi.mock('@/lib/api/assessments', () => ({
+  downloadAssessmentsPdf: (...args: unknown[]) => downloadAssessmentsPdf(...args),
+}));
+
 // Recharts renders SVG via ResponsiveContainer (no layout in jsdom) — stub it.
 // LineChart echoes its `data` so tests can assert the charted series.
 vi.mock('recharts', () => ({
@@ -58,7 +63,10 @@ function assessment(over: Record<string, unknown> = {}) {
   };
 }
 
-beforeEach(() => useAssessments.mockReset());
+beforeEach(() => {
+  useAssessments.mockReset();
+  downloadAssessmentsPdf.mockReset().mockResolvedValue(undefined);
+});
 
 describe('BioimpedanceSection', () => {
   it('shows the loading skeleton', () => {
@@ -113,6 +121,14 @@ describe('BioimpedanceSection', () => {
     });
     render(<BioimpedanceSection patientId="p1" />);
     expect(screen.getByLabelText('Registrado pelo paciente')).toBeInTheDocument();
+  });
+
+  it('exports the evolution PDF when there are assessments', async () => {
+    const user = userEvent.setup();
+    useAssessments.mockReturnValue({ isLoading: false, isError: false, data: [assessment()] });
+    render(<BioimpedanceSection patientId="p1" canEdit />);
+    await user.click(screen.getByRole('button', { name: /exportar pdf/i }));
+    expect(downloadAssessmentsPdf).toHaveBeenCalledWith('p1');
   });
 
   it('does not flag nutritionist-logged rows', () => {

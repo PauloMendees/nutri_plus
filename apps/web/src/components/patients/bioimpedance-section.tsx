@@ -12,7 +12,9 @@ import {
 } from 'recharts';
 import type { BodyAssessment } from '@nutri-plus/shared-types';
 import { Smartphone } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAssessments } from '@/lib/queries/assessments';
+import { downloadAssessmentsPdf } from '@/lib/api/assessments';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -77,9 +79,21 @@ export function BioimpedanceSection({
   const [metric, setMetric] = useState<MetricKey>('weight');
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<BodyAssessment | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const data = query.data ?? [];
   const latest = data[0];
+
+  async function onExport() {
+    setExporting(true);
+    try {
+      await downloadAssessmentsPdf(patientId);
+    } catch {
+      toast.error('Não foi possível exportar o PDF.');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   // Chart series: chronological (oldest→newest), only points where the metric exists.
   const series = useMemo(
@@ -95,11 +109,23 @@ export function BioimpedanceSection({
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="font-heading text-base font-bold">Bioimpedância</h2>
-        {canEdit && (
-          <Button size="sm" className="rounded-full" onClick={() => setCreating(true)}>
-            Nova avaliação
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={onExport}
+            disabled={exporting || data.length === 0}
+          >
+            {exporting ? 'Exportando…' : 'Exportar PDF'}
           </Button>
-        )}
+          {canEdit && (
+            <Button size="sm" className="rounded-full" onClick={() => setCreating(true)}>
+              Nova avaliação
+            </Button>
+          )}
+        </div>
       </div>
 
       {query.isLoading && (
