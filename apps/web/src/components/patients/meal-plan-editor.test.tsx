@@ -161,6 +161,16 @@ describe('MealPlanEditor (edit mode)', () => {
     await userEvent.click(screen.getByRole('button', { name: /exportar pdf/i }));
     await waitFor(() => expect(downloadMealPlanPdf).toHaveBeenCalledWith('m1'));
   });
+
+  it('renders text fields as auto-grow textareas so long values are not truncated', () => {
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    // Food name, plan title, meal name are now <textarea> (grow) not <input> (truncate).
+    expect(screen.getByDisplayValue('Ovos').tagName).toBe('TEXTAREA');
+    expect(screen.getByDisplayValue('Plano A').tagName).toBe('TEXTAREA');
+    expect(screen.getByDisplayValue('Café').tagName).toBe('TEXTAREA');
+    // Numeric macro fields stay <input type=number>.
+    expect(screen.getAllByLabelText('Kcal')[0].tagName).toBe('INPUT');
+  });
 });
 
 describe('MealPlanEditor (create mode)', () => {

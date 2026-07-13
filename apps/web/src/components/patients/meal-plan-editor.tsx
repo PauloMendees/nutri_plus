@@ -95,6 +95,11 @@ const ITEM_MACROS = [
   { key: 'fats', label: 'G' },
 ] as const;
 
+// Auto-grow single-line text fields: sized like the Inputs they replace, but the
+// shadcn Textarea's `field-sizing-content` lets them grow vertically with content.
+const GROW = 'min-h-8 resize-none py-1';
+const GROW_SM = 'min-h-7 resize-none py-1';
+
 function sum(values: string[]): number {
   return values.reduce((acc, v) => acc + (Number(v) || 0), 0);
 }
@@ -215,8 +220,8 @@ export function MealPlanEditor({
           {/* Header */}
           <div className="space-y-2">
             <label className="block text-sm font-medium" htmlFor="mp-title">Título</label>
-            <Input id="mp-title" placeholder="Título do plano" {...form.register('title')} />
-            <Input placeholder="Objetivo" aria-label="Objetivo" {...form.register('objective')} />
+            <Textarea id="mp-title" rows={1} className={GROW} placeholder="Título do plano" {...form.register('title')} />
+            <Textarea rows={1} className={GROW} placeholder="Objetivo" aria-label="Objetivo" {...form.register('objective')} />
           </div>
 
           {/* Metas (por dia) */}
@@ -338,8 +343,8 @@ function MealCard({
   return (
     <div data-testid="meal-card" className="rounded-xl border bg-card p-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Input className="max-w-48" placeholder="Refeição" aria-label="Nome da refeição" {...register(`meals.${mealIndex}.name`)} />
-        <Input className="max-w-28" placeholder="08:00" aria-label="Horário" {...register(`meals.${mealIndex}.timeLabel`)} />
+        <Textarea rows={1} className={`max-w-48 ${GROW}`} placeholder="Refeição" aria-label="Nome da refeição" {...register(`meals.${mealIndex}.name`)} />
+        <Textarea rows={1} className={`max-w-28 ${GROW}`} placeholder="08:00" aria-label="Horário" {...register(`meals.${mealIndex}.timeLabel`)} />
         {canEdit && (
           <span className="ml-auto flex gap-1">
             <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={onMoveUp} disabled={isFirst} aria-label="Mover refeição para cima">↑</Button>
@@ -409,8 +414,9 @@ function OptionCard({
   return (
     <div data-testid="option-card" className="rounded-lg border bg-background p-3">
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <Input
-          className="max-w-40 h-7"
+        <Textarea
+          rows={1}
+          className={`max-w-40 ${GROW_SM}`}
           placeholder={`Opção ${optionIndex + 1}`}
           aria-label="Rótulo da opção"
           {...register(`meals.${mealIndex}.options.${optionIndex}.label`)}
@@ -436,8 +442,8 @@ function OptionCard({
           <tbody>
             {items.fields.map((itemField, itemIndex) => (
               <tr key={itemField.id}>
-                <td className="py-1 pr-1"><Input className="h-7" aria-label="Alimento" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.foodName`)} /></td>
-                <td className="py-1 pr-1"><Input className="h-7 w-20" aria-label="Quantidade" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`)} /></td>
+                <td className="py-1 pr-1"><Textarea rows={1} className={GROW_SM} aria-label="Alimento" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.foodName`)} /></td>
+                <td className="py-1 pr-1"><Textarea rows={1} className={`w-20 ${GROW_SM}`} aria-label="Quantidade" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`)} /></td>
                 {ITEM_MACROS.map((m) => (
                   <td key={m.key} className="py-1 pr-1">
                     <Input className="h-7 w-16" type="number" inputMode="decimal" step="any" aria-label={m.label}
