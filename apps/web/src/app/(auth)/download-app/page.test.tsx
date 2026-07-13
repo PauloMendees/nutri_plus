@@ -3,15 +3,23 @@ import { render, screen } from '@testing-library/react';
 import DownloadAppPage from './page';
 
 describe('DownloadAppPage', () => {
-  it('renders the success heading and disabled store badges', () => {
+  it('renders the success heading and both store download links', () => {
     render(<DownloadAppPage />);
     expect(screen.getByText(/tudo pronto/i)).toBeInTheDocument();
-    expect(screen.getByText('App Store')).toBeInTheDocument();
-    expect(screen.getByText('Google Play')).toBeInTheDocument();
-    expect(screen.getAllByText(/em breve/i)).toHaveLength(2);
 
-    // The badges are informational placeholders — never interactive.
-    expect(screen.queryAllByRole('link')).toHaveLength(0);
-    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    const links = screen.getAllByRole('link');
+    expect(links).toHaveLength(2);
+
+    const appStore = screen.getByRole('link', { name: /app store/i });
+    expect(appStore).toHaveAttribute(
+      'href',
+      'https://apps.apple.com/br/app/inutri-pacientes/id6789184541',
+    );
+
+    const android = screen.getByRole('link', { name: /android/i });
+    expect(android).toHaveAttribute(
+      'href',
+      'https://expo.dev/accounts/paulo-mendes-tecnologia/projects/nutri-plus-mobile/builds/b5903c35-7462-4d67-8ce6-15e22d2beeea',
+    );
   });
 });

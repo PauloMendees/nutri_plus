@@ -22,6 +22,14 @@
         "buildType": "app-bundle"
       },
       "environment": "production"
+    },
+    "production-apk": {
+      "extends": "production",
+      "distribution": "internal",
+      "autoIncrement": false,
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {
