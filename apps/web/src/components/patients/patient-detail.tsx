@@ -10,11 +10,7 @@ import { MealPlansSection } from '@/components/patients/meal-plans-section';
 import { CreatedBanner } from '@/components/patients/created-banner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() || '?';
-}
+import { PatientAvatar } from '@/components/patients/patient-avatar';
 
 export function PatientDetail({
   id,
@@ -55,9 +51,7 @@ export function PatientDetail({
       <CreatedBanner show={created} />
 
       <div className="flex items-center gap-3 rounded-xl border bg-card p-4">
-        <span className="flex size-11 items-center justify-center rounded-full bg-secondary text-sm font-bold text-secondary-foreground">
-          {initials(patient.user.name)}
-        </span>
+        <PatientAvatar name={patient.user.name} photoUrl={patient.photoUrl} className="size-11 text-sm" />
         <div>
           <p className="font-bold">{patient.user.name}</p>
           <p className="text-sm text-muted-foreground">{patient.user.email}</p>
