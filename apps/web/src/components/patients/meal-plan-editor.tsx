@@ -14,7 +14,7 @@ import {
 } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import type { MealPlan } from '@nutri-plus/shared-types';
+import type { MealPlan, MealPlanDraft } from '@nutri-plus/shared-types';
 import { mealPlanSchema, type MealPlanFormValues } from '@/lib/validation/meal-plan';
 import {
   useCreateMealPlan,
@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AiAdjustDialog } from '@/components/patients/ai-adjust-dialog';
 
 type ItemValues = { foodName: string; quantity: string; calories: string; protein: string; carbs: string; fats: string };
 type OptionValues = { label: string; items: ItemValues[] };
@@ -81,6 +82,33 @@ function toDefaults(plan: MealPlan): FormValues {
   };
 }
 
+function draftToDefaults(d: MealPlanDraft): FormValues {
+  return {
+    title: d.title ?? '',
+    objective: d.objective ?? '',
+    targetCalories: numToStr(d.targetCalories ?? null),
+    targetProtein: numToStr(d.targetProtein ?? null),
+    targetCarbs: numToStr(d.targetCarbs ?? null),
+    targetFats: numToStr(d.targetFats ?? null),
+    meals: (d.meals ?? []).map((m) => ({
+      name: m.name ?? '',
+      timeLabel: m.timeLabel ?? '',
+      instructions: m.instructions ?? '',
+      options: (m.options ?? []).map((o) => ({
+        label: o.label ?? '',
+        items: (o.items ?? []).map((it) => ({
+          foodName: it.foodName ?? '',
+          quantity: it.quantity ?? '',
+          calories: numToStr(it.calories ?? null),
+          protein: numToStr(it.protein ?? null),
+          carbs: numToStr(it.carbs ?? null),
+          fats: numToStr(it.fats ?? null),
+        })),
+      })),
+    })),
+  };
+}
+
 const TARGETS = [
   { key: 'targetCalories', total: 'calories', label: 'Kcal' },
   { key: 'targetProtein', total: 'protein', label: 'Proteína' },
@@ -122,6 +150,7 @@ export function MealPlanEditor({
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [adjusting, setAdjusting] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(mealPlanSchema) as unknown as Resolver<FormValues>,
@@ -203,16 +232,29 @@ export function MealPlanEditor({
       <div className="flex items-center justify-between gap-2">
         <BackToPatient patientId={patientId} />
         {!isCreate && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            onClick={onExport}
-            disabled={exporting}
-          >
-            {exporting ? 'Exportando…' : 'Exportar PDF'}
-          </Button>
+          <div className="flex gap-2">
+            {canEdit && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                onClick={() => setAdjusting(true)}
+              >
+                Solicitar ajustes à IA
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={onExport}
+              disabled={exporting}
+            >
+              {exporting ? 'Exportando…' : 'Exportar PDF'}
+            </Button>
+          </div>
         )}
       </div>
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="space-y-4">
@@ -313,6 +355,18 @@ export function MealPlanEditor({
           </div>
         )}
       </form>
+
+      {!isCreate && (
+        <AiAdjustDialog
+          open={adjusting}
+          onOpenChange={setAdjusting}
+          planId={planId!}
+          onApplied={(draft) => {
+            form.reset(draftToDefaults(draft));
+            toast.success('Plano ajustado — revise e salve.');
+          }}
+        />
+      )}
     </div>
   );
 }
