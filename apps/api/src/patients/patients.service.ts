@@ -1,16 +1,26 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { NutritionistContact } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/types/auth-context';
 import { resolveScopeNutritionistId, resolveScopePatientId } from '../auth/auth-scope';
 import { UsersService } from '../users/users.service';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
+import { EXT_BY_MIME, isSupportedImage, UploadedImage } from '../supabase/image-upload';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
 
+export type { UploadedImage } from '../supabase/image-upload';
+
 const USER_SUMMARY = { select: { id: true, name: true, email: true } } as const;
+
+const PHOTO_BUCKET = 'patient-photos';
+
+const PATIENT_DETAIL_INCLUDE = {
+  user: USER_SUMMARY,
+  assessments: { orderBy: { assessmentDate: 'desc' as const }, take: 1 },
+} as const;
 
 @Injectable()
 export class PatientsService {
@@ -115,6 +125,40 @@ export class PatientsService {
         user: USER_SUMMARY,
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
       },
+    });
+  }
+
+  async uploadPhoto(ctx: AuthContext, id: string, file: UploadedImage) {
+    await this.requireOwned(ctx, id);
+    if (!isSupportedImage(file.buffer)) throw new BadRequestException('Arquivo de imagem inválido.');
+    const ext = EXT_BY_MIME[file.mimetype] ?? 'png';
+    const photoUrl = await this.supabaseAdmin.uploadPublicObject(
+      PHOTO_BUCKET,
+      `${id}.${ext}`,
+      file.buffer,
+      file.mimetype,
+    );
+    return this.prisma.patientProfile.update({
+      where: { id },
+      data: { photoUrl },
+      include: PATIENT_DETAIL_INCLUDE,
+    });
+  }
+
+  async removePhoto(ctx: AuthContext, id: string) {
+    await this.requireOwned(ctx, id);
+    const current = await this.prisma.patientProfile.findUnique({
+      where: { id },
+      select: { photoUrl: true },
+    });
+    if (current?.photoUrl) {
+      const path = current.photoUrl.split('/').pop();
+      if (path) await this.supabaseAdmin.removeObject(PHOTO_BUCKET, path);
+    }
+    return this.prisma.patientProfile.update({
+      where: { id },
+      data: { photoUrl: null },
+      include: PATIENT_DETAIL_INCLUDE,
     });
   }
 

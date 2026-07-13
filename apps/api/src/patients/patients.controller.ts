@@ -2,20 +2,26 @@ import {
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
   HttpCode,
   HttpStatus,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '../generated/prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AuthContext } from '../auth/types/auth-context';
-import { PatientsService } from './patients.service';
+import { PatientsService, UploadedImage } from './patients.service';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
@@ -53,6 +59,29 @@ export class PatientsController {
     @Body() dto: UpdatePatientDto,
   ) {
     return this.patients.updatePatient(ctx, id, dto);
+  }
+
+  @Post(':id/photo')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 2 * 1024 * 1024 } }))
+  uploadPhoto(
+    @CurrentUser() ctx: AuthContext,
+    @Param('id') id: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 2 * 1024 * 1024 }),
+          new FileTypeValidator({ fileType: /^image\/(png|jpe?g|webp)$/ }),
+        ],
+      }),
+    )
+    file: UploadedImage,
+  ) {
+    return this.patients.uploadPhoto(ctx, id, file);
+  }
+
+  @Delete(':id/photo')
+  removePhoto(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
+    return this.patients.removePhoto(ctx, id);
   }
 
   @Post(':id/assessments')
