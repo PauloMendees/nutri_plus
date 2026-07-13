@@ -109,6 +109,7 @@ model PatientProfile {
   medicalConditions String?
   notes             String?
   canLogAssessments Boolean @default(false)
+  photoUrl String? // public URL of the patient's profile photo (patient-photos bucket)
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
