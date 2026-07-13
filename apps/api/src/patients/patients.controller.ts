@@ -12,6 +12,7 @@ import {
   Patch,
   Post,
   Query,
+  StreamableFile,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -22,6 +23,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AuthContext } from '../auth/types/auth-context';
 import { PatientsService, UploadedImage } from './patients.service';
+import { EvolutionPdfService } from './pdf/evolution-pdf.service';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
@@ -33,7 +35,10 @@ import { ListPatientsQueryDto } from './dto/list-patients-query.dto';
 @Controller({ path: 'patients', version: '1' })
 @Roles(UserRole.NUTRITIONIST)
 export class PatientsController {
-  constructor(private readonly patients: PatientsService) {}
+  constructor(
+    private readonly patients: PatientsService,
+    private readonly evolutionPdf: EvolutionPdfService,
+  ) {}
 
   @Post()
   create(@CurrentUser() ctx: AuthContext, @Body() dto: CreatePatientDto) {
@@ -97,6 +102,19 @@ export class PatientsController {
   @Roles(UserRole.NUTRITIONIST, UserRole.EMPLOYEE)
   listAssessments(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
     return this.patients.listAssessments(ctx, id);
+  }
+
+  @Get(':id/assessments/pdf')
+  @Roles(UserRole.NUTRITIONIST, UserRole.EMPLOYEE)
+  async assessmentsPdf(
+    @CurrentUser() ctx: AuthContext,
+    @Param('id') id: string,
+  ): Promise<StreamableFile> {
+    const buffer = await this.evolutionPdf.generate(ctx, id);
+    return new StreamableFile(buffer, {
+      type: 'application/pdf',
+      disposition: 'attachment; filename="evolucao.pdf"',
+    });
   }
 
   @Patch(':id/assessments/:assessmentId')
