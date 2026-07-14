@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "AIInteractionType" ADD VALUE 'MEAL_PLAN_ADJUSTMENT';

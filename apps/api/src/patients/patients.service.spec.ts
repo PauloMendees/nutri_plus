@@ -481,6 +481,49 @@ describe('PatientsService', () => {
     });
   });
 
+  describe('uploadPhoto', () => {
+    it('uploads to the patient-photos bucket and persists the returned URL', async () => {
+      // requireOwned lookup resolves owned:
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+      supabaseAdmin.uploadPublicObject.mockResolvedValue('https://cdn/patient-photos/p1.png');
+      prisma.patientProfile.update.mockResolvedValue({ id: 'p1', photoUrl: 'https://cdn/patient-photos/p1.png' } as any);
+      const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      const res = await service.uploadPhoto(ctx, 'p1', { buffer: png, mimetype: 'image/png' });
+      expect(supabaseAdmin.uploadPublicObject).toHaveBeenCalledWith('patient-photos', 'p1.png', png, 'image/png');
+      expect(prisma.patientProfile.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'p1' }, data: { photoUrl: 'https://cdn/patient-photos/p1.png' } }),
+      );
+      expect(res.photoUrl).toBe('https://cdn/patient-photos/p1.png');
+    });
+
+    it('rejects a non-image buffer', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+      await expect(
+        service.uploadPhoto(ctx, 'p1', { buffer: Buffer.from('not-an-image'), mimetype: 'image/png' }),
+      ).rejects.toThrow();
+      expect(supabaseAdmin.uploadPublicObject).not.toHaveBeenCalled();
+    });
+
+    it('throws 404 for a non-owned patient', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue(null); // requireOwned → NotFound
+      const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      await expect(service.uploadPhoto(ctx, 'p1', { buffer: png, mimetype: 'image/png' })).rejects.toMatchObject({ status: 404 });
+    });
+  });
+
+  describe('removePhoto', () => {
+    it('removes the stored object and nulls the column', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+      prisma.patientProfile.findUnique.mockResolvedValue({ photoUrl: 'https://cdn/patient-photos/p1.png' } as any);
+      prisma.patientProfile.update.mockResolvedValue({ id: 'p1', photoUrl: null } as any);
+      await service.removePhoto(ctx, 'p1');
+      expect(supabaseAdmin.removeObject).toHaveBeenCalledWith('patient-photos', 'p1.png');
+      expect(prisma.patientProfile.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'p1' }, data: { photoUrl: null } }),
+      );
+    });
+  });
+
   describe('deleteMyAccount', () => {
     it('tears down patient rows in Restrict-safe order, then the auth user', async () => {
       prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));

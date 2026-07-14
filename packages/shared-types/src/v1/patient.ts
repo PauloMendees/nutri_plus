@@ -44,6 +44,7 @@ export interface PatientSummary {
   medicalConditions: string | null;
   notes: string | null;
   canLogAssessments: boolean;
+  photoUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -6,6 +6,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { AuthContext } from '../auth/types/auth-context';
 import { MealGenerationService } from './meal-generation.service';
 import { GenerateMealPlanDto } from './dto/generate-meal-plan.dto';
+import { AdjustMealPlanDto } from './dto/adjust-meal-plan.dto';
 
 @ApiTags('ai')
 @ApiBearerAuth()
@@ -20,5 +21,10 @@ export class MealGenerationController {
     @Body() dto: GenerateMealPlanDto,
   ) {
     return this.mealGeneration.generate(ctx, dto.patientId, dto.instructions);
+  }
+
+  @Post('adjust-meal-plan')
+  adjustMealPlan(@CurrentUser() ctx: AuthContext, @Body() dto: AdjustMealPlanDto) {
+    return this.mealGeneration.adjust(ctx, dto.planId, dto.instructions);
   }
 }

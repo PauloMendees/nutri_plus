@@ -12,7 +12,9 @@ import {
 } from 'recharts';
 import type { BodyAssessment } from '@nutri-plus/shared-types';
 import { Smartphone } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAssessments } from '@/lib/queries/assessments';
+import { downloadAssessmentsPdf } from '@/lib/api/assessments';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -77,9 +79,21 @@ export function BioimpedanceSection({
   const [metric, setMetric] = useState<MetricKey>('weight');
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<BodyAssessment | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const data = query.data ?? [];
   const latest = data[0];
+
+  async function onExport() {
+    setExporting(true);
+    try {
+      await downloadAssessmentsPdf(patientId);
+    } catch {
+      toast.error('Não foi possível exportar o PDF.');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   // Chart series: chronological (oldest→newest), only points where the metric exists.
   const series = useMemo(
@@ -95,11 +109,23 @@ export function BioimpedanceSection({
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="font-heading text-base font-bold">Bioimpedância</h2>
-        {canEdit && (
-          <Button size="sm" className="rounded-full" onClick={() => setCreating(true)}>
-            Nova avaliação
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={onExport}
+            disabled={exporting || data.length === 0}
+          >
+            {exporting ? 'Exportando…' : 'Exportar evolução'}
           </Button>
-        )}
+          {canEdit && (
+            <Button size="sm" className="rounded-full" onClick={() => setCreating(true)}>
+              Nova avaliação
+            </Button>
+          )}
+        </div>
       </div>
 
       {query.isLoading && (
@@ -167,9 +193,13 @@ export function BioimpedanceSection({
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={series} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="date" fontSize={11} stroke="var(--muted-foreground)" />
-                  <YAxis fontSize={11} stroke="var(--muted-foreground)" width={40} />
-                  <Tooltip />
+                  <XAxis dataKey="date" stroke="var(--muted-foreground)" tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }} />
+                  <YAxis stroke="var(--muted-foreground)" width={40} tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8 }}
+                    labelStyle={{ color: 'var(--foreground)' }}
+                    itemStyle={{ color: 'var(--foreground)' }}
+                  />
                   <Line type="monotone" dataKey="value" stroke="#14BFA6" strokeWidth={2} dot />
                 </LineChart>
               </ResponsiveContainer>

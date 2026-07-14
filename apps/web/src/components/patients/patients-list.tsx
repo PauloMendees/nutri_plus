@@ -9,13 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PatientAvatar } from '@/components/patients/patient-avatar';
 
 const PAGE_SIZE = 20;
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() || '?';
-}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR');
@@ -112,9 +108,7 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
                 href={`/patients/${p.id}`}
                 className="flex items-center gap-3 rounded-xl border bg-card p-4"
               >
-                <span className="flex size-9 items-center justify-center rounded-full bg-secondary text-xs font-bold text-secondary-foreground">
-                  {initials(p.user.name)}
-                </span>
+                <PatientAvatar name={p.user.name} photoUrl={p.photoUrl} className="size-11 text-sm" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{p.user.name}</span>
                   <span className="block truncate text-sm text-muted-foreground">{p.user.email}</span>
@@ -141,9 +135,7 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
                   <tr key={p.id} className="border-b last:border-0 hover:bg-muted/40">
                     <td className="px-4 py-3">
                       <Link href={`/patients/${p.id}`} className="flex items-center gap-3 font-semibold">
-                        <span className="flex size-8 items-center justify-center rounded-full bg-secondary text-xs font-bold text-secondary-foreground">
-                          {initials(p.user.name)}
-                        </span>
+                        <PatientAvatar name={p.user.name} photoUrl={p.photoUrl} className="size-10 text-sm" />
                         {p.user.name}
                       </Link>
                     </td>

@@ -109,6 +109,7 @@ model PatientProfile {
   medicalConditions String?
   notes             String?
   canLogAssessments Boolean @default(false)
+  photoUrl String? // public URL of the patient's profile photo (patient-photos bucket)
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -257,6 +258,7 @@ model MealItem {
 enum AIInteractionType {
   MEAL_PLAN_GENERATION
   OUTSIDE_HOME_SUGGESTION
+  MEAL_PLAN_ADJUSTMENT
 }
 
 // Audit trail for every AI call, successful or failed. The patient FK is explicitly

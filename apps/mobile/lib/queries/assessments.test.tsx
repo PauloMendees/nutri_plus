@@ -6,12 +6,25 @@ import { Text } from 'react-native';
 const mockApiFetch = jest.fn();
 jest.mock('../api', () => ({ apiFetch: (...args: unknown[]) => mockApiFetch(...args) }));
 
-import { getMyEvolution, useMyEvolution, useCreateMyAssessment } from './assessments';
+const mockGetSession = jest.fn();
+jest.mock('../supabase', () => ({ supabase: { auth: { getSession: () => mockGetSession() } } }));
+
+const mockDownloadAsync = jest.fn();
+jest.mock('expo-file-system/legacy', () => ({ cacheDirectory: 'file:///cache/', downloadAsync: (...a: unknown[]) => mockDownloadAsync(...a) }));
+const mockIsAvailable = jest.fn();
+const mockShareAsync = jest.fn();
+jest.mock('expo-sharing', () => ({ isAvailableAsync: () => mockIsAvailable(), shareAsync: (...a: unknown[]) => mockShareAsync(...a) }));
+
+import { getMyEvolution, useMyEvolution, useCreateMyAssessment, downloadEvolutionPdf } from './assessments';
 
 const envelope = { name: 'Ana', height: 170, assessments: [] };
 
 beforeEach(() => {
   mockApiFetch.mockReset().mockResolvedValue(envelope);
+  mockGetSession.mockReset().mockResolvedValue({ data: { session: { access_token: 'tok' } } });
+  mockDownloadAsync.mockReset().mockResolvedValue({ uri: 'file:///cache/evolucao.pdf' });
+  mockIsAvailable.mockReset().mockResolvedValue(true);
+  mockShareAsync.mockReset().mockResolvedValue(undefined);
 });
 
 describe('getMyEvolution', () => {
@@ -75,6 +88,21 @@ describe('useCreateMyAssessment', () => {
     expect(mockApiFetch).toHaveBeenCalledWith('/me/assessments', { method: 'POST', body: { weight: 80 } });
     await waitFor(() =>
       expect(invalidate).toHaveBeenCalledWith({ queryKey: ['me', 'assessments'] }),
+    );
+  });
+});
+
+describe('downloadEvolutionPdf', () => {
+  it('downloads with the bearer token then shares', async () => {
+    await downloadEvolutionPdf();
+    expect(mockDownloadAsync).toHaveBeenCalledWith(
+      expect.stringContaining('/v1/me/assessments/pdf'),
+      'file:///cache/evolucao.pdf',
+      { headers: { Authorization: 'Bearer tok' } },
+    );
+    expect(mockShareAsync).toHaveBeenCalledWith(
+      'file:///cache/evolucao.pdf',
+      expect.objectContaining({ mimeType: 'application/pdf' }),
     );
   });
 });

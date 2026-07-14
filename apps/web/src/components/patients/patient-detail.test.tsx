@@ -5,10 +5,15 @@ import { ApiError } from '@/lib/api/client';
 
 const usePatient = vi.fn();
 const mutateAsync = vi.fn();
+const uploadPhotoMut = vi.fn();
+const deletePhotoMut = vi.fn();
+let uploadPhotoPending = false;
 
 vi.mock('@/lib/queries/patients', () => ({
   usePatient: (id: string) => usePatient(id),
   useUpdatePatient: () => ({ mutateAsync, isPending: false }),
+  useUploadPatientPhoto: () => ({ mutateAsync: uploadPhotoMut, isPending: uploadPhotoPending }),
+  useDeletePatientPhoto: () => ({ mutateAsync: deletePhotoMut, isPending: false }),
 }));
 vi.mock('@/lib/queries/assessments', () => ({
   useAssessments: () => ({ data: [], isLoading: false, isError: false }),
@@ -47,6 +52,9 @@ const patient = {
 beforeEach(() => {
   usePatient.mockReset();
   mutateAsync.mockReset();
+  uploadPhotoMut.mockReset();
+  deletePhotoMut.mockReset();
+  uploadPhotoPending = false;
 });
 
 describe('PatientDetail', () => {
@@ -95,5 +103,21 @@ describe('PatientDetail', () => {
     usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
     render(<PatientDetail id="p1" created={false} canEdit={false} />);
     expect(screen.queryByRole('button', { name: /salvar alterações/i })).not.toBeInTheDocument();
+  });
+
+  it('uploads a chosen photo through the mutation when the nutritionist can edit', async () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    const user = userEvent.setup();
+    render(<PatientDetail id="p1" created={false} canEdit />);
+    const file = new File([new Uint8Array([1, 2, 3])], 'foto.png', { type: 'image/png' });
+    await user.upload(screen.getByLabelText('Foto do paciente'), file);
+    expect(uploadPhotoMut).toHaveBeenCalledWith(file);
+  });
+
+  it('shows a saving state on the photo control while an upload is pending', () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    uploadPhotoPending = true;
+    render(<PatientDetail id="p1" created={false} canEdit />);
+    expect(screen.getByText('Enviando…')).toBeInTheDocument();
   });
 });

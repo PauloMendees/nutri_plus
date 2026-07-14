@@ -3,6 +3,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import type { MealPlanDraft } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { OpenAIProvider } from '../ai/openai.provider';
 import { MealPlansService, GeneratedMealInput } from '../meal-plans/meal-plans.service';
@@ -15,6 +16,10 @@ import {
   MEAL_PLAN_SYSTEM_PROMPT,
   buildMealPlanUserPrompt,
 } from '../ai/prompts/meal-plan.prompt';
+import {
+  MEAL_PLAN_ADJUSTMENT_SYSTEM_PROMPT,
+  buildMealPlanAdjustmentUserPrompt,
+} from '../ai/prompts/meal-plan-adjustment.prompt';
 
 @Injectable()
 export class MealGenerationService {
@@ -80,6 +85,75 @@ export class MealGenerationService {
         options: m.options.map((o) => ({ label: o.label, items: o.items })),
       })),
     });
+  }
+
+  // AI-assisted revision of an EXISTING plan: returns an unpersisted draft
+  // (nutritionist reviews and saves via the normal update endpoint). Ownership is
+  // enforced by mealPlans.getPlan (404 for missing/not-owned); daily targets and
+  // objective are carried over from the existing plan, never recalculated here.
+  async adjust(ctx: AuthContext, planId: string, instructions: string): Promise<MealPlanDraft> {
+    // Ownership + full tree (404 propagates for missing/not-owned).
+    const plan = await this.mealPlans.getPlan(ctx, planId);
+    const patient = await this.prisma.patientProfile.findUnique({
+      where: { id: plan.patientId },
+      select: { objective: true, restrictions: true, allergies: true, medicalConditions: true, notes: true },
+    });
+
+    const revised = await this.provider.generateStructured<MealPlanResponse>({
+      tier: 'smart',
+      system: MEAL_PLAN_ADJUSTMENT_SYSTEM_PROMPT,
+      user: buildMealPlanAdjustmentUserPrompt({
+        currentPlan: {
+          title: plan.title,
+          meals: plan.meals.map((m) => ({
+            name: m.name,
+            timeLabel: m.timeLabel,
+            instructions: m.instructions,
+            options: m.options.map((o) => ({
+              label: o.label,
+              items: o.items.map((it) => ({
+                foodName: it.foodName,
+                quantity: it.quantity,
+                calories: it.calories,
+                protein: it.protein,
+                carbs: it.carbs,
+                fats: it.fats,
+              })),
+            })),
+          })),
+        },
+        objective: patient?.objective ?? null,
+        restrictions: patient?.restrictions ?? null,
+        allergies: patient?.allergies ?? null,
+        medicalConditions: patient?.medicalConditions ?? null,
+        patientNotes: patient?.notes ?? null,
+        targets: {
+          calories: plan.targetCalories,
+          protein: plan.targetProtein,
+          carbs: plan.targetCarbs,
+          fats: plan.targetFats,
+        },
+        instructions,
+      }),
+      schema: mealPlanResponseSchema,
+      schemaName: 'meal_plan',
+      type: AIInteractionType.MEAL_PLAN_ADJUSTMENT,
+      patientId: plan.patientId,
+    });
+
+    return {
+      title: revised.title,
+      objective: plan.objective ?? undefined,
+      targetCalories: plan.targetCalories ?? undefined,
+      targetProtein: plan.targetProtein ?? undefined,
+      targetCarbs: plan.targetCarbs ?? undefined,
+      targetFats: plan.targetFats ?? undefined,
+      meals: revised.meals.map((m) => ({
+        name: m.name,
+        timeLabel: m.timeLabel ?? undefined,
+        options: m.options.map((o) => ({ label: o.label, items: o.items })),
+      })),
+    };
   }
 
   // Validates that every field the calculation needs is present; otherwise 422

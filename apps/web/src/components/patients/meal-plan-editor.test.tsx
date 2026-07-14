@@ -15,6 +15,7 @@ vi.mock('@/lib/queries/meal-plans', () => ({
   useCreateMealPlan: () => ({ mutateAsync: createMut, isPending: false }),
   useUpdateMealPlan: () => ({ mutateAsync: updateMut, isPending: false }),
   useDeleteMealPlan: () => ({ mutateAsync: deleteMut, isPending: false }),
+  useAdjustMealPlan: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, replace }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -160,6 +161,25 @@ describe('MealPlanEditor (edit mode)', () => {
     render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
     await userEvent.click(screen.getByRole('button', { name: /exportar pdf/i }));
     await waitFor(() => expect(downloadMealPlanPdf).toHaveBeenCalledWith('m1'));
+  });
+
+  it('renders text fields as auto-grow textareas so long values are not truncated', () => {
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    // Food name, plan title, meal name are now <textarea> (grow) not <input> (truncate).
+    expect(screen.getByDisplayValue('Ovos').tagName).toBe('TEXTAREA');
+    expect(screen.getByDisplayValue('Plano A').tagName).toBe('TEXTAREA');
+    expect(screen.getByDisplayValue('Café').tagName).toBe('TEXTAREA');
+    // Numeric macro fields stay <input type=number>.
+    expect(screen.getAllByLabelText('Kcal')[0].tagName).toBe('INPUT');
+  });
+
+  it('offers "Solicitar ajustes à IA" in edit mode but not while creating', () => {
+    const { unmount } = render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    expect(screen.getByRole('button', { name: /solicitar ajustes à ia/i })).toBeInTheDocument();
+    unmount();
+    useMealPlan.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+    render(<MealPlanEditor patientId="p1" canEdit />);
+    expect(screen.queryByRole('button', { name: /solicitar ajustes à ia/i })).toBeNull();
   });
 });
 

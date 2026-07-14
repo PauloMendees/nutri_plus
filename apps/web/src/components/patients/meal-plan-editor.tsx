@@ -14,7 +14,7 @@ import {
 } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import type { MealPlan } from '@nutri-plus/shared-types';
+import type { MealPlan, MealPlanDraft } from '@nutri-plus/shared-types';
 import { mealPlanSchema, type MealPlanFormValues } from '@/lib/validation/meal-plan';
 import {
   useCreateMealPlan,
@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AiAdjustDialog } from '@/components/patients/ai-adjust-dialog';
 
 type ItemValues = { foodName: string; quantity: string; calories: string; protein: string; carbs: string; fats: string };
 type OptionValues = { label: string; items: ItemValues[] };
@@ -81,6 +82,33 @@ function toDefaults(plan: MealPlan): FormValues {
   };
 }
 
+function draftToDefaults(d: MealPlanDraft): FormValues {
+  return {
+    title: d.title ?? '',
+    objective: d.objective ?? '',
+    targetCalories: numToStr(d.targetCalories ?? null),
+    targetProtein: numToStr(d.targetProtein ?? null),
+    targetCarbs: numToStr(d.targetCarbs ?? null),
+    targetFats: numToStr(d.targetFats ?? null),
+    meals: (d.meals ?? []).map((m) => ({
+      name: m.name ?? '',
+      timeLabel: m.timeLabel ?? '',
+      instructions: m.instructions ?? '',
+      options: (m.options ?? []).map((o) => ({
+        label: o.label ?? '',
+        items: (o.items ?? []).map((it) => ({
+          foodName: it.foodName ?? '',
+          quantity: it.quantity ?? '',
+          calories: numToStr(it.calories ?? null),
+          protein: numToStr(it.protein ?? null),
+          carbs: numToStr(it.carbs ?? null),
+          fats: numToStr(it.fats ?? null),
+        })),
+      })),
+    })),
+  };
+}
+
 const TARGETS = [
   { key: 'targetCalories', total: 'calories', label: 'Kcal' },
   { key: 'targetProtein', total: 'protein', label: 'Proteína' },
@@ -94,6 +122,11 @@ const ITEM_MACROS = [
   { key: 'carbs', label: 'C' },
   { key: 'fats', label: 'G' },
 ] as const;
+
+// Auto-grow single-line text fields: sized like the Inputs they replace, but the
+// shadcn Textarea's `field-sizing-content` lets them grow vertically with content.
+const GROW = 'min-h-8 resize-none py-1';
+const GROW_SM = 'min-h-7 resize-none py-1';
 
 function sum(values: string[]): number {
   return values.reduce((acc, v) => acc + (Number(v) || 0), 0);
@@ -117,6 +150,7 @@ export function MealPlanEditor({
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [adjusting, setAdjusting] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(mealPlanSchema) as unknown as Resolver<FormValues>,
@@ -178,11 +212,11 @@ export function MealPlanEditor({
   }
 
   if (!isCreate && query.isLoading) {
-    return <Skeleton className="h-64 w-full max-w-3xl" />;
+    return <Skeleton className="h-64 w-full max-w-4xl" />;
   }
   if (!isCreate && (query.isError || !query.data)) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4">
+      <div className="mx-auto max-w-4xl space-y-4">
         <BackToPatient patientId={patientId} />
         <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
           Plano não encontrado.
@@ -194,20 +228,33 @@ export function MealPlanEditor({
   const pending = form.formState.isSubmitting || create.isPending || update.isPending;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="mx-auto max-w-4xl space-y-4">
       <div className="flex items-center justify-between gap-2">
         <BackToPatient patientId={patientId} />
         {!isCreate && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            onClick={onExport}
-            disabled={exporting}
-          >
-            {exporting ? 'Exportando…' : 'Exportar PDF'}
-          </Button>
+          <div className="flex gap-2">
+            {canEdit && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                onClick={() => setAdjusting(true)}
+              >
+                Solicitar ajustes à IA
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={onExport}
+              disabled={exporting}
+            >
+              {exporting ? 'Exportando…' : 'Exportar PDF'}
+            </Button>
+          </div>
         )}
       </div>
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="space-y-4">
@@ -215,8 +262,8 @@ export function MealPlanEditor({
           {/* Header */}
           <div className="space-y-2">
             <label className="block text-sm font-medium" htmlFor="mp-title">Título</label>
-            <Input id="mp-title" placeholder="Título do plano" {...form.register('title')} />
-            <Input placeholder="Objetivo" aria-label="Objetivo" {...form.register('objective')} />
+            <Textarea id="mp-title" rows={1} className={GROW} placeholder="Título do plano" {...form.register('title')} />
+            <Textarea rows={1} className={GROW} placeholder="Objetivo" aria-label="Objetivo" {...form.register('objective')} />
           </div>
 
           {/* Metas (por dia) */}
@@ -308,6 +355,18 @@ export function MealPlanEditor({
           </div>
         )}
       </form>
+
+      {!isCreate && (
+        <AiAdjustDialog
+          open={adjusting}
+          onOpenChange={setAdjusting}
+          planId={planId!}
+          onApplied={(draft) => {
+            form.reset(draftToDefaults(draft));
+            toast.success('Plano ajustado — revise e salve.');
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -338,8 +397,8 @@ function MealCard({
   return (
     <div data-testid="meal-card" className="rounded-xl border bg-card p-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <Input className="max-w-48" placeholder="Refeição" aria-label="Nome da refeição" {...register(`meals.${mealIndex}.name`)} />
-        <Input className="max-w-28" placeholder="08:00" aria-label="Horário" {...register(`meals.${mealIndex}.timeLabel`)} />
+        <Textarea rows={1} className={`max-w-48 ${GROW}`} placeholder="Refeição" aria-label="Nome da refeição" {...register(`meals.${mealIndex}.name`)} />
+        <Textarea rows={1} className={`max-w-28 ${GROW}`} placeholder="08:00" aria-label="Horário" {...register(`meals.${mealIndex}.timeLabel`)} />
         {canEdit && (
           <span className="ml-auto flex gap-1">
             <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={onMoveUp} disabled={isFirst} aria-label="Mover refeição para cima">↑</Button>
@@ -409,8 +468,9 @@ function OptionCard({
   return (
     <div data-testid="option-card" className="rounded-lg border bg-background p-3">
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <Input
-          className="max-w-40 h-7"
+        <Textarea
+          rows={1}
+          className={`max-w-40 ${GROW_SM}`}
           placeholder={`Opção ${optionIndex + 1}`}
           aria-label="Rótulo da opção"
           {...register(`meals.${mealIndex}.options.${optionIndex}.label`)}
@@ -436,16 +496,16 @@ function OptionCard({
           <tbody>
             {items.fields.map((itemField, itemIndex) => (
               <tr key={itemField.id}>
-                <td className="py-1 pr-1"><Input className="h-7" aria-label="Alimento" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.foodName`)} /></td>
-                <td className="py-1 pr-1"><Input className="h-7 w-20" aria-label="Quantidade" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`)} /></td>
+                <td className="py-1 pr-1 align-top"><Textarea rows={1} className={GROW_SM} aria-label="Alimento" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.foodName`)} /></td>
+                <td className="py-1 pr-1 align-top"><Textarea rows={1} className={`w-40 ${GROW_SM}`} aria-label="Quantidade" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`)} /></td>
                 {ITEM_MACROS.map((m) => (
-                  <td key={m.key} className="py-1 pr-1">
+                  <td key={m.key} className="py-1 pr-1 align-top">
                     <Input className="h-7 w-16" type="number" inputMode="decimal" step="any" aria-label={m.label}
                       {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.${m.key}` as const)} />
                   </td>
                 ))}
                 {canEdit && (
-                  <td className="py-1">
+                  <td className="py-1 align-top">
                     <span className="flex gap-1">
                       <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => items.swap(itemIndex, itemIndex - 1)} disabled={itemIndex === 0} aria-label="Mover item para cima">↑</Button>
                       <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => items.swap(itemIndex, itemIndex + 1)} disabled={itemIndex === items.fields.length - 1} aria-label="Mover item para baixo">↓</Button>

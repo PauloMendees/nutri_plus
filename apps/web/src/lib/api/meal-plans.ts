@@ -1,6 +1,7 @@
 import type {
   CreateMealPlanRequest,
   MealPlan,
+  MealPlanDraft,
   MealPlanSummary,
   UpdateMealPlanRequest,
 } from '@nutri-plus/shared-types';
@@ -37,6 +38,13 @@ export function generateMealPlan(patientId: string, instructions?: string): Prom
   return browserApiFetch<MealPlan>('/ai/generate-meal-plan', {
     method: 'POST',
     body: { patientId, instructions },
+  });
+}
+
+export function adjustMealPlan(planId: string, instructions: string): Promise<MealPlanDraft> {
+  return browserApiFetch<MealPlanDraft>('/ai/adjust-meal-plan', {
+    method: 'POST',
+    body: { planId, instructions },
   });
 }
 
