@@ -127,7 +127,7 @@ describe('BioimpedanceSection', () => {
     const user = userEvent.setup();
     useAssessments.mockReturnValue({ isLoading: false, isError: false, data: [assessment()] });
     render(<BioimpedanceSection patientId="p1" canEdit />);
-    await user.click(screen.getByRole('button', { name: /exportar pdf/i }));
+    await user.click(screen.getByRole('button', { name: /exportar evolução/i }));
     expect(downloadAssessmentsPdf).toHaveBeenCalledWith('p1');
   });
 

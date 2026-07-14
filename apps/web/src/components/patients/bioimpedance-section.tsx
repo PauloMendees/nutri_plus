@@ -118,7 +118,7 @@ export function BioimpedanceSection({
             onClick={onExport}
             disabled={exporting || data.length === 0}
           >
-            {exporting ? 'Exportando…' : 'Exportar PDF'}
+            {exporting ? 'Exportando…' : 'Exportar evolução'}
           </Button>
           {canEdit && (
             <Button size="sm" className="rounded-full" onClick={() => setCreating(true)}>
@@ -193,9 +193,13 @@ export function BioimpedanceSection({
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={series} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="date" fontSize={11} stroke="var(--muted-foreground)" />
-                  <YAxis fontSize={11} stroke="var(--muted-foreground)" width={40} />
-                  <Tooltip />
+                  <XAxis dataKey="date" stroke="var(--muted-foreground)" tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }} />
+                  <YAxis stroke="var(--muted-foreground)" width={40} tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8 }}
+                    labelStyle={{ color: 'var(--foreground)' }}
+                    itemStyle={{ color: 'var(--foreground)' }}
+                  />
                   <Line type="monotone" dataKey="value" stroke="#14BFA6" strokeWidth={2} dot />
                 </LineChart>
               </ResponsiveContainer>
