@@ -108,7 +108,7 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
                 href={`/patients/${p.id}`}
                 className="flex items-center gap-3 rounded-xl border bg-card p-4"
               >
-                <PatientAvatar name={p.user.name} photoUrl={p.photoUrl} className="size-9 text-xs" />
+                <PatientAvatar name={p.user.name} photoUrl={p.photoUrl} className="size-11 text-sm" />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-semibold">{p.user.name}</span>
                   <span className="block truncate text-sm text-muted-foreground">{p.user.email}</span>
@@ -135,7 +135,7 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
                   <tr key={p.id} className="border-b last:border-0 hover:bg-muted/40">
                     <td className="px-4 py-3">
                       <Link href={`/patients/${p.id}`} className="flex items-center gap-3 font-semibold">
-                        <PatientAvatar name={p.user.name} photoUrl={p.photoUrl} className="size-8 text-xs" />
+                        <PatientAvatar name={p.user.name} photoUrl={p.photoUrl} className="size-10 text-sm" />
                         {p.user.name}
                       </Link>
                     </td>

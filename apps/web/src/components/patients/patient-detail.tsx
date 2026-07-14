@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ApiError } from '@/lib/api/client';
 import { usePatient, useUploadPatientPhoto, useDeletePatientPhoto } from '@/lib/queries/patients';
@@ -80,14 +80,24 @@ export function PatientDetail({
       <CreatedBanner show={created} />
 
       <div className="flex items-center gap-3 rounded-xl border bg-card p-4">
-        <PatientAvatar name={patient.user.name} photoUrl={patient.photoUrl} className="size-11 text-sm" />
+        <div className="relative">
+          <PatientAvatar name={patient.user.name} photoUrl={patient.photoUrl} className="size-16 text-lg" />
+          {photoPending && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-background/60">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />
+            </div>
+          )}
+        </div>
         <div className="min-w-0">
           <p className="font-bold">{patient.user.name}</p>
           <p className="truncate text-sm text-muted-foreground">{patient.user.email}</p>
           {canEdit && (
             <div className="mt-1 flex gap-2">
-              <label className="cursor-pointer rounded-full border px-3 py-1 text-xs font-medium hover:bg-muted/40">
-                {patient.photoUrl ? 'Trocar foto' : 'Adicionar foto'}
+              <label
+                aria-disabled={photoPending}
+                className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-medium hover:bg-muted/40 ${photoPending ? 'pointer-events-none opacity-60' : ''}`}
+              >
+                {photoPending ? 'Enviando…' : patient.photoUrl ? 'Trocar foto' : 'Adicionar foto'}
                 <input
                   ref={fileRef}
                   type="file"
