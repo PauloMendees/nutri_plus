@@ -496,16 +496,16 @@ function OptionCard({
           <tbody>
             {items.fields.map((itemField, itemIndex) => (
               <tr key={itemField.id}>
-                <td className="py-1 pr-1"><Textarea rows={1} className={GROW_SM} aria-label="Alimento" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.foodName`)} /></td>
-                <td className="py-1 pr-1"><Textarea rows={1} className={`w-20 ${GROW_SM}`} aria-label="Quantidade" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`)} /></td>
+                <td className="py-1 pr-1 align-top"><Textarea rows={1} className={GROW_SM} aria-label="Alimento" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.foodName`)} /></td>
+                <td className="py-1 pr-1 align-top"><Textarea rows={1} className={`w-40 ${GROW_SM}`} aria-label="Quantidade" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`)} /></td>
                 {ITEM_MACROS.map((m) => (
-                  <td key={m.key} className="py-1 pr-1">
+                  <td key={m.key} className="py-1 pr-1 align-top">
                     <Input className="h-7 w-16" type="number" inputMode="decimal" step="any" aria-label={m.label}
                       {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.${m.key}` as const)} />
                   </td>
                 ))}
                 {canEdit && (
-                  <td className="py-1">
+                  <td className="py-1 align-top">
                     <span className="flex gap-1">
                       <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => items.swap(itemIndex, itemIndex - 1)} disabled={itemIndex === 0} aria-label="Mover item para cima">↑</Button>
                       <Button type="button" variant="outline" size="sm" className="rounded-full" onClick={() => items.swap(itemIndex, itemIndex + 1)} disabled={itemIndex === items.fields.length - 1} aria-label="Mover item para baixo">↓</Button>
