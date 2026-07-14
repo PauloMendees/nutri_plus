@@ -212,11 +212,11 @@ export function MealPlanEditor({
   }
 
   if (!isCreate && query.isLoading) {
-    return <Skeleton className="h-64 w-full max-w-3xl" />;
+    return <Skeleton className="h-64 w-full max-w-4xl" />;
   }
   if (!isCreate && (query.isError || !query.data)) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4">
+      <div className="mx-auto max-w-4xl space-y-4">
         <BackToPatient patientId={patientId} />
         <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
           Plano não encontrado.
@@ -228,7 +228,7 @@ export function MealPlanEditor({
   const pending = form.formState.isSubmitting || create.isPending || update.isPending;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="mx-auto max-w-4xl space-y-4">
       <div className="flex items-center justify-between gap-2">
         <BackToPatient patientId={patientId} />
         {!isCreate && (
