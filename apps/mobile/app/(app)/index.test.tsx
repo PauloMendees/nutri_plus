@@ -1,7 +1,11 @@
 import { render, screen, fireEvent } from '@testing-library/react-native';
 
 const mockUseMyEvolution = jest.fn();
-jest.mock('../../lib/queries/assessments', () => ({ useMyEvolution: () => mockUseMyEvolution() }));
+const mockDownload = jest.fn();
+jest.mock('../../lib/queries/assessments', () => ({
+  useMyEvolution: () => mockUseMyEvolution(),
+  downloadEvolutionPdf: (...args: unknown[]) => mockDownload(...args),
+}));
 
 // Only BrandHeader (in the render tree) touches the theme, and it reads `scheme`.
 jest.mock('../../lib/theme', () => ({ useTheme: () => ({ scheme: 'dark' }) }));
@@ -50,5 +54,13 @@ describe('Evolução screen', () => {
     expect(screen.getByText(/78,0/)).toBeTruthy();
     // three trend charts → at least one chart path renders (2 points each)
     expect(screen.getAllByTestId('line-chart-path').length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('exports the evolution PDF when the button is pressed', async () => {
+    mockDownload.mockReset().mockResolvedValue(undefined);
+    mockUseMyEvolution.mockReturnValue({ isLoading: false, isError: false, data: two });
+    await render(<Home />);
+    await fireEvent.press(screen.getByText('Exportar PDF'));
+    expect(mockDownload).toHaveBeenCalled();
   });
 });

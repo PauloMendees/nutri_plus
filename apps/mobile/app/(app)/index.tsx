@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import type { BodyAssessment } from '@nutri-plus/shared-types';
@@ -5,7 +6,7 @@ import { Screen } from '../../components/ui/screen';
 import { BrandHeader } from '../../components/brand/brand-header';
 import { Button } from '../../components/ui/button';
 import { LineChart } from '../../components/chart/line-chart';
-import { useMyEvolution } from '../../lib/queries/assessments';
+import { useMyEvolution, downloadEvolutionPdf } from '../../lib/queries/assessments';
 
 // pt-BR number with 1 decimal and comma; '—' for null/undefined.
 function fmt(v: number | null | undefined, digits = 1): string {
@@ -73,6 +74,20 @@ function GridRow({ label, value }: { label: string; value: string }) {
 
 export default function Home() {
   const query = useMyEvolution();
+  const [downloading, setDownloading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
+  async function onExport() {
+    setPdfError(null);
+    setDownloading(true);
+    try {
+      await downloadEvolutionPdf();
+    } catch {
+      setPdfError('Não foi possível baixar o PDF. Tente novamente.');
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   if (query.isLoading) {
     return (
@@ -175,6 +190,9 @@ export default function Home() {
             <GridRow key={row.label} label={row.label} value={row.value} />
           ))}
         </View>
+
+        {pdfError ? <Text className="font-sans text-sm text-destructive">{pdfError}</Text> : null}
+        <Button label="Exportar PDF" onPress={onExport} loading={downloading} />
 
         {canLog ? (
           <Button label="Registrar medição" onPress={() => router.push('/nova-medicao')} />
