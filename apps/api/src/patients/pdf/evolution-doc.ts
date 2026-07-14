@@ -36,6 +36,17 @@ const CHART_H = 130;
 const PAD_X = 10;
 const PAD_Y = 14;
 
+// Value-label placement (ported from the mobile LineChart): sit LABEL_GAP above
+// the point, flipping to LABEL_DROP below when near the top edge.
+const LABEL_GAP = 8;
+const LABEL_DROP = 16;
+const LABEL_TOP_MIN = 10;
+
+// pt-BR value label: integers as-is, otherwise one decimal with a comma.
+function labelOf(y: number): string {
+  return Number.isInteger(y) ? String(y) : y.toFixed(1).replace('.', ',');
+}
+
 const fmtDate = (d: Date | string) => new Date(d).toLocaleDateString('pt-BR');
 const fmtNum = (n: number | null | undefined) => (n == null ? '—' : n.toLocaleString('pt-BR'));
 
@@ -44,8 +55,9 @@ function bmiOf(weight: number | null, height: number | null): number | null {
   return Math.round((weight / (height / 100) ** 2) * 10) / 10;
 }
 
-// A single-metric trend chart as a pdfmake canvas node, or a note when there are
-// fewer than two data points. Scaling ported from the mobile LineChart.
+// A single-metric trend chart as a pdfmake svg node, or a note when there are
+// fewer than two data points. Scaling + label placement ported from the mobile
+// LineChart. pdfmake canvas cannot render text, so the chart is an SVG string.
 function drawChart(series: { x: number; y: number }[]): Content {
   if (series.length < 2) {
     return { text: 'dados insuficientes', style: 'muted', margin: [0, 0, 0, 8] };
@@ -65,20 +77,25 @@ function drawChart(series: { x: number; y: number }[]): Content {
   const py = (y: number) =>
     CHART_H - PAD_Y - ((y - yMin) / (yMax - yMin)) * (CHART_H - 2 * PAD_Y);
 
-  const canvas: Record<string, unknown>[] = [];
-  [PAD_Y, CHART_H / 2, CHART_H - PAD_Y].forEach((gy) => {
-    canvas.push({ type: 'line', x1: PAD_X, y1: gy, x2: CHART_W - PAD_X, y2: gy, lineWidth: 0.5, lineColor: '#dddddd' });
-  });
-  canvas.push({
-    type: 'polyline',
-    lineWidth: 1.5,
-    lineColor: TEAL,
-    points: series.map((p) => ({ x: px(p.x), y: py(p.y) })),
-  });
-  series.forEach((p) => {
-    canvas.push({ type: 'ellipse', x: px(p.x), y: py(p.y), color: TEAL, r1: 2, r2: 2 });
-  });
-  return { canvas, margin: [0, 0, 0, 10] } as unknown as Content;
+  const points = series.map((p) => ({ cx: px(p.x), cy: py(p.y), label: labelOf(p.y) }));
+  const last = points.length - 1;
+
+  const gridlines = [PAD_Y, CHART_H / 2, CHART_H - PAD_Y]
+    .map((gy) => `<line x1="${PAD_X}" y1="${gy}" x2="${CHART_W - PAD_X}" y2="${gy}" stroke="#dddddd" stroke-width="0.5" />`)
+    .join('');
+  const polyline = `<polyline fill="none" stroke="${TEAL}" stroke-width="1.5" points="${points
+    .map((p) => `${p.cx},${p.cy}`)
+    .join(' ')}" />`;
+  const dots = points.map((p) => `<circle cx="${p.cx}" cy="${p.cy}" r="2" fill="${TEAL}" />`).join('');
+  const labels = points
+    .map((p, i) => {
+      const anchor = i === 0 ? 'start' : i === last ? 'end' : 'middle';
+      const labelY = p.cy - LABEL_GAP < LABEL_TOP_MIN ? p.cy + LABEL_DROP : p.cy - LABEL_GAP;
+      return `<text x="${p.cx}" y="${labelY}" fill="#666666" font-size="9" text-anchor="${anchor}">${p.label}</text>`;
+    })
+    .join('');
+  const svg = `<svg viewBox="0 0 ${CHART_W} ${CHART_H}" xmlns="http://www.w3.org/2000/svg">${gridlines}${polyline}${dots}${labels}</svg>`;
+  return { svg, width: CHART_W, margin: [0, 0, 0, 10] };
 }
 
 const CHART_METRICS: { key: keyof EvolutionAssessment; label: string }[] = [
@@ -198,11 +215,21 @@ export function buildEvolutionDocDefinition(input: EvolutionDocInput): TDocument
     content.push(drawChart(series));
   });
 
-  content.push({ text: 'Histórico — composição', style: 'section', margin: [0, 8, 0, 4] });
-  content.push(compositionTable(assessments, height));
+  content.push({
+    stack: [
+      { text: 'Histórico — composição', style: 'section', margin: [0, 8, 0, 4] },
+      compositionTable(assessments, height),
+    ],
+    unbreakable: true,
+  });
 
-  content.push({ text: 'Histórico — circunferências (cm)', style: 'section', margin: [0, 10, 0, 4] });
-  content.push(circumferenceTable(assessments));
+  content.push({
+    stack: [
+      { text: 'Histórico — circunferências (cm)', style: 'section', margin: [0, 10, 0, 4] },
+      circumferenceTable(assessments),
+    ],
+    unbreakable: true,
+  });
 
   return docShell(content);
 }

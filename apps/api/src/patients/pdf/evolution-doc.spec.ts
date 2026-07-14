@@ -1,4 +1,5 @@
 import { buildEvolutionDocDefinition, EvolutionAssessment } from './evolution-doc';
+import { renderPdf } from '../../meal-plans/pdf/pdf-printer';
 
 function contentArray(doc: ReturnType<typeof buildEvolutionDocDefinition>): any[] {
   return doc.content as any[];
@@ -10,14 +11,15 @@ const rows: EvolutionAssessment[] = [
 ];
 
 describe('buildEvolutionDocDefinition', () => {
-  it('draws a chart canvas for a metric with >= 2 points and includes both tables', () => {
+  it('draws an svg chart with per-point value labels and keeps each history heading with its table', () => {
     const doc = buildEvolutionDocDefinition({ patientName: 'Ana', height: 170, assessments: rows, branding: { displayName: 'Clínica X', logoDataUrl: null } });
     const nodes = contentArray(doc);
-    const canvases = nodes.filter((n) => Array.isArray(n.canvas));
-    // header divider + at least the 4 metric charts
-    expect(canvases.some((c) => c.canvas.some((s: any) => s.type === 'polyline'))).toBe(true);
-    const tables = nodes.filter((n) => n.table);
-    expect(tables.length).toBe(2); // composição + circunferências
+    // The weight chart (80 → 78) is an svg node whose value labels appear as text.
+    expect(nodes.some((n) => typeof n.svg === 'string' && n.svg.includes('>80<') && n.svg.includes('>78<'))).toBe(true);
+    // Both history sections are unbreakable stacks, each wrapping a table.
+    const unbreakables = nodes.filter((n) => n.unbreakable === true);
+    expect(unbreakables.length).toBe(2);
+    expect(unbreakables.every((s) => Array.isArray(s.stack) && s.stack.some((x: any) => x.table))).toBe(true);
     // brand name present, no image when logo is null
     expect(JSON.stringify(nodes)).toContain('Clínica X');
     expect(nodes.some((n) => Array.isArray(n.columns) && n.columns.some((c: any) => c.image))).toBe(false);
@@ -33,5 +35,11 @@ describe('buildEvolutionDocDefinition', () => {
     const one = [rows[0]];
     const doc = buildEvolutionDocDefinition({ patientName: 'Ana', height: 170, assessments: one, branding: { displayName: 'X', logoDataUrl: null } });
     expect(JSON.stringify(contentArray(doc))).toContain('dados insuficientes');
+  });
+
+  it('renders the doc (with svg charts) to a PDF buffer', async () => {
+    const doc = buildEvolutionDocDefinition({ patientName: 'Ana', height: 170, assessments: rows, branding: { displayName: 'X', logoDataUrl: null } });
+    const buf = await renderPdf(doc);
+    expect(buf.subarray(0, 5).toString()).toBe('%PDF-');
   });
 });
