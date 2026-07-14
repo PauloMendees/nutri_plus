@@ -16,10 +16,13 @@ describe('buildEvolutionDocDefinition', () => {
     const nodes = contentArray(doc);
     // The weight chart (80 → 78) is an svg node whose value labels appear as text.
     expect(nodes.some((n) => typeof n.svg === 'string' && n.svg.includes('>80<') && n.svg.includes('>78<'))).toBe(true);
-    // Both history sections are unbreakable stacks, each wrapping a table.
-    const unbreakables = nodes.filter((n) => n.unbreakable === true);
-    expect(unbreakables.length).toBe(2);
-    expect(unbreakables.every((s) => Array.isArray(s.stack) && s.stack.some((x: any) => x.table))).toBe(true);
+    // Both history tables are top-level nodes (NOT wrapped in an unbreakable
+    // block, which pdfmake drops when taller than a page); their headings are
+    // headlineLevel-tagged for the orphan-avoiding pageBreakBefore.
+    const tables = nodes.filter((n) => n.table);
+    expect(tables.length).toBe(2);
+    expect(nodes.filter((n) => n.headlineLevel === 1).length).toBeGreaterThanOrEqual(2);
+    expect(typeof doc.pageBreakBefore).toBe('function');
     // brand name present, no image when logo is null
     expect(JSON.stringify(nodes)).toContain('Clínica X');
     expect(nodes.some((n) => Array.isArray(n.columns) && n.columns.some((c: any) => c.image))).toBe(false);
@@ -41,5 +44,13 @@ describe('buildEvolutionDocDefinition', () => {
     const doc = buildEvolutionDocDefinition({ patientName: 'Ana', height: 170, assessments: rows, branding: { displayName: 'X', logoDataUrl: null } });
     const buf = await renderPdf(doc);
     expect(buf.subarray(0, 5).toString()).toBe('%PDF-');
+  });
+
+  it('breaks before a section heading only when it would orphan at the page bottom', () => {
+    const doc = buildEvolutionDocDefinition({ patientName: 'Ana', height: 170, assessments: rows, branding: { displayName: 'X', logoDataUrl: null } });
+    const pbb = doc.pageBreakBefore as (n: any, following: any[]) => boolean;
+    expect(pbb({ headlineLevel: 1 }, [])).toBe(true);        // heading is last on page → break
+    expect(pbb({ headlineLevel: 1 }, [{}])).toBe(false);     // content follows → keep
+    expect(pbb({}, [])).toBe(false);                          // non-heading → never force-break
   });
 });

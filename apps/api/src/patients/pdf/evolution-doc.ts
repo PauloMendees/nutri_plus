@@ -178,6 +178,12 @@ function docShell(content: Content[]): TDocumentDefinitions {
       color: '#999999',
       margin: [0, 8, 0, 0],
     }),
+    // Avoid an orphaned section heading at the bottom of a page: break before a
+    // headlineLevel-1 heading only when nothing else fits after it on the page.
+    // (Do NOT use `unbreakable` on the tables — pdfmake silently drops an
+    // unbreakable block taller than one page, losing long histories.)
+    pageBreakBefore: (currentNode, followingNodesOnPage) =>
+      currentNode.headlineLevel === 1 && followingNodesOnPage.length === 0,
   };
 }
 
@@ -206,7 +212,7 @@ export function buildEvolutionDocDefinition(input: EvolutionDocInput): TDocument
     return docShell(content);
   }
 
-  content.push({ text: 'Tendências', style: 'section', margin: [0, 4, 0, 6] });
+  content.push({ text: 'Tendências', style: 'section', headlineLevel: 1, margin: [0, 4, 0, 6] });
   CHART_METRICS.forEach((m) => {
     content.push({ text: m.label, style: 'chartLabel', margin: [0, 4, 0, 2] });
     const series = assessments
@@ -215,21 +221,11 @@ export function buildEvolutionDocDefinition(input: EvolutionDocInput): TDocument
     content.push(drawChart(series));
   });
 
-  content.push({
-    stack: [
-      { text: 'Histórico — composição', style: 'section', margin: [0, 8, 0, 4] },
-      compositionTable(assessments, height),
-    ],
-    unbreakable: true,
-  });
+  content.push({ text: 'Histórico — composição', style: 'section', headlineLevel: 1, margin: [0, 8, 0, 4] });
+  content.push(compositionTable(assessments, height));
 
-  content.push({
-    stack: [
-      { text: 'Histórico — circunferências (cm)', style: 'section', margin: [0, 10, 0, 4] },
-      circumferenceTable(assessments),
-    ],
-    unbreakable: true,
-  });
+  content.push({ text: 'Histórico — circunferências (cm)', style: 'section', headlineLevel: 1, margin: [0, 10, 0, 4] });
+  content.push(circumferenceTable(assessments));
 
   return docShell(content);
 }
