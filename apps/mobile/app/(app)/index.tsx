@@ -24,13 +24,13 @@ function formatDate(iso: string): string {
   return iso.slice(0, 10).split('-').reverse().join('/');
 }
 
-type Metric = keyof Pick<BodyAssessment, 'weight' | 'bodyFatPercentage' | 'muscleMass'>;
+type Metric = keyof Pick<BodyAssessment, 'weight' | 'bodyFatPercentage' | 'muscleMassPercentage'>;
 
 // The headline metrics shown both as snapshot tiles and as trend charts.
 const METRICS: { key: Metric; label: string; unit?: string; trendLabel: string }[] = [
   { key: 'weight', label: 'Peso', unit: 'kg', trendLabel: 'Peso (kg)' },
   { key: 'bodyFatPercentage', label: '% Gordura', unit: '%', trendLabel: '% Gordura' },
-  { key: 'muscleMass', label: 'Massa muscular', unit: 'kg', trendLabel: 'Massa muscular (kg)' },
+  { key: 'muscleMassPercentage', label: 'Massa muscular', unit: '%', trendLabel: 'Massa muscular (%)' },
 ];
 
 function Tile({ label, value, unit, delta }: { label: string; value: string; unit?: string; delta: number | null }) {
@@ -145,16 +145,20 @@ export default function Home() {
       .map((a, i) => ({ x: i, y: a[key] as number }));
 
   const grid: { label: string; value: string }[] = [
+    { label: 'Massa magra (%)', value: fmt(latest.leanMassPercentage) },
     { label: 'Gordura visceral', value: fmt(latest.visceralFat, 0) },
     { label: 'Taxa metabólica basal', value: fmt(latest.basalMetabolicRate, 0) },
     { label: 'Água corporal (%)', value: fmt(latest.bodyWaterPercentage) },
     { label: 'Massa óssea (kg)', value: fmt(latest.boneMass) },
     { label: 'Idade metabólica', value: fmt(latest.metabolicAge, 0) },
     { label: 'Cintura (cm)', value: fmt(latest.waistCircumference) },
+    { label: 'Abdômen (cm)', value: fmt(latest.abdomenCircumference) },
     { label: 'Quadril (cm)', value: fmt(latest.hipCircumference) },
-    { label: 'Tórax (cm)', value: fmt(latest.chestCircumference) },
-    { label: 'Braço (cm)', value: fmt(latest.armCircumference) },
-    { label: 'Coxa (cm)', value: fmt(latest.thighCircumference) },
+    { label: 'Coxa medial (cm)', value: fmt(latest.thighCircumference) },
+    { label: 'Braço relaxado (cm)', value: fmt(latest.armCircumference) },
+    { label: 'Braço contraído (cm)', value: fmt(latest.contractedArmCircumference) },
+    { label: 'Busto (cm)', value: fmt(latest.chestCircumference) },
+    { label: 'Panturrilha (cm)', value: fmt(latest.calfCircumference) },
   ];
 
   return (
