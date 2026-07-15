@@ -30,8 +30,8 @@ type MetricKey = Extract<
   keyof BodyAssessment,
   | 'weight'
   | 'bodyFatPercentage'
-  | 'muscleMass'
-  | 'leanMass'
+  | 'muscleMassPercentage'
+  | 'leanMassPercentage'
   | 'visceralFat'
   | 'basalMetabolicRate'
   | 'bodyWaterPercentage'
@@ -42,8 +42,8 @@ type MetricKey = Extract<
 const METRICS: { key: MetricKey; label: string }[] = [
   { key: 'weight', label: 'Peso' },
   { key: 'bodyFatPercentage', label: '% Gordura' },
-  { key: 'muscleMass', label: 'Massa muscular' },
-  { key: 'leanMass', label: 'Massa magra' },
+  { key: 'muscleMassPercentage', label: 'Massa muscular (%)' },
+  { key: 'leanMassPercentage', label: 'Massa magra (%)' },
   { key: 'visceralFat', label: 'Gordura visceral' },
   { key: 'basalMetabolicRate', label: 'TMB' },
   { key: 'bodyWaterPercentage', label: '% Água' },
@@ -54,7 +54,7 @@ const METRICS: { key: MetricKey; label: string }[] = [
 const SUMMARY: { key: MetricKey; label: string }[] = [
   { key: 'weight', label: 'Peso (kg)' },
   { key: 'bodyFatPercentage', label: '% Gordura' },
-  { key: 'leanMass', label: 'Massa magra' },
+  { key: 'leanMassPercentage', label: 'Massa magra (%)' },
   { key: 'basalMetabolicRate', label: 'TMB' },
 ];
 
@@ -218,8 +218,8 @@ export function BioimpedanceSection({
                   <th className="px-4 py-3 font-semibold">Data</th>
                   <th className="px-4 py-3 font-semibold">Peso</th>
                   <th className="px-4 py-3 font-semibold">% Gord.</th>
-                  <th className="px-4 py-3 font-semibold">Músculo</th>
-                  <th className="px-4 py-3 font-semibold">Magra</th>
+                  <th className="px-4 py-3 font-semibold">% Músc.</th>
+                  <th className="px-4 py-3 font-semibold">% Magra</th>
                   <th className="px-4 py-3 font-semibold">Cintura</th>
                   {canEdit && <th className="px-4 py-3" />}
                 </tr>
@@ -249,8 +249,8 @@ export function BioimpedanceSection({
                     </td>
                     <td className="px-4 py-3">{fmt(a.weight)}</td>
                     <td className="px-4 py-3">{fmt(a.bodyFatPercentage)}</td>
-                    <td className="px-4 py-3">{fmt(a.muscleMass)}</td>
-                    <td className="px-4 py-3">{fmt(a.leanMass)}</td>
+                    <td className="px-4 py-3">{fmt(a.muscleMassPercentage)}</td>
+                    <td className="px-4 py-3">{fmt(a.leanMassPercentage)}</td>
                     <td className="px-4 py-3">{fmt(a.waistCircumference)}</td>
                     {canEdit && (
                       <td className="px-4 py-3 text-right">
