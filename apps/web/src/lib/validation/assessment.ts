@@ -15,12 +15,12 @@ const optInt = z.preprocess(
   z.coerce.number().int('Deve ser um número inteiro.').min(0, 'Não pode ser negativo.').optional(),
 );
 
-// The 15 measurable fields; date/notes alone do not count as "a metric".
+// The 18 measurable fields; date/notes alone do not count as "a metric".
 const NUMERIC_KEYS = [
   'weight',
   'bodyFatPercentage',
-  'muscleMass',
-  'leanMass',
+  'muscleMassPercentage',
+  'leanMassPercentage',
   'visceralFat',
   'basalMetabolicRate',
   'bodyWaterPercentage',
@@ -31,6 +31,9 @@ const NUMERIC_KEYS = [
   'chestCircumference',
   'armCircumference',
   'thighCircumference',
+  'abdomenCircumference',
+  'contractedArmCircumference',
+  'calfCircumference',
 ] as const;
 
 export const assessmentSchema = z
@@ -47,8 +50,8 @@ export const assessmentSchema = z
     ),
     weight: optPositive,
     bodyFatPercentage: optNonNegative,
-    muscleMass: optNonNegative,
-    leanMass: optNonNegative,
+    muscleMassPercentage: optNonNegative,
+    leanMassPercentage: optNonNegative,
     visceralFat: optNonNegative,
     basalMetabolicRate: optPositive,
     bodyWaterPercentage: optNonNegative,
@@ -59,6 +62,9 @@ export const assessmentSchema = z
     chestCircumference: optNonNegative,
     armCircumference: optNonNegative,
     thighCircumference: optNonNegative,
+    abdomenCircumference: optNonNegative,
+    contractedArmCircumference: optNonNegative,
+    calfCircumference: optNonNegative,
     notes: z.preprocess(
       emptyToUndefined,
       z.string().max(2000, 'Máximo de 2000 caracteres.').optional(),

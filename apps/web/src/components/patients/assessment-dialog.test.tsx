@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { BodyAssessment } from '@nutri-plus/shared-types';
 
 const createMut = vi.fn();
 const updateMut = vi.fn();
@@ -16,14 +17,16 @@ import { AssessmentDialog } from './assessment-dialog';
 
 const onOpenChange = vi.fn();
 
-const assessment = {
+const assessment: BodyAssessment = {
   id: 'a1',
   patientId: 'p1',
   assessmentDate: '2026-05-12T00:00:00.000Z',
   weight: 78.2,
   bodyFatPercentage: 22,
-  muscleMass: 34,
-  leanMass: 60,
+  muscleMass: null,
+  leanMass: null,
+  muscleMassPercentage: 34,
+  leanMassPercentage: 60,
   visceralFat: null,
   basalMetabolicRate: 1680,
   bodyWaterPercentage: null,
@@ -34,6 +37,9 @@ const assessment = {
   chestCircumference: null,
   armCircumference: null,
   thighCircumference: null,
+  abdomenCircumference: null,
+  contractedArmCircumference: null,
+  calfCircumference: null,
   notes: null,
   createdAt: '2026-05-12T00:00:00.000Z',
   loggedByPatient: false,
@@ -59,6 +65,9 @@ describe('AssessmentDialog', () => {
   it('edit: prefills and updates with the assessment id', async () => {
     render(<AssessmentDialog open onOpenChange={onOpenChange} patientId='p1' assessment={assessment} />);
     expect(screen.getByLabelText(/peso/i)).toHaveValue(78.2);
+    expect(screen.getByLabelText('Massa muscular (%)')).toHaveValue(34);
+    expect(screen.getByLabelText('Massa magra (%)')).toHaveValue(60);
+    expect(screen.getByLabelText('Abdômen (cm)')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
     await waitFor(() => expect(updateMut).toHaveBeenCalledTimes(1));
     expect(updateMut.mock.calls[0][0].id).toBe('a1');
