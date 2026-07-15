@@ -16,18 +16,21 @@ const today = () => new Date().toISOString().slice(0, 10);
 const FIELDS: { key: keyof AssessmentValues; label: string }[] = [
   { key: 'weight', label: 'Peso (kg)' },
   { key: 'bodyFatPercentage', label: '% Gordura' },
-  { key: 'muscleMass', label: 'Massa muscular (kg)' },
-  { key: 'leanMass', label: 'Massa magra (kg)' },
+  { key: 'muscleMassPercentage', label: 'Massa muscular (%)' },
+  { key: 'leanMassPercentage', label: 'Massa magra (%)' },
   { key: 'visceralFat', label: 'Gordura visceral' },
   { key: 'basalMetabolicRate', label: 'TMB (kcal)' },
   { key: 'bodyWaterPercentage', label: '% Água' },
   { key: 'boneMass', label: 'Massa óssea (kg)' },
   { key: 'metabolicAge', label: 'Idade metabólica' },
   { key: 'waistCircumference', label: 'Cintura (cm)' },
+  { key: 'abdomenCircumference', label: 'Abdômen (cm)' },
   { key: 'hipCircumference', label: 'Quadril (cm)' },
-  { key: 'chestCircumference', label: 'Peito (cm)' },
-  { key: 'armCircumference', label: 'Braço (cm)' },
-  { key: 'thighCircumference', label: 'Coxa (cm)' },
+  { key: 'thighCircumference', label: 'Coxa medial (cm)' },
+  { key: 'armCircumference', label: 'Braço relaxado (cm)' },
+  { key: 'contractedArmCircumference', label: 'Braço contraído (cm)' },
+  { key: 'chestCircumference', label: 'Busto (cm)' },
+  { key: 'calfCircumference', label: 'Panturrilha (cm)' },
 ];
 
 export default function NovaMedicao() {
