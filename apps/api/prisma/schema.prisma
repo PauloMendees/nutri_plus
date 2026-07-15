@@ -168,6 +168,8 @@ model BodyAssessment {
   bodyFatPercentage   Float?
   muscleMass          Float?
   leanMass            Float?
+  muscleMassPercentage Float?
+  leanMassPercentage   Float?
   visceralFat         Float?
   basalMetabolicRate  Float?
   bodyWaterPercentage Float?
@@ -179,6 +181,9 @@ model BodyAssessment {
   chestCircumference  Float?
   armCircumference    Float?
   thighCircumference  Float?
+  abdomenCircumference       Float?
+  contractedArmCircumference Float?
+  calfCircumference          Float?
 
   notes          String?
   createdAt      DateTime @default(now())

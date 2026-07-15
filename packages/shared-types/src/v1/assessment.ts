@@ -7,6 +7,8 @@ export interface BodyAssessment {
   bodyFatPercentage: number | null;
   muscleMass: number | null;
   leanMass: number | null;
+  muscleMassPercentage: number | null;
+  leanMassPercentage: number | null;
   visceralFat: number | null;
   basalMetabolicRate: number | null;
   bodyWaterPercentage: number | null;
@@ -17,6 +19,9 @@ export interface BodyAssessment {
   chestCircumference: number | null;
   armCircumference: number | null;
   thighCircumference: number | null;
+  abdomenCircumference: number | null;
+  contractedArmCircumference: number | null;
+  calfCircumference: number | null;
   notes: string | null;
   createdAt: string;
   loggedByPatient: boolean;
@@ -28,6 +33,8 @@ export interface CreateAssessmentRequest {
   bodyFatPercentage?: number;
   muscleMass?: number;
   leanMass?: number;
+  muscleMassPercentage?: number;
+  leanMassPercentage?: number;
   visceralFat?: number;
   basalMetabolicRate?: number;
   bodyWaterPercentage?: number;
@@ -38,6 +45,9 @@ export interface CreateAssessmentRequest {
   chestCircumference?: number;
   armCircumference?: number;
   thighCircumference?: number;
+  abdomenCircumference?: number;
+  contractedArmCircumference?: number;
+  calfCircumference?: number;
   notes?: string;
 }
 

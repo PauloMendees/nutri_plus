@@ -43,6 +43,16 @@ export class CreateAssessmentDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
+  muscleMassPercentage?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  leanMassPercentage?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
   visceralFat?: number;
 
   @IsOptional()
@@ -88,6 +98,21 @@ export class CreateAssessmentDto {
   @IsNumber()
   @Min(0)
   thighCircumference?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  abdomenCircumference?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  contractedArmCircumference?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  calfCircumference?: number;
 
   @IsOptional()
   @IsString()
