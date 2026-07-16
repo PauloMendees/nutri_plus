@@ -12,3 +12,10 @@ export function formatImc(imc: number | null): string {
   if (imc == null) return '—';
   return `${imc.toLocaleString('pt-BR')} · ${imcCategory(imc)}`;
 }
+
+// EXPERIMENTAL (see spec §3): the real value in kg represented by a percentage
+// of body weight. May change or be removed.
+export function kgFromPercent(weightKg: number | null, pct: number | null): number | null {
+  if (weightKg == null || pct == null) return null;
+  return Math.round((weightKg * pct) / 100 * 10) / 10;
+}

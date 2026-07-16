@@ -166,4 +166,14 @@ describe('BioimpedanceSection', () => {
     render(<BioimpedanceSection patientId="p1" />);
     expect(screen.queryByLabelText('Estimado por foto (Silhueta)')).not.toBeInTheDocument();
   });
+
+  it('shows the experimental "≈ X kg" label for percentage measures in the summary card and history', () => {
+    useAssessments.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: [assessment({ weight: 91, bodyFatPercentage: 10 })],
+    });
+    render(<BioimpedanceSection patientId="p1" canEdit />);
+    expect(screen.getAllByText('≈ 9,1 kg').length).toBeGreaterThan(0); // summary card + history
+  });
 });

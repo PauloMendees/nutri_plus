@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { imcCategory, formatImc } from './imc';
+import { imcCategory, formatImc, kgFromPercent } from './imc';
 
 describe('imcCategory', () => {
   it('classifies by WHO bands', () => {
@@ -24,5 +24,15 @@ describe('formatImc', () => {
   });
   it('returns an em dash for null', () => {
     expect(formatImc(null)).toBe('—');
+  });
+});
+
+describe('kgFromPercent', () => {
+  it('computes weight * pct / 100 rounded to 1 decimal', () => {
+    expect(kgFromPercent(91, 10)).toBe(9.1);
+  });
+  it('returns null when weight or percent is missing', () => {
+    expect(kgFromPercent(null, 10)).toBeNull();
+    expect(kgFromPercent(91, null)).toBeNull();
   });
 });

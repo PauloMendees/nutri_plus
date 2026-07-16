@@ -15,6 +15,7 @@ import { Camera, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAssessments } from '@/lib/queries/assessments';
 import { downloadAssessmentsPdf } from '@/lib/api/assessments';
+import { kgFromPercent } from '@/lib/health/imc';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -60,6 +61,11 @@ const SUMMARY: { key: MetricKey; label: string }[] = [
 
 function fmt(n: number | null): string {
   return n == null ? '—' : n.toLocaleString('pt-BR');
+}
+// EXPERIMENTAL: gray "≈ X kg" derived from a percentage + weight (spec §3).
+function fmtKg(weight: number | null, pct: number | null): string | null {
+  const kg = kgFromPercent(weight, pct);
+  return kg == null ? null : `≈ ${kg.toLocaleString('pt-BR')} kg`;
 }
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR');
@@ -161,12 +167,19 @@ export function BioimpedanceSection({
         <>
           {/* Summary cards (latest) */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {SUMMARY.map((m) => (
-              <div key={m.key} className="rounded-xl border bg-card p-3 text-center">
-                <p className="text-lg font-bold">{fmt(latest[m.key])}</p>
-                <p className="text-xs text-muted-foreground">{m.label}</p>
-              </div>
-            ))}
+            {SUMMARY.map((m) => {
+              const kg =
+                m.key === 'bodyFatPercentage' || m.key === 'leanMassPercentage'
+                  ? fmtKg(latest.weight, latest[m.key])
+                  : null;
+              return (
+                <div key={m.key} className="rounded-xl border bg-card p-3 text-center">
+                  <p className="text-lg font-bold">{fmt(latest[m.key])}</p>
+                  <p className="text-xs text-muted-foreground">{m.label}</p>
+                  {kg && <p className="text-xs text-muted-foreground/70">{kg}</p>}
+                </div>
+              );
+            })}
           </div>
 
           {/* Trend chart */}
@@ -263,9 +276,30 @@ export function BioimpedanceSection({
                       </span>
                     </td>
                     <td className="px-4 py-3">{fmt(a.weight)}</td>
-                    <td className="px-4 py-3">{fmt(a.bodyFatPercentage)}</td>
-                    <td className="px-4 py-3">{fmt(a.muscleMassPercentage)}</td>
-                    <td className="px-4 py-3">{fmt(a.leanMassPercentage)}</td>
+                    <td className="px-4 py-3">
+                      {fmt(a.bodyFatPercentage)}
+                      {fmtKg(a.weight, a.bodyFatPercentage) && (
+                        <span className="block text-xs text-muted-foreground/70">
+                          {fmtKg(a.weight, a.bodyFatPercentage)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {fmt(a.muscleMassPercentage)}
+                      {fmtKg(a.weight, a.muscleMassPercentage) && (
+                        <span className="block text-xs text-muted-foreground/70">
+                          {fmtKg(a.weight, a.muscleMassPercentage)}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {fmt(a.leanMassPercentage)}
+                      {fmtKg(a.weight, a.leanMassPercentage) && (
+                        <span className="block text-xs text-muted-foreground/70">
+                          {fmtKg(a.weight, a.leanMassPercentage)}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">{fmt(a.waistCircumference)}</td>
                     {canEdit && (
                       <td className="px-4 py-3 text-right">
