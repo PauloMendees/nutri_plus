@@ -193,4 +193,33 @@ describe('OpenAIProvider.generateStructured', () => {
       }),
     );
   });
+
+  it('sends images as image_url content parts and keeps them out of the logged input', async () => {
+    const { provider, interactions, create } = makeProvider();
+    create.mockResolvedValue(completion(JSON.stringify({ title: 'Plan' })));
+
+    await provider.generateStructured({
+      ...baseOpts,
+      type: AIInteractionType.SILHUETA_SCAN,
+      images: ['data:image/png;base64,AAAA', 'data:image/png;base64,BBBB'],
+    });
+
+    const msg = create.mock.calls[0][0].messages[1];
+    expect(Array.isArray(msg.content)).toBe(true);
+    expect(msg.content.filter((p: any) => p.type === 'image_url')).toHaveLength(2);
+    expect(interactions.record).toHaveBeenCalledWith(
+      expect.objectContaining({ input: { system: baseOpts.system, user: baseOpts.user } }),
+    );
+    expect(JSON.stringify(interactions.record.mock.calls[0][0].input)).not.toContain('AAAA');
+  });
+
+  it('keeps the user message content a plain string when no images are given', async () => {
+    const { provider, create } = makeProvider();
+    create.mockResolvedValue(completion(JSON.stringify({ title: 'Plan' })));
+
+    await provider.generateStructured(baseOpts);
+
+    const msg = create.mock.calls[0][0].messages[1];
+    expect(msg.content).toBe(baseOpts.user);
+  });
 });

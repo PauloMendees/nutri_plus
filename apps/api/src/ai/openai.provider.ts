@@ -39,13 +39,24 @@ export class OpenAIProvider {
     const input = { system: opts.system, user: opts.user };
     const startedAt = Date.now();
 
+    const userContent =
+      opts.images && opts.images.length > 0
+        ? [
+            { type: 'text' as const, text: opts.user },
+            ...opts.images.map((url) => ({ type: 'image_url' as const, image_url: { url } })),
+          ]
+        : opts.user;
+
     let completion: OpenAI.Chat.Completions.ChatCompletion;
     try {
       completion = await this.client.chat.completions.create({
         model,
         messages: [
           { role: 'system', content: opts.system },
-          { role: 'user', content: opts.user },
+          {
+            role: 'user',
+            content: userContent as OpenAI.Chat.Completions.ChatCompletionUserMessageParam['content'],
+          },
         ],
         // Cast to `any` required: zodResponseFormat's z3/z4 overload union
         // triggers TS2589 ("instantiation is excessively deep") when the
