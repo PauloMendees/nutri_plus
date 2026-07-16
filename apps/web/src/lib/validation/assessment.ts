@@ -2,18 +2,22 @@ import { z } from 'zod';
 
 const emptyToUndefined = (v: unknown) => (v === '' || v === null ? undefined : v);
 
-const optNonNegative = z.preprocess(
-  emptyToUndefined,
-  z.coerce.number().min(0, 'Não pode ser negativo.').optional(),
-);
-const optPositive = z.preprocess(
-  emptyToUndefined,
-  z.coerce.number().positive('Deve ser maior que zero.').optional(),
-);
-const optInt = z.preprocess(
-  emptyToUndefined,
-  z.coerce.number().int('Deve ser um número inteiro.').min(0, 'Não pode ser negativo.').optional(),
-);
+const optBounded = (max: number, msg = 'Valor acima do limite.') =>
+  z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().min(0, 'Não pode ser negativo.').max(max, msg).optional(),
+  );
+const optPositiveBounded = (max: number) =>
+  z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().positive('Deve ser maior que zero.').max(max, 'Valor acima do limite.').optional(),
+  );
+const optIntBounded = (max: number) =>
+  z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int('Deve ser um número inteiro.').min(0, 'Não pode ser negativo.').max(max, 'Valor acima do limite.').optional(),
+  );
+const percent = optBounded(100, 'Não pode passar de 100.');
 
 // The 18 measurable fields; date/notes alone do not count as "a metric".
 const NUMERIC_KEYS = [
@@ -48,23 +52,23 @@ export const assessmentSchema = z
         )
         .optional(),
     ),
-    weight: optPositive,
-    bodyFatPercentage: optNonNegative,
-    muscleMassPercentage: optNonNegative,
-    leanMassPercentage: optNonNegative,
-    visceralFat: optNonNegative,
-    basalMetabolicRate: optPositive,
-    bodyWaterPercentage: optNonNegative,
-    boneMass: optNonNegative,
-    metabolicAge: optInt,
-    waistCircumference: optNonNegative,
-    hipCircumference: optNonNegative,
-    chestCircumference: optNonNegative,
-    armCircumference: optNonNegative,
-    thighCircumference: optNonNegative,
-    abdomenCircumference: optNonNegative,
-    contractedArmCircumference: optNonNegative,
-    calfCircumference: optNonNegative,
+    weight: optPositiveBounded(500),
+    bodyFatPercentage: percent,
+    muscleMassPercentage: percent,
+    leanMassPercentage: percent,
+    visceralFat: optBounded(60),
+    basalMetabolicRate: optPositiveBounded(10000),
+    bodyWaterPercentage: percent,
+    boneMass: optBounded(20),
+    metabolicAge: optIntBounded(120),
+    waistCircumference: optBounded(300),
+    hipCircumference: optBounded(300),
+    chestCircumference: optBounded(300),
+    armCircumference: optBounded(300),
+    thighCircumference: optBounded(300),
+    abdomenCircumference: optBounded(300),
+    contractedArmCircumference: optBounded(300),
+    calfCircumference: optBounded(300),
     notes: z.preprocess(
       emptyToUndefined,
       z.string().max(2000, 'Máximo de 2000 caracteres.').optional(),
