@@ -119,6 +119,7 @@ model PatientProfile {
   aiInteractions AIInteraction[]
   appointments   Appointment[]
   outsideHomeRequests OutsideHomeRequest[]
+  silhuetaScans  SilhuetaScan[]
 
   @@index([nutritionistId])
 }
@@ -188,6 +189,7 @@ model BodyAssessment {
   notes          String?
   createdAt      DateTime @default(now())
   loggedByPatient Boolean  @default(false)
+  estimatedFromPhoto Boolean @default(false)
 
   @@index([patientId, assessmentDate])
 }
@@ -264,6 +266,7 @@ enum AIInteractionType {
   MEAL_PLAN_GENERATION
   OUTSIDE_HOME_SUGGESTION
   MEAL_PLAN_ADJUSTMENT
+  SILHUETA_SCAN
 }
 
 // Audit trail for every AI call, successful or failed. The patient FK is explicitly
@@ -301,6 +304,36 @@ model OutsideHomeRequest {
   createdAt    DateTime @default(now())
 
   @@index([patientId, createdAt])
+}
+
+model SilhuetaScan {
+  id                         String   @id @default(uuid())
+  patientId                  String
+  patient                    PatientProfile @relation(fields: [patientId], references: [id])
+  scanDate                   DateTime @default(now())
+
+  heightCm                   Float?
+  weightKg                   Float?
+  waistInput                 Float?
+  hipInput                   Float?
+
+  bodyFatPercentage          Float?
+  muscleMassPercentage       Float?
+  leanMassPercentage         Float?
+  fatMass                    Float?
+  waistCircumference         Float?
+  hipCircumference           Float?
+  chestCircumference         Float?
+  armCircumference           Float?
+  thighCircumference         Float?
+  abdomenCircumference       Float?
+  contractedArmCircumference Float?
+  calfCircumference          Float?
+
+  consentAcceptedAt          DateTime
+  createdAt                  DateTime @default(now())
+
+  @@index([patientId, scanDate])
 }
 
 model TransactionCategory {

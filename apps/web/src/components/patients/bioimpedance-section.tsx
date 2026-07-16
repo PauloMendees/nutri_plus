@@ -11,7 +11,7 @@ import {
   YAxis,
 } from 'recharts';
 import type { BodyAssessment } from '@nutri-plus/shared-types';
-import { Smartphone } from 'lucide-react';
+import { Camera, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAssessments } from '@/lib/queries/assessments';
 import { downloadAssessmentsPdf } from '@/lib/api/assessments';
@@ -241,6 +241,21 @@ export function BioimpedanceSection({
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent>Registrado pelo paciente pelo app</TooltipContent>
+                            </UiTooltip>
+                          </TooltipProvider>
+                        )}
+                        {a.estimatedFromPhoto && (
+                          <TooltipProvider>
+                            <UiTooltip>
+                              <TooltipTrigger asChild>
+                                <span
+                                  aria-label="Estimado por foto (Silhueta)"
+                                  className="text-muted-foreground"
+                                >
+                                  <Camera className="h-3.5 w-3.5" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>Estimado por foto (Silhueta)</TooltipContent>
                             </UiTooltip>
                           </TooltipProvider>
                         )}

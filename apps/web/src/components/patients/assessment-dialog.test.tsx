@@ -43,6 +43,7 @@ const assessment: BodyAssessment = {
   notes: null,
   createdAt: '2026-05-12T00:00:00.000Z',
   loggedByPatient: false,
+  estimatedFromPhoto: false,
 };
 
 beforeEach(() => {

@@ -2,13 +2,14 @@
 
 import { useRef } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Loader2 } from 'lucide-react';
+import { ChevronLeft, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { ApiError } from '@/lib/api/client';
 import { usePatient, useUploadPatientPhoto, useDeletePatientPhoto } from '@/lib/queries/patients';
 import { EditPatientForm } from '@/components/patients/edit-patient-form';
 import { BioimpedanceSection } from '@/components/patients/bioimpedance-section';
 import { MealPlansSection } from '@/components/patients/meal-plans-section';
+import { SilhuetaSection } from '@/components/patients/silhueta-section';
 import { CreatedBanner } from '@/components/patients/created-banner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -133,6 +134,12 @@ export function PatientDetail({
           <TabsTrigger value="dados">Dados</TabsTrigger>
           <TabsTrigger value="bioimpedancia">Bioimpedância</TabsTrigger>
           <TabsTrigger value="planos">Planos alimentares</TabsTrigger>
+          {canEdit && (
+            <TabsTrigger value="silhueta">
+              <Sparkles className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+              Silhueta
+            </TabsTrigger>
+          )}
         </TabsList>
         <TabsContent value="dados">
           <EditPatientForm patient={patient} canEdit={canEdit} />
@@ -143,6 +150,11 @@ export function PatientDetail({
         <TabsContent value="planos">
           <MealPlansSection patientId={patient.id} canEdit={canEdit} />
         </TabsContent>
+        {canEdit && (
+          <TabsContent value="silhueta">
+            <SilhuetaSection patientId={patient.id} />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

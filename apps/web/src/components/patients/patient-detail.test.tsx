@@ -25,6 +25,9 @@ vi.mock('@/lib/queries/meal-plans', () => ({
   useMealPlans: () => ({ data: [], isLoading: false, isError: false }),
   useGenerateMealPlan: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+vi.mock('@/lib/queries/silhueta', () => ({
+  useCreateSilhuetaScan: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));
 
@@ -119,5 +122,14 @@ describe('PatientDetail', () => {
     uploadPhotoPending = true;
     render(<PatientDetail id="p1" created={false} canEdit />);
     expect(screen.getByText('Enviando…')).toBeInTheDocument();
+  });
+
+  it('shows the Silhueta tab only when canEdit', () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    const { rerender } = render(<PatientDetail id="p1" created={false} canEdit />);
+    expect(screen.getByRole('tab', { name: /silhueta/i })).toBeInTheDocument();
+
+    rerender(<PatientDetail id="p1" created={false} canEdit={false} />);
+    expect(screen.queryByRole('tab', { name: /silhueta/i })).not.toBeInTheDocument();
   });
 });
