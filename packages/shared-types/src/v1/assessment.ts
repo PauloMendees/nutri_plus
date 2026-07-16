@@ -25,6 +25,7 @@ export interface BodyAssessment {
   notes: string | null;
   createdAt: string;
   loggedByPatient: boolean;
+  estimatedFromPhoto: boolean;
 }
 
 export interface CreateAssessmentRequest {
