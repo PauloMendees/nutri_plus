@@ -1,13 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ReactNode } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const createMut = vi.fn();
+const applyMut = vi.fn();
 
 vi.mock('@/lib/queries/silhueta', () => ({
   useCreateSilhuetaScan: () => ({ mutateAsync: createMut, isPending: false }),
+  useSilhuetaScans: () => ({ data: [] }),
+  useApplySilhuetaScan: () => ({ mutateAsync: applyMut, isPending: false }),
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+
+// Recharts renders SVG via ResponsiveContainer (no layout in jsdom) — stub it,
+// mirroring bioimpedance-section.test.tsx.
+vi.mock('recharts', () => ({
+  ResponsiveContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  LineChart: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  Line: () => null,
+  XAxis: () => null,
+  YAxis: () => null,
+  Tooltip: () => null,
+  CartesianGrid: () => null,
+}));
 
 import { SilhuetaSection } from './silhueta-section';
 

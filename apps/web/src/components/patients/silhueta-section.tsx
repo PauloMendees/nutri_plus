@@ -10,6 +10,7 @@ import { useCreateSilhuetaScan } from '@/lib/queries/silhueta';
 import { ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SilhuetaDisclaimers, SilhuetaReport } from '@/components/patients/silhueta-report';
 import {
   Form,
   FormControl,
@@ -107,16 +108,16 @@ export function SilhuetaSection({
   if (created) {
     return (
       <section className="space-y-4">
-        <h2 className="font-heading text-base font-bold">Silhueta</h2>
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed bg-card p-10 text-center">
-          <p className="font-medium">Estimativa gerada com sucesso</p>
-          <p className="max-w-sm text-sm text-muted-foreground">
-            O relatório detalhado com os resultados desta estimativa será exibido aqui em breve.
-          </p>
-          <Button variant="outline" className="rounded-full" onClick={onNewScan}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-heading text-base font-bold">Silhueta</h2>
+            <p className="text-sm font-medium text-primary">Estimativa gerada com sucesso.</p>
+          </div>
+          <Button variant="outline" size="sm" className="rounded-full" onClick={onNewScan}>
             Novo scan
           </Button>
         </div>
+        <SilhuetaReport patientId={patientId} scan={created} />
       </section>
     );
   }
@@ -132,13 +133,7 @@ export function SilhuetaSection({
         </p>
       </div>
 
-      {/* Disclaimers */}
-      <div className="space-y-1 rounded-xl border bg-muted/30 p-4 text-xs text-muted-foreground">
-        <p>• Os resultados são uma <strong>estimativa</strong> gerada por IA a partir das fotos, não uma medição direta.</p>
-        <p>• Este recurso <strong>não é um método diagnóstico</strong> e não substitui avaliação clínica.</p>
-        <p>• Os valores <strong>não são comparáveis</strong> a outros métodos (bioimpedância, DEXA etc.).</p>
-        <p>• Compare apenas <strong>Silhueta com Silhueta</strong>: use para acompanhar a tendência do mesmo paciente ao longo do tempo.</p>
-      </div>
+      <SilhuetaDisclaimers />
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
