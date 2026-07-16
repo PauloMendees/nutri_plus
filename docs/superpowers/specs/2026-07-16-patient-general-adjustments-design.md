@@ -85,9 +85,10 @@ the **currently entered** weight (for the input hint).
 readability:
 - `defaultStyle` 9 → **11**; `title` 16 → **18**; `section` 12 → **14**;
   `brand` 14 → **16**; `chartLabel` 10 → **11**; `muted` 9 → **10**; `th` 8 → **10**.
-- Composition table (9 columns, `*` widths): `fontSize` 8 → **10**.
-- Circumference table (11 columns, `auto` widths): `fontSize` 8 → **9** (smaller bump
-  so 11 columns still fit A4 portrait width).
+- Composition table (**11 columns**, `auto` widths — the overflow risk): `fontSize`
+  8 → **9** (smaller bump so 11 columns still fit A4 portrait width).
+- Circumference table (**9 columns**, `*` widths — distributes to fit): `fontSize`
+  8 → **10**.
 - Update `evolution-doc.spec.ts` assertions that pin font sizes.
 - Verify the generated PDF does not overflow the page width (the 11-col table is the
   risk); keep the circumference table's bump conservative if needed.
