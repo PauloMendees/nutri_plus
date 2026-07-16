@@ -32,6 +32,9 @@ const sideFile = new File(['side'], 'lado.png', { type: 'image/png' });
 const backFile = new File(['back'], 'costas.png', { type: 'image/png' });
 
 beforeEach(() => {
+  // jsdom doesn't implement object URLs — stub them for the photo previews.
+  URL.createObjectURL = vi.fn(() => 'blob:preview');
+  URL.revokeObjectURL = vi.fn();
   createMut.mockReset().mockResolvedValue({ id: 's1' });
 });
 
@@ -71,6 +74,17 @@ describe('SilhuetaSection', () => {
     expect(fd.get('consent')).toBe('true');
     // Back photo is optional — omitted here, so it must not be in the payload.
     expect(fd.get('back')).toBeNull();
+  });
+
+  it('shows a preview of a selected photo', async () => {
+    render(<SilhuetaSection patientId="p1" />);
+    expect(screen.queryByAltText('Pré-visualização: Foto frontal')).toBeNull();
+
+    await userEvent.upload(screen.getByLabelText('Foto frontal'), frontFile);
+
+    expect(
+      await screen.findByAltText('Pré-visualização: Foto frontal'),
+    ).toBeInTheDocument();
   });
 
   it('includes the optional back photo in FormData when provided', async () => {

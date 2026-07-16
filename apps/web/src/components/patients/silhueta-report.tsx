@@ -193,9 +193,13 @@ export function SilhuetaReport({ patientId, scan }: { patientId: string; scan: S
   const applyMut = useApplySilhuetaScan(patientId);
   const [viewedId, setViewedId] = useState(scan.id);
   const [chartMetric, setChartMetric] = useState<HistoryMetric>('weightKg');
+  // Scans already saved into the assessment history during this session, so we
+  // can warn before creating a duplicate bioimpedance entry from the same scan.
+  const [appliedIds, setAppliedIds] = useState<Set<string>>(() => new Set());
 
   const scans = scansQuery.data ?? [];
   const viewedScan = scans.find((s) => s.id === viewedId) ?? scan;
+  const alreadyApplied = appliedIds.has(viewedScan.id);
 
   const imc = computeImc(viewedScan);
   const whr = computeWhr(viewedScan);
@@ -225,8 +229,17 @@ export function SilhuetaReport({ patientId, scan }: { patientId: string; scan: S
   );
 
   async function onApply() {
+    if (
+      alreadyApplied &&
+      !window.confirm(
+        'Esta estimativa já foi salva na avaliação do paciente. Deseja salvar novamente e criar outro registro?',
+      )
+    ) {
+      return;
+    }
     try {
       await applyMut.mutateAsync(viewedScan.id);
+      setAppliedIds((prev) => new Set(prev).add(viewedScan.id));
       toast.success('Avaliação atualizada com os dados do Silhueta.');
     } catch {
       toast.error('Não foi possível atualizar a avaliação do paciente.');
@@ -259,9 +272,23 @@ export function SilhuetaReport({ patientId, scan }: { patientId: string; scan: S
         ))}
       </div>
 
-      <div className="flex justify-end">
-        <Button className="rounded-full" onClick={onApply} disabled={applyMut.isPending}>
-          {applyMut.isPending ? 'Atualizando…' : 'Atualizar avaliação do paciente'}
+      <div className="flex flex-col items-end gap-1">
+        {alreadyApplied && !applyMut.isPending && (
+          <p className="text-xs font-medium text-primary">
+            ✓ Já salvo na avaliação do paciente.
+          </p>
+        )}
+        <Button
+          className="rounded-full"
+          variant={alreadyApplied ? 'outline' : 'default'}
+          onClick={onApply}
+          disabled={applyMut.isPending}
+        >
+          {applyMut.isPending
+            ? 'Atualizando…'
+            : alreadyApplied
+              ? 'Salvar novamente'
+              : 'Atualizar avaliação do paciente'}
         </Button>
       </div>
 

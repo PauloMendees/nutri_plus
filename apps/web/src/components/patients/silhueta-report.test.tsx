@@ -116,6 +116,38 @@ describe('SilhuetaReport', () => {
     expect(toastSuccess).toHaveBeenCalledWith('Avaliação atualizada com os dados do Silhueta.');
   });
 
+  it('marks the scan as saved and requires confirmation before saving again', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<SilhuetaReport patientId="p1" scan={scan()} />);
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /atualizar avaliação do paciente/i }),
+    );
+    await waitFor(() => expect(applyMutateAsync).toHaveBeenCalledTimes(1));
+
+    // Identified as saved; the button changes and a confirm gate protects re-save.
+    expect(screen.getByText(/já salvo/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /salvar novamente/i }));
+
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(applyMutateAsync).toHaveBeenCalledTimes(1); // declined → no second save
+    confirmSpy.mockRestore();
+  });
+
+  it('saves again when the user confirms the re-save', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<SilhuetaReport patientId="p1" scan={scan()} />);
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /atualizar avaliação do paciente/i }),
+    );
+    await waitFor(() => expect(applyMutateAsync).toHaveBeenCalledTimes(1));
+
+    await userEvent.click(screen.getByRole('button', { name: /salvar novamente/i }));
+    await waitFor(() => expect(applyMutateAsync).toHaveBeenCalledTimes(2));
+    confirmSpy.mockRestore();
+  });
+
   it('disables the apply button while the mutation is pending', () => {
     useApplySilhuetaScanMock.mockReturnValue({ mutateAsync: applyMutateAsync, isPending: true });
     render(<SilhuetaReport patientId="p1" scan={scan()} />);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -37,6 +37,72 @@ function defaults(): SilhuetaValues {
     waistInput: '' as unknown as number | undefined,
     hipInput: '' as unknown as number | undefined,
   };
+}
+
+// Builds (and revokes) an object URL for previewing a locally-selected file.
+function useObjectUrl(file: File | null): string | null {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!file) {
+      setUrl(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+  return url;
+}
+
+function PhotoPicker({
+  title,
+  hint,
+  placeholder,
+  ariaLabel,
+  file,
+  inputRef,
+  onChange,
+}: {
+  title: string;
+  hint?: string;
+  placeholder: string;
+  ariaLabel: string;
+  file: File | null;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  const preview = useObjectUrl(file);
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium">
+        {title}
+        {hint ? <span className="font-normal text-muted-foreground"> {hint}</span> : null}
+      </p>
+      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-4 text-center text-xs text-muted-foreground hover:bg-muted/40">
+        {preview ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={preview}
+              alt={`Pré-visualização: ${title}`}
+              className="h-28 w-full rounded-lg object-cover"
+            />
+            <span className="max-w-full truncate">{file?.name}</span>
+          </>
+        ) : (
+          placeholder
+        )}
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="sr-only"
+          aria-label={ariaLabel}
+          onChange={onChange}
+        />
+      </label>
+    </div>
+  );
 }
 
 export function SilhuetaSection({
@@ -181,50 +247,31 @@ export function SilhuetaSection({
 
           {/* Photo uploads */}
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Foto frontal</p>
-              <label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed p-4 text-center text-xs text-muted-foreground hover:bg-muted/40">
-                {front ? front.name : 'Selecionar foto frontal'}
-                <input
-                  ref={frontRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  className="sr-only"
-                  aria-label="Foto frontal"
-                  onChange={onPickFront}
-                />
-              </label>
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Foto lateral</p>
-              <label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed p-4 text-center text-xs text-muted-foreground hover:bg-muted/40">
-                {side ? side.name : 'Selecionar foto lateral'}
-                <input
-                  ref={sideRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  className="sr-only"
-                  aria-label="Foto lateral"
-                  onChange={onPickSide}
-                />
-              </label>
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm font-medium">
-                Foto de costas <span className="font-normal text-muted-foreground">(opcional)</span>
-              </p>
-              <label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed p-4 text-center text-xs text-muted-foreground hover:bg-muted/40">
-                {back ? back.name : 'Selecionar foto de costas'}
-                <input
-                  ref={backRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  className="sr-only"
-                  aria-label="Foto de costas"
-                  onChange={onPickBack}
-                />
-              </label>
-            </div>
+            <PhotoPicker
+              title="Foto frontal"
+              placeholder="Selecionar foto frontal"
+              ariaLabel="Foto frontal"
+              file={front}
+              inputRef={frontRef}
+              onChange={onPickFront}
+            />
+            <PhotoPicker
+              title="Foto lateral"
+              placeholder="Selecionar foto lateral"
+              ariaLabel="Foto lateral"
+              file={side}
+              inputRef={sideRef}
+              onChange={onPickSide}
+            />
+            <PhotoPicker
+              title="Foto de costas"
+              hint="(opcional)"
+              placeholder="Selecionar foto de costas"
+              ariaLabel="Foto de costas"
+              file={back}
+              inputRef={backRef}
+              onChange={onPickBack}
+            />
           </div>
           <p className="text-xs text-muted-foreground">
             PNG, JPG ou WEBP. A foto de costas é opcional e ajuda o modelo com mais contexto.
