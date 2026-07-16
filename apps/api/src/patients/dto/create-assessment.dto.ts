@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  Max,
   MaxDate,
   MaxLength,
   Min,
@@ -23,71 +24,115 @@ export class CreateAssessmentDto {
 
   @IsOptional()
   @IsPositive()
+  @Max(500)
   weight?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(100)
   bodyFatPercentage?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(500)
   muscleMass?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(500)
   leanMass?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(100)
+  muscleMassPercentage?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  leanMassPercentage?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(60)
   visceralFat?: number;
 
   @IsOptional()
   @IsPositive()
+  @Max(10000)
   basalMetabolicRate?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(100)
   bodyWaterPercentage?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(20)
   boneMass?: number;
 
   @IsOptional()
   @IsInt()
   @Min(0)
+  @Max(120)
   metabolicAge?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(300)
   waistCircumference?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(300)
   hipCircumference?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(300)
   chestCircumference?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(300)
   armCircumference?: number;
 
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(300)
   thighCircumference?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(300)
+  abdomenCircumference?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(300)
+  contractedArmCircumference?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(300)
+  calfCircumference?: number;
 
   @IsOptional()
   @IsString()

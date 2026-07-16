@@ -16,8 +16,8 @@ const two = {
   name: 'Ana',
   height: 170,
   assessments: [
-    { id: 'a1', patientId: 'p', assessmentDate: '2026-01-10', weight: 80, bodyFatPercentage: 30, muscleMass: 30, leanMass: null, visceralFat: 10, basalMetabolicRate: 1500, bodyWaterPercentage: 50, boneMass: 3, metabolicAge: 40, waistCircumference: 90, hipCircumference: null, chestCircumference: null, armCircumference: null, thighCircumference: null, notes: null, createdAt: '2026-01-10' },
-    { id: 'a2', patientId: 'p', assessmentDate: '2026-02-10', weight: 78, bodyFatPercentage: 28, muscleMass: 31, leanMass: null, visceralFat: 9, basalMetabolicRate: 1520, bodyWaterPercentage: 51, boneMass: 3, metabolicAge: 39, waistCircumference: 88, hipCircumference: null, chestCircumference: null, armCircumference: null, thighCircumference: null, notes: null, createdAt: '2026-02-10' },
+    { id: 'a1', patientId: 'p', assessmentDate: '2026-01-10', weight: 80, bodyFatPercentage: 30, muscleMass: 30, leanMass: null, muscleMassPercentage: 42, leanMassPercentage: null, visceralFat: 10, basalMetabolicRate: 1500, bodyWaterPercentage: 50, boneMass: 3, metabolicAge: 40, waistCircumference: 90, hipCircumference: null, chestCircumference: null, armCircumference: null, thighCircumference: null, abdomenCircumference: null, contractedArmCircumference: null, calfCircumference: null, notes: null, createdAt: '2026-01-10', loggedByPatient: false },
+    { id: 'a2', patientId: 'p', assessmentDate: '2026-02-10', weight: 78, bodyFatPercentage: 28, muscleMass: 31, leanMass: null, muscleMassPercentage: 43, leanMassPercentage: null, visceralFat: 9, basalMetabolicRate: 1520, bodyWaterPercentage: 51, boneMass: 3, metabolicAge: 39, waistCircumference: 88, hipCircumference: null, chestCircumference: null, armCircumference: null, thighCircumference: null, abdomenCircumference: null, contractedArmCircumference: null, calfCircumference: null, notes: null, createdAt: '2026-02-10', loggedByPatient: false },
   ],
 };
 

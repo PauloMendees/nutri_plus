@@ -6,8 +6,8 @@ function contentArray(doc: ReturnType<typeof buildEvolutionDocDefinition>): any[
 }
 
 const rows: EvolutionAssessment[] = [
-  { assessmentDate: '2026-01-10', weight: 80, bodyFatPercentage: 30, muscleMass: 30, leanMass: 55, visceralFat: 10, basalMetabolicRate: 1500, bodyWaterPercentage: 50, boneMass: 3, metabolicAge: 40, waistCircumference: 90, hipCircumference: 100, chestCircumference: 95, armCircumference: 32, thighCircumference: 55 },
-  { assessmentDate: '2026-02-10', weight: 78, bodyFatPercentage: 28, muscleMass: 31, leanMass: 56, visceralFat: 9, basalMetabolicRate: 1520, bodyWaterPercentage: 51, boneMass: 3, metabolicAge: 39, waistCircumference: 88, hipCircumference: 99, chestCircumference: 94, armCircumference: 32, thighCircumference: 54 },
+  { assessmentDate: '2026-01-10', weight: 80, bodyFatPercentage: 30, muscleMass: 30, leanMass: 55, muscleMassPercentage: 40, leanMassPercentage: 55, visceralFat: 10, basalMetabolicRate: 1500, bodyWaterPercentage: 50, boneMass: 3, metabolicAge: 40, waistCircumference: 90, hipCircumference: 100, chestCircumference: 95, armCircumference: 32, thighCircumference: 55, abdomenCircumference: 85, contractedArmCircumference: 34, calfCircumference: 38 },
+  { assessmentDate: '2026-02-10', weight: 78, bodyFatPercentage: 28, muscleMass: 31, leanMass: 56, muscleMassPercentage: 41, leanMassPercentage: 56, visceralFat: 9, basalMetabolicRate: 1520, bodyWaterPercentage: 51, boneMass: 3, metabolicAge: 39, waistCircumference: 88, hipCircumference: 99, chestCircumference: 94, armCircumference: 32, thighCircumference: 54, abdomenCircumference: 83, contractedArmCircumference: 35, calfCircumference: 37 },
 ];
 
 describe('buildEvolutionDocDefinition', () => {
@@ -26,6 +26,8 @@ describe('buildEvolutionDocDefinition', () => {
     // brand name present, no image when logo is null
     expect(JSON.stringify(nodes)).toContain('Clínica X');
     expect(nodes.some((n) => Array.isArray(n.columns) && n.columns.some((c: any) => c.image))).toBe(false);
+    // circumference table now includes the Abdômen column
+    expect(JSON.stringify(nodes)).toContain('Abdômen');
   });
 
   it('embeds the logo image node only when a data URL is provided', () => {

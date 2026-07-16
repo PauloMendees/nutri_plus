@@ -11,6 +11,8 @@ export interface EvolutionAssessment {
   bodyFatPercentage: number | null;
   muscleMass: number | null;
   leanMass: number | null;
+  muscleMassPercentage: number | null;
+  leanMassPercentage: number | null;
   visceralFat: number | null;
   basalMetabolicRate: number | null;
   bodyWaterPercentage: number | null;
@@ -21,6 +23,9 @@ export interface EvolutionAssessment {
   chestCircumference: number | null;
   armCircumference: number | null;
   thighCircumference: number | null;
+  abdomenCircumference: number | null;
+  contractedArmCircumference: number | null;
+  calfCircumference: number | null;
 }
 
 export interface EvolutionDocInput {
@@ -101,8 +106,8 @@ function drawChart(series: { x: number; y: number }[]): Content {
 const CHART_METRICS: { key: keyof EvolutionAssessment; label: string }[] = [
   { key: 'weight', label: 'Peso (kg)' },
   { key: 'bodyFatPercentage', label: '% Gordura' },
-  { key: 'muscleMass', label: 'Massa muscular (kg)' },
-  { key: 'leanMass', label: 'Massa magra (kg)' },
+  { key: 'muscleMassPercentage', label: 'Massa muscular (%)' },
+  { key: 'leanMassPercentage', label: 'Massa magra (%)' },
 ];
 
 function th(text: string): TableCell {
@@ -111,7 +116,7 @@ function th(text: string): TableCell {
 
 function compositionTable(assessments: EvolutionAssessment[], height: number | null): Content {
   const body: TableCell[][] = [
-    [th('Data'), th('Peso'), th('IMC'), th('%Gord'), th('M.Musc'), th('M.Magra'), th('Visceral'), th('TMB'), th('%Água'), th('Óssea'), th('Id.Metab')],
+    [th('Data'), th('Peso'), th('IMC'), th('%Gord'), th('% Músc'), th('% Magra'), th('Visceral'), th('TMB'), th('%Água'), th('Óssea'), th('Id.Metab')],
   ];
   assessments.forEach((a) => {
     body.push([
@@ -119,8 +124,8 @@ function compositionTable(assessments: EvolutionAssessment[], height: number | n
       { text: fmtNum(a.weight) },
       { text: fmtNum(bmiOf(a.weight, height)) },
       { text: fmtNum(a.bodyFatPercentage) },
-      { text: fmtNum(a.muscleMass) },
-      { text: fmtNum(a.leanMass) },
+      { text: fmtNum(a.muscleMassPercentage) },
+      { text: fmtNum(a.leanMassPercentage) },
       { text: fmtNum(a.visceralFat) },
       { text: fmtNum(a.basalMetabolicRate) },
       { text: fmtNum(a.bodyWaterPercentage) },
@@ -138,20 +143,23 @@ function compositionTable(assessments: EvolutionAssessment[], height: number | n
 
 function circumferenceTable(assessments: EvolutionAssessment[]): Content {
   const body: TableCell[][] = [
-    [th('Data'), th('Cintura'), th('Quadril'), th('Tórax'), th('Braço'), th('Coxa')],
+    [th('Data'), th('Cintura'), th('Abdômen'), th('Quadril'), th('Coxa med.'), th('Braço rel.'), th('Braço contr.'), th('Busto'), th('Pantur.')],
   ];
   assessments.forEach((a) => {
     body.push([
       { text: fmtDate(a.assessmentDate) },
       { text: fmtNum(a.waistCircumference) },
+      { text: fmtNum(a.abdomenCircumference) },
       { text: fmtNum(a.hipCircumference) },
-      { text: fmtNum(a.chestCircumference) },
-      { text: fmtNum(a.armCircumference) },
       { text: fmtNum(a.thighCircumference) },
+      { text: fmtNum(a.armCircumference) },
+      { text: fmtNum(a.contractedArmCircumference) },
+      { text: fmtNum(a.chestCircumference) },
+      { text: fmtNum(a.calfCircumference) },
     ]);
   });
   return {
-    table: { headerRows: 1, widths: ['*', '*', '*', '*', '*', '*'], body },
+    table: { headerRows: 1, widths: Array(9).fill('*'), body },
     layout: 'lightHorizontalLines',
     fontSize: 8,
     margin: [0, 0, 0, 6],

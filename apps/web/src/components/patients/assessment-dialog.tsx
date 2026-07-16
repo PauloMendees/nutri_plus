@@ -36,8 +36,8 @@ type NumField = { name: keyof AssessmentValues; label: string };
 const COMPOSITION: NumField[] = [
   { name: 'weight', label: 'Peso (kg)' },
   { name: 'bodyFatPercentage', label: '% Gordura' },
-  { name: 'muscleMass', label: 'Massa muscular (kg)' },
-  { name: 'leanMass', label: 'Massa magra (kg)' },
+  { name: 'muscleMassPercentage', label: 'Massa muscular (%)' },
+  { name: 'leanMassPercentage', label: 'Massa magra (%)' },
   { name: 'visceralFat', label: 'Gordura visceral' },
   { name: 'basalMetabolicRate', label: 'TMB (kcal)' },
   { name: 'bodyWaterPercentage', label: '% Água' },
@@ -47,10 +47,13 @@ const COMPOSITION: NumField[] = [
 
 const CIRCUMFERENCES: NumField[] = [
   { name: 'waistCircumference', label: 'Cintura (cm)' },
+  { name: 'abdomenCircumference', label: 'Abdômen (cm)' },
   { name: 'hipCircumference', label: 'Quadril (cm)' },
-  { name: 'chestCircumference', label: 'Peito (cm)' },
-  { name: 'armCircumference', label: 'Braço (cm)' },
-  { name: 'thighCircumference', label: 'Coxa (cm)' },
+  { name: 'thighCircumference', label: 'Coxa medial (cm)' },
+  { name: 'armCircumference', label: 'Braço relaxado (cm)' },
+  { name: 'contractedArmCircumference', label: 'Braço contraído (cm)' },
+  { name: 'chestCircumference', label: 'Busto (cm)' },
+  { name: 'calfCircumference', label: 'Panturrilha (cm)' },
 ];
 
 const NUM_NAMES = [...COMPOSITION, ...CIRCUMFERENCES].map((f) => f.name);
