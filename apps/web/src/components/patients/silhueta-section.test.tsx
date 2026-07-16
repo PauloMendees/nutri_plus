@@ -87,6 +87,25 @@ describe('SilhuetaSection', () => {
     ).toBeInTheDocument();
   });
 
+  it('removes a selected photo when its remove button is clicked', async () => {
+    render(<SilhuetaSection patientId="p1" />);
+    const submit = screen.getByRole('button', { name: /enviar para análise/i });
+
+    await userEvent.upload(screen.getByLabelText('Foto frontal'), frontFile);
+    await userEvent.upload(screen.getByLabelText('Foto lateral'), sideFile);
+    await userEvent.click(
+      screen.getByLabelText(/consentimento para processamento das fotos por ia/i),
+    );
+    expect(submit).toBeEnabled();
+    expect(screen.getByAltText('Pré-visualização: Foto frontal')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remover Foto frontal' }));
+
+    // Preview gone and submit disabled again (front is required).
+    expect(screen.queryByAltText('Pré-visualização: Foto frontal')).toBeNull();
+    expect(submit).toBeDisabled();
+  });
+
   it('includes the optional back photo in FormData when provided', async () => {
     render(<SilhuetaSection patientId="p1" />);
 

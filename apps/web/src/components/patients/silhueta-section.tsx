@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -39,6 +40,10 @@ function defaults(): SilhuetaValues {
   };
 }
 
+function clearInput(ref: React.RefObject<HTMLInputElement | null>) {
+  if (ref.current) ref.current.value = '';
+}
+
 // Builds (and revokes) an object URL for previewing a locally-selected file.
 function useObjectUrl(file: File | null): string | null {
   const [url, setUrl] = useState<string | null>(null);
@@ -62,6 +67,7 @@ function PhotoPicker({
   file,
   inputRef,
   onChange,
+  onRemove,
 }: {
   title: string;
   hint?: string;
@@ -70,6 +76,7 @@ function PhotoPicker({
   file: File | null;
   inputRef: React.RefObject<HTMLInputElement | null>;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onRemove: () => void;
 }) {
   const preview = useObjectUrl(file);
   return (
@@ -101,6 +108,19 @@ function PhotoPicker({
           onChange={onChange}
         />
       </label>
+      {file ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-auto w-full justify-center gap-1 py-1 text-xs text-muted-foreground"
+          aria-label={`Remover ${title}`}
+          onClick={onRemove}
+        >
+          <X className="h-3.5 w-3.5" aria-hidden="true" />
+          Remover
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -174,9 +194,9 @@ export function SilhuetaSection({
     setSide(null);
     setBack(null);
     setConsent(false);
-    if (frontRef.current) frontRef.current.value = '';
-    if (sideRef.current) sideRef.current.value = '';
-    if (backRef.current) backRef.current.value = '';
+    clearInput(frontRef);
+    clearInput(sideRef);
+    clearInput(backRef);
     form.reset(defaults());
   }
 
@@ -254,6 +274,10 @@ export function SilhuetaSection({
               file={front}
               inputRef={frontRef}
               onChange={onPickFront}
+              onRemove={() => {
+                setFront(null);
+                clearInput(frontRef);
+              }}
             />
             <PhotoPicker
               title="Foto lateral"
@@ -262,6 +286,10 @@ export function SilhuetaSection({
               file={side}
               inputRef={sideRef}
               onChange={onPickSide}
+              onRemove={() => {
+                setSide(null);
+                clearInput(sideRef);
+              }}
             />
             <PhotoPicker
               title="Foto de costas"
@@ -271,6 +299,10 @@ export function SilhuetaSection({
               file={back}
               inputRef={backRef}
               onChange={onPickBack}
+              onRemove={() => {
+                setBack(null);
+                clearInput(backRef);
+              }}
             />
           </div>
           <p className="text-xs text-muted-foreground">
