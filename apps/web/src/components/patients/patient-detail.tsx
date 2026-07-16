@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PatientAvatar } from '@/components/patients/patient-avatar';
 import { Button } from '@/components/ui/button';
+import { formatImc } from '@/lib/health/imc';
 
 export function PatientDetail({
   id,
@@ -117,8 +118,9 @@ export function PatientDetail({
                   className="rounded-full text-destructive"
                   onClick={onRemovePhoto}
                   disabled={photoPending}
+                  aria-label="Remover foto do paciente"
                 >
-                  Remover
+                  Remover foto
                 </Button>
               )}
             </div>
@@ -127,6 +129,11 @@ export function PatientDetail({
         <span className="ml-auto self-start rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
           Paciente
         </span>
+      </div>
+
+      <div className="rounded-xl border bg-card p-4">
+        <p className="text-xs text-muted-foreground">IMC</p>
+        <p className="text-lg font-bold">{formatImc(patient.imc)}</p>
       </div>
 
       <Tabs defaultValue="dados">

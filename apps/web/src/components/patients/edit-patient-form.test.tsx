@@ -16,6 +16,7 @@ const patient = {
   birthDate: '1991-03-14T00:00:00.000Z',
   gender: 'FEMALE',
   height: 165,
+  imc: null,
   targetWeight: 62,
   objective: 'WEIGHT_LOSS',
   activityLevel: 'MODERATE',

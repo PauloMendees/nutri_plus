@@ -39,6 +39,7 @@ const patient = {
   birthDate: '1991-03-14T00:00:00.000Z',
   gender: 'FEMALE',
   height: 165,
+  imc: 24.2,
   targetWeight: 62,
   objective: 'WEIGHT_LOSS',
   activityLevel: 'MODERATE',
@@ -47,6 +48,7 @@ const patient = {
   medicalConditions: null,
   notes: null,
   nutritionistId: 'n1',
+  photoUrl: 'https://example.com/photo.jpg',
   createdAt: '2026-05-12T00:00:00.000Z',
   updatedAt: '2026-05-12T00:00:00.000Z',
   assessments: [],
@@ -75,6 +77,25 @@ describe('PatientDetail', () => {
     expect(screen.getByRole('tab', { name: /dados/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /bioimpedância/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /planos alimentares/i })).toBeInTheDocument();
+  });
+
+  it('shows the IMC card with the formatted value and category', () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} />);
+    expect(screen.getByText('IMC')).toBeInTheDocument();
+    expect(screen.getByText('24,2 · Peso normal')).toBeInTheDocument();
+  });
+
+  it('shows a — placeholder in the IMC card when imc is null', () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: { ...patient, imc: null } });
+    render(<PatientDetail id="p1" created={false} />);
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('labels the remove-photo button explicitly', () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} canEdit />);
+    expect(screen.getByRole('button', { name: 'Remover foto do paciente' })).toHaveTextContent('Remover foto');
   });
 
   it('reveals the bioimpedância placeholder when its tab is selected', async () => {
