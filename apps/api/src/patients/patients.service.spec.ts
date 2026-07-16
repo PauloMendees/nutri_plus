@@ -96,13 +96,16 @@ describe('PatientsService', () => {
   });
 
   it('scopes an employee to the owning nutritionist and paginates', async () => {
-    prisma.$transaction.mockResolvedValue([[{ id: 'p1' }], 1] as any);
+    prisma.$transaction.mockResolvedValue([[{ id: 'p1', height: null, assessments: [] }], 1] as any);
 
     const result = await service.listPatients(ctxWithEmployee('nutri-9'));
 
     expect(prisma.patientProfile.findMany).toHaveBeenCalledWith({
       where: { nutritionistId: 'nutri-9' },
-      include: { user: { select: { id: true, name: true, email: true } } },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
+      },
       orderBy: { user: { name: 'asc' } },
       skip: 0,
       take: 20,
@@ -110,17 +113,26 @@ describe('PatientsService', () => {
     expect(prisma.patientProfile.count).toHaveBeenCalledWith({
       where: { nutritionistId: 'nutri-9' },
     });
-    expect(result).toEqual({ items: [{ id: 'p1' }], total: 1, page: 1, pageSize: 20, totalPages: 1 });
+    expect(result).toEqual({
+      items: [{ id: 'p1', height: null, imc: null }],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+      totalPages: 1,
+    });
   });
 
   it('lists only patients linked to the nutritionist (default page 1, size 20)', async () => {
-    prisma.$transaction.mockResolvedValue([[{ id: 'p1' }], 1] as any);
+    prisma.$transaction.mockResolvedValue([[{ id: 'p1', height: null, assessments: [] }], 1] as any);
 
     const result = await service.listPatients(ctx);
 
     expect(prisma.patientProfile.findMany).toHaveBeenCalledWith({
       where: { nutritionistId: 'nutri-1' },
-      include: { user: { select: { id: true, name: true, email: true } } },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
+      },
       orderBy: { user: { name: 'asc' } },
       skip: 0,
       take: 20,
@@ -128,11 +140,17 @@ describe('PatientsService', () => {
     expect(prisma.patientProfile.count).toHaveBeenCalledWith({
       where: { nutritionistId: 'nutri-1' },
     });
-    expect(result).toEqual({ items: [{ id: 'p1' }], total: 1, page: 1, pageSize: 20, totalPages: 1 });
+    expect(result).toEqual({
+      items: [{ id: 'p1', height: null, imc: null }],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+      totalPages: 1,
+    });
   });
 
   it('filters by name/email (case-insensitive) and applies skip/take per page', async () => {
-    prisma.$transaction.mockResolvedValue([[{ id: 'p1' }], 35] as any);
+    prisma.$transaction.mockResolvedValue([[{ id: 'p1', height: 170, assessments: [{ weight: 70 }] }], 35] as any);
 
     const result = await service.listPatients(ctx, { search: 'ana', page: 2, pageSize: 10 });
 
@@ -147,13 +165,22 @@ describe('PatientsService', () => {
     };
     expect(prisma.patientProfile.findMany).toHaveBeenCalledWith({
       where,
-      include: { user: { select: { id: true, name: true, email: true } } },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
+      },
       orderBy: { user: { name: 'asc' } },
       skip: 10,
       take: 10,
     });
     expect(prisma.patientProfile.count).toHaveBeenCalledWith({ where });
-    expect(result).toEqual({ items: [{ id: 'p1' }], total: 35, page: 2, pageSize: 10, totalPages: 4 });
+    expect(result).toEqual({
+      items: [{ id: 'p1', height: 170, imc: 24.2 }],
+      total: 35,
+      page: 2,
+      pageSize: 10,
+      totalPages: 4,
+    });
   });
 
   it('throws ForbiddenException when the context has no nutritionist profile', async () => {
@@ -163,7 +190,7 @@ describe('PatientsService', () => {
   });
 
   it('returns patient detail with the latest assessment, scoped by ownership', async () => {
-    prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+    prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1', height: null, assessments: [] } as any);
 
     const result = await service.getPatient(ctx, 'p1');
 
@@ -174,7 +201,7 @@ describe('PatientsService', () => {
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
       },
     });
-    expect(result).toEqual({ id: 'p1' });
+    expect(result).toEqual({ id: 'p1', height: null, assessments: [], imc: null });
   });
 
   it('throws NotFoundException when the patient is not owned (detail)', async () => {
@@ -208,7 +235,7 @@ describe('PatientsService', () => {
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
       },
     });
-    expect(result).toEqual(full);
+    expect(result).toEqual({ ...full, imc: null });
   });
 
   it('does not update when the patient is not owned', async () => {
@@ -402,7 +429,7 @@ describe('PatientsService', () => {
       users.createInvitedPatient.mockResolvedValue({
         patientProfile: { id: 'pp1' },
       } as any);
-      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'pp1' } as any);
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'pp1', height: null, assessments: [] } as any);
 
       const result = await service.createPatient(ctx, dto);
 
@@ -423,7 +450,7 @@ describe('PatientsService', () => {
           assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
         },
       });
-      expect(result).toEqual({ id: 'pp1' });
+      expect(result).toEqual({ id: 'pp1', height: null, assessments: [], imc: null });
     });
 
     it('rolls back the invited user when the local write fails', async () => {

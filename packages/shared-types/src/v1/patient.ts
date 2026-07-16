@@ -36,6 +36,7 @@ export interface PatientSummary {
   birthDate: string | null;
   gender: Gender | null;
   height: number | null;
+  imc: number | null;
   targetWeight: number | null;
   objective: PatientObjective | null;
   activityLevel: ActivityLevel | null;
