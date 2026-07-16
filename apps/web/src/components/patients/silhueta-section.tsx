@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -111,14 +111,14 @@ function PhotoPicker({
       {file ? (
         <Button
           type="button"
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="h-auto w-full justify-center gap-1 py-1 text-xs text-muted-foreground"
+          className="h-auto w-full justify-center gap-1.5 border-destructive/40 py-1.5 text-xs font-medium text-destructive hover:bg-destructive hover:text-destructive-foreground"
           aria-label={`Remover ${title}`}
           onClick={onRemove}
         >
-          <X className="h-3.5 w-3.5" aria-hidden="true" />
-          Remover
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          Remover foto
         </Button>
       ) : null}
     </div>
