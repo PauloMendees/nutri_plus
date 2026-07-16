@@ -15,11 +15,15 @@ vi.mock('@/lib/queries/patients', () => ({
   useUploadPatientPhoto: () => ({ mutateAsync: uploadPhotoMut, isPending: uploadPhotoPending }),
   useDeletePatientPhoto: () => ({ mutateAsync: deletePhotoMut, isPending: false }),
 }));
+const useAssessments = vi.fn();
 vi.mock('@/lib/queries/assessments', () => ({
-  useAssessments: () => ({ data: [], isLoading: false, isError: false }),
+  useAssessments: (...args: unknown[]) => useAssessments(...args),
   useCreateAssessment: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateAssessment: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteAssessment: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+vi.mock('@/lib/api/assessments', () => ({
+  downloadAssessmentsPdf: vi.fn(),
 }));
 vi.mock('@/lib/queries/meal-plans', () => ({
   useMealPlans: () => ({ data: [], isLoading: false, isError: false }),
@@ -60,6 +64,7 @@ beforeEach(() => {
   uploadPhotoMut.mockReset();
   deletePhotoMut.mockReset();
   uploadPhotoPending = false;
+  useAssessments.mockReset().mockReturnValue({ data: [], isLoading: false, isError: false });
 });
 
 describe('PatientDetail', () => {
@@ -143,6 +148,20 @@ describe('PatientDetail', () => {
     uploadPhotoPending = true;
     render(<PatientDetail id="p1" created={false} canEdit />);
     expect(screen.getByText('Enviando…')).toBeInTheDocument();
+  });
+
+  it('disables the header export button when there are no assessments', () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    useAssessments.mockReturnValue({ data: [], isLoading: false, isError: false });
+    render(<PatientDetail id="p1" created={false} />);
+    expect(screen.getByRole('button', { name: /exportar evolução/i })).toBeDisabled();
+  });
+
+  it('enables the header export button when assessments exist, on any tab', () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    useAssessments.mockReturnValue({ data: [{ id: 'a1' }], isLoading: false, isError: false });
+    render(<PatientDetail id="p1" created={false} />);
+    expect(screen.getByRole('button', { name: /exportar evolução/i })).toBeEnabled();
   });
 
   it('shows the Silhueta tab only when canEdit', () => {
