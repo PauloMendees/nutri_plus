@@ -173,6 +173,11 @@ export default function Home() {
           <Text className="font-sans text-sm text-muted-foreground">
             Última avaliação · {formatDate(latest.assessmentDate)}
           </Text>
+          {latest.estimatedFromPhoto ? (
+            <Text className="self-start rounded-full bg-primary/10 px-2 py-0.5 font-sans text-xs font-semibold text-primary">
+              Estimado por foto
+            </Text>
+          ) : null}
           <View className="flex-row flex-wrap gap-3">
             {METRICS.map((m) => (
               <Tile key={m.key} label={m.label} value={fmt(latest[m.key])} unit={m.unit} delta={deltaOf(m.key)} />

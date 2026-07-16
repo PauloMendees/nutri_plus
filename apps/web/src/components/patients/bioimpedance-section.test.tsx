@@ -64,6 +64,7 @@ function assessment(over: Record<string, unknown> = {}) {
     notes: null,
     createdAt: '2026-05-12T00:00:00.000Z',
     loggedByPatient: false,
+    estimatedFromPhoto: false,
     ...over,
   };
 }
@@ -144,5 +145,25 @@ describe('BioimpedanceSection', () => {
     });
     render(<BioimpedanceSection patientId="p1" />);
     expect(screen.queryByLabelText('Registrado pelo paciente')).not.toBeInTheDocument();
+  });
+
+  it('flags photo-estimated rows with a camera icon + tooltip trigger', () => {
+    useAssessments.mockReturnValue({
+      data: [assessment({ id: 'a1', estimatedFromPhoto: true })],
+      isLoading: false,
+      isError: false,
+    });
+    render(<BioimpedanceSection patientId="p1" />);
+    expect(screen.getByLabelText('Estimado por foto (Silhueta)')).toBeInTheDocument();
+  });
+
+  it('does not flag measured rows as photo-estimated', () => {
+    useAssessments.mockReturnValue({
+      data: [assessment({ id: 'a1', estimatedFromPhoto: false })],
+      isLoading: false,
+      isError: false,
+    });
+    render(<BioimpedanceSection patientId="p1" />);
+    expect(screen.queryByLabelText('Estimado por foto (Silhueta)')).not.toBeInTheDocument();
   });
 });
