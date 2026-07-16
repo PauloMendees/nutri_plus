@@ -25,6 +25,7 @@ const pngBuffer = () =>
 
 const front = { buffer: pngBuffer(), mimetype: 'image/png' };
 const side = { buffer: pngBuffer(), mimetype: 'image/png' };
+const back = { buffer: pngBuffer(), mimetype: 'image/png' };
 
 const baseDto: CreateSilhuetaScanDto = {
   heightCm: 170,
@@ -98,6 +99,30 @@ describe('SilhuetaService', () => {
       expect(call.images![1]).toBe(
         `data:image/png;base64,${side.buffer.toString('base64')}`,
       );
+    });
+
+    it('includes the optional back image as a 3rd image when provided', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+      provider.generateStructured.mockResolvedValue(aiEstimate as any);
+      prisma.silhuetaScan.create.mockResolvedValue({ id: 'scan1' } as any);
+
+      await service.create(ctx, 'p1', baseDto, front, side, back);
+
+      const call = provider.generateStructured.mock.calls[0][0];
+      expect(call.images).toHaveLength(3);
+      expect(call.images![2]).toBe(
+        `data:image/png;base64,${back.buffer.toString('base64')}`,
+      );
+    });
+
+    it('rejects an unsupported back image with BadRequestException', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+      const badBack = { buffer: Buffer.from('not-an-image'), mimetype: 'image/png' };
+
+      await expect(
+        service.create(ctx, 'p1', baseDto, front, side, badBack),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(provider.generateStructured).not.toHaveBeenCalled();
     });
 
     it('computes fatMass = round(weightKg * bodyFatPercentage / 100) to 1 decimal', async () => {

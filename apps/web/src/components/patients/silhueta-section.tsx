@@ -49,10 +49,12 @@ export function SilhuetaSection({
   const create = useCreateSilhuetaScan(patientId);
   const [front, setFront] = useState<File | null>(null);
   const [side, setSide] = useState<File | null>(null);
+  const [back, setBack] = useState<File | null>(null);
   const [consent, setConsent] = useState(false);
   const [created, setCreated] = useState<SilhuetaScan | null>(null);
   const frontRef = useRef<HTMLInputElement>(null);
   const sideRef = useRef<HTMLInputElement>(null);
+  const backRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<SilhuetaValues>({
     resolver: zodResolver(silhuetaSchema) as Resolver<SilhuetaValues>,
@@ -69,12 +71,17 @@ export function SilhuetaSection({
     setSide(e.target.files?.[0] ?? null);
   }
 
+  function onPickBack(e: React.ChangeEvent<HTMLInputElement>) {
+    setBack(e.target.files?.[0] ?? null);
+  }
+
   async function onSubmit(values: SilhuetaValues) {
     if (!front || !side || !consent) return;
 
     const formData = new FormData();
     formData.append('front', front);
     formData.append('side', side);
+    if (back) formData.append('back', back);
     if (values.heightCm != null) formData.append('heightCm', String(values.heightCm));
     if (values.weightKg != null) formData.append('weightKg', String(values.weightKg));
     if (values.waistInput != null) formData.append('waistInput', String(values.waistInput));
@@ -99,9 +106,11 @@ export function SilhuetaSection({
     setCreated(null);
     setFront(null);
     setSide(null);
+    setBack(null);
     setConsent(false);
     if (frontRef.current) frontRef.current.value = '';
     if (sideRef.current) sideRef.current.value = '';
+    if (backRef.current) backRef.current.value = '';
     form.reset(defaults());
   }
 
@@ -127,9 +136,9 @@ export function SilhuetaSection({
       <div>
         <h2 className="font-heading text-base font-bold">Silhueta</h2>
         <p className="text-sm text-muted-foreground">
-          Gere uma estimativa de composição corporal a partir de duas fotos (frontal e lateral)
-          usando inteligência artificial. É um recurso complementar de acompanhamento da evolução
-          do paciente.
+          Gere uma estimativa de composição corporal a partir de fotos (frontal e lateral, e
+          opcionalmente de costas) usando inteligência artificial. É um recurso complementar de
+          acompanhamento da evolução do paciente.
         </p>
       </div>
 
@@ -171,7 +180,7 @@ export function SilhuetaSection({
           </div>
 
           {/* Photo uploads */}
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-2">
               <p className="text-sm font-medium">Foto frontal</p>
               <label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed p-4 text-center text-xs text-muted-foreground hover:bg-muted/40">
@@ -200,8 +209,26 @@ export function SilhuetaSection({
                 />
               </label>
             </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">
+                Foto de costas <span className="font-normal text-muted-foreground">(opcional)</span>
+              </p>
+              <label className="flex cursor-pointer items-center justify-center rounded-xl border border-dashed p-4 text-center text-xs text-muted-foreground hover:bg-muted/40">
+                {back ? back.name : 'Selecionar foto de costas'}
+                <input
+                  ref={backRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="sr-only"
+                  aria-label="Foto de costas"
+                  onChange={onPickBack}
+                />
+              </label>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground">PNG, JPG ou WEBP.</p>
+          <p className="text-xs text-muted-foreground">
+            PNG, JPG ou WEBP. A foto de costas é opcional e ajuda o modelo com mais contexto.
+          </p>
 
           {/* Consent */}
           <label className="flex items-start gap-2 text-sm">

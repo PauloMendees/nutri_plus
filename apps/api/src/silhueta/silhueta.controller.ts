@@ -31,6 +31,7 @@ export class SilhuetaController {
       [
         { name: 'front', maxCount: 1 },
         { name: 'side', maxCount: 1 },
+        { name: 'back', maxCount: 1 },
       ],
       { limits: { fileSize: 8 * 1024 * 1024 } },
     ),
@@ -39,14 +40,20 @@ export class SilhuetaController {
     @CurrentUser() ctx: AuthContext,
     @Param('id') id: string,
     @Body() dto: CreateSilhuetaScanDto,
-    @UploadedFiles() files: { front?: UploadedImage[]; side?: UploadedImage[] },
+    @UploadedFiles()
+    files: {
+      front?: UploadedImage[];
+      side?: UploadedImage[];
+      back?: UploadedImage[];
+    },
   ) {
     const front = files.front?.[0];
     const side = files.side?.[0];
+    const back = files.back?.[0];
     if (!front || !side) {
       throw new BadRequestException('front and side images are required');
     }
-    return this.silhueta.create(ctx, id, dto, front, side);
+    return this.silhueta.create(ctx, id, dto, front, side, back);
   }
 
   @Get()

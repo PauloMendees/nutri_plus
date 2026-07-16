@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Loader2 } from 'lucide-react';
+import { ChevronLeft, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { ApiError } from '@/lib/api/client';
 import { usePatient, useUploadPatientPhoto, useDeletePatientPhoto } from '@/lib/queries/patients';
@@ -134,7 +134,12 @@ export function PatientDetail({
           <TabsTrigger value="dados">Dados</TabsTrigger>
           <TabsTrigger value="bioimpedancia">Bioimpedância</TabsTrigger>
           <TabsTrigger value="planos">Planos alimentares</TabsTrigger>
-          {canEdit && <TabsTrigger value="silhueta">Silhueta</TabsTrigger>}
+          {canEdit && (
+            <TabsTrigger value="silhueta">
+              <Sparkles className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+              Silhueta
+            </TabsTrigger>
+          )}
         </TabsList>
         <TabsContent value="dados">
           <EditPatientForm patient={patient} canEdit={canEdit} />

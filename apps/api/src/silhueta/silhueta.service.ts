@@ -46,13 +46,25 @@ export class SilhuetaService {
     dto: CreateSilhuetaScanDto,
     front: UploadedImage,
     side: UploadedImage,
+    back?: UploadedImage,
   ) {
     await this.requireOwned(ctx, patientId);
     if (!dto.consent) {
       throw new ForbiddenException('Consent required');
     }
-    if (!isSupportedImage(front.buffer) || !isSupportedImage(side.buffer)) {
+    if (
+      !isSupportedImage(front.buffer) ||
+      !isSupportedImage(side.buffer) ||
+      (back && !isSupportedImage(back.buffer))
+    ) {
       throw new BadRequestException('Arquivo de imagem inválido.');
+    }
+
+    // Front + side are required; the posterior (back) view is optional extra
+    // context passed through to the model when the nutritionist provides it.
+    const images = [dataUrl(front), dataUrl(side)];
+    if (back) {
+      images.push(dataUrl(back));
     }
 
     const est = await this.provider.generateStructured<SilhuetaResponse>({
@@ -68,7 +80,7 @@ export class SilhuetaService {
       schemaName: 'silhueta',
       type: AIInteractionType.SILHUETA_SCAN,
       patientId,
-      images: [dataUrl(front), dataUrl(side)],
+      images,
     });
 
     const fatMass =
