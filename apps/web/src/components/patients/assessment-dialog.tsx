@@ -12,6 +12,7 @@ import {
   useUpdateAssessment,
 } from '@/lib/queries/assessments';
 import { ApiError } from '@/lib/api/client';
+import { kgFromPercent } from '@/lib/health/imc';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -57,6 +58,8 @@ const CIRCUMFERENCES: NumField[] = [
 ];
 
 const NUM_NAMES = [...COMPOSITION, ...CIRCUMFERENCES].map((f) => f.name);
+
+const PERCENT_FIELDS = new Set(['bodyFatPercentage', 'muscleMassPercentage', 'leanMassPercentage', 'bodyWaterPercentage']);
 
 function defaults(assessment?: BodyAssessment): AssessmentValues {
   const str = (v: number | null | undefined) => (v == null ? '' : String(v));
@@ -144,15 +147,40 @@ export function AssessmentDialog({
         key={name}
         control={form.control}
         name={name}
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>{label}</FormLabel>
-            <FormControl>
-              <Input type='number' inputMode='decimal' step='any' {...field} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
+        render={({ field }) => {
+          const weightRaw = form.watch('weight') as unknown as string | number | undefined;
+          const w = weightRaw === '' || weightRaw == null ? null : Number(weightRaw);
+          const fieldValue = field.value as unknown as string | number | undefined;
+          const p = fieldValue === '' || fieldValue == null ? null : Number(fieldValue);
+          const kg =
+            PERCENT_FIELDS.has(name as string) && w != null && !Number.isNaN(w) && p != null && !Number.isNaN(p)
+              ? kgFromPercent(w, p)
+              : null;
+          return (
+            <FormItem>
+              <FormLabel>{label}</FormLabel>
+              {/* EXPERIMENTAL (spec §3): real value in kg for this percentage,
+                  shown as a suffix INSIDE the field so rows stay aligned. */}
+              <div className='relative'>
+                <FormControl>
+                  <Input
+                    type='number'
+                    inputMode='decimal'
+                    step='any'
+                    {...field}
+                    className={kg != null ? 'pr-20' : undefined}
+                  />
+                </FormControl>
+                {kg != null && (
+                  <span className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground/70'>
+                    ≈ {kg.toLocaleString('pt-BR')} kg
+                  </span>
+                )}
+              </div>
+              <FormMessage />
+            </FormItem>
+          );
+        }}
       />
     );
   }

@@ -88,4 +88,18 @@ describe('AssessmentDialog', () => {
     expect(await screen.findByText(/ao menos uma métrica/i)).toBeInTheDocument();
     expect(createMut).not.toHaveBeenCalled();
   });
+
+  it('shows the experimental "≈ X kg" hint once weight and a percentage are entered', async () => {
+    render(<AssessmentDialog open onOpenChange={onOpenChange} patientId='p1' />);
+    expect(screen.queryByText(/≈.*kg/)).not.toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText(/peso/i), '91');
+    await userEvent.type(screen.getByLabelText('% Gordura'), '10');
+    expect(await screen.findByText('≈ 9,1 kg')).toBeInTheDocument();
+  });
+
+  it('hides the kg hint when weight is empty', async () => {
+    render(<AssessmentDialog open onOpenChange={onOpenChange} patientId='p1' />);
+    await userEvent.type(screen.getByLabelText('% Gordura'), '10');
+    expect(screen.queryByText(/≈.*kg/)).not.toBeInTheDocument();
+  });
 });

@@ -1,11 +1,13 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { ApiError } from '@/lib/api/client';
 import { usePatient, useUploadPatientPhoto, useDeletePatientPhoto } from '@/lib/queries/patients';
+import { useAssessments } from '@/lib/queries/assessments';
+import { downloadAssessmentsPdf } from '@/lib/api/assessments';
 import { EditPatientForm } from '@/components/patients/edit-patient-form';
 import { BioimpedanceSection } from '@/components/patients/bioimpedance-section';
 import { MealPlansSection } from '@/components/patients/meal-plans-section';
@@ -15,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PatientAvatar } from '@/components/patients/patient-avatar';
 import { Button } from '@/components/ui/button';
+import { formatImc } from '@/lib/health/imc';
 
 export function PatientDetail({
   id,
@@ -30,6 +33,19 @@ export function PatientDetail({
   const uploadPhoto = useUploadPatientPhoto(id);
   const deletePhoto = useDeletePatientPhoto(id);
   const photoPending = uploadPhoto.isPending || deletePhoto.isPending;
+  const assessments = useAssessments(id);
+  const [exporting, setExporting] = useState(false);
+
+  async function onExport() {
+    setExporting(true);
+    try {
+      await downloadAssessmentsPdf(id);
+    } catch {
+      toast.error('Não foi possível exportar o PDF.');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   async function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -117,16 +133,34 @@ export function PatientDetail({
                   className="rounded-full text-destructive"
                   onClick={onRemovePhoto}
                   disabled={photoPending}
+                  aria-label="Remover foto do paciente"
                 >
-                  Remover
+                  Remover foto
                 </Button>
               )}
             </div>
           )}
         </div>
-        <span className="ml-auto self-start rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
-          Paciente
-        </span>
+        <div className="ml-auto flex flex-col items-end gap-2">
+          <span className="self-end rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
+            Paciente
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={onExport}
+            disabled={exporting || (assessments.data?.length ?? 0) === 0}
+          >
+            {exporting ? 'Exportando…' : 'Exportar evolução'}
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-xl border bg-card p-4">
+        <p className="text-xs text-muted-foreground">IMC</p>
+        <p className="text-lg font-bold">{formatImc(patient.imc)}</p>
       </div>
 
       <Tabs defaultValue="dados">

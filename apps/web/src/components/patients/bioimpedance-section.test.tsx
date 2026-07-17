@@ -11,11 +11,6 @@ vi.mock('@/lib/queries/assessments', () => ({
   useDeleteAssessment: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
-const downloadAssessmentsPdf = vi.fn();
-vi.mock('@/lib/api/assessments', () => ({
-  downloadAssessmentsPdf: (...args: unknown[]) => downloadAssessmentsPdf(...args),
-}));
-
 // Recharts renders SVG via ResponsiveContainer (no layout in jsdom) — stub it.
 // LineChart echoes its `data` so tests can assert the charted series.
 vi.mock('recharts', () => ({
@@ -71,7 +66,6 @@ function assessment(over: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   useAssessments.mockReset();
-  downloadAssessmentsPdf.mockReset().mockResolvedValue(undefined);
 });
 
 describe('BioimpedanceSection', () => {
@@ -129,12 +123,10 @@ describe('BioimpedanceSection', () => {
     expect(screen.getByLabelText('Registrado pelo paciente')).toBeInTheDocument();
   });
 
-  it('exports the evolution PDF when there are assessments', async () => {
-    const user = userEvent.setup();
+  it('does not render an export button (moved to the patient-detail header)', () => {
     useAssessments.mockReturnValue({ isLoading: false, isError: false, data: [assessment()] });
     render(<BioimpedanceSection patientId="p1" canEdit />);
-    await user.click(screen.getByRole('button', { name: /exportar evolução/i }));
-    expect(downloadAssessmentsPdf).toHaveBeenCalledWith('p1');
+    expect(screen.queryByRole('button', { name: /exportar evolução/i })).not.toBeInTheDocument();
   });
 
   it('does not flag nutritionist-logged rows', () => {
@@ -165,5 +157,15 @@ describe('BioimpedanceSection', () => {
     });
     render(<BioimpedanceSection patientId="p1" />);
     expect(screen.queryByLabelText('Estimado por foto (Silhueta)')).not.toBeInTheDocument();
+  });
+
+  it('shows the experimental "≈ X kg" label for percentage measures in the summary card and history', () => {
+    useAssessments.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: [assessment({ weight: 91, bodyFatPercentage: 10 })],
+    });
+    render(<BioimpedanceSection patientId="p1" canEdit />);
+    expect(screen.getAllByText('≈ 9,1 kg').length).toBeGreaterThan(0); // summary card + history
   });
 });

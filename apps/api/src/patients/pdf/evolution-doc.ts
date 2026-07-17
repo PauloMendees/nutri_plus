@@ -136,7 +136,7 @@ function compositionTable(assessments: EvolutionAssessment[], height: number | n
   return {
     table: { headerRows: 1, widths: Array(11).fill('auto'), body },
     layout: 'lightHorizontalLines',
-    fontSize: 8,
+    fontSize: 9,
     margin: [0, 0, 0, 6],
   } as Content;
 }
@@ -161,7 +161,11 @@ function circumferenceTable(assessments: EvolutionAssessment[]): Content {
   return {
     table: { headerRows: 1, widths: Array(9).fill('*'), body },
     layout: 'lightHorizontalLines',
-    fontSize: 8,
+    // 9, not 10: at fontSize 10 (combined with the shared `th` header style)
+    // this 9-column star-widths table overflows past the A4 right margin and
+    // clips the last column — confirmed by rendering the PDF. See th style
+    // comment in docShell below.
+    fontSize: 9,
     margin: [0, 0, 0, 6],
   } as Content;
 }
@@ -169,15 +173,20 @@ function circumferenceTable(assessments: EvolutionAssessment[]): Content {
 function docShell(content: Content[]): TDocumentDefinitions {
   return {
     content,
-    defaultStyle: { font: 'Roboto', fontSize: 9 },
+    defaultStyle: { font: 'Roboto', fontSize: 11 },
     pageMargins: [40, 40, 40, 40],
     styles: {
-      brand: { fontSize: 14, bold: true },
-      title: { fontSize: 16, bold: true },
-      section: { fontSize: 12, bold: true },
-      chartLabel: { fontSize: 10, bold: true, color: '#444444' },
-      muted: { fontSize: 9, color: '#666666' },
-      th: { bold: true, fontSize: 8, color: '#666666' },
+      brand: { fontSize: 16, bold: true },
+      title: { fontSize: 18, bold: true },
+      section: { fontSize: 14, bold: true },
+      chartLabel: { fontSize: 11, bold: true, color: '#444444' },
+      muted: { fontSize: 10, color: '#666666' },
+      // Kept at 9, not 10: at 10 this shared header style breaks the
+      // 9-column circumference table's star-sized layout (pdfmake equalizes
+      // every '*' column to the widest single unbreakable token once the
+      // table can't fit, pushing the last column off the A4 page). Verified
+      // safe at 9 by rendering the PDF; see task-4-report.md for details.
+      th: { bold: true, fontSize: 9, color: '#666666' },
     },
     footer: (currentPage: number, pageCount: number): Content => ({
       text: `${currentPage} / ${pageCount}`,

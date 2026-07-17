@@ -14,6 +14,7 @@ const patient = {
   user: { id: 'u1', name: 'Maria Silva', email: 'maria@x.com' },
   objective: 'WEIGHT_LOSS',
   activityLevel: 'MODERATE',
+  imc: 24.2,
   createdAt: '2026-05-12T00:00:00.000Z',
 };
 
@@ -50,6 +51,19 @@ describe('PatientsList', () => {
     expect(screen.getAllByText('Perda de peso')).toHaveLength(2);
     expect(screen.getAllByRole('link', { name: /maria silva/i })[0]).toHaveAttribute('href', '/patients/p1');
     expect(screen.getByText(/42 pacientes/i)).toBeInTheDocument();
+  });
+
+  it('shows the IMC column formatted, and a — placeholder when imc is null', () => {
+    const withoutImc = { ...patient, id: 'p2', user: { id: 'u2', name: 'Ana Souza', email: 'ana@x.com' }, imc: null };
+    usePatients.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isFetching: false,
+      data: envelope({ items: [patient, withoutImc], total: 2 }),
+    });
+    render(<PatientsList />);
+    expect(screen.getByText('24,2 · Peso normal')).toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 
   it('queries with the typed search term and resets to page 1', async () => {

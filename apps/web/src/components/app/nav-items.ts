@@ -17,7 +17,6 @@ export type NavItem = {
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Pacientes', href: '/patients', icon: Users },
-  { label: 'Funcionários', href: '/employees', icon: Briefcase, canAccess: canManageEmployees },
   {
     label: 'Agenda',
     href: '/agenda',
@@ -27,6 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Categorias', href: '/agenda/categorias' },
     ],
   },
+  { label: 'Funcionários', href: '/employees', icon: Briefcase, canAccess: canManageEmployees },
   {
     label: 'Contabilidade',
     href: '/contabilidade',

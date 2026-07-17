@@ -10,6 +10,7 @@ import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
+import { computeImc } from './imc';
 
 export type { UploadedImage } from '../supabase/image-upload';
 
@@ -82,16 +83,21 @@ export class PatientsService {
         : {}),
     };
 
-    const [items, total] = await this.prisma.$transaction([
+    const [rawItems, total] = await this.prisma.$transaction([
       this.prisma.patientProfile.findMany({
         where,
-        include: { user: USER_SUMMARY },
+        include: PATIENT_DETAIL_INCLUDE,
         orderBy: { user: { name: 'asc' } },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
       this.prisma.patientProfile.count({ where }),
     ]);
+
+    const items = rawItems.map(({ assessments, ...rest }) => ({
+      ...rest,
+      imc: computeImc(rest.height, assessments[0]?.weight ?? null),
+    }));
 
     return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
@@ -107,7 +113,7 @@ export class PatientsService {
     if (!patient) {
       throw new NotFoundException('Patient not found');
     }
-    return patient;
+    return { ...patient, imc: computeImc(patient.height, patient.assessments[0]?.weight ?? null) };
   }
 
   async updatePatient(ctx: AuthContext, id: string, dto: UpdatePatientDto) {
@@ -118,14 +124,12 @@ export class PatientsService {
     // Return the full PatientDetail shape (same include as getPatient) so the
     // PATCH response matches its declared type and clients can cache it without
     // losing the user/assessments relations.
-    return this.prisma.patientProfile.update({
+    const patient = await this.prisma.patientProfile.update({
       where: { id },
       data: dto,
-      include: {
-        user: USER_SUMMARY,
-        assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
-      },
+      include: PATIENT_DETAIL_INCLUDE,
     });
+    return { ...patient, imc: computeImc(patient.height, patient.assessments[0]?.weight ?? null) };
   }
 
   async uploadPhoto(ctx: AuthContext, id: string, file: UploadedImage) {

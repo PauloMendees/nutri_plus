@@ -18,6 +18,7 @@ vi.mock('@/lib/supabase/client', () => ({
 }));
 
 import { AppSidebar } from './app-sidebar';
+import { NAV_ITEMS } from './nav-items';
 
 function renderSidebar(
   user: { name: string; role: UserRole } | null = { name: 'Dra. Ana', role: UserRole.NUTRITIONIST },
@@ -37,6 +38,10 @@ beforeEach(() => {
 });
 
 describe('AppSidebar', () => {
+  it('orders Agenda as the second nav item', () => {
+    expect(NAV_ITEMS[1].label).toBe('Agenda');
+  });
+
   it('renders the three module links with correct hrefs', () => {
     renderSidebar();
     expect(screen.getByRole('link', { name: /pacientes/i })).toHaveAttribute('href', '/patients');
