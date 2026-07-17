@@ -159,15 +159,24 @@ export function AssessmentDialog({
           return (
             <FormItem>
               <FormLabel>{label}</FormLabel>
-              <FormControl>
-                <Input type='number' inputMode='decimal' step='any' {...field} />
-              </FormControl>
-              {/* EXPERIMENTAL (spec §3): real value in kg for this percentage. */}
-              {kg != null && (
-                <p className='mt-1 text-right text-xs text-muted-foreground/70'>
-                  ≈ {kg.toLocaleString('pt-BR')} kg
-                </p>
-              )}
+              {/* EXPERIMENTAL (spec §3): real value in kg for this percentage,
+                  shown as a suffix INSIDE the field so rows stay aligned. */}
+              <div className='relative'>
+                <FormControl>
+                  <Input
+                    type='number'
+                    inputMode='decimal'
+                    step='any'
+                    {...field}
+                    className={kg != null ? 'pr-20' : undefined}
+                  />
+                </FormControl>
+                {kg != null && (
+                  <span className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground/70'>
+                    ≈ {kg.toLocaleString('pt-BR')} kg
+                  </span>
+                )}
+              </div>
               <FormMessage />
             </FormItem>
           );
