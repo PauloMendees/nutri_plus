@@ -126,9 +126,9 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
                 <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-3 font-semibold">Paciente</th>
                   <th className="px-4 py-3 font-semibold">E-mail</th>
+                  <th className="px-4 py-3 font-semibold">IMC</th>
                   <th className="px-4 py-3 font-semibold">Objetivo</th>
                   <th className="px-4 py-3 font-semibold">Atividade</th>
-                  <th className="px-4 py-3 font-semibold">IMC</th>
                   <th className="px-4 py-3 font-semibold">Desde</th>
                 </tr>
               </thead>
@@ -142,11 +142,11 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{p.user.email}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{formatImc(p.imc)}</td>
                     <td className="px-4 py-3">
                       {p.objective ? <Badge variant="secondary">{OBJECTIVE_LABELS[p.objective]}</Badge> : '—'}
                     </td>
                     <td className="px-4 py-3">{p.activityLevel ? ACTIVITY_LABELS[p.activityLevel] : '—'}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{formatImc(p.imc)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(p.createdAt)}</td>
                   </tr>
                 ))}
