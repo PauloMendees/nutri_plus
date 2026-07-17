@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import type { BodyAssessment } from '@nutri-plus/shared-types';
 import { Screen } from '../../components/ui/screen';
@@ -32,6 +32,48 @@ const METRICS: { key: Metric; label: string; unit?: string; trendLabel: string }
   { key: 'bodyFatPercentage', label: '% Gordura', unit: '%', trendLabel: '% Gordura' },
   { key: 'muscleMassPercentage', label: 'Massa muscular', unit: '%', trendLabel: 'Massa muscular (%)' },
 ];
+
+// The full set of measurements available as a selectable trend chart, including
+// a computed IMC series. Labels are chip-sized (the Detalhes grid keeps its own
+// '(cm)'/'(%)' labels).
+const CHART_METRICS = [
+  { key: 'weight', label: 'Peso' },
+  { key: 'imc', label: 'IMC' },
+  { key: 'bodyFatPercentage', label: '% Gordura' },
+  { key: 'muscleMassPercentage', label: 'Massa muscular' },
+  { key: 'leanMassPercentage', label: 'Massa magra' },
+  { key: 'visceralFat', label: 'Gordura visceral' },
+  { key: 'basalMetabolicRate', label: 'TMB' },
+  { key: 'bodyWaterPercentage', label: '% Água' },
+  { key: 'boneMass', label: 'Massa óssea' },
+  { key: 'metabolicAge', label: 'Idade metabólica' },
+  { key: 'waistCircumference', label: 'Cintura' },
+  { key: 'abdomenCircumference', label: 'Abdômen' },
+  { key: 'hipCircumference', label: 'Quadril' },
+  { key: 'thighCircumference', label: 'Coxa medial' },
+  { key: 'armCircumference', label: 'Braço relaxado' },
+  { key: 'contractedArmCircumference', label: 'Braço contraído' },
+  { key: 'chestCircumference', label: 'Busto' },
+  { key: 'calfCircumference', label: 'Panturrilha' },
+] as const;
+
+type ChartMetric = (typeof CHART_METRICS)[number]['key'];
+
+// Builds a chronological {x,y} series for the selected metric. 'imc' is computed
+// per assessment from weight + height; every other key reads the field directly.
+// Null/undefined values are dropped and x is re-indexed over the remaining points.
+function seriesFor(
+  metric: ChartMetric,
+  assessments: BodyAssessment[],
+  height: number | null,
+): { x: number; y: number }[] {
+  const valueOf = (a: BodyAssessment): number | null =>
+    metric === 'imc' ? bmi(a.weight, height) : (a[metric] as number | null);
+  return assessments
+    .map(valueOf)
+    .filter((y): y is number => y !== null && y !== undefined)
+    .map((y, i) => ({ x: i, y }));
+}
 
 function Tile({ label, value, unit, delta }: { label: string; value: string; unit?: string; delta: number | null }) {
   return (
@@ -76,6 +118,7 @@ export default function Home() {
   const query = useMyEvolution();
   const [downloading, setDownloading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [selectedMetric, setSelectedMetric] = useState<ChartMetric>('weight');
 
   async function onExport() {
     setPdfError(null);
@@ -139,10 +182,8 @@ export default function Home() {
   const prevBmi = previous ? bmi(previous.weight, height) : null;
   const bmiDelta = curBmi !== null && prevBmi !== null ? curBmi - prevBmi : null;
 
-  const trend = (key: Metric) =>
-    assessments
-      .filter((a) => a[key] !== null)
-      .map((a, i) => ({ x: i, y: a[key] as number }));
+  const chartPoints = seriesFor(selectedMetric, assessments, height);
+  const chartLabel = CHART_METRICS.find((m) => m.key === selectedMetric)!.label;
 
   const grid: { label: string; value: string }[] = [
     { label: 'Massa magra (%)', value: fmt(latest.leanMassPercentage) },
@@ -188,9 +229,30 @@ export default function Home() {
 
         <View className="gap-3">
           <Text className="font-heading text-lg text-foreground">Tendências</Text>
-          {METRICS.map((m) => (
-            <Trend key={m.key} label={m.trendLabel} points={trend(m.key)} />
-          ))}
+          <View className="flex-row flex-wrap gap-2">
+            {CHART_METRICS.map((m) => {
+              const selected = m.key === selectedMetric;
+              return (
+                <Pressable
+                  key={m.key}
+                  accessibilityRole="button"
+                  onPress={() => setSelectedMetric(m.key)}
+                  className={`rounded-full border px-3 py-1 ${
+                    selected ? 'border-primary bg-primary' : 'border-border bg-card'
+                  }`}
+                >
+                  <Text
+                    className={`font-sans text-xs ${
+                      selected ? 'text-primary-foreground' : 'text-muted-foreground'
+                    }`}
+                  >
+                    {m.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Trend label={chartLabel} points={chartPoints} />
         </View>
 
         <View className="gap-1">
