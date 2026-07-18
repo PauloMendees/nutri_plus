@@ -27,6 +27,7 @@ function toDefaults(p: PatientDetail): UpdatePatientValues {
     medicalConditions: p.medicalConditions ?? "",
     notes: p.notes ?? "",
     canLogAssessments: p.canLogAssessments,
+    showMealTargetToPatient: p.showMealTargetToPatient,
   } as unknown as UpdatePatientValues;
 }
 
@@ -56,6 +57,7 @@ export function EditPatientForm({
   }
 
   const canLog = form.watch("canLogAssessments");
+  const showMeta = form.watch("showMealTargetToPatient");
 
   return (
     <Form {...form}>
@@ -94,6 +96,28 @@ export function EditPatientForm({
               {canLog
                 ? "Permitido: registrar bioimpedância ✓"
                 : "Permitir registrar bioimpedância"}
+            </Button>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-xl border p-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Meta no app</p>
+              <p className="text-xs text-muted-foreground">
+                Mostrar a meta nutricional no app do paciente.
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant={showMeta ? "default" : "outline"}
+              className="shrink-0 rounded-full"
+              aria-pressed={Boolean(showMeta)}
+              onClick={() =>
+                form.setValue("showMealTargetToPatient", !showMeta, {
+                  shouldDirty: true,
+                })
+              }
+            >
+              {showMeta ? "Visível: meta no app ✓" : "Mostrar meta no app"}
             </Button>
           </div>
         </fieldset>

@@ -8,6 +8,8 @@ const optText = (max: number) =>
 export const settingsSchema = z.object({
   displayName: optText(120),
   mealPlanAiInstructions: optText(4000),
+  defaultCanLogAssessments: z.boolean(),
+  defaultShowMealTargetToPatient: z.boolean(),
 });
 
 export type SettingsValues = z.infer<typeof settingsSchema>;

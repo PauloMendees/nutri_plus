@@ -56,6 +56,8 @@ const patient = {
   medicalConditions: null,
   notes: null,
   nutritionistId: 'n1',
+  canLogAssessments: false,
+  showMealTargetToPatient: false,
   photoUrl: 'https://example.com/photo.jpg',
   createdAt: '2026-05-12T00:00:00.000Z',
   updatedAt: '2026-05-12T00:00:00.000Z',

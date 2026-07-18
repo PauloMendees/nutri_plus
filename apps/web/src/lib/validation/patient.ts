@@ -36,6 +36,7 @@ const clinicalShape = {
 export const updatePatientSchema = z.object({
   ...clinicalShape,
   canLogAssessments: z.boolean().optional(),
+  showMealTargetToPatient: z.boolean().optional(),
 });
 
 export const createPatientSchema = z.object({
