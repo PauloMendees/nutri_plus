@@ -1,4 +1,4 @@
-import { Users, Briefcase, Calendar, Settings, Landmark, type LucideIcon } from 'lucide-react';
+import { Users, Apple, Briefcase, Calendar, Settings, Landmark, type LucideIcon } from 'lucide-react';
 import { UserRole } from '@nutri-plus/shared-types';
 import { canManageEmployees, canManageSettings } from '@/lib/auth/access';
 
@@ -17,6 +17,7 @@ export type NavItem = {
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Pacientes', href: '/patients', icon: Users },
+  { label: 'Alimentos', href: '/alimentos', icon: Apple },
   {
     label: 'Agenda',
     href: '/agenda',
