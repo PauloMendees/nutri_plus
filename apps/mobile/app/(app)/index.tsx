@@ -7,6 +7,7 @@ import { BrandHeader } from '../../components/brand/brand-header';
 import { Button } from '../../components/ui/button';
 import { LineChart } from '../../components/chart/line-chart';
 import { useMyEvolution, downloadEvolutionPdf } from '../../lib/queries/assessments';
+import { useMyNutritionTarget } from '../../lib/queries/nutrition-target';
 
 // pt-BR number with 1 decimal and comma; '—' for null/undefined.
 function fmt(v: number | null | undefined, digits = 1): string {
@@ -116,6 +117,7 @@ function GridRow({ label, value }: { label: string; value: string }) {
 
 export default function Home() {
   const query = useMyEvolution();
+  const targetQuery = useMyNutritionTarget();
   const [downloading, setDownloading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [selectedMetric, setSelectedMetric] = useState<ChartMetric>('weight');
@@ -209,6 +211,20 @@ export default function Home() {
           <Text className="font-heading text-2xl text-foreground">Olá, {name}</Text>
           <Text className="font-sans text-base text-muted-foreground">Sua evolução</Text>
         </View>
+
+        {targetQuery.data ? (
+          <View className="gap-2 rounded-xl border border-border bg-card p-4">
+            <Text className="font-sans text-sm text-muted-foreground">Sua meta diária</Text>
+            <Text className="font-heading text-2xl text-foreground">
+              {targetQuery.data.targetCalories.toLocaleString('pt-BR')} kcal
+            </Text>
+            <View className="flex-row flex-wrap gap-x-4 gap-y-1">
+              <Text className="font-sans text-sm text-foreground">Proteína {targetQuery.data.proteinGrams} g</Text>
+              <Text className="font-sans text-sm text-foreground">Carboidrato {targetQuery.data.carbGrams} g</Text>
+              <Text className="font-sans text-sm text-foreground">Gordura {targetQuery.data.fatGrams} g</Text>
+            </View>
+          </View>
+        ) : null}
 
         <View className="gap-2">
           <Text className="font-sans text-sm text-muted-foreground">

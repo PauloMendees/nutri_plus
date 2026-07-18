@@ -2,6 +2,7 @@ import { render } from '@testing-library/react-native';
 
 const mockUseMyEvolution = jest.fn();
 jest.mock('../../lib/queries/assessments', () => ({ useMyEvolution: () => mockUseMyEvolution() }));
+jest.mock('../../lib/queries/nutrition-target', () => ({ useMyNutritionTarget: () => ({ data: null }) }));
 jest.mock('expo-router', () => ({ router: { push: jest.fn() } }));
 
 // Only BrandHeader (in the render tree) touches the theme, and it reads `scheme`.
