@@ -130,4 +130,23 @@ describe('Evolução screen', () => {
     await render(<Home />);
     expect(screen.queryByText('Sua meta diária')).toBeNull();
   });
+
+  it('shows the "Sua meta" card in the empty state (no assessments yet)', async () => {
+    mockUseMyEvolution.mockReturnValue({ isLoading: false, isError: false, data: { name: 'Ana', height: 170, assessments: [] } });
+    mockUseMyNutritionTarget.mockReturnValue({
+      data: { targetCalories: 2000, proteinGrams: 144, carbGrams: 231, fatGrams: 56 },
+    });
+    await render(<Home />);
+    expect(screen.getByText('Suas avaliações aparecerão aqui após sua consulta.')).toBeTruthy();
+    expect(screen.getByText('Sua meta diária')).toBeTruthy();
+    expect(screen.getByText('2.000 kcal')).toBeTruthy();
+  });
+
+  it('hides the "Sua meta" card in the empty state when there is no nutrition target', async () => {
+    mockUseMyEvolution.mockReturnValue({ isLoading: false, isError: false, data: { name: 'Ana', height: 170, assessments: [] } });
+    mockUseMyNutritionTarget.mockReturnValue({ data: null });
+    await render(<Home />);
+    expect(screen.getByText('Suas avaliações aparecerão aqui após sua consulta.')).toBeTruthy();
+    expect(screen.queryByText('Sua meta diária')).toBeNull();
+  });
 });
