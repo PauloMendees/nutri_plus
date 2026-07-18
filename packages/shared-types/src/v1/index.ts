@@ -12,3 +12,5 @@ export * from './outside-home';
 export * from './nutritionist-contact';
 export * from './accounting';
 export * from './silhueta';
+export * from './nutrition-target';
+export * from './energy';
