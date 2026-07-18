@@ -4,7 +4,7 @@
 **Branch:** `feat/today-agenda-widget` (off main)
 **Status:** Approved design — ready for implementation plan
 
-**Sub-project F** of a 6-feature batch (order: F → B calculadoras → A TACO → C LGPD → D anamnese → E push). A floating, minimizable popup in the **bottom-left** of the nutritionist web app that shows **today's** appointments from the agenda.
+**Sub-project F** of a 6-feature batch (order: F → B calculadoras → A TACO → C LGPD → D anamnese → E push). A floating, minimizable popup in the **bottom-right** of the nutritionist web app that shows **today's** appointments from the agenda.
 
 ## Scope
 
@@ -23,7 +23,7 @@ New client component `apps/web/src/components/agenda/today-agenda-widget.tsx`, m
 
 ## Layout & behavior
 
-Fixed bottom-left: `fixed bottom-4 left-4 z-50`.
+Fixed bottom-right: `fixed bottom-4 right-4 z-50`.
 
 - **Expanded (default first-run):** a card (~`w-80`, `max-h` with internal scroll):
   - Header: "Agenda de hoje" + today's date + a **minimize** button (–).

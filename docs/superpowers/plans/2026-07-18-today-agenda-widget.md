@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** A floating, minimizable bottom-left popup in the nutritionist web app showing today's agenda, with click-to-edit and quick-create.
+**Goal:** A floating, minimizable bottom-right popup in the nutritionist web app showing today's agenda, with click-to-edit and quick-create.
 
 **Architecture:** One new client component mounted globally in the `(app)` layout; reuses the existing `useAppointments` query, agenda helpers, and `AppointmentDialog`. No API/shared-types/DB change.
 
@@ -180,7 +180,7 @@ export function TodayAgendaWidget() {
   const today = new Date();
 
   return (
-    <div className="fixed bottom-4 left-4 z-50 hidden md:block">
+    <div className="fixed bottom-4 right-4 z-50 hidden md:block">
       {minimized ? (
         <button
           type="button"
@@ -309,4 +309,4 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 pnpm --filter @nutri-plus/web test && pnpm --filter @nutri-plus/web exec tsc --noEmit
 ```
 
-Manual (web): log in as a nutritionist → a bottom-left card "Agenda de hoje" lists today's appointments; minimize collapses it to a "Hoje · N" pill (persists across reloads); clicking a row opens the edit dialog; "+ Novo" opens the create dialog; the widget is hidden on `/agenda` and on small screens.
+Manual (web): log in as a nutritionist → a bottom-right card "Agenda de hoje" lists today's appointments; minimize collapses it to a "Hoje · N" pill (persists across reloads); clicking a row opens the edit dialog; "+ Novo" opens the create dialog; the widget is hidden on `/agenda` and on small screens.

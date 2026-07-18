@@ -50,7 +50,7 @@ export function TodayAgendaWidget() {
   const today = new Date();
 
   return (
-    <div className="fixed bottom-4 left-4 z-50 hidden md:block">
+    <div className="fixed bottom-4 right-4 z-50 hidden md:block">
       {minimized ? (
         <button
           type="button"
