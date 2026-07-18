@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { Logo } from '@/components/brand/logo';
 import { AppSidebar } from '@/components/app/app-sidebar';
 import { MobileNavTrigger } from '@/components/app/mobile-nav-trigger';
+import { TodayAgendaWidget } from '@/components/agenda/today-agenda-widget';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { isWebDashboardRole } from '@/lib/auth/access';
 import { getCurrentUser } from '@/lib/auth/current-user';
@@ -22,6 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <MobileNavTrigger />
         </header>
         <main className="flex-1 p-6 md:p-8">{children}</main>
+        <TodayAgendaWidget />
       </SidebarInset>
     </SidebarProvider>
   );
