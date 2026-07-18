@@ -31,6 +31,13 @@ export interface NutritionTarget {
   carbGrams: number;
 }
 
+export interface MyNutritionTarget {
+  targetCalories: number;
+  proteinGrams: number;
+  carbGrams: number;
+  fatGrams: number;
+}
+
 export interface CreateNutritionTargetRequest {
   formula: TmbFormula;
   sex: Gender; // MALE | FEMALE
