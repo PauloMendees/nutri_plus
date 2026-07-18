@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   ActivityLevel,
   computeGet,
@@ -42,14 +42,17 @@ export class NutritionTargetsService {
     const activityLevelValue =
       dto.activityLevel ?? (patient.activityLevel as ActivityLevel | null) ?? null;
 
+    if (weightKg == null || heightCm == null || age == null || activityLevelValue == null) {
+      throw new BadRequestException(
+        'Dados insuficientes para calcular a meta: peso, altura, idade e nível de atividade são obrigatórios.',
+      );
+    }
+
     // Server recomputes everything — client numbers are never trusted.
     const formula = effectiveFormula(dto.formula, bodyFatPercentage);
-    const tmb =
-      weightKg != null && heightCm != null && age != null
-        ? computeTmb({ formula, sex: dto.sex, weightKg, heightCm, age, bodyFatPercentage })
-        : 0;
-    const factor = activityLevelValue ? activityFactor(activityLevelValue) : 1;
-    const get = activityLevelValue ? computeGet(tmb, activityLevelValue) : tmb;
+    const tmb = computeTmb({ formula, sex: dto.sex, weightKg, heightCm, age, bodyFatPercentage });
+    const factor = activityFactor(activityLevelValue);
+    const get = computeGet(tmb, activityLevelValue);
     const macros = computeMacros({
       targetCalories: dto.targetCalories,
       weightKg: weightKg ?? 0,

@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { ActivityLevel, Gender, TmbFormula } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
@@ -51,6 +51,17 @@ describe('NutritionTargetsService', () => {
 
       await expect(service.create(ctx, 'p1', baseDto)).rejects.toBeInstanceOf(
         NotFoundException,
+      );
+      expect(prisma.nutritionTarget.create).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when no activity level is available (patient nor DTO)', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue(
+        patientWithAssessment({ activityLevel: null }) as any,
+      );
+
+      await expect(service.create(ctx, 'p1', baseDto)).rejects.toBeInstanceOf(
+        BadRequestException,
       );
       expect(prisma.nutritionTarget.create).not.toHaveBeenCalled();
     });

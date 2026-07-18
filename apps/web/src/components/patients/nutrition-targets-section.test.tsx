@@ -123,6 +123,26 @@ describe('NutritionTargetsSection', () => {
     expect(screen.getByRole('button', { name: /salvar meta/i })).toBeDisabled();
   });
 
+  it('disables "Salvar meta" when no activity level is set', async () => {
+    render(<NutritionTargetsSection patient={patient({ activityLevel: null })} />);
+
+    // No activity level means no GET/suggestion is computed, so "Usar sugestão"
+    // never renders — fill the target calories manually to isolate the check.
+    const targetCaloriesInput = screen.getByLabelText(/meta calórica/i);
+    await userEvent.clear(targetCaloriesInput);
+    await userEvent.type(targetCaloriesInput, '2000');
+
+    expect(screen.getByRole('button', { name: /salvar meta/i })).toBeDisabled();
+  });
+
+  it('enables "Salvar meta" once every required field, including activity level, is set', async () => {
+    render(<NutritionTargetsSection patient={patient()} />);
+
+    await userEvent.click(screen.getByRole('button', { name: /usar sugestão/i }));
+
+    expect(screen.getByRole('button', { name: /salvar meta/i })).toBeEnabled();
+  });
+
   it('renders prior targets in the history list', () => {
     listMut.mockReturnValue({
       data: [

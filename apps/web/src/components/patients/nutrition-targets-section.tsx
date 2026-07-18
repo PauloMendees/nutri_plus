@@ -150,7 +150,13 @@ export function NutritionTargetsSection({ patient }: { patient: PatientDetail })
     }
   }
 
-  const canSave = Boolean(sex) && weightKg > 0 && heightCm > 0 && age > 0 && targetCalories > 0;
+  const canSave =
+    Boolean(sex) &&
+    weightKg > 0 &&
+    heightCm > 0 &&
+    age > 0 &&
+    Boolean(activityLevel) &&
+    targetCalories > 0;
 
   return (
     <section className="space-y-4">
