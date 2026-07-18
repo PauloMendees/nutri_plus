@@ -32,6 +32,10 @@ vi.mock('@/lib/queries/meal-plans', () => ({
 vi.mock('@/lib/queries/silhueta', () => ({
   useCreateSilhuetaScan: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+vi.mock('@/lib/queries/nutrition-targets', () => ({
+  useNutritionTargets: () => ({ data: [], isLoading: false }),
+  useCreateNutritionTarget: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));
 
@@ -171,5 +175,21 @@ describe('PatientDetail', () => {
 
     rerender(<PatientDetail id="p1" created={false} canEdit={false} />);
     expect(screen.queryByRole('tab', { name: /silhueta/i })).not.toBeInTheDocument();
+  });
+
+  it('shows the Metas tab only when canEdit', () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    const { rerender } = render(<PatientDetail id="p1" created={false} canEdit />);
+    expect(screen.getByRole('tab', { name: /metas/i })).toBeInTheDocument();
+
+    rerender(<PatientDetail id="p1" created={false} canEdit={false} />);
+    expect(screen.queryByRole('tab', { name: /metas/i })).not.toBeInTheDocument();
+  });
+
+  it('reveals the nutrition-targets section when its tab is selected', async () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} canEdit />);
+    await userEvent.click(screen.getByRole('tab', { name: /metas/i }));
+    expect(await screen.findByText(/metas nutricionais/i)).toBeInTheDocument();
   });
 });
