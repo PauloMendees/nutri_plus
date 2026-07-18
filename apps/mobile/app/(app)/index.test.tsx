@@ -48,12 +48,34 @@ describe('Evolução screen', () => {
     mockUseMyEvolution.mockReturnValue({ isLoading: false, isError: false, data: two });
     await render(<Home />);
     expect(screen.getByText('Olá, Ana')).toBeTruthy();
-    expect(screen.getByText('Peso')).toBeTruthy();
-    expect(screen.getByText('IMC')).toBeTruthy();
+    // 'Peso'/'IMC' now appear both as a snapshot tile AND a selector chip → use getAllByText
+    expect(screen.getAllByText('Peso').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('IMC').length).toBeGreaterThanOrEqual(1);
     // latest weight 78 kg is shown (regex: the tile composes '78,0' + ' kg' in one Text)
     expect(screen.getByText(/78,0/)).toBeTruthy();
-    // three trend charts → at least one chart path renders (2 points each)
-    expect(screen.getAllByTestId('line-chart-path').length).toBeGreaterThanOrEqual(3);
+    // single selectable chart, defaulting to Peso (2 points → one path)
+    expect(screen.getAllByTestId('line-chart-path').length).toBe(1);
+  });
+
+  it('offers the newly-added measurements in the metric selector', async () => {
+    mockUseMyEvolution.mockReturnValue({ isLoading: false, isError: false, data: two });
+    await render(<Home />);
+    // These labels appear only as chips (the Detalhes grid uses '(cm)'/'(%)' suffixes), so they are unique.
+    expect(screen.getByText('Massa magra')).toBeTruthy();
+    expect(screen.getByText('Abdômen')).toBeTruthy();
+    expect(screen.getByText('Braço contraído')).toBeTruthy();
+    expect(screen.getByText('Panturrilha')).toBeTruthy();
+  });
+
+  it('switches the charted metric when a chip is pressed', async () => {
+    mockUseMyEvolution.mockReturnValue({ isLoading: false, isError: false, data: two });
+    await render(<Home />);
+    // Default Peso has 2 points → one chart path.
+    expect(screen.getAllByTestId('line-chart-path').length).toBe(1);
+    // Abdômen is null in both fixture rows → insufficient data: message, no chart.
+    await fireEvent.press(screen.getByText('Abdômen'));
+    expect(screen.getByText('Sem histórico suficiente para tendência ainda.')).toBeTruthy();
+    expect(screen.queryAllByTestId('line-chart-path').length).toBe(0);
   });
 
   it('exports the evolution PDF when the button is pressed', async () => {
