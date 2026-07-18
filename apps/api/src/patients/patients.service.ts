@@ -38,6 +38,14 @@ export class PatientsService {
     const nutritionistId = resolveScopeNutritionistId(ctx);
     const { name, email, ...clinical } = dto;
 
+    // New patients inherit the nutritionist's configured defaults for the two
+    // patient-app toggles; the per-patient value can be changed afterwards via
+    // updatePatient.
+    const defaults = await this.prisma.nutritionistProfile.findUniqueOrThrow({
+      where: { id: nutritionistId },
+      select: { defaultCanLogAssessments: true, defaultShowMealTargetToPatient: true },
+    });
+
     const { id: authProviderId } = await this.supabaseAdmin.inviteUser(email, {
       name,
     });
@@ -49,7 +57,11 @@ export class PatientsService {
         email,
         name,
         nutritionistId,
-        clinical,
+        clinical: {
+          ...clinical,
+          canLogAssessments: defaults.defaultCanLogAssessments,
+          showMealTargetToPatient: defaults.defaultShowMealTargetToPatient,
+        },
       });
       // A patient is always created with a nested profile, so this is non-null.
       profileId = localUser.patientProfile!.id;

@@ -19,7 +19,13 @@ function nutCtx(nutritionistId: string): AuthContext {
   };
 }
 
-const SELECT = { displayName: true, logoUrl: true, mealPlanAiInstructions: true };
+const SELECT = {
+  displayName: true,
+  logoUrl: true,
+  mealPlanAiInstructions: true,
+  defaultCanLogAssessments: true,
+  defaultShowMealTargetToPatient: true,
+};
 
 describe('NutritionistSettingsService', () => {
   let prisma: DeepMockProxy<PrismaService>;
@@ -36,23 +42,64 @@ describe('NutritionistSettingsService', () => {
   it('returns the caller settings scoped to their own profile', async () => {
     prisma.nutritionistProfile.findUniqueOrThrow.mockResolvedValue({
       displayName: 'Dra. Ana', logoUrl: null, mealPlanAiInstructions: null,
+      defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
     } as any);
     const result = await service.getSettings(ctx);
     expect(prisma.nutritionistProfile.findUniqueOrThrow).toHaveBeenCalledWith({
       where: { id: 'nutri-1' },
       select: SELECT,
     });
-    expect(result).toEqual({ displayName: 'Dra. Ana', logoUrl: null, mealPlanAiInstructions: null });
+    expect(result).toEqual({
+      displayName: 'Dra. Ana', logoUrl: null, mealPlanAiInstructions: null,
+      defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+    });
+  });
+
+  it('returns the 2 patient-app defaults alongside the existing settings', async () => {
+    prisma.nutritionistProfile.findUniqueOrThrow.mockResolvedValue({
+      displayName: 'Dra. Ana', logoUrl: null, mealPlanAiInstructions: null,
+      defaultCanLogAssessments: true, defaultShowMealTargetToPatient: true,
+    } as any);
+    const result = await service.getSettings(ctx);
+    expect(result.defaultCanLogAssessments).toBe(true);
+    expect(result.defaultShowMealTargetToPatient).toBe(true);
   });
 
   it('updates displayName and mealPlanAiInstructions on the caller profile', async () => {
     prisma.nutritionistProfile.update.mockResolvedValue({
       displayName: 'Dra. Ana', logoUrl: null, mealPlanAiInstructions: 'Sem lactose',
+      defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
     } as any);
     await service.updateSettings(ctx, { displayName: 'Dra. Ana', mealPlanAiInstructions: 'Sem lactose' });
     expect(prisma.nutritionistProfile.update).toHaveBeenCalledWith({
       where: { id: 'nutri-1' },
-      data: { displayName: 'Dra. Ana', mealPlanAiInstructions: 'Sem lactose' },
+      data: {
+        displayName: 'Dra. Ana',
+        mealPlanAiInstructions: 'Sem lactose',
+        defaultCanLogAssessments: undefined,
+        defaultShowMealTargetToPatient: undefined,
+      },
+      select: SELECT,
+    });
+  });
+
+  it('writes the 2 patient-app defaults on update', async () => {
+    prisma.nutritionistProfile.update.mockResolvedValue({
+      displayName: null, logoUrl: null, mealPlanAiInstructions: null,
+      defaultCanLogAssessments: true, defaultShowMealTargetToPatient: true,
+    } as any);
+    await service.updateSettings(ctx, {
+      defaultCanLogAssessments: true,
+      defaultShowMealTargetToPatient: true,
+    });
+    expect(prisma.nutritionistProfile.update).toHaveBeenCalledWith({
+      where: { id: 'nutri-1' },
+      data: {
+        displayName: undefined,
+        mealPlanAiInstructions: undefined,
+        defaultCanLogAssessments: true,
+        defaultShowMealTargetToPatient: true,
+      },
       select: SELECT,
     });
   });

@@ -150,4 +150,75 @@ describe('NutritionTargetsService', () => {
       expect(result).toBe(targets);
     });
   });
+
+  describe('getMineForPatient', () => {
+    const patientCtx: AuthContext = {
+      authProviderId: 'sub-p',
+      email: 'p@x.com',
+      name: 'Ana',
+      user: {
+        id: 'user-p',
+        role: 'PATIENT',
+        nutritionistProfile: null,
+        patientProfile: { id: 'pp-1' },
+      } as any,
+    };
+
+    it('returns null when the patient has opted out (showMealTargetToPatient false)', async () => {
+      prisma.patientProfile.findUnique.mockResolvedValue({
+        showMealTargetToPatient: false,
+      } as any);
+
+      const result = await service.getMineForPatient(patientCtx);
+
+      expect(prisma.patientProfile.findUnique).toHaveBeenCalledWith({
+        where: { id: 'pp-1' },
+        select: { showMealTargetToPatient: true },
+      });
+      expect(result).toBeNull();
+      expect(prisma.nutritionTarget.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('returns null when visible but there is no target yet', async () => {
+      prisma.patientProfile.findUnique.mockResolvedValue({
+        showMealTargetToPatient: true,
+      } as any);
+      prisma.nutritionTarget.findFirst.mockResolvedValue(null);
+
+      const result = await service.getMineForPatient(patientCtx);
+
+      expect(prisma.nutritionTarget.findFirst).toHaveBeenCalledWith({
+        where: { patientId: 'pp-1' },
+        orderBy: { targetDate: 'desc' },
+      });
+      expect(result).toBeNull();
+    });
+
+    it('returns the strict safe subset when visible and a target exists', async () => {
+      prisma.patientProfile.findUnique.mockResolvedValue({
+        showMealTargetToPatient: true,
+      } as any);
+      prisma.nutritionTarget.findFirst.mockResolvedValue({
+        id: 'nt1',
+        patientId: 'pp-1',
+        targetCalories: 2000,
+        proteinGrams: 144,
+        carbGrams: 231,
+        fatGrams: 56,
+        tmb: 1780,
+        get: 2759,
+        formula: 'MIFFLIN',
+        activityFactor: 1.55,
+      } as any);
+
+      const result = await service.getMineForPatient(patientCtx);
+
+      expect(result).toEqual({
+        targetCalories: 2000,
+        proteinGrams: 144,
+        carbGrams: 231,
+        fatGrams: 56,
+      });
+    });
+  });
 });

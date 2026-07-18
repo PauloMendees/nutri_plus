@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class UpdateNutritionistSettingsDto {
   @IsOptional()
@@ -10,4 +10,12 @@ export class UpdateNutritionistSettingsDto {
   @IsString()
   @MaxLength(4000)
   mealPlanAiInstructions?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  defaultCanLogAssessments?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  defaultShowMealTargetToPatient?: boolean;
 }

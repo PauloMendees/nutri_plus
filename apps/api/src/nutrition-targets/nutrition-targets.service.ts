@@ -10,7 +10,7 @@ import {
 } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/types/auth-context';
-import { resolveScopeNutritionistId } from '../auth/auth-scope';
+import { resolveScopeNutritionistId, resolveScopePatientId } from '../auth/auth-scope';
 import { CreateNutritionTargetDto } from './dto/create-nutrition-target.dto';
 
 const round = (n: number) => Math.round(n);
@@ -89,5 +89,35 @@ export class NutritionTargetsService {
       where: { patientId },
       orderBy: { targetDate: 'desc' },
     });
+  }
+
+  // Patient-facing: a strict safe subset of the latest target, or null. Never
+  // exposes tmb/get/formula/activityFactor/inputs — only the 4 numbers the
+  // patient app needs to render a meal target. Hidden entirely when the
+  // patient's own showMealTargetToPatient toggle is off, or when there is no
+  // target yet.
+  async getMineForPatient(ctx: AuthContext): Promise<{
+    targetCalories: number;
+    proteinGrams: number;
+    carbGrams: number;
+    fatGrams: number;
+  } | null> {
+    const patientId = resolveScopePatientId(ctx);
+    const patient = await this.prisma.patientProfile.findUnique({
+      where: { id: patientId },
+      select: { showMealTargetToPatient: true },
+    });
+    if (!patient?.showMealTargetToPatient) return null;
+    const latest = await this.prisma.nutritionTarget.findFirst({
+      where: { patientId },
+      orderBy: { targetDate: 'desc' },
+    });
+    if (!latest) return null;
+    return {
+      targetCalories: latest.targetCalories,
+      proteinGrams: latest.proteinGrams,
+      carbGrams: latest.carbGrams,
+      fatGrams: latest.fatGrams,
+    };
   }
 }
