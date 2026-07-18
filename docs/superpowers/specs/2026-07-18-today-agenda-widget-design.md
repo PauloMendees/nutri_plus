@@ -18,7 +18,7 @@ New client component `apps/web/src/components/agenda/today-agenda-widget.tsx`, m
 
 - `useAppointments({ from, to })` (`@/lib/queries/appointments`) with `from` = **today 00:00** and `to` = **today 23:59:59.999** in local time, serialized with `toISOString()`. Same date-range contract the agenda page uses (`startsAt` within `[from, to]`).
 - Appointments sorted by `startsAt` ascending.
-- `refetchInterval` ~5 minutes + refetch on window focus so the list stays current through the day.
+- Freshness: the widget reuses the shared `useAppointments` hook as-is (no options change). It stays current because the `AppointmentDialog` mutations invalidate `['appointments']` on every create/edit/delete (so the widget updates immediately after any change), plus react-query's refetch-on-focus. (An explicit poll is deliberately omitted to avoid modifying the shared hook — can be added later if needed.)
 - Reuse `formatTimeRange` (`@/lib/agenda/dates`) and `appointmentColor` (`@/lib/agenda/colors`).
 
 ## Layout & behavior
