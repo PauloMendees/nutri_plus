@@ -78,7 +78,11 @@ export function TodayAgendaWidget() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-2">
-            {appointments.length === 0 ? (
+            {query.isError ? (
+              <p className="px-2 py-6 text-center text-sm text-muted-foreground">
+                Não foi possível carregar a agenda.
+              </p>
+            ) : appointments.length === 0 ? (
               <p className="px-2 py-6 text-center text-sm text-muted-foreground">
                 Sem agendamentos hoje.
               </p>

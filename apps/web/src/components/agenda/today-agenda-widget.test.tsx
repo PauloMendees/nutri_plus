@@ -54,10 +54,22 @@ describe("TodayAgendaWidget", () => {
     expect(screen.getByText(/Ana Souza/)).toBeInTheDocument();
   });
 
-  it("opens the appointment dialog when a row is clicked", async () => {
+  it("opens the appointment dialog in edit mode when a row is clicked", async () => {
     render(<TodayAgendaWidget />);
     await userEvent.click(screen.getByText(/Consulta/));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("Editar agendamento")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Excluir" })).toBeInTheDocument();
+  });
+
+  it("opens the appointment dialog in create mode when '+ Novo' is clicked", async () => {
+    render(<TodayAgendaWidget />);
+    await userEvent.click(screen.getByRole("button", { name: /novo/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("Novo agendamento")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Excluir" }),
+    ).not.toBeInTheDocument();
   });
 
   it("minimizes to a pill with the count and expands back", async () => {
@@ -72,6 +84,19 @@ describe("TodayAgendaWidget", () => {
     useAppointments.mockReturnValue({ data: [], isLoading: false, isError: false });
     render(<TodayAgendaWidget />);
     expect(screen.getByText("Sem agendamentos hoje.")).toBeInTheDocument();
+  });
+
+  it("shows an error message instead of the empty state when the fetch fails", () => {
+    useAppointments.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    });
+    render(<TodayAgendaWidget />);
+    expect(
+      screen.getByText("Não foi possível carregar a agenda."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Sem agendamentos hoje.")).not.toBeInTheDocument();
   });
 
   it("renders nothing on the /agenda route", () => {
