@@ -12,6 +12,7 @@ import { EditPatientForm } from '@/components/patients/edit-patient-form';
 import { BioimpedanceSection } from '@/components/patients/bioimpedance-section';
 import { MealPlansSection } from '@/components/patients/meal-plans-section';
 import { SilhuetaSection } from '@/components/patients/silhueta-section';
+import { NutritionTargetsSection } from '@/components/patients/nutrition-targets-section';
 import { CreatedBanner } from '@/components/patients/created-banner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -167,6 +168,7 @@ export function PatientDetail({
         <TabsList>
           <TabsTrigger value="dados">Dados</TabsTrigger>
           <TabsTrigger value="bioimpedancia">Bioimpedância</TabsTrigger>
+          {canEdit && <TabsTrigger value="metas">Metas</TabsTrigger>}
           <TabsTrigger value="planos">Planos alimentares</TabsTrigger>
           {canEdit && (
             <TabsTrigger value="silhueta">
@@ -181,6 +183,11 @@ export function PatientDetail({
         <TabsContent value="bioimpedancia">
           <BioimpedanceSection patientId={patient.id} canEdit={canEdit} />
         </TabsContent>
+        {canEdit && (
+          <TabsContent value="metas">
+            <NutritionTargetsSection patient={patient} />
+          </TabsContent>
+        )}
         <TabsContent value="planos">
           <MealPlansSection patientId={patient.id} canEdit={canEdit} />
         </TabsContent>

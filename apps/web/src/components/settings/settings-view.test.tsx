@@ -32,14 +32,18 @@ describe('SettingsView', () => {
     expect(screen.getByTestId('settings-loading')).toBeInTheDocument();
   });
 
-  it('renders the two sections and prefills the form', () => {
+  it('renders the three tabs and prefills the form', () => {
     useNutritionistSettings.mockReturnValue({
       isLoading: false, isError: false,
-      data: { displayName: 'Dra. Ana', logoUrl: null, mealPlanAiInstructions: 'Sem lactose' },
+      data: {
+        displayName: 'Dra. Ana', logoUrl: null, mealPlanAiInstructions: 'Sem lactose',
+        defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+      },
     });
     render(<SettingsView />);
-    expect(screen.getByText(/plano alimentar/i)).toBeInTheDocument();
-    expect(screen.getByText(/aparência/i)).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /plano alimentar/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /aparência/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /aplicativo paciente/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/nome de exibição/i)).toHaveValue('Dra. Ana');
     expect(screen.getByLabelText(/instruções padrão/i)).toHaveValue('Sem lactose');
   });
@@ -47,11 +51,14 @@ describe('SettingsView', () => {
   it('saves the display name and instructions', async () => {
     useNutritionistSettings.mockReturnValue({
       isLoading: false, isError: false,
-      data: { displayName: '', logoUrl: null, mealPlanAiInstructions: '' },
+      data: {
+        displayName: '', logoUrl: null, mealPlanAiInstructions: '',
+        defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+      },
     });
     render(<SettingsView />);
     await userEvent.type(screen.getByLabelText(/nome de exibição/i), 'Dra. Ana');
-    await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
+    await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
     await waitFor(() => expect(updateMut).toHaveBeenCalledTimes(1));
     expect(updateMut.mock.calls[0][0].displayName).toBe('Dra. Ana');
   });
@@ -59,7 +66,10 @@ describe('SettingsView', () => {
   it('uploads a logo on file pick', async () => {
     useNutritionistSettings.mockReturnValue({
       isLoading: false, isError: false,
-      data: { displayName: '', logoUrl: null, mealPlanAiInstructions: '' },
+      data: {
+        displayName: '', logoUrl: null, mealPlanAiInstructions: '',
+        defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+      },
     });
     render(<SettingsView />);
     const file = new File(['x'], 'logo.png', { type: 'image/png' });
@@ -71,10 +81,60 @@ describe('SettingsView', () => {
   it('removes the logo when one exists', async () => {
     useNutritionistSettings.mockReturnValue({
       isLoading: false, isError: false,
-      data: { displayName: '', logoUrl: 'https://cdn/n.png', mealPlanAiInstructions: '' },
+      data: {
+        displayName: '', logoUrl: 'https://cdn/n.png', mealPlanAiInstructions: '',
+        defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+      },
     });
     render(<SettingsView />);
     await userEvent.click(screen.getByRole('button', { name: /remover logo/i }));
     await waitFor(() => expect(deleteMut).toHaveBeenCalledTimes(1));
+  });
+
+  describe('Aplicativo Paciente tab', () => {
+    function setData(over: Record<string, unknown> = {}) {
+      useNutritionistSettings.mockReturnValue({
+        isLoading: false, isError: false,
+        data: {
+          displayName: '', logoUrl: null, mealPlanAiInstructions: '',
+          defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+          ...over,
+        },
+      });
+    }
+
+    it('shows the explanatory text and the two toggles', async () => {
+      setData();
+      render(<SettingsView />);
+      await userEvent.click(screen.getByRole('tab', { name: /aplicativo paciente/i }));
+      expect(
+        screen.getByText(/configurações padrão aplicadas a novos pacientes/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/permitir registrar bioimpedância/i),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/mostrar a meta nutricional no app/i),
+      ).toBeInTheDocument();
+    });
+
+    it('toggles both defaults and saves them in the update body', async () => {
+      setData();
+      render(<SettingsView />);
+      await userEvent.click(screen.getByRole('tab', { name: /aplicativo paciente/i }));
+
+      const toggles = screen.getAllByRole('button', { name: /desligado/i });
+      expect(toggles).toHaveLength(2);
+      await userEvent.click(toggles[0]);
+      await userEvent.click(toggles[1]);
+
+      await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
+
+      await waitFor(() => expect(updateMut).toHaveBeenCalledTimes(1));
+      expect(updateMut.mock.calls[0][0]).toMatchObject({
+        defaultCanLogAssessments: true,
+        defaultShowMealTargetToPatient: true,
+      });
+    });
   });
 });

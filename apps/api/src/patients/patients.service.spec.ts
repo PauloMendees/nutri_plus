@@ -424,6 +424,15 @@ describe('PatientsService', () => {
   describe('createPatient', () => {
     const dto = { name: 'Ann', email: 'a@x.com', height: 160 } as any;
 
+    beforeEach(() => {
+      // Nutritionist defaults for the two patient-app toggles; individual
+      // tests override this when the actual values matter to the assertion.
+      prisma.nutritionistProfile.findUniqueOrThrow.mockResolvedValue({
+        defaultCanLogAssessments: false,
+        defaultShowMealTargetToPatient: false,
+      } as any);
+    });
+
     it('invites the patient then creates the linked local record', async () => {
       supabaseAdmin.inviteUser.mockResolvedValue({ id: 'sub-new' });
       users.createInvitedPatient.mockResolvedValue({
@@ -441,7 +450,7 @@ describe('PatientsService', () => {
         email: 'a@x.com',
         name: 'Ann',
         nutritionistId: 'nutri-1',
-        clinical: { height: 160 },
+        clinical: { height: 160, canLogAssessments: false, showMealTargetToPatient: false },
       });
       expect(prisma.patientProfile.findFirst).toHaveBeenCalledWith({
         where: { id: 'pp1', nutritionistId: 'nutri-1' },
@@ -451,6 +460,29 @@ describe('PatientsService', () => {
         },
       });
       expect(result).toEqual({ id: 'pp1', height: null, assessments: [], imc: null });
+    });
+
+    it("seeds the new patient's toggles from the nutritionist's configured defaults", async () => {
+      prisma.nutritionistProfile.findUniqueOrThrow.mockResolvedValue({
+        defaultCanLogAssessments: true,
+        defaultShowMealTargetToPatient: true,
+      } as any);
+      supabaseAdmin.inviteUser.mockResolvedValue({ id: 'sub-new' });
+      users.createInvitedPatient.mockResolvedValue({
+        patientProfile: { id: 'pp1' },
+      } as any);
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'pp1', height: null, assessments: [] } as any);
+
+      await service.createPatient(ctx, dto);
+
+      expect(prisma.nutritionistProfile.findUniqueOrThrow).toHaveBeenCalledWith({
+        where: { id: 'nutri-1' },
+        select: { defaultCanLogAssessments: true, defaultShowMealTargetToPatient: true },
+      });
+      const call = users.createInvitedPatient.mock.calls[0][0];
+      expect(call.clinical).toEqual(
+        expect.objectContaining({ canLogAssessments: true, showMealTargetToPatient: true }),
+      );
     });
 
     it('rolls back the invited user when the local write fails', async () => {

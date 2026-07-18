@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import type { BodyAssessment } from '@nutri-plus/shared-types';
+import type { BodyAssessment, MyNutritionTarget } from '@nutri-plus/shared-types';
 import { Screen } from '../../components/ui/screen';
 import { BrandHeader } from '../../components/brand/brand-header';
 import { Button } from '../../components/ui/button';
 import { LineChart } from '../../components/chart/line-chart';
 import { useMyEvolution, downloadEvolutionPdf } from '../../lib/queries/assessments';
+import { useMyNutritionTarget } from '../../lib/queries/nutrition-target';
 
 // pt-BR number with 1 decimal and comma; '—' for null/undefined.
 function fmt(v: number | null | undefined, digits = 1): string {
@@ -114,8 +115,27 @@ function GridRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+// Shown whenever the patient has a saved nutrition target, in both the
+// populated evolution view and the zero-assessments onboarding/empty state.
+function NutritionTargetCard({ target }: { target: MyNutritionTarget }) {
+  return (
+    <View className="gap-2 rounded-xl border border-border bg-card p-4">
+      <Text className="font-sans text-sm text-muted-foreground">Sua meta diária</Text>
+      <Text className="font-heading text-2xl text-foreground">
+        {target.targetCalories.toLocaleString('pt-BR')} kcal
+      </Text>
+      <View className="flex-row flex-wrap gap-x-4 gap-y-1">
+        <Text className="font-sans text-sm text-foreground">Proteína {target.proteinGrams} g</Text>
+        <Text className="font-sans text-sm text-foreground">Carboidrato {target.carbGrams} g</Text>
+        <Text className="font-sans text-sm text-foreground">Gordura {target.fatGrams} g</Text>
+      </View>
+    </View>
+  );
+}
+
 export default function Home() {
   const query = useMyEvolution();
+  const targetQuery = useMyNutritionTarget();
   const [downloading, setDownloading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [selectedMetric, setSelectedMetric] = useState<ChartMetric>('weight');
@@ -156,8 +176,13 @@ export default function Home() {
   if (assessments.length === 0) {
     return (
       <Screen header={<BrandHeader />} contentContainerClassName="grow justify-center p-6">
-        <View className="items-center gap-2">
+        <View className="items-center gap-4">
           <Text className="font-heading text-2xl text-foreground">Olá, {name}</Text>
+          {targetQuery.data ? (
+            <View className="w-full">
+              <NutritionTargetCard target={targetQuery.data} />
+            </View>
+          ) : null}
           <Text className="font-sans text-center text-base text-muted-foreground">
             Suas avaliações aparecerão aqui após sua consulta.
           </Text>
@@ -209,6 +234,8 @@ export default function Home() {
           <Text className="font-heading text-2xl text-foreground">Olá, {name}</Text>
           <Text className="font-sans text-base text-muted-foreground">Sua evolução</Text>
         </View>
+
+        {targetQuery.data ? <NutritionTargetCard target={targetQuery.data} /> : null}
 
         <View className="gap-2">
           <Text className="font-sans text-sm text-muted-foreground">

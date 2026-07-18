@@ -42,6 +42,12 @@ enum TransactionType {
   EXPENSE
 }
 
+enum TmbFormula {
+  MIFFLIN
+  HARRIS_BENEDICT
+  KATCH_MCARDLE
+}
+
 model User {
   id             String   @id @default(uuid())
   authProvider   String
@@ -68,6 +74,8 @@ model NutritionistProfile {
   displayName            String?
   logoUrl                String?
   mealPlanAiInstructions String?
+  defaultCanLogAssessments      Boolean @default(false)
+  defaultShowMealTargetToPatient Boolean @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -109,6 +117,7 @@ model PatientProfile {
   medicalConditions String?
   notes             String?
   canLogAssessments Boolean @default(false)
+  showMealTargetToPatient Boolean @default(false)
   photoUrl String? // public URL of the patient's profile photo (patient-photos bucket)
 
   createdAt      DateTime @default(now())
@@ -120,8 +129,38 @@ model PatientProfile {
   appointments   Appointment[]
   outsideHomeRequests OutsideHomeRequest[]
   silhuetaScans  SilhuetaScan[]
+  nutritionTargets NutritionTarget[]
 
   @@index([nutritionistId])
+}
+
+model NutritionTarget {
+  id                String   @id @default(uuid())
+  patientId         String
+  patient           PatientProfile @relation(fields: [patientId], references: [id])
+  targetDate        DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  formula           TmbFormula
+  sex               Gender
+  age               Int?
+  heightCm          Float?
+  weightKg          Float?
+  bodyFatPercentage Float?
+  activityLevel     ActivityLevel?
+  activityFactor    Float
+
+  tmb               Float
+  get               Float
+
+  targetCalories    Float
+  proteinGramsPerKg Float
+  proteinGrams      Float
+  fatPercent        Float
+  fatGrams          Float
+  carbGrams         Float
+
+  @@index([patientId, targetDate])
 }
 
 model Appointment {

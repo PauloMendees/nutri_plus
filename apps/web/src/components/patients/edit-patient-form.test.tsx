@@ -25,6 +25,7 @@ const patient = {
   medicalConditions: null,
   notes: null,
   canLogAssessments: false,
+  showMealTargetToPatient: false,
   nutritionistId: 'n1',
   createdAt: '2026-05-12T00:00:00.000Z',
   updatedAt: '2026-05-12T00:00:00.000Z',
@@ -56,6 +57,23 @@ describe('EditPatientForm', () => {
     await vi.waitFor(() =>
       expect(mutateAsync).toHaveBeenCalledWith(
         expect.objectContaining({ canLogAssessments: true }),
+      ),
+    );
+  });
+
+  it('renders the "Meta no app" toggle and submits showMealTargetToPatient', async () => {
+    mutateAsync.mockResolvedValue({});
+    render(<EditPatientForm patient={patient} />);
+
+    expect(screen.getByText('Meta no app')).toBeInTheDocument();
+    const toggle = screen.getByRole('button', { name: /mostrar meta no app/i });
+
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole('button', { name: /salvar alterações/i }));
+
+    await vi.waitFor(() =>
+      expect(mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ showMealTargetToPatient: true }),
       ),
     );
   });

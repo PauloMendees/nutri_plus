@@ -68,4 +68,8 @@ export class UpdatePatientDto {
   @IsOptional()
   @IsBoolean()
   canLogAssessments?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showMealTargetToPatient?: boolean;
 }

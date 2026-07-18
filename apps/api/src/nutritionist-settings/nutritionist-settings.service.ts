@@ -6,7 +6,13 @@ import { resolveScopeNutritionistId } from '../auth/auth-scope';
 import { EXT_BY_MIME, isSupportedImage, UploadedImage } from '../supabase/image-upload';
 import { UpdateNutritionistSettingsDto } from './dto/update-nutritionist-settings.dto';
 
-const SELECT = { displayName: true, logoUrl: true, mealPlanAiInstructions: true } as const;
+const SELECT = {
+  displayName: true,
+  logoUrl: true,
+  mealPlanAiInstructions: true,
+  defaultCanLogAssessments: true,
+  defaultShowMealTargetToPatient: true,
+} as const;
 const LOGO_BUCKET = 'nutritionist-logos';
 
 export type { UploadedImage } from '../supabase/image-upload';
@@ -31,6 +37,8 @@ export class NutritionistSettingsService {
       data: {
         displayName: dto.displayName,
         mealPlanAiInstructions: dto.mealPlanAiInstructions,
+        defaultCanLogAssessments: dto.defaultCanLogAssessments,
+        defaultShowMealTargetToPatient: dto.defaultShowMealTargetToPatient,
       },
       select: SELECT,
     });

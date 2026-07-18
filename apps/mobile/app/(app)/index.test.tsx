@@ -7,6 +7,11 @@ jest.mock('../../lib/queries/assessments', () => ({
   downloadEvolutionPdf: (...args: unknown[]) => mockDownload(...args),
 }));
 
+const mockUseMyNutritionTarget = jest.fn();
+jest.mock('../../lib/queries/nutrition-target', () => ({
+  useMyNutritionTarget: () => mockUseMyNutritionTarget(),
+}));
+
 // Only BrandHeader (in the render tree) touches the theme, and it reads `scheme`.
 jest.mock('../../lib/theme', () => ({ useTheme: () => ({ scheme: 'dark' }) }));
 
@@ -21,7 +26,10 @@ const two = {
   ],
 };
 
-beforeEach(() => mockUseMyEvolution.mockReset());
+beforeEach(() => {
+  mockUseMyEvolution.mockReset();
+  mockUseMyNutritionTarget.mockReset().mockReturnValue({ data: null });
+});
 
 describe('Evolução screen', () => {
   it('shows a loading state', async () => {
@@ -103,5 +111,42 @@ describe('Evolução screen', () => {
     mockUseMyEvolution.mockReturnValue({ isLoading: false, isError: false, data: two });
     await render(<Home />);
     expect(screen.queryByText('Estimado por foto')).toBeNull();
+  });
+
+  it('shows the "Sua meta" card when a nutrition target is available', async () => {
+    mockUseMyEvolution.mockReturnValue({ isLoading: false, isError: false, data: two });
+    mockUseMyNutritionTarget.mockReturnValue({
+      data: { targetCalories: 2000, proteinGrams: 144, carbGrams: 231, fatGrams: 56 },
+    });
+    await render(<Home />);
+    expect(screen.getByText('Sua meta diária')).toBeTruthy();
+    expect(screen.getByText('2.000 kcal')).toBeTruthy();
+    expect(screen.getByText('Proteína 144 g')).toBeTruthy();
+  });
+
+  it('hides the "Sua meta" card when there is no nutrition target', async () => {
+    mockUseMyEvolution.mockReturnValue({ isLoading: false, isError: false, data: two });
+    mockUseMyNutritionTarget.mockReturnValue({ data: null });
+    await render(<Home />);
+    expect(screen.queryByText('Sua meta diária')).toBeNull();
+  });
+
+  it('shows the "Sua meta" card in the empty state (no assessments yet)', async () => {
+    mockUseMyEvolution.mockReturnValue({ isLoading: false, isError: false, data: { name: 'Ana', height: 170, assessments: [] } });
+    mockUseMyNutritionTarget.mockReturnValue({
+      data: { targetCalories: 2000, proteinGrams: 144, carbGrams: 231, fatGrams: 56 },
+    });
+    await render(<Home />);
+    expect(screen.getByText('Suas avaliações aparecerão aqui após sua consulta.')).toBeTruthy();
+    expect(screen.getByText('Sua meta diária')).toBeTruthy();
+    expect(screen.getByText('2.000 kcal')).toBeTruthy();
+  });
+
+  it('hides the "Sua meta" card in the empty state when there is no nutrition target', async () => {
+    mockUseMyEvolution.mockReturnValue({ isLoading: false, isError: false, data: { name: 'Ana', height: 170, assessments: [] } });
+    mockUseMyNutritionTarget.mockReturnValue({ data: null });
+    await render(<Home />);
+    expect(screen.getByText('Suas avaliações aparecerão aqui após sua consulta.')).toBeTruthy();
+    expect(screen.queryByText('Sua meta diária')).toBeNull();
   });
 });
