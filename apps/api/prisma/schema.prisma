@@ -404,3 +404,20 @@ model Transaction {
 
   @@index([nutritionistId, occurredOn])
 }
+
+model Food {
+  id           String   @id @default(uuid())
+  tacoId       Int?     @unique
+  name         String
+  searchName   String
+  group        String?
+  energyKcal   Float?
+  protein      Float?
+  carbohydrate Float?
+  lipid        Float?
+  fiber        Float?
+  sodium       Float?
+  createdAt    DateTime @default(now())
+
+  @@index([searchName])
+}
