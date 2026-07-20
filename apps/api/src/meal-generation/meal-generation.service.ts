@@ -10,7 +10,14 @@ import { MealPlansService, GeneratedMealInput } from '../meal-plans/meal-plans.s
 import { AuthContext } from '../auth/types/auth-context';
 import { AIInteractionType } from '../generated/prisma/client';
 import { resolveScopeNutritionistId } from '../auth/auth-scope';
-import { computeAge, computeTargets, NutritionInputs } from './nutrition';
+import {
+  computeAge,
+  computeTargets,
+  NutritionInputs,
+  Gender,
+  PatientObjective,
+  ActivityLevel,
+} from '@nutri-plus/shared-types';
 import { mealPlanResponseSchema, MealPlanResponse } from './schema/meal-plan-response.schema';
 import {
   MEAL_PLAN_SYSTEM_PROMPT,
@@ -162,9 +169,9 @@ export class MealGenerationService {
   private requireInputs(patient: {
     height: number | null;
     birthDate: Date | null;
-    gender: NutritionInputs['gender'] | null;
-    objective: NutritionInputs['objective'] | null;
-    activityLevel: NutritionInputs['activityLevel'] | null;
+    gender: string | null;
+    objective: string | null;
+    activityLevel: string | null;
     assessments: { weight: number | null; basalMetabolicRate: number | null }[];
   }): NutritionInputs {
     const latest = patient.assessments[0];
@@ -185,9 +192,9 @@ export class MealGenerationService {
       weightKg: latest!.weight!,
       heightCm: patient.height!,
       age: computeAge(patient.birthDate!, new Date()),
-      gender: patient.gender!,
-      objective: patient.objective!,
-      activityLevel: patient.activityLevel!,
+      gender: patient.gender! as Gender,
+      objective: patient.objective! as PatientObjective,
+      activityLevel: patient.activityLevel! as ActivityLevel,
       measuredBmr: latest!.basalMetabolicRate,
     };
   }
