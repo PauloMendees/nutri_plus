@@ -19,3 +19,8 @@ export function canManageEmployees(role: UserRole): boolean {
 export function canManageSettings(role: UserRole): boolean {
   return role === UserRole.NUTRITIONIST;
 }
+
+/** Only nutritionists browse the food catalog (the search API is nutritionist-only). */
+export function canBrowseFoods(role: UserRole): boolean {
+  return role === UserRole.NUTRITIONIST;
+}

@@ -162,4 +162,14 @@ describe('AppSidebar', () => {
     renderSidebar({ name: 'João', role: UserRole.EMPLOYEE });
     expect(screen.queryByRole('link', { name: /configurações/i })).not.toBeInTheDocument();
   });
+
+  it('shows the Alimentos item for a nutritionist', () => {
+    renderSidebar({ name: 'Dra. Ana', role: UserRole.NUTRITIONIST });
+    expect(screen.getByRole('link', { name: /alimentos/i })).toHaveAttribute('href', '/alimentos');
+  });
+
+  it('hides the Alimentos item for an employee', () => {
+    renderSidebar({ name: 'João', role: UserRole.EMPLOYEE });
+    expect(screen.queryByRole('link', { name: /alimentos/i })).not.toBeInTheDocument();
+  });
 });
