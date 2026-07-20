@@ -8,6 +8,10 @@ export interface MealItem {
   protein: number | null;
   carbs: number | null;
   fats: number | null;
+  foodId: string | null;
+  grams: number | null;
+  fiber: number | null;
+  sodium: number | null;
   order: number;
 }
 
@@ -54,6 +58,10 @@ export interface MealItemInput {
   protein?: number;
   carbs?: number;
   fats?: number;
+  foodId?: string;
+  grams?: number;
+  fiber?: number;
+  sodium?: number;
 }
 
 export interface MealOptionInput {

@@ -15,3 +15,4 @@ export * from './silhueta';
 export * from './nutrition-target';
 export * from './energy';
 export * from './food';
+export * from './food-portion';
