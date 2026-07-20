@@ -15,8 +15,8 @@ function plan(overrides: Partial<PdfMealPlan> = {}): PdfMealPlan {
         timeLabel: '08:00',
         instructions: 'Mastigar bem',
         options: [
-          { label: 'Opção 1', items: [{ foodName: 'Ovos', quantity: '3 unid', calories: 230, protein: 18, carbs: 2, fats: 16 }] },
-          { label: 'Opção 2', items: [{ foodName: 'Tapioca', quantity: '2 colheres', calories: 150, protein: 11, carbs: 20, fats: 3 }] },
+          { label: 'Opção 1', items: [{ foodName: 'Ovos', quantity: '3 unid', calories: 230, protein: 18, carbs: 2, fats: 16, fiber: 0, sodium: 124 }] },
+          { label: 'Opção 2', items: [{ foodName: 'Tapioca', quantity: '2 colheres', calories: 150, protein: 11, carbs: 20, fats: 3, fiber: 1, sodium: 8 }] },
         ],
       },
     ],
@@ -37,6 +37,36 @@ describe('buildMealPlanDocDefinition', () => {
     expect(json).toContain('Tapioca');
     expect(json).toContain('Proteína'); // targets header present
     expect(json).toContain('135');      // a target value
+  });
+
+  it('includes Fibra and Sódio headers, item values and subtotal', () => {
+    const doc = buildMealPlanDocDefinition(
+      plan({
+        meals: [
+          {
+            name: 'Almoço',
+            timeLabel: '12:00',
+            instructions: null,
+            options: [
+              {
+                label: 'Opção 1',
+                items: [
+                  { foodName: 'Arroz', quantity: '150 g', calories: 186, protein: 4, carbs: 39, fats: 2, fiber: 4, sodium: 2 },
+                  { foodName: 'Feijão', quantity: '100 g', calories: 76, protein: 5, carbs: 14, fats: 1, fiber: 6, sodium: 3 },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+      { displayName: null, logoDataUrl: null },
+    );
+    const json = JSON.stringify(doc);
+    expect(json).toContain('"text":"Fibra"');
+    expect(json).toContain('"text":"Sódio"');
+    expect(json).toContain('Arroz');
+    expect(json).toContain('"text":"10","style":"subtotal"'); // fiber subtotal: 4 + 6
+    expect(json).toContain('"text":"5","style":"subtotal"'); // sodium subtotal: 2 + 3
   });
 
   it('includes an image node when a logo data URL is provided, and omits it otherwise', () => {
