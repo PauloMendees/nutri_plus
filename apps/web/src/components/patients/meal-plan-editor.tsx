@@ -24,13 +24,14 @@ import {
 } from '@/lib/queries/meal-plans';
 import { ApiError } from '@/lib/api/client';
 import { downloadMealPlanPdf } from '@/lib/api/meal-plans';
+import { useNutritionTargets } from '@/lib/queries/nutrition-targets';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AiAdjustDialog } from '@/components/patients/ai-adjust-dialog';
 
-type ItemValues = { foodName: string; quantity: string; calories: string; protein: string; carbs: string; fats: string };
+type ItemValues = { foodName: string; foodId: string; quantity: string; grams: string; calories: string; protein: string; carbs: string; fats: string; fiber: string; sodium: string };
 type OptionValues = { label: string; items: ItemValues[] };
 type FormValues = {
   title: string;
@@ -42,7 +43,7 @@ type FormValues = {
   meals: { name: string; timeLabel: string; instructions: string; options: OptionValues[] }[];
 };
 
-const blankItem = (): ItemValues => ({ foodName: '', quantity: '', calories: '', protein: '', carbs: '', fats: '' });
+const blankItem = (): ItemValues => ({ foodName: '', foodId: '', quantity: '', grams: '', calories: '', protein: '', carbs: '', fats: '', fiber: '', sodium: '' });
 const blankOption = (): OptionValues => ({ label: '', items: [blankItem()] });
 const blankMeal = () => ({ name: '', timeLabel: '', instructions: '', options: [blankOption()] });
 
@@ -71,11 +72,15 @@ function toDefaults(plan: MealPlan): FormValues {
         label: o.label ?? '',
         items: o.items.map((it) => ({
           foodName: it.foodName ?? '',
+          foodId: it.foodId ?? '',
           quantity: it.quantity ?? '',
+          grams: numToStr(it.grams),
           calories: numToStr(it.calories),
           protein: numToStr(it.protein),
           carbs: numToStr(it.carbs),
           fats: numToStr(it.fats),
+          fiber: numToStr(it.fiber),
+          sodium: numToStr(it.sodium),
         })),
       })),
     })),
@@ -98,11 +103,15 @@ function draftToDefaults(d: MealPlanDraft): FormValues {
         label: o.label ?? '',
         items: (o.items ?? []).map((it) => ({
           foodName: it.foodName ?? '',
+          foodId: it.foodId ?? '',
           quantity: it.quantity ?? '',
+          grams: numToStr(it.grams ?? null),
           calories: numToStr(it.calories ?? null),
           protein: numToStr(it.protein ?? null),
           carbs: numToStr(it.carbs ?? null),
           fats: numToStr(it.fats ?? null),
+          fiber: numToStr(it.fiber ?? null),
+          sodium: numToStr(it.sodium ?? null),
         })),
       })),
     })),
@@ -121,7 +130,19 @@ const ITEM_MACROS = [
   { key: 'protein', label: 'P' },
   { key: 'carbs', label: 'C' },
   { key: 'fats', label: 'G' },
+  { key: 'fiber', label: 'Fib' },
+  { key: 'sodium', label: 'Na' },
 ] as const;
+
+// macro -> chave de meta (só os 4 têm meta; fibra/sódio não).
+const MACRO_TARGET: Partial<Record<(typeof ITEM_MACROS)[number]['key'], (typeof TARGETS)[number]['key']>> = {
+  calories: 'targetCalories',
+  protein: 'targetProtein',
+  carbs: 'targetCarbs',
+  fats: 'targetFats',
+};
+
+type MacroKey = 'calories' | 'protein' | 'carbs' | 'fats' | 'fiber' | 'sodium';
 
 // Auto-grow single-line text fields: sized like the Inputs they replace, but the
 // shadcn Textarea's `field-sizing-content` lets them grow vertically with content.
@@ -166,8 +187,19 @@ export function MealPlanEditor({
   const watched = form.watch('meals');
   // Options are interchangeable alternatives — the day total counts only the first
   // (primary) option of each meal.
-  function totalFor(macro: 'calories' | 'protein' | 'carbs' | 'fats'): number {
+  function totalFor(macro: MacroKey): number {
     return sum((watched ?? []).flatMap((m) => (m.options?.[0]?.items ?? []).map((it) => it[macro])));
+  }
+
+  const targetsQuery = useNutritionTargets(patientId);
+  const latestTarget = targetsQuery.data?.[0];
+
+  function applyLatestTarget() {
+    if (!latestTarget) return;
+    form.setValue('targetCalories', String(latestTarget.targetCalories));
+    form.setValue('targetProtein', String(latestTarget.proteinGrams));
+    form.setValue('targetCarbs', String(latestTarget.carbGrams));
+    form.setValue('targetFats', String(latestTarget.fatGrams));
   }
 
   async function onSubmit(values: FormValues) {
@@ -268,7 +300,21 @@ export function MealPlanEditor({
 
           {/* Metas (por dia) */}
           <div className="rounded-xl border bg-card p-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Metas (por dia)</p>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Metas (por dia)</p>
+              {canEdit && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={applyLatestTarget}
+                  disabled={!latestTarget}
+                >
+                  Usar Meta atual
+                </Button>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {TARGETS.map((t) => (
                 <label key={t.key} className="text-xs">
@@ -281,16 +327,17 @@ export function MealPlanEditor({
 
           {/* Totals bar (first option per meal) */}
           <div className="sticky top-0 z-10 flex flex-wrap gap-4 rounded-xl border bg-card p-3">
-            {TARGETS.map((t) => {
-              const total = totalFor(t.total);
-              const target = Number(form.watch(t.key)) || 0;
+            {ITEM_MACROS.map((m) => {
+              const total = totalFor(m.key);
+              const targetKey = MACRO_TARGET[m.key];
+              const target = targetKey ? Number(form.watch(targetKey)) || 0 : 0;
               return (
-                <div key={t.total} className="text-center">
-                  <b data-testid={`total-${t.total}`} className="block text-sm">
+                <div key={m.key} className="text-center">
+                  <b data-testid={`total-${m.key}`} className="block text-sm">
                     {total}
                     {target > 0 && <span className="text-muted-foreground">/{target}</span>}
                   </b>
-                  <span className="text-[10px] text-muted-foreground">{t.label}</span>
+                  <span className="text-[10px] text-muted-foreground">{m.label}</span>
                 </div>
               );
             })}
@@ -462,7 +509,7 @@ function OptionCard({
 }) {
   const items = useFieldArray({ control, name: `meals.${mealIndex}.options.${optionIndex}.items` as const });
   const watchedItems = useWatch({ control, name: `meals.${mealIndex}.options.${optionIndex}.items` }) as ItemValues[] | undefined;
-  const subtotal = (macro: 'calories' | 'protein' | 'carbs' | 'fats') =>
+  const subtotal = (macro: MacroKey) =>
     sum((watchedItems ?? []).map((it) => it[macro]));
 
   return (
@@ -489,7 +536,9 @@ function OptionCard({
           <thead>
             <tr className="text-left text-[10px] uppercase text-muted-foreground">
               <th className="py-1">Alimento</th><th className="py-1">Qtd</th>
-              <th className="py-1">Kcal</th><th className="py-1">P</th><th className="py-1">C</th><th className="py-1">G</th>
+              {ITEM_MACROS.map((m) => (
+                <th key={m.key} className="py-1">{m.label}</th>
+              ))}
               {canEdit && <th />}
             </tr>
           </thead>
@@ -520,10 +569,11 @@ function OptionCard({
       </div>
 
       <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-muted-foreground">
-        <span data-testid="option-subtotal-calories">{subtotal('calories')} kcal</span>
-        <span data-testid="option-subtotal-protein">P {subtotal('protein')}</span>
-        <span data-testid="option-subtotal-carbs">C {subtotal('carbs')}</span>
-        <span data-testid="option-subtotal-fats">G {subtotal('fats')}</span>
+        {ITEM_MACROS.map((m) => (
+          <span key={m.key} data-testid={`option-subtotal-${m.key}`}>
+            {m.label} {subtotal(m.key)}
+          </span>
+        ))}
       </div>
 
       {canEdit && (

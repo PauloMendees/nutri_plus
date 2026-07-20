@@ -17,6 +17,10 @@ const mealItemSchema = z.object({
   protein: optNum,
   carbs: optNum,
   fats: optNum,
+  foodId: z.preprocess(emptyToUndefined, z.string().optional()),
+  grams: optNum,
+  fiber: optNum,
+  sodium: optNum,
 });
 
 const mealOptionSchema = z.object({
