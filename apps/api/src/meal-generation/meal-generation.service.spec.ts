@@ -47,11 +47,28 @@ const aiResponse = {
       name: 'Café da Manhã',
       timeLabel: '08:00',
       options: [
-        { label: 'Opção 1', items: [{ foodName: 'Ovos', quantity: '2 unidades', calories: 140, protein: 12, carbs: 1, fats: 9 }] },
-        { label: 'Opção 2', items: [{ foodName: 'Tapioca', quantity: '2 colheres', calories: 150, protein: 11, carbs: 20, fats: 3 }] },
+        { label: 'Opção 1', items: [{ foodName: 'Ovo de galinha', quantity: '2 unidades', grams: 100, calories: 140, protein: 12, carbs: 1, fats: 9 }] },
+        { label: 'Opção 2', items: [{ foodName: 'Tapioca', quantity: '2 colheres', grams: 60, calories: 150, protein: 11, carbs: 20, fats: 3 }] },
       ],
     },
   ],
+};
+
+// Food mockado que casa o item "Ovo de galinha" via matchFood; "Tapioca" não tem
+// correspondente no catálogo mockado e deve cair no fallback de texto-livre.
+const mockedFood = {
+  id: 'food-ovo',
+  name: 'Ovo, de galinha, inteiro, cru',
+  searchName: 'ovo, de galinha, inteiro, cru',
+  energyKcal: 143,
+  protein: 13,
+  carbohydrate: 1.6,
+  lipid: 9,
+  fiber: 0,
+  sodium: 140,
+  tacoId: null,
+  group: null,
+  createdAt: new Date(),
 };
 
 describe('MealGenerationService', () => {
@@ -108,6 +125,7 @@ describe('MealGenerationService', () => {
     prisma.patientProfile.findFirst.mockResolvedValue(completePatient() as any);
     prisma.nutritionistProfile.findUnique.mockResolvedValue({ mealPlanAiInstructions: 'Evitar ultraprocessados' } as any);
     provider.generateStructured.mockResolvedValue(aiResponse as any);
+    prisma.food.findMany.mockResolvedValue([mockedFood] as any);
     mealPlans.createGeneratedPlan.mockResolvedValue({ id: 'mp1' } as any);
 
     const result = await service.generate(ctx, 'p1');
@@ -124,22 +142,42 @@ describe('MealGenerationService', () => {
     expect(userCtx.customInstructions).toBeNull();
     expect(userCtx.patientNotes).toBe('sem nozes; almoço às 12:30');
 
-    // Persistence delegated with aiGenerated targets + normalized tree (macros flow through).
-    expect(mealPlans.createGeneratedPlan).toHaveBeenCalledWith(ctx, {
-      patientId: 'p1',
-      title: 'Plano de Emagrecimento',
-      targets: userCtx.targets,
-      meals: [
-        {
-          name: 'Café da Manhã',
-          timeLabel: '08:00',
-          options: [
-            { label: 'Opção 1', items: [{ foodName: 'Ovos', quantity: '2 unidades', calories: 140, protein: 12, carbs: 1, fats: 9 }] },
-            { label: 'Opção 2', items: [{ foodName: 'Tapioca', quantity: '2 colheres', calories: 150, protein: 11, carbs: 20, fats: 3 }] },
-          ],
-        },
-      ],
+    // Loads the food catalog once, after the AI call, before persisting.
+    expect(prisma.food.findMany).toHaveBeenCalledTimes(1);
+
+    const persistedArgs = mealPlans.createGeneratedPlan.mock.calls[0][1];
+    const items = persistedArgs.meals[0].options;
+
+    // Assertion 1 (anchored): matched item carries foodId + canonical name + grams
+    // + macros RECOMPUTED by macrosForPortion — NOT the AI's estimate (140/12/1/9).
+    expect(items[0].items[0]).toEqual({
+      foodName: 'Ovo, de galinha, inteiro, cru',
+      foodId: 'food-ovo',
+      grams: 100,
+      quantity: '',
+      calories: 143,
+      protein: 13,
+      carbs: 2, // Math.round(1.6)
+      fats: 9,
+      fiber: 0,
+      sodium: 140,
     });
+
+    // Assertion 2 (fallback): unmatched item stays free-text with the AI's estimate,
+    // no foodId.
+    expect(items[1].items[0]).toEqual({
+      foodName: 'Tapioca',
+      quantity: '2 colheres',
+      calories: 150,
+      protein: 11,
+      carbs: 20,
+      fats: 3,
+    });
+
+    // Assertion 3 (targets identical): computeTargets is unchanged by grounding.
+    expect(persistedArgs.targets).toEqual(userCtx.targets);
+    expect(persistedArgs.patientId).toBe('p1');
+    expect(persistedArgs.title).toBe('Plano de Emagrecimento');
     expect(result).toEqual({ id: 'mp1' });
   });
 
@@ -159,6 +197,7 @@ describe('MealGenerationService', () => {
     prisma.patientProfile.findFirst.mockResolvedValue(completePatient() as any);
     prisma.nutritionistProfile.findUnique.mockResolvedValue({ mealPlanAiInstructions: 'Evitar ultraprocessados' } as any);
     provider.generateStructured.mockResolvedValue(aiResponse as any);
+    prisma.food.findMany.mockResolvedValue([mockedFood] as any);
     mealPlans.createGeneratedPlan.mockResolvedValue({ id: 'mp1' } as any);
 
     await service.generate(ctx, 'p1', 'Apenas 4 refeições');

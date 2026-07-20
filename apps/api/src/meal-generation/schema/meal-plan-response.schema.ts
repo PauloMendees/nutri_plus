@@ -21,6 +21,7 @@ export const mealPlanResponseSchema = z.object({
                   z.object({
                     foodName: z.string(),
                     quantity: z.string(),
+                    grams: z.number(),
                     calories: z.number(),
                     protein: z.number(),
                     carbs: z.number(),

@@ -7,8 +7,8 @@ const valid = {
       name: 'Café da Manhã',
       timeLabel: '08:00',
       options: [
-        { label: 'Opção 1', items: [{ foodName: 'Ovos', quantity: '2 unidades', calories: 140, protein: 12, carbs: 1, fats: 9 }] },
-        { label: 'Opção 2', items: [{ foodName: 'Tapioca', quantity: '2 colheres', calories: 150, protein: 11, carbs: 20, fats: 3 }] },
+        { label: 'Opção 1', items: [{ foodName: 'Ovos', quantity: '2 unidades', grams: 100, calories: 140, protein: 12, carbs: 1, fats: 9 }] },
+        { label: 'Opção 2', items: [{ foodName: 'Tapioca', quantity: '2 colheres', grams: 60, calories: 150, protein: 11, carbs: 20, fats: 3 }] },
       ],
     },
   ],
@@ -58,6 +58,21 @@ describe('mealPlanResponseSchema', () => {
             name: 'Almoço',
             timeLabel: null,
             options: [{ label: 'Opção 1', items: [{ foodName: 'Frango', quantity: '150g', protein: 30, carbs: 0, fats: 4 }] }],
+          },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects an item missing grams', () => {
+    expect(
+      mealPlanResponseSchema.safeParse({
+        title: 'x',
+        meals: [
+          {
+            name: 'Almoço',
+            timeLabel: null,
+            options: [{ label: 'Opção 1', items: [{ foodName: 'Frango', quantity: '150g', calories: 165, protein: 30, carbs: 0, fats: 4 }] }],
           },
         ],
       }).success,

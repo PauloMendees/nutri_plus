@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { OpenAIProvider } from '../ai/openai.provider';
 import { MealPlansService, GeneratedMealInput } from '../meal-plans/meal-plans.service';
 import { AuthContext } from '../auth/types/auth-context';
-import { AIInteractionType } from '../generated/prisma/client';
+import { AIInteractionType, Food } from '../generated/prisma/client';
 import { resolveScopeNutritionistId } from '../auth/auth-scope';
 import {
   computeAge,
@@ -17,7 +17,9 @@ import {
   Gender,
   PatientObjective,
   ActivityLevel,
+  macrosForPortion,
 } from '@nutri-plus/shared-types';
+import { matchFood } from './food-matcher';
 import { mealPlanResponseSchema, MealPlanResponse } from './schema/meal-plan-response.schema';
 import {
   MEAL_PLAN_SYSTEM_PROMPT,
@@ -82,6 +84,8 @@ export class MealGenerationService {
       patientId,
     });
 
+    const foods = await this.prisma.food.findMany();
+
     return this.mealPlans.createGeneratedPlan(ctx, {
       patientId,
       title: generated.title,
@@ -89,7 +93,10 @@ export class MealGenerationService {
       meals: generated.meals.map((m): GeneratedMealInput => ({
         name: m.name,
         timeLabel: m.timeLabel ?? undefined,
-        options: m.options.map((o) => ({ label: o.label, items: o.items })),
+        options: m.options.map((o) => ({
+          label: o.label,
+          items: o.items.map((it) => this.groundItem(it, foods)),
+        })),
       })),
     });
   }
@@ -160,6 +167,47 @@ export class MealGenerationService {
         timeLabel: m.timeLabel ?? undefined,
         options: m.options.map((o) => ({ label: o.label, items: o.items })),
       })),
+    };
+  }
+
+  // Ancora um item da IA a um Food do TACO: no match, grava foodId + nome canônico
+  // + macros RECALCULADOS por macrosForPortion (autoridade server-side; a estimativa
+  // da IA é descartada). Sem match, mantém o item de texto livre de hoje.
+  private groundItem(
+    it: {
+      foodName: string;
+      quantity: string;
+      grams: number;
+      calories: number;
+      protein: number;
+      carbs: number;
+      fats: number;
+    },
+    foods: Food[],
+  ): GeneratedMealInput['options'][number]['items'][number] {
+    const food = matchFood(it.foodName, foods);
+    if (!food) {
+      return {
+        foodName: it.foodName,
+        quantity: it.quantity,
+        calories: it.calories,
+        protein: it.protein,
+        carbs: it.carbs,
+        fats: it.fats,
+      };
+    }
+    const m = macrosForPortion(food, it.grams);
+    return {
+      foodName: food.name,
+      foodId: food.id,
+      grams: it.grams,
+      quantity: '',
+      calories: m.calories,
+      protein: m.protein,
+      carbs: m.carbs,
+      fats: m.fats,
+      fiber: m.fiber,
+      sodium: m.sodium,
     };
   }
 

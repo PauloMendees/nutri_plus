@@ -16,7 +16,18 @@ export interface GeneratedMealInput {
   timeLabel?: string;
   options: {
     label?: string;
-    items: { foodName: string; quantity: string; calories: number; protein: number; carbs: number; fats: number }[];
+    items: {
+      foodName: string;
+      quantity: string;
+      calories: number;
+      protein: number;
+      carbs: number;
+      fats: number;
+      foodId?: string;
+      grams?: number;
+      fiber?: number;
+      sodium?: number;
+    }[];
   }[];
 }
 
