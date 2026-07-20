@@ -13,6 +13,7 @@ export class FoodsService {
     return this.prisma.food.findMany({
       where: { searchName: { contains: normalizeSearch(term) } },
       orderBy: { name: 'asc' },
+      omit: { searchName: true, createdAt: true },
       take,
     });
   }

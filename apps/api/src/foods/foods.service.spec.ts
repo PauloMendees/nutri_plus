@@ -35,6 +35,7 @@ describe('FoodsService', () => {
       expect(prisma.food.findMany).toHaveBeenCalledWith({
         where: { searchName: { contains: 'acucar' } },
         orderBy: { name: 'asc' },
+        omit: { searchName: true, createdAt: true },
         take: 10,
       });
       expect(result).toBe(foods);
