@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
@@ -9,12 +9,15 @@ import {
   useForm,
   useWatch,
   type Control,
+  type Path,
   type Resolver,
   type UseFormRegister,
+  type UseFormSetValue,
 } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import type { MealPlan, MealPlanDraft } from '@nutri-plus/shared-types';
+import type { Food, MealPlan, MealPlanDraft } from '@nutri-plus/shared-types';
+import { macrosForPortion } from '@nutri-plus/shared-types';
 import { mealPlanSchema, type MealPlanFormValues } from '@/lib/validation/meal-plan';
 import {
   useCreateMealPlan,
@@ -30,6 +33,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AiAdjustDialog } from '@/components/patients/ai-adjust-dialog';
+import { FoodPickerDialog } from '@/components/patients/food-picker-dialog';
 
 type ItemValues = { foodName: string; foodId: string; quantity: string; grams: string; calories: string; protein: string; carbs: string; fats: string; fiber: string; sodium: string };
 type OptionValues = { label: string; items: ItemValues[] };
@@ -349,6 +353,7 @@ export function MealPlanEditor({
               key={mealField.id}
               control={form.control}
               register={form.register}
+              setValue={form.setValue}
               mealIndex={mealIndex}
               canEdit={canEdit}
               isFirst={mealIndex === 0}
@@ -421,6 +426,7 @@ export function MealPlanEditor({
 function MealCard({
   control,
   register,
+  setValue,
   mealIndex,
   canEdit,
   isFirst,
@@ -431,6 +437,7 @@ function MealCard({
 }: {
   control: Control<FormValues>;
   register: UseFormRegister<FormValues>;
+  setValue: UseFormSetValue<FormValues>;
   mealIndex: number;
   canEdit: boolean;
   isFirst: boolean;
@@ -463,6 +470,7 @@ function MealCard({
             key={optionField.id}
             control={control}
             register={register}
+            setValue={setValue}
             mealIndex={mealIndex}
             optionIndex={optionIndex}
             canEdit={canEdit}
@@ -487,6 +495,7 @@ function MealCard({
 function OptionCard({
   control,
   register,
+  setValue,
   mealIndex,
   optionIndex,
   canEdit,
@@ -498,6 +507,7 @@ function OptionCard({
 }: {
   control: Control<FormValues>;
   register: UseFormRegister<FormValues>;
+  setValue: UseFormSetValue<FormValues>;
   mealIndex: number;
   optionIndex: number;
   canEdit: boolean;
@@ -511,6 +521,43 @@ function OptionCard({
   const watchedItems = useWatch({ control, name: `meals.${mealIndex}.options.${optionIndex}.items` }) as ItemValues[] | undefined;
   const subtotal = (macro: MacroKey) =>
     sum((watchedItems ?? []).map((it) => it[macro]));
+
+  const [pickerFor, setPickerFor] = useState<number | null>(null);
+  const foodCache = useRef<Record<string, Food>>({});
+
+  const setField = (itemIndex: number, field: string, value: string) =>
+    setValue(
+      `meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.${field}` as Path<FormValues>,
+      value,
+    );
+
+  function fillMacros(itemIndex: number, food: Food, grams: number) {
+    const m = macrosForPortion(food, grams);
+    setField(itemIndex, 'calories', String(m.calories));
+    setField(itemIndex, 'protein', String(m.protein));
+    setField(itemIndex, 'carbs', String(m.carbs));
+    setField(itemIndex, 'fats', String(m.fats));
+    setField(itemIndex, 'fiber', String(m.fiber));
+    setField(itemIndex, 'sodium', String(m.sodium));
+  }
+
+  function onPickFood(itemIndex: number, food: Food) {
+    foodCache.current[food.id] = food;
+    setField(itemIndex, 'foodId', food.id);
+    setField(itemIndex, 'foodName', food.name);
+    const gramsStr = (watchedItems?.[itemIndex]?.grams ?? '').trim();
+    const grams = Number(gramsStr) || 100;
+    if (!gramsStr) setField(itemIndex, 'grams', '100');
+    fillMacros(itemIndex, food, grams);
+  }
+
+  function onGramsChange(itemIndex: number, value: string) {
+    setField(itemIndex, 'grams', value);
+    const foodId = watchedItems?.[itemIndex]?.foodId;
+    const food = foodId ? foodCache.current[foodId] : undefined;
+    const grams = Number(value);
+    if (food && grams > 0) fillMacros(itemIndex, food, grams);
+  }
 
   return (
     <div data-testid="option-card" className="rounded-lg border bg-background p-3">
@@ -535,7 +582,10 @@ function OptionCard({
         <table className="w-full text-xs">
           <thead>
             <tr className="text-left text-[10px] uppercase text-muted-foreground">
-              <th className="py-1">Alimento</th><th className="py-1">Qtd</th>
+              {canEdit && <th />}
+              <th className="py-1">Alimento</th>
+              <th className="py-1">Qtd</th>
+              <th className="py-1">Gramas</th>
               {ITEM_MACROS.map((m) => (
                 <th key={m.key} className="py-1">{m.label}</th>
               ))}
@@ -545,8 +595,33 @@ function OptionCard({
           <tbody>
             {items.fields.map((itemField, itemIndex) => (
               <tr key={itemField.id}>
+                {canEdit && (
+                  <td className="py-1 pr-1 align-top">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full"
+                      aria-label="Buscar alimento"
+                      onClick={() => setPickerFor(itemIndex)}
+                    >
+                      🔍
+                    </Button>
+                  </td>
+                )}
                 <td className="py-1 pr-1 align-top"><Textarea rows={1} className={GROW_SM} aria-label="Alimento" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.foodName`)} /></td>
-                <td className="py-1 pr-1 align-top"><Textarea rows={1} className={`w-40 ${GROW_SM}`} aria-label="Quantidade" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`)} /></td>
+                <td className="py-1 pr-1 align-top"><Textarea rows={1} className={`w-32 ${GROW_SM}`} aria-label="Quantidade" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`)} /></td>
+                <td className="py-1 pr-1 align-top">
+                  <Input
+                    className="h-7 w-16"
+                    type="number"
+                    inputMode="decimal"
+                    step="any"
+                    aria-label="Gramas"
+                    value={watchedItems?.[itemIndex]?.grams ?? ''}
+                    onChange={(e) => onGramsChange(itemIndex, e.target.value)}
+                  />
+                </td>
                 {ITEM_MACROS.map((m) => (
                   <td key={m.key} className="py-1 pr-1 align-top">
                     <Input className="h-7 w-16" type="number" inputMode="decimal" step="any" aria-label={m.label}
@@ -581,6 +656,12 @@ function OptionCard({
           + Adicionar item
         </button>
       )}
+
+      <FoodPickerDialog
+        open={pickerFor !== null}
+        onOpenChange={(o) => { if (!o) setPickerFor(null); }}
+        onPick={(food) => { if (pickerFor !== null) onPickFood(pickerFor, food); setPickerFor(null); }}
+      />
     </div>
   );
 }

@@ -25,6 +25,13 @@ vi.mock('@/lib/api/meal-plans', () => ({
 vi.mock('@/lib/queries/nutrition-targets', () => ({
   useNutritionTargets: () => ({ data: [{ targetCalories: 2000, proteinGrams: 150, carbGrams: 200, fatGrams: 55 }] }),
 }));
+vi.mock('@/lib/queries/foods', () => ({
+  useFoodSearch: () => ({
+    data: [{ id: 'f1', name: 'Arroz integral cozido', group: 'Cereais', energyKcal: 124, protein: 2.6, carbohydrate: 25.8, lipid: 1, fiber: 2.7, sodium: 1.2 }],
+    isLoading: false,
+    isFetching: false,
+  }),
+}));
 
 import { MealPlanEditor } from './meal-plan-editor';
 
@@ -215,5 +222,26 @@ describe('MealPlanEditor (create mode)', () => {
   it('hides "Exportar PDF" while creating a new plan', () => {
     render(<MealPlanEditor patientId="p1" canEdit />);
     expect(screen.queryByRole('button', { name: /exportar pdf/i })).not.toBeInTheDocument();
+  });
+
+  it('picks a food via the picker dialog, then recomputes macros as grams change', async () => {
+    render(<MealPlanEditor patientId="p1" canEdit />);
+    const optionCard = screen.getAllByTestId('option-card')[0];
+
+    await userEvent.click(within(optionCard).getByRole('button', { name: /buscar alimento/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /buscar alimento/i }), 'arroz');
+    await userEvent.click(await screen.findByRole('button', { name: /arroz integral cozido/i }));
+
+    const grams = within(optionCard).getByLabelText('Gramas');
+    await userEvent.clear(grams);
+    await userEvent.type(grams, '150');
+
+    expect(within(optionCard).getByLabelText('Kcal')).toHaveValue(186);
+    expect(within(optionCard).getByLabelText('P')).toHaveValue(4);
+    expect(within(optionCard).getByLabelText('C')).toHaveValue(39);
+    expect(within(optionCard).getByLabelText('G')).toHaveValue(2);
+    expect(within(optionCard).getByLabelText('Fib')).toHaveValue(4);
+    expect(within(optionCard).getByLabelText('Na')).toHaveValue(2);
+    expect(within(optionCard).getByDisplayValue('Arroz integral cozido')).toBeInTheDocument();
   });
 });
