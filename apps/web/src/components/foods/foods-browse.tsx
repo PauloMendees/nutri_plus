@@ -66,7 +66,7 @@ export function FoodsBrowse() {
         </div>
       )}
 
-      {foods.length > 0 && (
+      {hasTerm && foods.length > 0 && (
         <div
           className={
             'overflow-hidden rounded-xl border bg-card' +

@@ -53,4 +53,27 @@ describe('FoodSearch', () => {
     await userEvent.click(screen.getByRole('button', { name: /arroz, integral, cozido/i }));
     expect(onSelect).toHaveBeenCalledWith(food);
   });
+
+  it('clears the stale result once the term drops below 2 characters, even though react-query keeps returning the previous data (keepPreviousData)', async () => {
+    let lastData: Food[] | undefined;
+    useFoodSearch.mockImplementation((term: string) => {
+      if (term.trim().length >= 2) {
+        lastData = [food];
+      }
+      // Mirrors placeholderData: keepPreviousData — the hook keeps handing back
+      // the last successful result even after the query is disabled.
+      return { data: lastData, isLoading: false, isFetching: false };
+    });
+
+    const onSelect = vi.fn();
+    render(<FoodSearch onSelect={onSelect} />);
+    const input = screen.getByRole('textbox');
+
+    await userEvent.type(input, 'arroz');
+    expect(screen.getByText(/arroz, integral, cozido/i)).toBeInTheDocument();
+
+    await userEvent.type(input, '{backspace}{backspace}{backspace}{backspace}');
+    expect(screen.queryByText(/arroz, integral, cozido/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /arroz, integral, cozido/i })).not.toBeInTheDocument();
+  });
 });

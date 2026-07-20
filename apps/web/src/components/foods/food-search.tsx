@@ -37,7 +37,7 @@ export function FoodSearch({ onSelect, placeholder = 'Buscar alimento' }: FoodSe
         <p className="text-sm text-muted-foreground">Nenhum alimento encontrado.</p>
       )}
 
-      {foods.length > 0 && (
+      {hasTerm && foods.length > 0 && (
         <ul
           className={
             'divide-y overflow-hidden rounded-xl border bg-card' +
