@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -41,6 +42,7 @@ export class MealPlansService {
   async createPlan(ctx: AuthContext, dto: CreateMealPlanDto) {
     await this.requireOwnedPatient(ctx, dto.patientId);
     const { patientId, meals, ...top } = dto;
+    if (meals) await this.assertFoodsExist(meals);
     return this.prisma.mealPlan.create({
       data: {
         ...top,
@@ -116,6 +118,7 @@ export class MealPlansService {
     // Deleting + recreating the whole meals/options/items tree and reading it
     // back over a remote DB can take ~6-7s for a full plan — past Prisma's 5s
     // default interactive-transaction timeout (→ P2028 → 500). Give it room.
+    await this.assertFoodsExist(meals);
     return this.prisma.$transaction(
       async (tx) => {
         await tx.meal.deleteMany({ where: { mealPlanId: id } });
@@ -186,6 +189,28 @@ export class MealPlansService {
           : undefined,
       })),
     };
+  }
+
+  // Recusa (400) qualquer foodId de item que não exista no catálogo global Food —
+  // evita referência pendente e o 500 de FK. Itens sem foodId (texto livre) passam.
+  private async assertFoodsExist(meals: MealDto[]): Promise<void> {
+    const ids = [
+      ...new Set(
+        meals
+          .flatMap((m) => m.options ?? [])
+          .flatMap((o) => o.items ?? [])
+          .map((it) => it.foodId)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    if (ids.length === 0) return;
+    const found = await this.prisma.food.findMany({
+      where: { id: { in: ids } },
+      select: { id: true },
+    });
+    if (found.length !== ids.length) {
+      throw new BadRequestException('Alimento inexistente referenciado no plano.');
+    }
   }
 
   private patientProfileId(ctx: AuthContext): string {

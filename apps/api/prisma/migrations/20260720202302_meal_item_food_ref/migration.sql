@@ -1,0 +1,8 @@
+-- AlterTable
+ALTER TABLE "MealItem" ADD COLUMN     "fiber" DOUBLE PRECISION,
+ADD COLUMN     "foodId" TEXT,
+ADD COLUMN     "grams" DOUBLE PRECISION,
+ADD COLUMN     "sodium" DOUBLE PRECISION;
+
+-- AddForeignKey
+ALTER TABLE "MealItem" ADD CONSTRAINT "MealItem_foodId_fkey" FOREIGN KEY ("foodId") REFERENCES "Food"("id") ON DELETE SET NULL ON UPDATE CASCADE;
