@@ -40,7 +40,7 @@ export function FoodSearch({ onSelect, placeholder = 'Buscar alimento' }: FoodSe
       {hasTerm && foods.length > 0 && (
         <ul
           className={
-            'divide-y overflow-hidden rounded-xl border bg-card' +
+            'max-h-72 divide-y overflow-y-auto rounded-xl border bg-card' +
             (query.isFetching ? ' opacity-60 transition-opacity' : ' transition-opacity')
           }
         >

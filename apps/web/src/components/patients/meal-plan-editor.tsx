@@ -609,7 +609,7 @@ function OptionCard({
                     </Button>
                   </td>
                 )}
-                <td className="py-1 pr-1 align-top"><Textarea rows={1} className={GROW_SM} aria-label="Alimento" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.foodName`)} /></td>
+                <td className="py-1 pr-1 align-top"><Textarea rows={1} className={`w-48 ${GROW_SM}`} aria-label="Alimento" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.foodName`)} /></td>
                 <td className="py-1 pr-1 align-top"><Textarea rows={1} className={`w-32 ${GROW_SM}`} aria-label="Quantidade" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`)} /></td>
                 <td className="py-1 pr-1 align-top">
                   <Input
