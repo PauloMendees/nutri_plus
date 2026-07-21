@@ -56,7 +56,7 @@ export function FoodSearch({ onSelect, placeholder = 'Buscar alimento' }: FoodSe
                   {food.group ? ` · ${food.group}` : ''}
                 </span>
                 <span className="shrink-0 whitespace-nowrap text-muted-foreground">
-                  {food.energyKcal ?? '—'} kcal/100g
+                  {food.energyKcal === null ? '—' : Math.round(food.energyKcal * 100) / 100} kcal/100g
                 </span>
               </button>
             </li>

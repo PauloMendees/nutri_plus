@@ -6,8 +6,9 @@ import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 
+// TACO values carry long fractions (per-100g conversions); show at most 2 decimals.
 function macro(value: number | null): string {
-  return value === null ? '—' : String(value);
+  return value === null ? '—' : String(Math.round(value * 100) / 100);
 }
 
 export function FoodsBrowse() {
