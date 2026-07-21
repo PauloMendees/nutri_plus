@@ -248,11 +248,11 @@ export function MealPlanEditor({
   }
 
   if (!isCreate && query.isLoading) {
-    return <Skeleton className="h-64 w-full max-w-4xl" />;
+    return <Skeleton className="h-64 w-full max-w-5xl" />;
   }
   if (!isCreate && (query.isError || !query.data)) {
     return (
-      <div className="mx-auto max-w-4xl space-y-4">
+      <div className="mx-auto max-w-5xl space-y-4">
         <BackToPatient patientId={patientId} />
         <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
           Plano não encontrado.
@@ -264,7 +264,7 @@ export function MealPlanEditor({
   const pending = form.formState.isSubmitting || create.isPending || update.isPending;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className="mx-auto max-w-5xl space-y-4">
       <div className="flex items-center justify-between gap-2">
         <BackToPatient patientId={patientId} />
         {!isCreate && (
@@ -610,7 +610,7 @@ function OptionCard({
                   </td>
                 )}
                 <td className="py-1 pr-1 align-top"><Textarea rows={1} className={`w-48 ${GROW_SM}`} aria-label="Alimento" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.foodName`)} /></td>
-                <td className="py-1 pr-1 align-top"><Textarea rows={1} className={`w-32 ${GROW_SM}`} aria-label="Quantidade" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`)} /></td>
+                <td className="py-1 pr-1 align-top"><Textarea rows={1} className={`w-24 ${GROW_SM}`} aria-label="Quantidade" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`)} /></td>
                 <td className="py-1 pr-1 align-top">
                   <Input
                     className="h-7 w-16"
