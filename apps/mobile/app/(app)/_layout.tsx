@@ -1,10 +1,11 @@
 import { Redirect, Tabs } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSession } from '../../lib/auth';
 import { getTabBarColors, useTheme } from '../../lib/theme';
 import { useMyConsent } from '../../lib/queries/consent';
 import { ConsentGate } from '../../components/consent/consent-gate';
+import { Button } from '../../components/ui/button';
 
 export default function AppLayout() {
   const { session, loading } = useSession();
@@ -16,6 +17,16 @@ export default function AppLayout() {
     return (
       <View className="flex-1 items-center justify-center bg-background">
         <ActivityIndicator color="#14bfa6" />
+      </View>
+    );
+  }
+  if (consent.isError) {
+    return (
+      <View className="flex-1 items-center justify-center gap-4 bg-background p-6">
+        <Text className="font-sans text-center text-base text-muted-foreground">
+          Não foi possível verificar seu consentimento.
+        </Text>
+        <Button label="Tentar de novo" onPress={() => consent.refetch()} />
       </View>
     );
   }

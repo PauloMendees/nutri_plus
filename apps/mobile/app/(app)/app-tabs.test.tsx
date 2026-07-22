@@ -1,8 +1,14 @@
 import { render, screen } from '@testing-library/react-native';
 
 const mockRedirect = jest.fn();
+const mockRefetch = jest.fn();
 let mockSessionState: { session: unknown; loading: boolean } = { session: null, loading: false };
-let mockConsentState: { isLoading: boolean; data: unknown } = { isLoading: false, data: { needsConsent: false } };
+let mockConsentState: { isLoading: boolean; isError: boolean; data: unknown; refetch: jest.Mock } = {
+  isLoading: false,
+  isError: false,
+  data: { needsConsent: false },
+  refetch: mockRefetch,
+};
 
 jest.mock('expo-router', () => {
   const Tabs: any = ({ children }: { children: unknown }) => children;
@@ -31,8 +37,9 @@ import AppLayout from './_layout';
 
 beforeEach(() => {
   mockRedirect.mockReset();
+  mockRefetch.mockReset();
   mockSessionState = { session: null, loading: false };
-  mockConsentState = { isLoading: false, data: { needsConsent: false } };
+  mockConsentState = { isLoading: false, isError: false, data: { needsConsent: false }, refetch: mockRefetch };
 });
 
 describe('(app) tab layout guard', () => {
@@ -43,7 +50,7 @@ describe('(app) tab layout guard', () => {
 
   it('renders the tabs (no redirect, no gate) when a session exists and consent is up to date', async () => {
     mockSessionState = { session: { user: {} }, loading: false };
-    mockConsentState = { isLoading: false, data: { needsConsent: false } };
+    mockConsentState = { isLoading: false, isError: false, data: { needsConsent: false }, refetch: mockRefetch };
     await render(<AppLayout />);
     expect(mockRedirect).not.toHaveBeenCalled();
     expect(screen.queryByTestId('consent-gate-stub')).toBeNull();
@@ -51,9 +58,23 @@ describe('(app) tab layout guard', () => {
 
   it('blocks with the ConsentGate when consent is pending, instead of the tabs', async () => {
     mockSessionState = { session: { user: {} }, loading: false };
-    mockConsentState = { isLoading: false, data: { needsConsent: true, currentVersion: '2026-07-09' } };
+    mockConsentState = {
+      isLoading: false,
+      isError: false,
+      data: { needsConsent: true, currentVersion: '2026-07-09' },
+      refetch: mockRefetch,
+    };
     await render(<AppLayout />);
     expect(mockRedirect).not.toHaveBeenCalled();
     expect(screen.getByTestId('consent-gate-stub')).toBeTruthy();
+  });
+
+  it('fails closed with an error state (no tabs, no gate) when consent status cannot be fetched', async () => {
+    mockSessionState = { session: { user: {} }, loading: false };
+    mockConsentState = { isLoading: false, isError: true, data: undefined, refetch: mockRefetch };
+    await render(<AppLayout />);
+    expect(mockRedirect).not.toHaveBeenCalled();
+    expect(screen.getByText(/não foi possível verificar/i)).toBeTruthy();
+    expect(screen.queryByTestId('consent-gate-stub')).toBeNull();
   });
 });
