@@ -21,6 +21,7 @@ const PHOTO_BUCKET = 'patient-photos';
 const PATIENT_DETAIL_INCLUDE = {
   user: USER_SUMMARY,
   assessments: { orderBy: { assessmentDate: 'desc' as const }, take: 1 },
+  consents: { orderBy: { acceptedAt: 'desc' as const }, take: 1 },
 } as const;
 
 @Injectable()
@@ -117,15 +118,12 @@ export class PatientsService {
   async getPatient(ctx: AuthContext, id: string) {
     const patient = await this.prisma.patientProfile.findFirst({
       where: { id, nutritionistId: resolveScopeNutritionistId(ctx) },
-      include: {
-        user: USER_SUMMARY,
-        assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
-      },
+      include: PATIENT_DETAIL_INCLUDE,
     });
     if (!patient) {
       throw new NotFoundException('Patient not found');
     }
-    return { ...patient, imc: computeImc(patient.height, patient.assessments[0]?.weight ?? null) };
+    return this.toDetail(patient);
   }
 
   async updatePatient(ctx: AuthContext, id: string, dto: UpdatePatientDto) {
@@ -141,7 +139,7 @@ export class PatientsService {
       data: dto,
       include: PATIENT_DETAIL_INCLUDE,
     });
-    return { ...patient, imc: computeImc(patient.height, patient.assessments[0]?.weight ?? null) };
+    return this.toDetail(patient);
   }
 
   async uploadPhoto(ctx: AuthContext, id: string, file: UploadedImage) {
@@ -154,11 +152,12 @@ export class PatientsService {
       file.buffer,
       file.mimetype,
     );
-    return this.prisma.patientProfile.update({
+    const patient = await this.prisma.patientProfile.update({
       where: { id },
       data: { photoUrl },
       include: PATIENT_DETAIL_INCLUDE,
     });
+    return this.toDetail(patient);
   }
 
   async removePhoto(ctx: AuthContext, id: string) {
@@ -171,11 +170,12 @@ export class PatientsService {
       const path = current.photoUrl.split('/').pop();
       if (path) await this.supabaseAdmin.removeObject(PHOTO_BUCKET, path);
     }
-    return this.prisma.patientProfile.update({
+    const patient = await this.prisma.patientProfile.update({
       where: { id },
       data: { photoUrl: null },
       include: PATIENT_DETAIL_INCLUDE,
     });
+    return this.toDetail(patient);
   }
 
   async createAssessment(ctx: AuthContext, id: string, dto: CreateAssessmentDto) {
@@ -294,6 +294,27 @@ export class PatientsService {
     });
 
     await this.supabaseAdmin.deleteUser(authProviderId);
+  }
+
+  // Consolidates the PatientDetail shape shared by getPatient/updatePatient/
+  // uploadPhoto/removePhoto: derives imc from height + latest assessment, and
+  // surfaces the latest LGPD consent (or null) while stripping the raw
+  // consents relation out of the response.
+  private toDetail<
+    T extends {
+      height: number | null;
+      assessments: { weight: number | null }[];
+      consents: { policyVersion: string; acceptedAt: Date }[];
+    },
+  >(patient: T) {
+    const { consents, ...rest } = patient;
+    return {
+      ...rest,
+      imc: computeImc(patient.height, patient.assessments[0]?.weight ?? null),
+      latestConsent: consents[0]
+        ? { policyVersion: consents[0].policyVersion, acceptedAt: consents[0].acceptedAt }
+        : null,
+    };
   }
 
   // The assessment must belong to the (already-owned) patient; otherwise 404.

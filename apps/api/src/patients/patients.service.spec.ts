@@ -105,6 +105,7 @@ describe('PatientsService', () => {
       include: {
         user: { select: { id: true, name: true, email: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
+        consents: { orderBy: { acceptedAt: 'desc' }, take: 1 },
       },
       orderBy: { user: { name: 'asc' } },
       skip: 0,
@@ -132,6 +133,7 @@ describe('PatientsService', () => {
       include: {
         user: { select: { id: true, name: true, email: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
+        consents: { orderBy: { acceptedAt: 'desc' }, take: 1 },
       },
       orderBy: { user: { name: 'asc' } },
       skip: 0,
@@ -168,6 +170,7 @@ describe('PatientsService', () => {
       include: {
         user: { select: { id: true, name: true, email: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
+        consents: { orderBy: { acceptedAt: 'desc' }, take: 1 },
       },
       orderBy: { user: { name: 'asc' } },
       skip: 10,
@@ -190,7 +193,12 @@ describe('PatientsService', () => {
   });
 
   it('returns patient detail with the latest assessment, scoped by ownership', async () => {
-    prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1', height: null, assessments: [] } as any);
+    prisma.patientProfile.findFirst.mockResolvedValue({
+      id: 'p1',
+      height: null,
+      assessments: [],
+      consents: [],
+    } as any);
 
     const result = await service.getPatient(ctx, 'p1');
 
@@ -199,9 +207,29 @@ describe('PatientsService', () => {
       include: {
         user: { select: { id: true, name: true, email: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
+        consents: { orderBy: { acceptedAt: 'desc' }, take: 1 },
       },
     });
-    expect(result).toEqual({ id: 'p1', height: null, assessments: [], imc: null });
+    expect(result).toEqual({ id: 'p1', height: null, assessments: [], imc: null, latestConsent: null });
+  });
+
+  it('returns the latest consent when the patient has accepted one', async () => {
+    prisma.patientProfile.findFirst.mockResolvedValue({
+      id: 'p1',
+      height: null,
+      assessments: [],
+      consents: [{ policyVersion: '2026-07-09', acceptedAt: new Date('2026-07-10') }],
+    } as any);
+
+    const result = await service.getPatient(ctx, 'p1');
+
+    expect(result).toEqual({
+      id: 'p1',
+      height: null,
+      assessments: [],
+      imc: null,
+      latestConsent: { policyVersion: '2026-07-09', acceptedAt: new Date('2026-07-10') },
+    });
   });
 
   it('throws NotFoundException when the patient is not owned (detail)', async () => {
@@ -214,7 +242,12 @@ describe('PatientsService', () => {
 
   it('updates an owned patient and returns the full detail (user + latest assessment)', async () => {
     prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
-    const full = { id: 'p1', user: { id: 'u1', name: 'Ann', email: 'a@x.com' }, assessments: [] };
+    const full = {
+      id: 'p1',
+      user: { id: 'u1', name: 'Ann', email: 'a@x.com' },
+      assessments: [],
+      consents: [],
+    };
     prisma.patientProfile.update.mockResolvedValue(full as any);
 
     const dto = { height: 180 } as any;
@@ -233,9 +266,11 @@ describe('PatientsService', () => {
       include: {
         user: { select: { id: true, name: true, email: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
+        consents: { orderBy: { acceptedAt: 'desc' }, take: 1 },
       },
     });
-    expect(result).toEqual({ ...full, imc: null });
+    const { consents: _consents, ...restFull } = full;
+    expect(result).toEqual({ ...restFull, imc: null, latestConsent: null });
   });
 
   it('does not update when the patient is not owned', async () => {
@@ -438,7 +473,12 @@ describe('PatientsService', () => {
       users.createInvitedPatient.mockResolvedValue({
         patientProfile: { id: 'pp1' },
       } as any);
-      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'pp1', height: null, assessments: [] } as any);
+      prisma.patientProfile.findFirst.mockResolvedValue({
+        id: 'pp1',
+        height: null,
+        assessments: [],
+        consents: [],
+      } as any);
 
       const result = await service.createPatient(ctx, dto);
 
@@ -457,9 +497,10 @@ describe('PatientsService', () => {
         include: {
           user: { select: { id: true, name: true, email: true } },
           assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
+          consents: { orderBy: { acceptedAt: 'desc' }, take: 1 },
         },
       });
-      expect(result).toEqual({ id: 'pp1', height: null, assessments: [], imc: null });
+      expect(result).toEqual({ id: 'pp1', height: null, assessments: [], imc: null, latestConsent: null });
     });
 
     it("seeds the new patient's toggles from the nutritionist's configured defaults", async () => {
@@ -471,7 +512,12 @@ describe('PatientsService', () => {
       users.createInvitedPatient.mockResolvedValue({
         patientProfile: { id: 'pp1' },
       } as any);
-      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'pp1', height: null, assessments: [] } as any);
+      prisma.patientProfile.findFirst.mockResolvedValue({
+        id: 'pp1',
+        height: null,
+        assessments: [],
+        consents: [],
+      } as any);
 
       await service.createPatient(ctx, dto);
 
@@ -545,7 +591,13 @@ describe('PatientsService', () => {
       // requireOwned lookup resolves owned:
       prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
       supabaseAdmin.uploadPublicObject.mockResolvedValue('https://cdn/patient-photos/p1.png');
-      prisma.patientProfile.update.mockResolvedValue({ id: 'p1', photoUrl: 'https://cdn/patient-photos/p1.png' } as any);
+      prisma.patientProfile.update.mockResolvedValue({
+        id: 'p1',
+        photoUrl: 'https://cdn/patient-photos/p1.png',
+        height: null,
+        assessments: [],
+        consents: [],
+      } as any);
       const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
       const res = await service.uploadPhoto(ctx, 'p1', { buffer: png, mimetype: 'image/png' });
       expect(supabaseAdmin.uploadPublicObject).toHaveBeenCalledWith('patient-photos', 'p1.png', png, 'image/png');
@@ -574,7 +626,13 @@ describe('PatientsService', () => {
     it('removes the stored object and nulls the column', async () => {
       prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
       prisma.patientProfile.findUnique.mockResolvedValue({ photoUrl: 'https://cdn/patient-photos/p1.png' } as any);
-      prisma.patientProfile.update.mockResolvedValue({ id: 'p1', photoUrl: null } as any);
+      prisma.patientProfile.update.mockResolvedValue({
+        id: 'p1',
+        photoUrl: null,
+        height: null,
+        assessments: [],
+        consents: [],
+      } as any);
       await service.removePhoto(ctx, 'p1');
       expect(supabaseAdmin.removeObject).toHaveBeenCalledWith('patient-photos', 'p1.png');
       expect(prisma.patientProfile.update).toHaveBeenCalledWith(

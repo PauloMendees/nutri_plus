@@ -62,6 +62,7 @@ const patient = {
   createdAt: '2026-05-12T00:00:00.000Z',
   updatedAt: '2026-05-12T00:00:00.000Z',
   assessments: [],
+  latestConsent: null,
 };
 
 beforeEach(() => {
