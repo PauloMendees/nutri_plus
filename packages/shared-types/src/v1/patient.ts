@@ -53,6 +53,7 @@ export interface PatientSummary {
 
 export interface PatientDetail extends PatientSummary {
   assessments: BodyAssessment[];
+  latestConsent: { policyVersion: string; acceptedAt: string } | null;
 }
 
 export interface ListPatientsParams {
