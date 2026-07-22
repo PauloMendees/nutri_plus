@@ -1,13 +1,27 @@
 import { Redirect, Tabs } from 'expo-router';
+import { ActivityIndicator, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSession } from '../../lib/auth';
 import { getTabBarColors, useTheme } from '../../lib/theme';
+import { useMyConsent } from '../../lib/queries/consent';
+import { ConsentGate } from '../../components/consent/consent-gate';
 
 export default function AppLayout() {
   const { session, loading } = useSession();
   const { scheme } = useTheme();
+  const consent = useMyConsent(!!session && !loading);
   if (loading) return null;
   if (!session) return <Redirect href="/(auth)/login" />;
+  if (consent.isLoading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator color="#14bfa6" />
+      </View>
+    );
+  }
+  if (consent.data?.needsConsent) {
+    return <ConsentGate currentVersion={consent.data.currentVersion} />;
+  }
   const tab = getTabBarColors(scheme);
   return (
     <Tabs
