@@ -22,6 +22,16 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/api/meal-plans', () => ({
   downloadMealPlanPdf: (...args: unknown[]) => downloadMealPlanPdf(...args),
 }));
+vi.mock('@/lib/queries/nutrition-targets', () => ({
+  useNutritionTargets: () => ({ data: [{ targetCalories: 2000, proteinGrams: 150, carbGrams: 200, fatGrams: 55 }] }),
+}));
+vi.mock('@/lib/queries/foods', () => ({
+  useFoodSearch: () => ({
+    data: [{ id: 'f1', name: 'Arroz integral cozido', group: 'Cereais', energyKcal: 124, protein: 2.6, carbohydrate: 25.8, lipid: 1, fiber: 2.7, sodium: 1.2 }],
+    isLoading: false,
+    isFetching: false,
+  }),
+}));
 
 import { MealPlanEditor } from './meal-plan-editor';
 
@@ -33,7 +43,7 @@ const plan = {
     { id: 'me1', mealPlanId: 'm1', name: 'Café', timeLabel: '08:00', instructions: '', order: 0,
       options: [
         { id: 'op1', mealId: 'me1', label: 'Opção 1', order: 0,
-          items: [{ id: 'it1', mealOptionId: 'op1', foodName: 'Ovos', quantity: '3 unid', calories: 230, protein: 18, carbs: 2, fats: 16, order: 0 }] },
+          items: [{ id: 'it1', mealOptionId: 'op1', foodName: 'Ovos', quantity: '3 unid', calories: 230, protein: 18, carbs: 2, fats: 16, foodId: null, grams: null, fiber: 3, sodium: 5, order: 0 }] },
       ] },
     { id: 'me2', mealPlanId: 'm1', name: 'Almoço', timeLabel: '12:30', instructions: '', order: 1,
       options: [{ id: 'op2', mealId: 'me2', label: 'Opção 1', order: 0, items: [] }] },
@@ -128,7 +138,22 @@ describe('MealPlanEditor (edit mode)', () => {
   it('shows a per-option subtotal', () => {
     render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
     const firstOption = screen.getAllByTestId('option-card')[0];
-    expect(within(firstOption).getByTestId('option-subtotal-calories')).toHaveTextContent('230');
+    expect(within(firstOption).getByTestId('option-subtotal-calories')).toHaveTextContent('Kcal 230');
+  });
+
+  it('shows fiber/sodium totals for a single item', () => {
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    expect(screen.getByTestId('total-fiber')).toHaveTextContent('3');
+    expect(screen.getByTestId('total-sodium')).toHaveTextContent('5');
+  });
+
+  it('applies the latest nutrition target via "Usar Meta atual"', async () => {
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    await userEvent.click(screen.getByRole('button', { name: /usar meta atual/i }));
+    expect(screen.getAllByLabelText('Kcal')[0]).toHaveValue(2000);
+    expect(screen.getByLabelText('Proteína')).toHaveValue(150);
+    expect(screen.getByLabelText('Carbo')).toHaveValue(200);
+    expect(screen.getByLabelText('Gordura')).toHaveValue(55);
   });
 
   it('day total sums only the first option of each meal', async () => {
@@ -197,5 +222,26 @@ describe('MealPlanEditor (create mode)', () => {
   it('hides "Exportar PDF" while creating a new plan', () => {
     render(<MealPlanEditor patientId="p1" canEdit />);
     expect(screen.queryByRole('button', { name: /exportar pdf/i })).not.toBeInTheDocument();
+  });
+
+  it('picks a food via the picker dialog, then recomputes macros as grams change', async () => {
+    render(<MealPlanEditor patientId="p1" canEdit />);
+    const optionCard = screen.getAllByTestId('option-card')[0];
+
+    await userEvent.click(within(optionCard).getByRole('button', { name: /buscar alimento/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /buscar alimento/i }), 'arroz');
+    await userEvent.click(await screen.findByRole('button', { name: /arroz integral cozido/i }));
+
+    const grams = within(optionCard).getByLabelText('Gramas');
+    await userEvent.clear(grams);
+    await userEvent.type(grams, '150');
+
+    expect(within(optionCard).getByLabelText('Kcal')).toHaveValue(186);
+    expect(within(optionCard).getByLabelText('P')).toHaveValue(4);
+    expect(within(optionCard).getByLabelText('C')).toHaveValue(39);
+    expect(within(optionCard).getByLabelText('G')).toHaveValue(2);
+    expect(within(optionCard).getByLabelText('Fib')).toHaveValue(4);
+    expect(within(optionCard).getByLabelText('Na')).toHaveValue(2);
+    expect(within(optionCard).getByDisplayValue('Arroz integral cozido')).toBeInTheDocument();
   });
 });

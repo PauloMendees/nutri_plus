@@ -12,6 +12,8 @@ export interface PdfMealItem {
   protein: number | null;
   carbs: number | null;
   fats: number | null;
+  fiber: number | null;
+  sodium: number | null;
 }
 
 export interface PdfMealOption {
@@ -112,14 +114,18 @@ export function buildMealPlanDocDefinition(
           { text: 'P', style: 'th' },
           { text: 'C', style: 'th' },
           { text: 'G', style: 'th' },
+          { text: 'Fibra', style: 'th' },
+          { text: 'Sódio', style: 'th' },
         ],
       ];
-      const sub = { c: 0, p: 0, cb: 0, f: 0 };
+      const sub = { c: 0, p: 0, cb: 0, f: 0, fb: 0, s: 0 };
       option.items.forEach((it) => {
         sub.c += num(it.calories);
         sub.p += num(it.protein);
         sub.cb += num(it.carbs);
         sub.f += num(it.fats);
+        sub.fb += num(it.fiber);
+        sub.s += num(it.sodium);
         rows.push([
           { text: it.foodName ?? '' },
           { text: it.quantity ?? '' },
@@ -127,6 +133,8 @@ export function buildMealPlanDocDefinition(
           { text: String(num(it.protein)) },
           { text: String(num(it.carbs)) },
           { text: String(num(it.fats)) },
+          { text: String(num(it.fiber)) },
+          { text: String(num(it.sodium)) },
         ]);
       });
       rows.push([
@@ -136,10 +144,12 @@ export function buildMealPlanDocDefinition(
         { text: String(sub.p), style: 'subtotal' },
         { text: String(sub.cb), style: 'subtotal' },
         { text: String(sub.f), style: 'subtotal' },
+        { text: String(sub.fb), style: 'subtotal' },
+        { text: String(sub.s), style: 'subtotal' },
       ]);
 
       content.push({
-        table: { widths: ['*', 'auto', 'auto', 'auto', 'auto', 'auto'], body: rows },
+        table: { widths: ['*', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'], body: rows },
         layout: 'lightHorizontalLines',
         margin: [0, 0, 0, 6],
       });

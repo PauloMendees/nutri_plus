@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../prisma/prisma.service';
 import { MealPlansService } from './meal-plans.service';
@@ -142,6 +142,96 @@ describe('MealPlansService', () => {
         service.createPlan(nutCtx(null), { patientId: 'p1' } as any),
       ).rejects.toBeInstanceOf(ForbiddenException);
       expect(prisma.patientProfile.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('persists foodId/grams/fiber/sodium for a food-referenced item', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+      prisma.food.findMany.mockResolvedValue([{ id: 'f-uuid-1' }] as any);
+      prisma.mealPlan.create.mockResolvedValue({ id: 'mp1' } as any);
+
+      const dto = {
+        patientId: 'p1',
+        meals: [
+          {
+            name: 'Breakfast',
+            options: [
+              {
+                label: 'Opção 1',
+                items: [
+                  {
+                    foodName: 'Arroz integral',
+                    foodId: 'f-uuid-1',
+                    grams: 150,
+                    calories: 186,
+                    protein: 4,
+                    carbs: 39,
+                    fats: 2,
+                    fiber: 4,
+                    sodium: 2,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      } as any;
+
+      await service.createPlan(ctx, dto);
+
+      expect(prisma.food.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ['f-uuid-1'] } },
+        select: { id: true },
+      });
+      expect(prisma.mealPlan.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          meals: {
+            create: [
+              expect.objectContaining({
+                options: {
+                  create: [
+                    expect.objectContaining({
+                      items: {
+                        create: [
+                          {
+                            foodName: 'Arroz integral',
+                            foodId: 'f-uuid-1',
+                            grams: 150,
+                            calories: 186,
+                            protein: 4,
+                            carbs: 39,
+                            fats: 2,
+                            fiber: 4,
+                            sodium: 2,
+                            order: 0,
+                          },
+                        ],
+                      },
+                    }),
+                  ],
+                },
+              }),
+            ],
+          },
+        }),
+        include: FULL_TREE,
+      });
+    });
+
+    it('rejects an unknown foodId with 400 and does not create the plan', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+      prisma.food.findMany.mockResolvedValue([]);
+
+      const dto = {
+        patientId: 'p1',
+        meals: [
+          { name: 'Breakfast', options: [{ label: 'Opção 1', items: [{ foodId: 'nope' }] }] },
+        ],
+      } as any;
+
+      await expect(service.createPlan(ctx, dto)).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(prisma.mealPlan.create).not.toHaveBeenCalled();
     });
   });
 

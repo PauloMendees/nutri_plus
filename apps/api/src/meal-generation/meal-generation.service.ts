@@ -8,9 +8,18 @@ import { PrismaService } from '../prisma/prisma.service';
 import { OpenAIProvider } from '../ai/openai.provider';
 import { MealPlansService, GeneratedMealInput } from '../meal-plans/meal-plans.service';
 import { AuthContext } from '../auth/types/auth-context';
-import { AIInteractionType } from '../generated/prisma/client';
+import { AIInteractionType, Food } from '../generated/prisma/client';
 import { resolveScopeNutritionistId } from '../auth/auth-scope';
-import { computeAge, computeTargets, NutritionInputs } from './nutrition';
+import {
+  computeAge,
+  computeTargets,
+  NutritionInputs,
+  Gender,
+  PatientObjective,
+  ActivityLevel,
+  macrosForPortion,
+} from '@nutri-plus/shared-types';
+import { matchFood } from './food-matcher';
 import { mealPlanResponseSchema, MealPlanResponse } from './schema/meal-plan-response.schema';
 import {
   MEAL_PLAN_SYSTEM_PROMPT,
@@ -75,6 +84,8 @@ export class MealGenerationService {
       patientId,
     });
 
+    const foods = await this.prisma.food.findMany();
+
     return this.mealPlans.createGeneratedPlan(ctx, {
       patientId,
       title: generated.title,
@@ -82,7 +93,10 @@ export class MealGenerationService {
       meals: generated.meals.map((m): GeneratedMealInput => ({
         name: m.name,
         timeLabel: m.timeLabel ?? undefined,
-        options: m.options.map((o) => ({ label: o.label, items: o.items })),
+        options: m.options.map((o) => ({
+          label: o.label,
+          items: o.items.map((it) => this.groundItem(it, foods)),
+        })),
       })),
     });
   }
@@ -156,15 +170,56 @@ export class MealGenerationService {
     };
   }
 
+  // Ancora um item da IA a um Food do TACO: no match, grava foodId + nome canônico
+  // + macros RECALCULADOS por macrosForPortion (autoridade server-side; a estimativa
+  // da IA é descartada). Sem match, mantém o item de texto livre de hoje.
+  private groundItem(
+    it: {
+      foodName: string;
+      quantity: string;
+      grams: number;
+      calories: number;
+      protein: number;
+      carbs: number;
+      fats: number;
+    },
+    foods: Food[],
+  ): GeneratedMealInput['options'][number]['items'][number] {
+    const food = matchFood(it.foodName, foods);
+    if (!food) {
+      return {
+        foodName: it.foodName,
+        quantity: it.quantity,
+        calories: it.calories,
+        protein: it.protein,
+        carbs: it.carbs,
+        fats: it.fats,
+      };
+    }
+    const m = macrosForPortion(food, it.grams);
+    return {
+      foodName: food.name,
+      foodId: food.id,
+      grams: it.grams,
+      quantity: '',
+      calories: m.calories,
+      protein: m.protein,
+      carbs: m.carbs,
+      fats: m.fats,
+      fiber: m.fiber,
+      sodium: m.sodium,
+    };
+  }
+
   // Validates that every field the calculation needs is present; otherwise 422
   // listing exactly what is missing. weight + measured BMR come from the latest
   // assessment; the rest from the profile.
   private requireInputs(patient: {
     height: number | null;
     birthDate: Date | null;
-    gender: NutritionInputs['gender'] | null;
-    objective: NutritionInputs['objective'] | null;
-    activityLevel: NutritionInputs['activityLevel'] | null;
+    gender: string | null;
+    objective: string | null;
+    activityLevel: string | null;
     assessments: { weight: number | null; basalMetabolicRate: number | null }[];
   }): NutritionInputs {
     const latest = patient.assessments[0];
@@ -185,9 +240,9 @@ export class MealGenerationService {
       weightKg: latest!.weight!,
       heightCm: patient.height!,
       age: computeAge(patient.birthDate!, new Date()),
-      gender: patient.gender!,
-      objective: patient.objective!,
-      activityLevel: patient.activityLevel!,
+      gender: patient.gender! as Gender,
+      objective: patient.objective! as PatientObjective,
+      activityLevel: patient.activityLevel! as ActivityLevel,
       measuredBmr: latest!.basalMetabolicRate,
     };
   }

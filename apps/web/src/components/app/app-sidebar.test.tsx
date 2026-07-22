@@ -38,13 +38,16 @@ beforeEach(() => {
 });
 
 describe('AppSidebar', () => {
-  it('orders Agenda as the second nav item', () => {
-    expect(NAV_ITEMS[1].label).toBe('Agenda');
+  it('orders Alimentos right after Pacientes, then Agenda', () => {
+    expect(NAV_ITEMS[0].label).toBe('Pacientes');
+    expect(NAV_ITEMS[1].label).toBe('Alimentos');
+    expect(NAV_ITEMS[2].label).toBe('Agenda');
   });
 
-  it('renders the three module links with correct hrefs', () => {
+  it('renders the module links with correct hrefs', () => {
     renderSidebar();
     expect(screen.getByRole('link', { name: /pacientes/i })).toHaveAttribute('href', '/patients');
+    expect(screen.getByRole('link', { name: /alimentos/i })).toHaveAttribute('href', '/alimentos');
     expect(screen.getByRole('link', { name: /funcionários/i })).toHaveAttribute('href', '/employees');
     const agendaLinks = screen.getAllByRole('link', { name: /agenda/i });
     expect(agendaLinks.some((el) => el.getAttribute('href') === '/agenda')).toBe(true);
@@ -158,5 +161,15 @@ describe('AppSidebar', () => {
   it('hides Configurações for an employee', () => {
     renderSidebar({ name: 'João', role: UserRole.EMPLOYEE });
     expect(screen.queryByRole('link', { name: /configurações/i })).not.toBeInTheDocument();
+  });
+
+  it('shows the Alimentos item for a nutritionist', () => {
+    renderSidebar({ name: 'Dra. Ana', role: UserRole.NUTRITIONIST });
+    expect(screen.getByRole('link', { name: /alimentos/i })).toHaveAttribute('href', '/alimentos');
+  });
+
+  it('hides the Alimentos item for an employee', () => {
+    renderSidebar({ name: 'João', role: UserRole.EMPLOYEE });
+    expect(screen.queryByRole('link', { name: /alimentos/i })).not.toBeInTheDocument();
   });
 });

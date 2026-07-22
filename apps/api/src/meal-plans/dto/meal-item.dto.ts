@@ -1,4 +1,4 @@
-import { IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import { IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min } from 'class-validator';
 
 // All fields optional (draft-friendly). Macros are >= 0; 0 is a valid value.
 export class MealItemDto {
@@ -31,4 +31,23 @@ export class MealItemDto {
   @IsNumber()
   @Min(0)
   fats?: number;
+
+  @IsOptional()
+  @IsUUID()
+  foodId?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  grams?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  fiber?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  sodium?: number;
 }

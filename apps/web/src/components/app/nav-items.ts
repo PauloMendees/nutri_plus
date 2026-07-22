@@ -1,6 +1,6 @@
-import { Users, Briefcase, Calendar, Settings, Landmark, type LucideIcon } from 'lucide-react';
+import { Users, Apple, Briefcase, Calendar, Settings, Landmark, type LucideIcon } from 'lucide-react';
 import { UserRole } from '@nutri-plus/shared-types';
-import { canManageEmployees, canManageSettings } from '@/lib/auth/access';
+import { canManageEmployees, canManageSettings, canBrowseFoods } from '@/lib/auth/access';
 
 export type NavChild = {
   label: string;
@@ -17,6 +17,7 @@ export type NavItem = {
 
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Pacientes', href: '/patients', icon: Users },
+  { label: 'Alimentos', href: '/alimentos', icon: Apple, canAccess: canBrowseFoods },
   {
     label: 'Agenda',
     href: '/agenda',

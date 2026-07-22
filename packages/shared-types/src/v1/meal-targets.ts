@@ -1,21 +1,7 @@
-import {
-  ActivityLevel,
-  Gender,
-  PatientObjective,
-} from '../generated/prisma/client';
+import { ActivityLevel, Gender, PatientObjective } from './patient';
+import { activityFactor } from './energy';
 
-// --- Tunable constants (single source of truth) ---
-
-// kcal multiplier applied to BMR by activity level.
-export const ACTIVITY_FACTOR: Record<ActivityLevel, number> = {
-  SEDENTARY: 1.2,
-  LIGHT: 1.375,
-  MODERATE: 1.55,
-  ACTIVE: 1.725,
-  VERY_ACTIVE: 1.9,
-};
-
-// Calorie adjustment applied to TDEE by objective.
+// Ajuste calórico aplicado ao TDEE por objetivo.
 export const OBJECTIVE_FACTOR: Record<PatientObjective, number> = {
   WEIGHT_LOSS: 0.8,
   MAINTENANCE: 1.0,
@@ -23,7 +9,7 @@ export const OBJECTIVE_FACTOR: Record<PatientObjective, number> = {
   MUSCLE_GAIN: 1.1,
 };
 
-// Protein grams per kg bodyweight by objective.
+// Proteína (g/kg) por objetivo.
 export const PROTEIN_PER_KG: Record<PatientObjective, number> = {
   WEIGHT_LOSS: 2.0,
   MUSCLE_GAIN: 2.0,
@@ -31,11 +17,11 @@ export const PROTEIN_PER_KG: Record<PatientObjective, number> = {
   MAINTENANCE: 1.6,
 };
 
-// Share of calories from fat.
+// Fração das calorias vinda de gordura.
 export const FAT_PCT = 0.25;
 
-// Mifflin-St Jeor sex constant. OTHER / PREFER_NOT_TO_SAY use the average of the
-// male (+5) and female (-161) constants: -78.
+// Constante de sexo do Mifflin-St Jeor. OTHER / PREFER_NOT_TO_SAY usam a média das
+// constantes masculina (+5) e feminina (-161): -78.
 const SEX_CONSTANT: Record<Gender, number> = {
   MALE: 5,
   FEMALE: -161,
@@ -60,8 +46,7 @@ export interface NutritionTargets {
   fats: number;
 }
 
-// Whole years between birthDate and now, accounting for whether the birthday has
-// occurred yet this year.
+// Anos inteiros entre birthDate e now (UTC-estável).
 export function computeAge(birthDate: Date, now: Date): number {
   let age = now.getUTCFullYear() - birthDate.getUTCFullYear();
   const monthDelta = now.getUTCMonth() - birthDate.getUTCMonth();
@@ -71,7 +56,7 @@ export function computeAge(birthDate: Date, now: Date): number {
   return age;
 }
 
-// Measured bioimpedance BMR when present and positive; otherwise Mifflin-St Jeor.
+// BMR de bioimpedância quando presente e positivo; senão Mifflin-St Jeor.
 export function computeBmr(i: {
   weightKg: number;
   heightCm: number;
@@ -87,7 +72,7 @@ export function computeBmr(i: {
 
 export function computeTargets(i: NutritionInputs): NutritionTargets {
   const bmr = computeBmr(i);
-  const tdee = bmr * ACTIVITY_FACTOR[i.activityLevel];
+  const tdee = bmr * activityFactor(i.activityLevel);
   const calories = Math.round(tdee * OBJECTIVE_FACTOR[i.objective]);
   const protein = Math.round(PROTEIN_PER_KG[i.objective] * i.weightKg);
   const fats = Math.round((calories * FAT_PCT) / 9);

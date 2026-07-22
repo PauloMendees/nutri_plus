@@ -296,6 +296,11 @@ model MealItem {
   protein      Float?
   carbs        Float?
   fats         Float?
+  foodId       String?
+  food         Food?      @relation(fields: [foodId], references: [id], onDelete: SetNull)
+  grams        Float?
+  fiber        Float?
+  sodium       Float?
   order        Int        // sequence within the option; server-assigned from array index
 
   @@index([mealOptionId])
@@ -403,4 +408,23 @@ model Transaction {
   updatedAt      DateTime             @updatedAt
 
   @@index([nutritionistId, occurredOn])
+}
+
+model Food {
+  id           String   @id @default(uuid())
+  tacoId       Int?     @unique
+  name         String
+  searchName   String
+  group        String?
+  energyKcal   Float?
+  protein      Float?
+  carbohydrate Float?
+  lipid        Float?
+  fiber        Float?
+  sodium       Float?
+  createdAt    DateTime @default(now())
+
+  mealItems    MealItem[]
+
+  @@index([searchName])
 }

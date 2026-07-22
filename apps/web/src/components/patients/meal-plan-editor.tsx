@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
@@ -9,12 +9,15 @@ import {
   useForm,
   useWatch,
   type Control,
+  type Path,
   type Resolver,
   type UseFormRegister,
+  type UseFormSetValue,
 } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import type { MealPlan, MealPlanDraft } from '@nutri-plus/shared-types';
+import type { Food, MealPlan, MealPlanDraft } from '@nutri-plus/shared-types';
+import { macrosForPortion } from '@nutri-plus/shared-types';
 import { mealPlanSchema, type MealPlanFormValues } from '@/lib/validation/meal-plan';
 import {
   useCreateMealPlan,
@@ -24,13 +27,15 @@ import {
 } from '@/lib/queries/meal-plans';
 import { ApiError } from '@/lib/api/client';
 import { downloadMealPlanPdf } from '@/lib/api/meal-plans';
+import { useNutritionTargets } from '@/lib/queries/nutrition-targets';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AiAdjustDialog } from '@/components/patients/ai-adjust-dialog';
+import { FoodPickerDialog } from '@/components/patients/food-picker-dialog';
 
-type ItemValues = { foodName: string; quantity: string; calories: string; protein: string; carbs: string; fats: string };
+type ItemValues = { foodName: string; foodId: string; quantity: string; grams: string; calories: string; protein: string; carbs: string; fats: string; fiber: string; sodium: string };
 type OptionValues = { label: string; items: ItemValues[] };
 type FormValues = {
   title: string;
@@ -42,7 +47,7 @@ type FormValues = {
   meals: { name: string; timeLabel: string; instructions: string; options: OptionValues[] }[];
 };
 
-const blankItem = (): ItemValues => ({ foodName: '', quantity: '', calories: '', protein: '', carbs: '', fats: '' });
+const blankItem = (): ItemValues => ({ foodName: '', foodId: '', quantity: '', grams: '', calories: '', protein: '', carbs: '', fats: '', fiber: '', sodium: '' });
 const blankOption = (): OptionValues => ({ label: '', items: [blankItem()] });
 const blankMeal = () => ({ name: '', timeLabel: '', instructions: '', options: [blankOption()] });
 
@@ -71,11 +76,15 @@ function toDefaults(plan: MealPlan): FormValues {
         label: o.label ?? '',
         items: o.items.map((it) => ({
           foodName: it.foodName ?? '',
+          foodId: it.foodId ?? '',
           quantity: it.quantity ?? '',
+          grams: numToStr(it.grams),
           calories: numToStr(it.calories),
           protein: numToStr(it.protein),
           carbs: numToStr(it.carbs),
           fats: numToStr(it.fats),
+          fiber: numToStr(it.fiber),
+          sodium: numToStr(it.sodium),
         })),
       })),
     })),
@@ -98,11 +107,15 @@ function draftToDefaults(d: MealPlanDraft): FormValues {
         label: o.label ?? '',
         items: (o.items ?? []).map((it) => ({
           foodName: it.foodName ?? '',
+          foodId: it.foodId ?? '',
           quantity: it.quantity ?? '',
+          grams: numToStr(it.grams ?? null),
           calories: numToStr(it.calories ?? null),
           protein: numToStr(it.protein ?? null),
           carbs: numToStr(it.carbs ?? null),
           fats: numToStr(it.fats ?? null),
+          fiber: numToStr(it.fiber ?? null),
+          sodium: numToStr(it.sodium ?? null),
         })),
       })),
     })),
@@ -121,7 +134,19 @@ const ITEM_MACROS = [
   { key: 'protein', label: 'P' },
   { key: 'carbs', label: 'C' },
   { key: 'fats', label: 'G' },
+  { key: 'fiber', label: 'Fib' },
+  { key: 'sodium', label: 'Na' },
 ] as const;
+
+// macro -> chave de meta (só os 4 têm meta; fibra/sódio não).
+const MACRO_TARGET: Partial<Record<(typeof ITEM_MACROS)[number]['key'], (typeof TARGETS)[number]['key']>> = {
+  calories: 'targetCalories',
+  protein: 'targetProtein',
+  carbs: 'targetCarbs',
+  fats: 'targetFats',
+};
+
+type MacroKey = 'calories' | 'protein' | 'carbs' | 'fats' | 'fiber' | 'sodium';
 
 // Auto-grow single-line text fields: sized like the Inputs they replace, but the
 // shadcn Textarea's `field-sizing-content` lets them grow vertically with content.
@@ -166,8 +191,19 @@ export function MealPlanEditor({
   const watched = form.watch('meals');
   // Options are interchangeable alternatives — the day total counts only the first
   // (primary) option of each meal.
-  function totalFor(macro: 'calories' | 'protein' | 'carbs' | 'fats'): number {
+  function totalFor(macro: MacroKey): number {
     return sum((watched ?? []).flatMap((m) => (m.options?.[0]?.items ?? []).map((it) => it[macro])));
+  }
+
+  const targetsQuery = useNutritionTargets(patientId);
+  const latestTarget = targetsQuery.data?.[0];
+
+  function applyLatestTarget() {
+    if (!latestTarget) return;
+    form.setValue('targetCalories', String(latestTarget.targetCalories));
+    form.setValue('targetProtein', String(latestTarget.proteinGrams));
+    form.setValue('targetCarbs', String(latestTarget.carbGrams));
+    form.setValue('targetFats', String(latestTarget.fatGrams));
   }
 
   async function onSubmit(values: FormValues) {
@@ -212,11 +248,11 @@ export function MealPlanEditor({
   }
 
   if (!isCreate && query.isLoading) {
-    return <Skeleton className="h-64 w-full max-w-4xl" />;
+    return <Skeleton className="h-64 w-full max-w-5xl" />;
   }
   if (!isCreate && (query.isError || !query.data)) {
     return (
-      <div className="mx-auto max-w-4xl space-y-4">
+      <div className="mx-auto max-w-5xl space-y-4">
         <BackToPatient patientId={patientId} />
         <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
           Plano não encontrado.
@@ -228,7 +264,7 @@ export function MealPlanEditor({
   const pending = form.formState.isSubmitting || create.isPending || update.isPending;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className="mx-auto max-w-5xl space-y-4">
       <div className="flex items-center justify-between gap-2">
         <BackToPatient patientId={patientId} />
         {!isCreate && (
@@ -268,7 +304,21 @@ export function MealPlanEditor({
 
           {/* Metas (por dia) */}
           <div className="rounded-xl border bg-card p-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Metas (por dia)</p>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Metas (por dia)</p>
+              {canEdit && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={applyLatestTarget}
+                  disabled={!latestTarget}
+                >
+                  Usar Meta atual
+                </Button>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {TARGETS.map((t) => (
                 <label key={t.key} className="text-xs">
@@ -281,16 +331,17 @@ export function MealPlanEditor({
 
           {/* Totals bar (first option per meal) */}
           <div className="sticky top-0 z-10 flex flex-wrap gap-4 rounded-xl border bg-card p-3">
-            {TARGETS.map((t) => {
-              const total = totalFor(t.total);
-              const target = Number(form.watch(t.key)) || 0;
+            {ITEM_MACROS.map((m) => {
+              const total = totalFor(m.key);
+              const targetKey = MACRO_TARGET[m.key];
+              const target = targetKey ? Number(form.watch(targetKey)) || 0 : 0;
               return (
-                <div key={t.total} className="text-center">
-                  <b data-testid={`total-${t.total}`} className="block text-sm">
+                <div key={m.key} className="text-center">
+                  <b data-testid={`total-${m.key}`} className="block text-sm">
                     {total}
                     {target > 0 && <span className="text-muted-foreground">/{target}</span>}
                   </b>
-                  <span className="text-[10px] text-muted-foreground">{t.label}</span>
+                  <span className="text-[10px] text-muted-foreground">{m.label}</span>
                 </div>
               );
             })}
@@ -302,6 +353,7 @@ export function MealPlanEditor({
               key={mealField.id}
               control={form.control}
               register={form.register}
+              setValue={form.setValue}
               mealIndex={mealIndex}
               canEdit={canEdit}
               isFirst={mealIndex === 0}
@@ -374,6 +426,7 @@ export function MealPlanEditor({
 function MealCard({
   control,
   register,
+  setValue,
   mealIndex,
   canEdit,
   isFirst,
@@ -384,6 +437,7 @@ function MealCard({
 }: {
   control: Control<FormValues>;
   register: UseFormRegister<FormValues>;
+  setValue: UseFormSetValue<FormValues>;
   mealIndex: number;
   canEdit: boolean;
   isFirst: boolean;
@@ -416,6 +470,7 @@ function MealCard({
             key={optionField.id}
             control={control}
             register={register}
+            setValue={setValue}
             mealIndex={mealIndex}
             optionIndex={optionIndex}
             canEdit={canEdit}
@@ -440,6 +495,7 @@ function MealCard({
 function OptionCard({
   control,
   register,
+  setValue,
   mealIndex,
   optionIndex,
   canEdit,
@@ -451,6 +507,7 @@ function OptionCard({
 }: {
   control: Control<FormValues>;
   register: UseFormRegister<FormValues>;
+  setValue: UseFormSetValue<FormValues>;
   mealIndex: number;
   optionIndex: number;
   canEdit: boolean;
@@ -462,8 +519,45 @@ function OptionCard({
 }) {
   const items = useFieldArray({ control, name: `meals.${mealIndex}.options.${optionIndex}.items` as const });
   const watchedItems = useWatch({ control, name: `meals.${mealIndex}.options.${optionIndex}.items` }) as ItemValues[] | undefined;
-  const subtotal = (macro: 'calories' | 'protein' | 'carbs' | 'fats') =>
+  const subtotal = (macro: MacroKey) =>
     sum((watchedItems ?? []).map((it) => it[macro]));
+
+  const [pickerFor, setPickerFor] = useState<number | null>(null);
+  const foodCache = useRef<Record<string, Food>>({});
+
+  const setField = (itemIndex: number, field: string, value: string) =>
+    setValue(
+      `meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.${field}` as Path<FormValues>,
+      value,
+    );
+
+  function fillMacros(itemIndex: number, food: Food, grams: number) {
+    const m = macrosForPortion(food, grams);
+    setField(itemIndex, 'calories', String(m.calories));
+    setField(itemIndex, 'protein', String(m.protein));
+    setField(itemIndex, 'carbs', String(m.carbs));
+    setField(itemIndex, 'fats', String(m.fats));
+    setField(itemIndex, 'fiber', String(m.fiber));
+    setField(itemIndex, 'sodium', String(m.sodium));
+  }
+
+  function onPickFood(itemIndex: number, food: Food) {
+    foodCache.current[food.id] = food;
+    setField(itemIndex, 'foodId', food.id);
+    setField(itemIndex, 'foodName', food.name);
+    const gramsStr = (watchedItems?.[itemIndex]?.grams ?? '').trim();
+    const grams = Number(gramsStr) || 100;
+    if (!gramsStr) setField(itemIndex, 'grams', '100');
+    fillMacros(itemIndex, food, grams);
+  }
+
+  function onGramsChange(itemIndex: number, value: string) {
+    setField(itemIndex, 'grams', value);
+    const foodId = watchedItems?.[itemIndex]?.foodId;
+    const food = foodId ? foodCache.current[foodId] : undefined;
+    const grams = Number(value);
+    if (food && grams > 0) fillMacros(itemIndex, food, grams);
+  }
 
   return (
     <div data-testid="option-card" className="rounded-lg border bg-background p-3">
@@ -488,16 +582,46 @@ function OptionCard({
         <table className="w-full text-xs">
           <thead>
             <tr className="text-left text-[10px] uppercase text-muted-foreground">
-              <th className="py-1">Alimento</th><th className="py-1">Qtd</th>
-              <th className="py-1">Kcal</th><th className="py-1">P</th><th className="py-1">C</th><th className="py-1">G</th>
+              {canEdit && <th />}
+              <th className="py-1">Alimento</th>
+              <th className="py-1">Qtd</th>
+              <th className="py-1">Gramas</th>
+              {ITEM_MACROS.map((m) => (
+                <th key={m.key} className="py-1">{m.label}</th>
+              ))}
               {canEdit && <th />}
             </tr>
           </thead>
           <tbody>
             {items.fields.map((itemField, itemIndex) => (
               <tr key={itemField.id}>
-                <td className="py-1 pr-1 align-top"><Textarea rows={1} className={GROW_SM} aria-label="Alimento" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.foodName`)} /></td>
-                <td className="py-1 pr-1 align-top"><Textarea rows={1} className={`w-40 ${GROW_SM}`} aria-label="Quantidade" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`)} /></td>
+                {canEdit && (
+                  <td className="py-1 pr-1 align-top">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full"
+                      aria-label="Buscar alimento"
+                      onClick={() => setPickerFor(itemIndex)}
+                    >
+                      🔍
+                    </Button>
+                  </td>
+                )}
+                <td className="py-1 pr-1 align-top"><Textarea rows={1} className={`w-48 ${GROW_SM}`} aria-label="Alimento" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.foodName`)} /></td>
+                <td className="py-1 pr-1 align-top"><Textarea rows={1} className={`w-24 ${GROW_SM}`} aria-label="Quantidade" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`)} /></td>
+                <td className="py-1 pr-1 align-top">
+                  <Input
+                    className="h-7 w-16"
+                    type="number"
+                    inputMode="decimal"
+                    step="any"
+                    aria-label="Gramas"
+                    value={watchedItems?.[itemIndex]?.grams ?? ''}
+                    onChange={(e) => onGramsChange(itemIndex, e.target.value)}
+                  />
+                </td>
                 {ITEM_MACROS.map((m) => (
                   <td key={m.key} className="py-1 pr-1 align-top">
                     <Input className="h-7 w-16" type="number" inputMode="decimal" step="any" aria-label={m.label}
@@ -520,10 +644,11 @@ function OptionCard({
       </div>
 
       <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-muted-foreground">
-        <span data-testid="option-subtotal-calories">{subtotal('calories')} kcal</span>
-        <span data-testid="option-subtotal-protein">P {subtotal('protein')}</span>
-        <span data-testid="option-subtotal-carbs">C {subtotal('carbs')}</span>
-        <span data-testid="option-subtotal-fats">G {subtotal('fats')}</span>
+        {ITEM_MACROS.map((m) => (
+          <span key={m.key} data-testid={`option-subtotal-${m.key}`}>
+            {m.label} {subtotal(m.key)}
+          </span>
+        ))}
       </div>
 
       {canEdit && (
@@ -531,6 +656,12 @@ function OptionCard({
           + Adicionar item
         </button>
       )}
+
+      <FoodPickerDialog
+        open={pickerFor !== null}
+        onOpenChange={(o) => { if (!o) setPickerFor(null); }}
+        onPick={(food) => { if (pickerFor !== null) onPickFood(pickerFor, food); setPickerFor(null); }}
+      />
     </div>
   );
 }
