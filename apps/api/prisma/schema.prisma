@@ -130,6 +130,7 @@ model PatientProfile {
   outsideHomeRequests OutsideHomeRequest[]
   silhuetaScans  SilhuetaScan[]
   nutritionTargets NutritionTarget[]
+  consents       PatientConsent[]
 
   @@index([nutritionistId])
 }
@@ -161,6 +162,16 @@ model NutritionTarget {
   carbGrams         Float
 
   @@index([patientId, targetDate])
+}
+
+model PatientConsent {
+  id            String   @id @default(uuid())
+  patientId     String
+  patient       PatientProfile @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  policyVersion String
+  acceptedAt    DateTime @default(now())
+
+  @@index([patientId, acceptedAt])
 }
 
 model Appointment {

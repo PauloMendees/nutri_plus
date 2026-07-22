@@ -17,3 +17,4 @@ export * from './energy';
 export * from './food';
 export * from './food-portion';
 export * from './meal-targets';
+export * from './consent';

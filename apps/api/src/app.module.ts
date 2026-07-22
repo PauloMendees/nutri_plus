@@ -19,6 +19,7 @@ import { SilhuetaModule } from './silhueta/silhueta.module';
 import { NutritionTargetsModule } from './nutrition-targets/nutrition-targets.module';
 import { HealthModule } from './health/health.module';
 import { FoodsModule } from './foods/foods.module';
+import { ConsentModule } from './consent/consent.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { SupabaseAuthGuard } from './auth/guards/supabase-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
@@ -43,6 +44,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     NutritionTargetsModule,
     HealthModule,
     FoodsModule,
+    ConsentModule,
   ],
   // Global pipe/filter/guards are registered as providers (not imperatively in
   // main.ts) so any bootstrap of AppModule — including e2e Test modules —
