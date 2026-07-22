@@ -109,6 +109,11 @@ export function PatientDetail({
         <div className="min-w-0">
           <p className="font-bold">{patient.user.name}</p>
           <p className="truncate text-sm text-muted-foreground">{patient.user.email}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {patient.latestConsent
+              ? `Consentimento LGPD: aceito em ${new Date(patient.latestConsent.acceptedAt).toLocaleDateString('pt-BR')}`
+              : 'Consentimento LGPD: pendente'}
+          </p>
           {canEdit && (
             <div className="mt-1 flex gap-2">
               <label
