@@ -105,7 +105,6 @@ describe('PatientsService', () => {
       include: {
         user: { select: { id: true, name: true, email: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
-        consents: { orderBy: { acceptedAt: 'desc' }, take: 1 },
       },
       orderBy: { user: { name: 'asc' } },
       skip: 0,
@@ -133,7 +132,6 @@ describe('PatientsService', () => {
       include: {
         user: { select: { id: true, name: true, email: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
-        consents: { orderBy: { acceptedAt: 'desc' }, take: 1 },
       },
       orderBy: { user: { name: 'asc' } },
       skip: 0,
@@ -170,7 +168,6 @@ describe('PatientsService', () => {
       include: {
         user: { select: { id: true, name: true, email: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
-        consents: { orderBy: { acceptedAt: 'desc' }, take: 1 },
       },
       orderBy: { user: { name: 'asc' } },
       skip: 10,
@@ -190,6 +187,28 @@ describe('PatientsService', () => {
     await expect(
       service.listPatients(ctxWithNutritionist(null)),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('never leaks consents into a PatientSummary list item', async () => {
+    // Simulates a raw row that (incorrectly) carries a consents relation —
+    // e.g. from a stale/reverted include — to guard the summary shape
+    // regardless of what the query itself fetches.
+    prisma.$transaction.mockResolvedValue([
+      [
+        {
+          id: 'p1',
+          height: null,
+          assessments: [],
+          consents: [{ policyVersion: 'x', acceptedAt: new Date() }],
+        },
+      ],
+      1,
+    ] as any);
+
+    const result = await service.listPatients(ctx);
+
+    expect(result.items[0]).not.toHaveProperty('consents');
+    expect(result.items[0]).toEqual({ id: 'p1', height: null, imc: null });
   });
 
   it('returns patient detail with the latest assessment, scoped by ownership', async () => {

@@ -24,6 +24,15 @@ const PATIENT_DETAIL_INCLUDE = {
   consents: { orderBy: { acceptedAt: 'desc' as const }, take: 1 },
 } as const;
 
+// listPatients only ever needs the fields folded into PatientSummary (user +
+// latest assessment for imc). It must NOT include consents: PatientSummary
+// has no field for it, so reusing PATIENT_DETAIL_INCLUDE here would leak the
+// raw consents relation (policyVersion/acceptedAt) into every list row.
+const PATIENT_LIST_INCLUDE = {
+  user: USER_SUMMARY,
+  assessments: { orderBy: { assessmentDate: 'desc' as const }, take: 1 },
+} as const;
+
 @Injectable()
 export class PatientsService {
   constructor(
@@ -99,7 +108,7 @@ export class PatientsService {
     const [rawItems, total] = await this.prisma.$transaction([
       this.prisma.patientProfile.findMany({
         where,
-        include: PATIENT_DETAIL_INCLUDE,
+        include: PATIENT_LIST_INCLUDE,
         orderBy: { user: { name: 'asc' } },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -107,10 +116,18 @@ export class PatientsService {
       this.prisma.patientProfile.count({ where }),
     ]);
 
-    const items = rawItems.map(({ assessments, ...rest }) => ({
-      ...rest,
-      imc: computeImc(rest.height, assessments[0]?.weight ?? null),
-    }));
+    // PatientSummary never carries consent data (only PatientDetail.
+    // latestConsent does, via getPatient). PATIENT_LIST_INCLUDE already
+    // doesn't fetch consents, but `consents` is also stripped here — as
+    // defense in depth — in case a raw row ever carries one anyway. The cast
+    // just widens the destructure target; it does not affect the real,
+    // consents-less Prisma return type.
+    const items = rawItems.map((raw) => {
+      const { assessments, consents: _consents, ...rest } = raw as typeof raw & {
+        consents?: unknown;
+      };
+      return { ...rest, imc: computeImc(rest.height, assessments[0]?.weight ?? null) };
+    });
 
     return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
   }
