@@ -300,17 +300,38 @@ export class PatientsService {
     const userId = ctx.user!.id;
     const authProviderId = ctx.user!.authProviderId;
 
+    // Read the photo path before teardown (the row is gone after the tx).
+    const profile = await this.prisma.patientProfile.findUnique({
+      where: { id: patientId },
+      select: { photoUrl: true },
+    });
+
     await this.prisma.$transaction(async (tx) => {
       await tx.outsideHomeRequest.deleteMany({ where: { patientId } });
       await tx.aIInteraction.deleteMany({ where: { patientId } });
       await tx.appointment.deleteMany({ where: { patientId } });
       await tx.bodyAssessment.deleteMany({ where: { patientId } });
+      await tx.nutritionTarget.deleteMany({ where: { patientId } });
+      await tx.silhuetaScan.deleteMany({ where: { patientId } });
       await tx.mealPlan.deleteMany({ where: { patientId } });
       await tx.patientProfile.delete({ where: { id: patientId } });
       await tx.user.delete({ where: { id: userId } });
     });
 
     await this.supabaseAdmin.deleteUser(authProviderId);
+
+    // Best-effort: the account is already deleted; a failed object removal must
+    // not surface as an error (an orphan file is acceptable).
+    if (profile?.photoUrl) {
+      const path = profile.photoUrl.split('/').pop();
+      if (path) {
+        try {
+          await this.supabaseAdmin.removeObject(PHOTO_BUCKET, path);
+        } catch {
+          // ignore
+        }
+      }
+    }
   }
 
   // Patient-facing (LGPD access): the caller exports THEIR OWN data as one JSON

@@ -670,6 +670,8 @@ describe('PatientsService', () => {
       expect(prisma.aIInteraction.deleteMany).toHaveBeenCalledWith({ where: { patientId: 'pp-1' } });
       expect(prisma.appointment.deleteMany).toHaveBeenCalledWith({ where: { patientId: 'pp-1' } });
       expect(prisma.bodyAssessment.deleteMany).toHaveBeenCalledWith({ where: { patientId: 'pp-1' } });
+      expect(prisma.nutritionTarget.deleteMany).toHaveBeenCalledWith({ where: { patientId: 'pp-1' } });
+      expect(prisma.silhuetaScan.deleteMany).toHaveBeenCalledWith({ where: { patientId: 'pp-1' } });
       expect(prisma.mealPlan.deleteMany).toHaveBeenCalledWith({ where: { patientId: 'pp-1' } });
       expect(prisma.patientProfile.delete).toHaveBeenCalledWith({ where: { id: 'pp-1' } });
       expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'user-p' } });
@@ -677,6 +679,8 @@ describe('PatientsService', () => {
       // children before the profile; profile before the user
       const order = (m: { mock: { invocationCallOrder: number[] } }) => m.mock.invocationCallOrder[0];
       expect(order(prisma.bodyAssessment.deleteMany)).toBeLessThan(order(prisma.patientProfile.delete));
+      expect(order(prisma.nutritionTarget.deleteMany)).toBeLessThan(order(prisma.patientProfile.delete));
+      expect(order(prisma.silhuetaScan.deleteMany)).toBeLessThan(order(prisma.patientProfile.delete));
       expect(order(prisma.mealPlan.deleteMany)).toBeLessThan(order(prisma.patientProfile.delete));
       expect(order(prisma.patientProfile.delete)).toBeLessThan(order(prisma.user.delete));
 
@@ -690,6 +694,30 @@ describe('PatientsService', () => {
       );
       expect(prisma.$transaction).not.toHaveBeenCalled();
       expect(supabaseAdmin.deleteUser).not.toHaveBeenCalled();
+    });
+
+    it('reads the profile photo before teardown and removes it best-effort after', async () => {
+      prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
+      prisma.patientProfile.findUnique.mockResolvedValue({
+        photoUrl: 'https://x.supabase.co/storage/v1/object/public/patient-photos/pp-1.png',
+      } as any);
+
+      await service.deleteMyAccount(ctxPatient('pp-1', 'nutri-1'));
+
+      expect(supabaseAdmin.removeObject).toHaveBeenCalledWith('patient-photos', 'pp-1.png');
+      // removal happens after the auth user is deleted
+      const order = (m: { mock: { invocationCallOrder: number[] } }) => m.mock.invocationCallOrder[0];
+      expect(order(supabaseAdmin.deleteUser)).toBeLessThan(order(supabaseAdmin.removeObject));
+    });
+
+    it('still resolves when the photo removal fails (best-effort)', async () => {
+      prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
+      prisma.patientProfile.findUnique.mockResolvedValue({
+        photoUrl: 'https://x/patient-photos/pp-1.png',
+      } as any);
+      supabaseAdmin.removeObject.mockRejectedValue(new Error('storage down'));
+
+      await expect(service.deleteMyAccount(ctxPatient('pp-1', 'nutri-1'))).resolves.toBeUndefined();
     });
   });
 
