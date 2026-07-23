@@ -9,6 +9,8 @@ import { usePatient, useUploadPatientPhoto, useDeletePatientPhoto } from '@/lib/
 import { useAssessments } from '@/lib/queries/assessments';
 import { downloadAssessmentsPdf } from '@/lib/api/assessments';
 import { EditPatientForm } from '@/components/patients/edit-patient-form';
+import { AnamneseSection } from '@/components/patients/anamnese-section';
+import { ConsultationAudioSection } from '@/components/patients/consultation-audio-section';
 import { BioimpedanceSection } from '@/components/patients/bioimpedance-section';
 import { MealPlansSection } from '@/components/patients/meal-plans-section';
 import { SilhuetaSection } from '@/components/patients/silhueta-section';
@@ -172,6 +174,7 @@ export function PatientDetail({
       <Tabs defaultValue="dados">
         <TabsList>
           <TabsTrigger value="dados">Dados</TabsTrigger>
+          <TabsTrigger value="anamnese">Anamnese</TabsTrigger>
           <TabsTrigger value="bioimpedancia">Bioimpedância</TabsTrigger>
           {canEdit && <TabsTrigger value="metas">Metas</TabsTrigger>}
           <TabsTrigger value="planos">Planos alimentares</TabsTrigger>
@@ -184,6 +187,15 @@ export function PatientDetail({
         </TabsList>
         <TabsContent value="dados">
           <EditPatientForm patient={patient} canEdit={canEdit} />
+        </TabsContent>
+        <TabsContent value="anamnese">
+          {/* Recorder + history live inside the Anamnese tab so the nutritionist can
+              record the consultation while filling the anamnese (switching tabs
+              would unmount the recorder and release the mic). */}
+          <div className="space-y-6">
+            <ConsultationAudioSection patientId={patient.id} canEdit={canEdit} />
+            <AnamneseSection patientId={patient.id} canEdit={canEdit} />
+          </div>
         </TabsContent>
         <TabsContent value="bioimpedancia">
           <BioimpedanceSection patientId={patient.id} canEdit={canEdit} />

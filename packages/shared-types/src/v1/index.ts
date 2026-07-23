@@ -19,3 +19,5 @@ export * from './food-portion';
 export * from './meal-targets';
 export * from './consent';
 export * from './data-export';
+export * from './anamnese';
+export * from './consultation-audio';

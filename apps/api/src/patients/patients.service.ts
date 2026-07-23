@@ -292,12 +292,14 @@ export class PatientsService {
   // with onDelete: Restrict is removed first, in one transaction, before the
   // profile: OutsideHomeRequest, AIInteraction, Appointment, BodyAssessment,
   // NutritionTarget, SilhuetaScan, MealPlan (its own children cascade). Then the
-  // profile, then the local user. PatientConsent cascades with the profile.
+  // profile, then the local user. PatientConsent and ConsultationAudio cascade
+  // with the profile (onDelete: Cascade) — no deleteMany needed for either.
   // Only after the tx commits do we remove the Supabase auth user (frees the
-  // email for a future invite) and then, best-effort, the profile photo object:
-  // both are best-effort (deleteUser logs/never throws; the photo removal is
-  // wrapped) so a provider hiccup leaves an orphan to clean up rather than
-  // resurrecting the now-deleted local data.
+  // email for a future invite) and then, best-effort, the profile photo object
+  // and each consultation-audio object: all are best-effort (deleteUser and
+  // removeObject log/never throw; the photo removal is additionally wrapped)
+  // so a provider hiccup leaves an orphan to clean up rather than resurrecting
+  // the now-deleted local data.
   async deleteMyAccount(ctx: AuthContext): Promise<void> {
     const patientId = resolveScopePatientId(ctx);
     const userId = ctx.user!.id;
@@ -307,6 +309,14 @@ export class PatientsService {
     const profile = await this.prisma.patientProfile.findUnique({
       where: { id: patientId },
       select: { photoUrl: true },
+    });
+
+    // Same reason: ConsultationAudio rows cascade with patientProfile.delete
+    // (onDelete: Cascade), so read their storage paths before the tx removes
+    // the rows.
+    const audios = await this.prisma.consultationAudio.findMany({
+      where: { patientId },
+      select: { storagePath: true },
     });
 
     await this.prisma.$transaction(async (tx) => {
@@ -335,6 +345,10 @@ export class PatientsService {
         }
       }
     }
+
+    for (const a of audios) {
+      await this.supabaseAdmin.removeObject('consultation-audio', a.storagePath);
+    }
   }
 
   // Patient-facing (LGPD access): the caller exports THEIR OWN data as one JSON
@@ -345,8 +359,9 @@ export class PatientsService {
       where: { id: patientId },
       include: { user: { select: { name: true, email: true } } },
     });
-    const [assessments, mealPlans, nutritionTargets, silhuetaScans, appointments, consents] =
+    const [anamnese, assessments, mealPlans, nutritionTargets, silhuetaScans, appointments, consents] =
       await Promise.all([
+        this.prisma.patientAnamnese.findUnique({ where: { patientId } }),
         this.prisma.bodyAssessment.findMany({ where: { patientId }, orderBy: { assessmentDate: 'asc' } }),
         this.prisma.mealPlan.findMany({
           where: { patientId },
@@ -387,6 +402,7 @@ export class PatientsService {
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
       },
+      anamnese,
       assessments,
       mealPlans,
       nutritionTargets,

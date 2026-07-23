@@ -17,6 +17,8 @@ import { NutritionistSettingsModule } from './nutritionist-settings/nutritionist
 import { OutsideHomeModule } from './outside-home/outside-home.module';
 import { SilhuetaModule } from './silhueta/silhueta.module';
 import { NutritionTargetsModule } from './nutrition-targets/nutrition-targets.module';
+import { AnamneseModule } from './patients/anamnese/anamnese.module';
+import { AudiosModule } from './patients/audios/audios.module';
 import { HealthModule } from './health/health.module';
 import { FoodsModule } from './foods/foods.module';
 import { ConsentModule } from './consent/consent.module';
@@ -42,6 +44,8 @@ import { RolesGuard } from './auth/guards/roles.guard';
     OutsideHomeModule,
     SilhuetaModule,
     NutritionTargetsModule,
+    AnamneseModule,
+    AudiosModule,
     HealthModule,
     FoodsModule,
     ConsentModule,

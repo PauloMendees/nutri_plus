@@ -93,6 +93,10 @@ describe('PatientsService', () => {
     users = mockDeep<UsersService>();
     supabaseAdmin = mockDeep<SupabaseAdminService>();
     service = new PatientsService(prisma, users, supabaseAdmin);
+    // deleteMyAccount reads this before teardown; default to none so the
+    // pre-existing deleteMyAccount specs (which don't set this up) don't
+    // iterate over an unmocked (undefined) result.
+    prisma.consultationAudio.findMany.mockResolvedValue([]);
   });
 
   it('scopes an employee to the owning nutritionist and paginates', async () => {
@@ -719,6 +723,21 @@ describe('PatientsService', () => {
 
       await expect(service.deleteMyAccount(ctxPatient('pp-1', 'nutri-1'))).resolves.toBeUndefined();
     });
+
+    it('removes consultation-audio objects after teardown (best-effort; rows cascade)', async () => {
+      prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
+      prisma.consultationAudio.findMany.mockResolvedValue([{ storagePath: 'p1/au1.webm' }] as any);
+
+      await service.deleteMyAccount(ctxPatient('pp-1', 'nutri-1'));
+
+      expect(prisma.consultationAudio.findMany).toHaveBeenCalledWith({
+        where: { patientId: 'pp-1' },
+        select: { storagePath: true },
+      });
+      expect(supabaseAdmin.removeObject).toHaveBeenCalledWith('consultation-audio', 'p1/au1.webm');
+      // rows cascade with patientProfile.delete: no deleteMany for consultationAudio
+      expect(prisma.consultationAudio.deleteMany).not.toHaveBeenCalled();
+    });
   });
 
   describe('exportMyData', () => {
@@ -730,6 +749,7 @@ describe('PatientsService', () => {
         createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-02'),
         user: { name: 'Ana', email: 'ana@x.com' },
       } as any);
+      prisma.patientAnamnese.findUnique.mockResolvedValue({ id: 'an1', patientId: 'pp-1', mainComplaint: 'Cansaço' } as any);
       prisma.bodyAssessment.findMany.mockResolvedValue([{ id: 'a1' }] as any);
       prisma.mealPlan.findMany.mockResolvedValue([{ id: 'mp1' }] as any);
       prisma.nutritionTarget.findMany.mockResolvedValue([{ id: 'nt1' }] as any);
@@ -746,12 +766,35 @@ describe('PatientsService', () => {
       ]) {
         expect(m).toHaveBeenCalledWith(expect.objectContaining({ where: { patientId: 'pp-1' } }));
       }
+      expect(prisma.patientAnamnese.findUnique).toHaveBeenCalledWith({ where: { patientId: 'pp-1' } });
       expect(out.profile).toEqual(expect.objectContaining({ name: 'Ana', email: 'ana@x.com', height: 170 }));
       expect(out).toEqual(expect.objectContaining({
+        anamnese: { id: 'an1', patientId: 'pp-1', mainComplaint: 'Cansaço' },
         assessments: [{ id: 'a1' }], mealPlans: [{ id: 'mp1' }], nutritionTargets: [{ id: 'nt1' }],
         silhuetaScans: [{ id: 's1' }], appointments: [{ id: 'ap1' }], consents: [{ id: 'c1' }],
       }));
       expect(typeof out.exportedAt).toBe('string');
+    });
+
+    it('includes anamnese: null when the patient has not filled it out yet', async () => {
+      prisma.patientProfile.findUniqueOrThrow.mockResolvedValue({
+        birthDate: null, gender: null, height: 170, targetWeight: null, objective: null,
+        activityLevel: null, restrictions: null, allergies: null, medicalConditions: null,
+        notes: null, canLogAssessments: false, showMealTargetToPatient: false, photoUrl: null,
+        createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-02'),
+        user: { name: 'Ana', email: 'ana@x.com' },
+      } as any);
+      prisma.patientAnamnese.findUnique.mockResolvedValue(null);
+      prisma.bodyAssessment.findMany.mockResolvedValue([]);
+      prisma.mealPlan.findMany.mockResolvedValue([]);
+      prisma.nutritionTarget.findMany.mockResolvedValue([]);
+      prisma.silhuetaScan.findMany.mockResolvedValue([]);
+      prisma.appointment.findMany.mockResolvedValue([]);
+      prisma.patientConsent.findMany.mockResolvedValue([]);
+
+      const out = await service.exportMyData(ctxPatient('pp-1', 'nutri-1'));
+
+      expect(out.anamnese).toBeNull();
     });
   });
 });
