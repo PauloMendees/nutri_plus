@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-const emptyToUndefined = (v: unknown) => (v === '' || v === null ? undefined : v);
-const optText = z.preprocess(emptyToUndefined, z.string().max(2000).optional());
-const optNum = z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional());
+const emptyToNull = (v: unknown) => (v === '' || v == null ? null : v);
+const optText = z.preprocess(emptyToNull, z.string().max(2000).nullable());
+const optNum = z.preprocess(emptyToNull, z.coerce.number().min(0).nullable());
 
 export const anamneseSchema = z.object({
   mainComplaint: optText, medications: optText, familyHistory: optText, supplements: optText,

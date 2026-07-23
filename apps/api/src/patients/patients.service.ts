@@ -359,8 +359,9 @@ export class PatientsService {
       where: { id: patientId },
       include: { user: { select: { name: true, email: true } } },
     });
-    const [assessments, mealPlans, nutritionTargets, silhuetaScans, appointments, consents] =
+    const [anamnese, assessments, mealPlans, nutritionTargets, silhuetaScans, appointments, consents] =
       await Promise.all([
+        this.prisma.patientAnamnese.findUnique({ where: { patientId } }),
         this.prisma.bodyAssessment.findMany({ where: { patientId }, orderBy: { assessmentDate: 'asc' } }),
         this.prisma.mealPlan.findMany({
           where: { patientId },
@@ -401,6 +402,7 @@ export class PatientsService {
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
       },
+      anamnese,
       assessments,
       mealPlans,
       nutritionTargets,

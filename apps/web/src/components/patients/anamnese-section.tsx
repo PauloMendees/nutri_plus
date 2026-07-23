@@ -42,7 +42,7 @@ export function AnamneseSection({ patientId, canEdit }: { patientId: string; can
       const d = query.data;
       form.reset(Object.fromEntries(
         GROUPS.flatMap((g) => g.fields).map((f) => [f.key, str(d[f.key as keyof typeof d] as never)]),
-      ) as AnamneseFormValues);
+      ) as unknown as AnamneseFormValues);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query.data]);

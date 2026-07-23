@@ -55,6 +55,15 @@ describe('AnamneseSection', () => {
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
   });
 
+  it('submits null (not omitted/undefined) for a field cleared by the user', async () => {
+    render(<AnamneseSection patientId="p1" canEdit />);
+    const field = screen.getByLabelText(/queixa principal/i);
+    await userEvent.clear(field);
+    await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+    expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ mainComplaint: null }));
+  });
+
   it('has no Save button and disabled fields when canEdit is false', () => {
     render(<AnamneseSection patientId="p1" canEdit={false} />);
     expect(screen.queryByRole('button', { name: /salvar/i })).not.toBeInTheDocument();

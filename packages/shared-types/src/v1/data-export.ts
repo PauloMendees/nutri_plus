@@ -5,6 +5,7 @@ import type { NutritionTarget } from './nutrition-target';
 import type { SilhuetaScan } from './silhueta';
 import type { Appointment } from './appointment';
 import type { PatientConsent } from './consent';
+import type { PatientAnamnese } from './anamnese';
 
 export interface MyDataExportProfile {
   name: string;
@@ -32,6 +33,7 @@ export interface MyDataExportProfile {
 export interface MyDataExport {
   exportedAt: string;
   profile: MyDataExportProfile;
+  anamnese: PatientAnamnese | null;
   assessments: BodyAssessment[];
   mealPlans: MealPlan[];
   nutritionTargets: NutritionTarget[];
