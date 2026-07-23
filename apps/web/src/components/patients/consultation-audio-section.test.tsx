@@ -57,4 +57,15 @@ describe('ConsultationAudioSection', () => {
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /excluir/i })).not.toBeInTheDocument();
   });
+
+  it('asks for confirmation before deleting, then calls the delete mutation with the audio id', async () => {
+    render(<ConsultationAudioSection patientId="p1" canEdit />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Excluir gravação' }));
+    expect(mutateAsync).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: /confirmar exclusão da gravação/i }));
+
+    expect(mutateAsync).toHaveBeenCalledWith(audio().id);
+  });
 });
