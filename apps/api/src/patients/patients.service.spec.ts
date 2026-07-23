@@ -93,6 +93,10 @@ describe('PatientsService', () => {
     users = mockDeep<UsersService>();
     supabaseAdmin = mockDeep<SupabaseAdminService>();
     service = new PatientsService(prisma, users, supabaseAdmin);
+    // deleteMyAccount reads this before teardown; default to none so the
+    // pre-existing deleteMyAccount specs (which don't set this up) don't
+    // iterate over an unmocked (undefined) result.
+    prisma.consultationAudio.findMany.mockResolvedValue([]);
   });
 
   it('scopes an employee to the owning nutritionist and paginates', async () => {
@@ -718,6 +722,21 @@ describe('PatientsService', () => {
       supabaseAdmin.removeObject.mockRejectedValue(new Error('storage down'));
 
       await expect(service.deleteMyAccount(ctxPatient('pp-1', 'nutri-1'))).resolves.toBeUndefined();
+    });
+
+    it('removes consultation-audio objects after teardown (best-effort; rows cascade)', async () => {
+      prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
+      prisma.consultationAudio.findMany.mockResolvedValue([{ storagePath: 'p1/au1.webm' }] as any);
+
+      await service.deleteMyAccount(ctxPatient('pp-1', 'nutri-1'));
+
+      expect(prisma.consultationAudio.findMany).toHaveBeenCalledWith({
+        where: { patientId: 'pp-1' },
+        select: { storagePath: true },
+      });
+      expect(supabaseAdmin.removeObject).toHaveBeenCalledWith('consultation-audio', 'p1/au1.webm');
+      // rows cascade with patientProfile.delete: no deleteMany for consultationAudio
+      expect(prisma.consultationAudio.deleteMany).not.toHaveBeenCalled();
     });
   });
 

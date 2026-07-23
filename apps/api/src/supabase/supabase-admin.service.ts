@@ -122,4 +122,39 @@ export class SupabaseAdminService {
       this.logger.warn(`Storage remove failed (bucket=${bucket})`);
     }
   }
+
+  // Uploads to a PRIVATE bucket (auto-created private if missing). No public URL.
+  async uploadObject(bucket: string, path: string, body: Buffer, contentType: string): Promise<void> {
+    try {
+      const { data: existing } = await this.client.storage.getBucket(bucket);
+      if (!existing) {
+        await this.client.storage.createBucket(bucket, { public: false });
+      }
+      const { error } = await this.client.storage
+        .from(bucket)
+        .upload(path, body, { contentType, upsert: true });
+      if (error) {
+        throw error;
+      }
+    } catch {
+      this.logger.warn(`Storage upload failed (bucket=${bucket})`);
+      throw new BadGatewayException('Storage upload failed');
+    }
+  }
+
+  // Short-lived signed URL for reading a private object.
+  async createSignedUrl(bucket: string, path: string, expiresInSec: number): Promise<string> {
+    try {
+      const { data, error } = await this.client.storage
+        .from(bucket)
+        .createSignedUrl(path, expiresInSec);
+      if (error || !data) {
+        throw error ?? new Error('no signed url');
+      }
+      return data.signedUrl;
+    } catch {
+      this.logger.warn(`Signed URL failed (bucket=${bucket})`);
+      throw new BadGatewayException('Signed URL failed');
+    }
+  }
 }
