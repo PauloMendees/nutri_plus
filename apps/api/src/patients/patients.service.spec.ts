@@ -692,4 +692,38 @@ describe('PatientsService', () => {
       expect(supabaseAdmin.deleteUser).not.toHaveBeenCalled();
     });
   });
+
+  describe('exportMyData', () => {
+    it("returns the caller's own data, scoped by patientId, with all sections", async () => {
+      prisma.patientProfile.findUniqueOrThrow.mockResolvedValue({
+        birthDate: null, gender: null, height: 170, targetWeight: null, objective: null,
+        activityLevel: null, restrictions: null, allergies: null, medicalConditions: null,
+        notes: null, canLogAssessments: false, showMealTargetToPatient: false, photoUrl: null,
+        createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-02'),
+        user: { name: 'Ana', email: 'ana@x.com' },
+      } as any);
+      prisma.bodyAssessment.findMany.mockResolvedValue([{ id: 'a1' }] as any);
+      prisma.mealPlan.findMany.mockResolvedValue([{ id: 'mp1' }] as any);
+      prisma.nutritionTarget.findMany.mockResolvedValue([{ id: 'nt1' }] as any);
+      prisma.silhuetaScan.findMany.mockResolvedValue([{ id: 's1' }] as any);
+      prisma.appointment.findMany.mockResolvedValue([{ id: 'ap1' }] as any);
+      prisma.patientConsent.findMany.mockResolvedValue([{ id: 'c1' }] as any);
+
+      const out = await service.exportMyData(ctxPatient('pp-1', 'nutri-1'));
+
+      // every collection query is scoped to the caller's patientId
+      for (const m of [
+        prisma.bodyAssessment.findMany, prisma.mealPlan.findMany, prisma.nutritionTarget.findMany,
+        prisma.silhuetaScan.findMany, prisma.appointment.findMany, prisma.patientConsent.findMany,
+      ]) {
+        expect(m).toHaveBeenCalledWith(expect.objectContaining({ where: { patientId: 'pp-1' } }));
+      }
+      expect(out.profile).toEqual(expect.objectContaining({ name: 'Ana', email: 'ana@x.com', height: 170 }));
+      expect(out).toEqual(expect.objectContaining({
+        assessments: [{ id: 'a1' }], mealPlans: [{ id: 'mp1' }], nutritionTargets: [{ id: 'nt1' }],
+        silhuetaScans: [{ id: 's1' }], appointments: [{ id: 'ap1' }], consents: [{ id: 'c1' }],
+      }));
+      expect(typeof out.exportedAt).toBe('string');
+    });
+  });
 });

@@ -313,6 +313,65 @@ export class PatientsService {
     await this.supabaseAdmin.deleteUser(authProviderId);
   }
 
+  // Patient-facing (LGPD access): the caller exports THEIR OWN data as one JSON
+  // object. Scope resolves to the caller's own patientProfile — never another's.
+  async exportMyData(ctx: AuthContext) {
+    const patientId = resolveScopePatientId(ctx);
+    const p = await this.prisma.patientProfile.findUniqueOrThrow({
+      where: { id: patientId },
+      include: { user: { select: { name: true, email: true } } },
+    });
+    const [assessments, mealPlans, nutritionTargets, silhuetaScans, appointments, consents] =
+      await Promise.all([
+        this.prisma.bodyAssessment.findMany({ where: { patientId }, orderBy: { assessmentDate: 'asc' } }),
+        this.prisma.mealPlan.findMany({
+          where: { patientId },
+          orderBy: { createdAt: 'asc' },
+          include: {
+            meals: {
+              orderBy: { order: 'asc' },
+              include: {
+                options: { orderBy: { order: 'asc' }, include: { items: { orderBy: { order: 'asc' } } } },
+              },
+            },
+          },
+        }),
+        this.prisma.nutritionTarget.findMany({ where: { patientId }, orderBy: { targetDate: 'asc' } }),
+        this.prisma.silhuetaScan.findMany({ where: { patientId }, orderBy: { scanDate: 'asc' } }),
+        this.prisma.appointment.findMany({ where: { patientId }, orderBy: { startsAt: 'asc' } }),
+        this.prisma.patientConsent.findMany({ where: { patientId }, orderBy: { acceptedAt: 'asc' } }),
+      ]);
+
+    return {
+      exportedAt: new Date().toISOString(),
+      profile: {
+        name: p.user.name,
+        email: p.user.email,
+        birthDate: p.birthDate,
+        gender: p.gender,
+        height: p.height,
+        targetWeight: p.targetWeight,
+        objective: p.objective,
+        activityLevel: p.activityLevel,
+        restrictions: p.restrictions,
+        allergies: p.allergies,
+        medicalConditions: p.medicalConditions,
+        notes: p.notes,
+        canLogAssessments: p.canLogAssessments,
+        showMealTargetToPatient: p.showMealTargetToPatient,
+        photoUrl: p.photoUrl,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      },
+      assessments,
+      mealPlans,
+      nutritionTargets,
+      silhuetaScans,
+      appointments,
+      consents,
+    };
+  }
+
   // Consolidates the PatientDetail shape shared by getPatient/updatePatient/
   // uploadPhoto/removePhoto: derives imc from height + latest assessment, and
   // surfaces the latest LGPD consent (or null) while stripping the raw
