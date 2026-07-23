@@ -288,12 +288,15 @@ export class PatientsService {
     };
   }
 
-  // Permanently deletes the calling patient's account. Children are removed
-  // first (Appointment/BodyAssessment/AIInteraction use onDelete: Restrict;
-  // MealPlan children cascade), then the profile, then the local user — all in
-  // one transaction. Only after it commits do we remove the Supabase auth user,
-  // which frees the email for a future invite. deleteUser is best-effort (logs,
-  // never throws), so a provider hiccup leaves an orphan to clean up rather than
+  // Permanently deletes the calling patient's account. Every patient-owned child
+  // with onDelete: Restrict is removed first, in one transaction, before the
+  // profile: OutsideHomeRequest, AIInteraction, Appointment, BodyAssessment,
+  // NutritionTarget, SilhuetaScan, MealPlan (its own children cascade). Then the
+  // profile, then the local user. PatientConsent cascades with the profile.
+  // Only after the tx commits do we remove the Supabase auth user (frees the
+  // email for a future invite) and then, best-effort, the profile photo object:
+  // both are best-effort (deleteUser logs/never throws; the photo removal is
+  // wrapped) so a provider hiccup leaves an orphan to clean up rather than
   // resurrecting the now-deleted local data.
   async deleteMyAccount(ctx: AuthContext): Promise<void> {
     const patientId = resolveScopePatientId(ctx);
