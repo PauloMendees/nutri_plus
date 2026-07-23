@@ -21,6 +21,11 @@ jest.mock('../../../lib/queries/nutritionist', () => ({
 const mockApiFetch = jest.fn();
 jest.mock('../../../lib/api', () => ({ apiFetch: (...a: unknown[]) => mockApiFetch(...a) }));
 
+const mockDownloadMyData = jest.fn();
+jest.mock('../../../lib/queries/data-export', () => ({
+  downloadMyData: (...a: unknown[]) => mockDownloadMyData(...a),
+}));
+
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({ router: { push: (h: unknown) => mockPush(h), back: jest.fn() } }));
 
@@ -31,6 +36,7 @@ beforeEach(() => {
   mockSetMode.mockReset();
   mockMode = 'system';
   mockApiFetch.mockReset().mockResolvedValue(null);
+  mockDownloadMyData.mockReset().mockResolvedValue(undefined);
   mockPush.mockReset();
   mockNutritionist = {
     isLoading: false,
@@ -68,6 +74,22 @@ describe('Configurações index', () => {
     await render(<ConfiguracoesIndex />);
     await fireEvent.press(screen.getByText('Sair'));
     expect(mockSignOut).toHaveBeenCalled();
+  });
+
+  it('exports my data', async () => {
+    await render(<ConfiguracoesIndex />);
+    await fireEvent.press(screen.getByText('Exportar meus dados'));
+
+    await waitFor(() => expect(mockDownloadMyData).toHaveBeenCalled());
+    expect(await screen.findByText('Exportar meus dados')).toBeTruthy();
+  });
+
+  it('shows an error when the export fails', async () => {
+    mockDownloadMyData.mockRejectedValue(new Error('boom'));
+    await render(<ConfiguracoesIndex />);
+    await fireEvent.press(screen.getByText('Exportar meus dados'));
+
+    expect(await screen.findByText('Não foi possível exportar seus dados. Tente novamente.')).toBeTruthy();
   });
 
   it('confirms, deletes the account, and signs out', async () => {
