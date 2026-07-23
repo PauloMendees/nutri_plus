@@ -175,7 +175,6 @@ export function PatientDetail({
         <TabsList>
           <TabsTrigger value="dados">Dados</TabsTrigger>
           <TabsTrigger value="anamnese">Anamnese</TabsTrigger>
-          <TabsTrigger value="gravacoes">Gravações</TabsTrigger>
           <TabsTrigger value="bioimpedancia">Bioimpedância</TabsTrigger>
           {canEdit && <TabsTrigger value="metas">Metas</TabsTrigger>}
           <TabsTrigger value="planos">Planos alimentares</TabsTrigger>
@@ -190,10 +189,13 @@ export function PatientDetail({
           <EditPatientForm patient={patient} canEdit={canEdit} />
         </TabsContent>
         <TabsContent value="anamnese">
-          <AnamneseSection patientId={patient.id} canEdit={canEdit} />
-        </TabsContent>
-        <TabsContent value="gravacoes">
-          <ConsultationAudioSection patientId={patient.id} canEdit={canEdit} />
+          {/* Recorder + history live inside the Anamnese tab so the nutritionist can
+              record the consultation while filling the anamnese (switching tabs
+              would unmount the recorder and release the mic). */}
+          <div className="space-y-6">
+            <ConsultationAudioSection patientId={patient.id} canEdit={canEdit} />
+            <AnamneseSection patientId={patient.id} canEdit={canEdit} />
+          </div>
         </TabsContent>
         <TabsContent value="bioimpedancia">
           <BioimpedanceSection patientId={patient.id} canEdit={canEdit} />
