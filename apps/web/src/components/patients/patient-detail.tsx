@@ -9,6 +9,7 @@ import { usePatient, useUploadPatientPhoto, useDeletePatientPhoto } from '@/lib/
 import { useAssessments } from '@/lib/queries/assessments';
 import { downloadAssessmentsPdf } from '@/lib/api/assessments';
 import { EditPatientForm } from '@/components/patients/edit-patient-form';
+import { AnamneseSection } from '@/components/patients/anamnese-section';
 import { BioimpedanceSection } from '@/components/patients/bioimpedance-section';
 import { MealPlansSection } from '@/components/patients/meal-plans-section';
 import { SilhuetaSection } from '@/components/patients/silhueta-section';
@@ -172,6 +173,7 @@ export function PatientDetail({
       <Tabs defaultValue="dados">
         <TabsList>
           <TabsTrigger value="dados">Dados</TabsTrigger>
+          <TabsTrigger value="anamnese">Anamnese</TabsTrigger>
           <TabsTrigger value="bioimpedancia">Bioimpedância</TabsTrigger>
           {canEdit && <TabsTrigger value="metas">Metas</TabsTrigger>}
           <TabsTrigger value="planos">Planos alimentares</TabsTrigger>
@@ -184,6 +186,9 @@ export function PatientDetail({
         </TabsList>
         <TabsContent value="dados">
           <EditPatientForm patient={patient} canEdit={canEdit} />
+        </TabsContent>
+        <TabsContent value="anamnese">
+          <AnamneseSection patientId={patient.id} canEdit={canEdit} />
         </TabsContent>
         <TabsContent value="bioimpedancia">
           <BioimpedanceSection patientId={patient.id} canEdit={canEdit} />
