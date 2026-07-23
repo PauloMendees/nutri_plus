@@ -44,6 +44,12 @@ export class AudiosService {
     if (dto.consentConfirmed !== 'true') {
       throw new BadRequestException('É necessário o consentimento do paciente para gravar.');
     }
+    // Validate the client-declared audio mimetype here (not via FileTypeValidator):
+    // MediaRecorder produces webm/mp4/ogg, and webm is an EBML container that
+    // magic-number sniffing reports as video/webm, wrongly failing an /^audio\// check.
+    if (!file.mimetype.startsWith('audio/')) {
+      throw new BadRequestException('Arquivo de áudio inválido.');
+    }
     const id = randomUUID();
     const storagePath = `${patientId}/${id}.${extFromMime(file.mimetype)}`;
     await this.admin.uploadObject(AUDIO_BUCKET, storagePath, file.buffer, file.mimetype);

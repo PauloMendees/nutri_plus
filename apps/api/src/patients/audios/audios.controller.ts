@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Delete, FileTypeValidator, Get, MaxFileSizeValidator, Param,
+  Body, Controller, Delete, Get, MaxFileSizeValidator, Param,
   ParseFilePipe, Post, UploadedFile, UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -27,10 +27,7 @@ export class AudiosController {
     @Param('id') id: string,
     @UploadedFile(
       new ParseFilePipe({
-        validators: [
-          new MaxFileSizeValidator({ maxSize: MAX_AUDIO }),
-          new FileTypeValidator({ fileType: /^audio\// }),
-        ],
+        validators: [new MaxFileSizeValidator({ maxSize: MAX_AUDIO })],
       }),
     )
     file: { buffer: Buffer; mimetype: string },

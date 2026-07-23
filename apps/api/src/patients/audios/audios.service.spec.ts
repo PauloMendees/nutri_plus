@@ -28,6 +28,25 @@ describe('AudiosService', () => {
     expect(prisma.consultationAudio.create).not.toHaveBeenCalled();
   });
 
+  it('rejects a non-audio mimetype (400) and uploads/creates nothing', async () => {
+    await expect(
+      service.create(ctx, 'p1', { buffer: Buffer.from('x'), mimetype: 'image/png' }, { consentConfirmed: 'true' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(admin.uploadObject).not.toHaveBeenCalled();
+    expect(prisma.consultationAudio.create).not.toHaveBeenCalled();
+  });
+
+  it('accepts audio/webm (client mimetype), not blocked by container magic-number sniffing', async () => {
+    prisma.consultationAudio.create.mockResolvedValue({
+      id: 'au2', patientId: 'p1', mimeType: 'audio/webm', durationSec: null, consentConfirmed: true,
+      recordedAt: new Date(), storagePath: 'p1/au2.webm',
+    } as any);
+    await expect(
+      service.create(ctx, 'p1', { buffer: Buffer.from('x'), mimetype: 'audio/webm' }, { consentConfirmed: 'true' }),
+    ).resolves.toBeDefined();
+    expect(admin.uploadObject).toHaveBeenCalled();
+  });
+
   it('uploads to the private bucket and creates the row, returning a signed url (no storagePath)', async () => {
     prisma.consultationAudio.create.mockResolvedValue({
       id: 'au1', patientId: 'p1', mimeType: 'audio/webm', durationSec: 12, consentConfirmed: true,
