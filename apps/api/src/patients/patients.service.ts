@@ -288,29 +288,112 @@ export class PatientsService {
     };
   }
 
-  // Permanently deletes the calling patient's account. Children are removed
-  // first (Appointment/BodyAssessment/AIInteraction use onDelete: Restrict;
-  // MealPlan children cascade), then the profile, then the local user — all in
-  // one transaction. Only after it commits do we remove the Supabase auth user,
-  // which frees the email for a future invite. deleteUser is best-effort (logs,
-  // never throws), so a provider hiccup leaves an orphan to clean up rather than
+  // Permanently deletes the calling patient's account. Every patient-owned child
+  // with onDelete: Restrict is removed first, in one transaction, before the
+  // profile: OutsideHomeRequest, AIInteraction, Appointment, BodyAssessment,
+  // NutritionTarget, SilhuetaScan, MealPlan (its own children cascade). Then the
+  // profile, then the local user. PatientConsent cascades with the profile.
+  // Only after the tx commits do we remove the Supabase auth user (frees the
+  // email for a future invite) and then, best-effort, the profile photo object:
+  // both are best-effort (deleteUser logs/never throws; the photo removal is
+  // wrapped) so a provider hiccup leaves an orphan to clean up rather than
   // resurrecting the now-deleted local data.
   async deleteMyAccount(ctx: AuthContext): Promise<void> {
     const patientId = resolveScopePatientId(ctx);
     const userId = ctx.user!.id;
     const authProviderId = ctx.user!.authProviderId;
 
+    // Read the photo path before teardown (the row is gone after the tx).
+    const profile = await this.prisma.patientProfile.findUnique({
+      where: { id: patientId },
+      select: { photoUrl: true },
+    });
+
     await this.prisma.$transaction(async (tx) => {
       await tx.outsideHomeRequest.deleteMany({ where: { patientId } });
       await tx.aIInteraction.deleteMany({ where: { patientId } });
       await tx.appointment.deleteMany({ where: { patientId } });
       await tx.bodyAssessment.deleteMany({ where: { patientId } });
+      await tx.nutritionTarget.deleteMany({ where: { patientId } });
+      await tx.silhuetaScan.deleteMany({ where: { patientId } });
       await tx.mealPlan.deleteMany({ where: { patientId } });
       await tx.patientProfile.delete({ where: { id: patientId } });
       await tx.user.delete({ where: { id: userId } });
     });
 
     await this.supabaseAdmin.deleteUser(authProviderId);
+
+    // Best-effort: the account is already deleted; a failed object removal must
+    // not surface as an error (an orphan file is acceptable).
+    if (profile?.photoUrl) {
+      const path = profile.photoUrl.split('/').pop();
+      if (path) {
+        try {
+          await this.supabaseAdmin.removeObject(PHOTO_BUCKET, path);
+        } catch {
+          // ignore
+        }
+      }
+    }
+  }
+
+  // Patient-facing (LGPD access): the caller exports THEIR OWN data as one JSON
+  // object. Scope resolves to the caller's own patientProfile — never another's.
+  async exportMyData(ctx: AuthContext) {
+    const patientId = resolveScopePatientId(ctx);
+    const p = await this.prisma.patientProfile.findUniqueOrThrow({
+      where: { id: patientId },
+      include: { user: { select: { name: true, email: true } } },
+    });
+    const [assessments, mealPlans, nutritionTargets, silhuetaScans, appointments, consents] =
+      await Promise.all([
+        this.prisma.bodyAssessment.findMany({ where: { patientId }, orderBy: { assessmentDate: 'asc' } }),
+        this.prisma.mealPlan.findMany({
+          where: { patientId },
+          orderBy: { createdAt: 'asc' },
+          include: {
+            meals: {
+              orderBy: { order: 'asc' },
+              include: {
+                options: { orderBy: { order: 'asc' }, include: { items: { orderBy: { order: 'asc' } } } },
+              },
+            },
+          },
+        }),
+        this.prisma.nutritionTarget.findMany({ where: { patientId }, orderBy: { targetDate: 'asc' } }),
+        this.prisma.silhuetaScan.findMany({ where: { patientId }, orderBy: { scanDate: 'asc' } }),
+        this.prisma.appointment.findMany({ where: { patientId }, orderBy: { startsAt: 'asc' } }),
+        this.prisma.patientConsent.findMany({ where: { patientId }, orderBy: { acceptedAt: 'asc' } }),
+      ]);
+
+    return {
+      exportedAt: new Date().toISOString(),
+      profile: {
+        name: p.user.name,
+        email: p.user.email,
+        birthDate: p.birthDate,
+        gender: p.gender,
+        height: p.height,
+        targetWeight: p.targetWeight,
+        objective: p.objective,
+        activityLevel: p.activityLevel,
+        restrictions: p.restrictions,
+        allergies: p.allergies,
+        medicalConditions: p.medicalConditions,
+        notes: p.notes,
+        canLogAssessments: p.canLogAssessments,
+        showMealTargetToPatient: p.showMealTargetToPatient,
+        photoUrl: p.photoUrl,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      },
+      assessments,
+      mealPlans,
+      nutritionTargets,
+      silhuetaScans,
+      appointments,
+      consents,
+    };
   }
 
   // Consolidates the PatientDetail shape shared by getPatient/updatePatient/

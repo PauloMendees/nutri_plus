@@ -18,6 +18,11 @@ export class MeController {
     return this.patients.getMyNutritionist(ctx);
   }
 
+  @Get('data-export')
+  exportData(@CurrentUser() ctx: AuthContext) {
+    return this.patients.exportMyData(ctx);
+  }
+
   @Delete()
   @HttpCode(204)
   deleteAccount(@CurrentUser() ctx: AuthContext) {

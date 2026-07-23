@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSession } from '../../../lib/auth';
 import { useTheme, useThemeColor } from '../../../lib/theme';
 import { useMyNutritionist } from '../../../lib/queries/nutritionist';
+import { downloadMyData } from '../../../lib/queries/data-export';
 import { apiFetch } from '../../../lib/api';
 import { Screen } from '../../../components/ui/screen';
 import { BrandHeader } from '../../../components/brand/brand-header';
@@ -25,6 +26,20 @@ export default function ConfiguracoesIndex() {
   const destructiveColor = useThemeColor('--destructive');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  async function onExport() {
+    setExportError(null);
+    setExporting(true);
+    try {
+      await downloadMyData();
+    } catch {
+      setExportError('Não foi possível exportar seus dados. Tente novamente.');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   async function onDelete() {
     setDeleteError(null);
@@ -124,6 +139,23 @@ export default function ConfiguracoesIndex() {
           <Ionicons name="log-out-outline" size={20} color={foregroundColor} />
           <Text className="font-sans-medium text-base text-foreground">Sair</Text>
         </Pressable>
+
+        <View className="gap-2">
+          <Pressable
+            accessibilityRole="button"
+            onPress={onExport}
+            disabled={exporting}
+            className="flex-row items-center justify-center gap-2 rounded-xl border border-border p-4"
+          >
+            <Ionicons name="download-outline" size={20} color={foregroundColor} />
+            <Text className="font-sans-medium text-base text-foreground">
+              {exporting ? 'Exportando…' : 'Exportar meus dados'}
+            </Text>
+          </Pressable>
+          {exportError ? (
+            <Text className="font-sans text-sm text-destructive">{exportError}</Text>
+          ) : null}
+        </View>
 
         <View className="gap-2">
           <Pressable
