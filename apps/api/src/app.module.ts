@@ -21,6 +21,7 @@ import { AnamneseModule } from './patients/anamnese/anamnese.module';
 import { AudiosModule } from './patients/audios/audios.module';
 import { HealthModule } from './health/health.module';
 import { FoodsModule } from './foods/foods.module';
+import { FoodRecallsModule } from './food-recalls/food-recalls.module';
 import { ConsentModule } from './consent/consent.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { SupabaseAuthGuard } from './auth/guards/supabase-auth.guard';
@@ -48,6 +49,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     AudiosModule,
     HealthModule,
     FoodsModule,
+    FoodRecallsModule,
     ConsentModule,
   ],
   // Global pipe/filter/guards are registered as providers (not imperatively in
