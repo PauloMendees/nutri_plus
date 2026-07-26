@@ -221,7 +221,7 @@ export function FoodRecallEditor({
         {formError && <p className="text-sm text-destructive">{formError}</p>}
 
         {canEdit && (
-          <div className="flex items-center gap-2 border-t pt-4">
+          <div className="flex items-center justify-end gap-2 border-t pt-4">
             {!isCreate && (
               <Button type="button" variant="outline" className="mr-auto rounded-full text-destructive" onClick={onDelete} disabled={remove.isPending}>
                 Excluir
