@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const useFoodRecall = vi.fn();
@@ -57,6 +57,20 @@ describe('FoodRecallEditor (edit mode)', () => {
     expect(screen.getByDisplayValue('Ovos')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Arroz branco')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Nota teste')).toBeInTheDocument();
+  });
+
+  it('formata o horário da refeição automaticamente (1200 -> 12:00)', () => {
+    render(<FoodRecallEditor patientId="p1" recallId="r1" canEdit />);
+    const time = screen.getAllByLabelText('Horário')[0];
+    // Sob 2 dígitos: sem dois-pontos ainda.
+    fireEvent.change(time, { target: { value: '12' } });
+    expect(time).toHaveValue('12');
+    // 4 dígitos digitados de uma vez -> HH:MM.
+    fireEvent.change(time, { target: { value: '1200' } });
+    expect(time).toHaveValue('12:00');
+    // Não-dígitos (inclusive dois-pontos já digitado) são descartados e o horário é reconstruído.
+    fireEvent.change(time, { target: { value: '08:00' } });
+    expect(time).toHaveValue('08:00');
   });
 
   it('has a back link to the patient', () => {

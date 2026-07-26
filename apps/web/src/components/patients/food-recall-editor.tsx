@@ -42,6 +42,12 @@ const blankMeal = (): MealValues => ({ name: '', timeLabel: '', items: [blankIte
 const numToStr = (n: number | null) => (n == null ? '' : String(n));
 const dateInput = (iso: string) => new Date(iso).toISOString().slice(0, 10);
 
+// Máscara de horário: "1200" -> "12:00" (dois-pontos automático após 2 dígitos).
+const formatTimeLabel = (value: string): string => {
+  const digits = value.replace(/\D/g, '').slice(0, 4);
+  return digits.length <= 2 ? digits : `${digits.slice(0, 2)}:${digits.slice(2)}`;
+};
+
 function blankDefaults(): FormValues {
   return { recallDate: new Date().toISOString().slice(0, 10), notes: '', meals: [blankMeal()] };
 }
@@ -288,7 +294,19 @@ function MealCard({
     <div data-testid="recall-meal-card" className="rounded-xl border bg-card p-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Textarea rows={1} className={`max-w-48 ${GROW_SM}`} placeholder="Refeição" aria-label="Nome da refeição" {...register(`meals.${mealIndex}.name`)} />
-        <Textarea rows={1} className={`max-w-28 ${GROW_SM}`} placeholder="08:00" aria-label="Horário" {...register(`meals.${mealIndex}.timeLabel`)} />
+        <Textarea
+          rows={1}
+          className={`max-w-28 ${GROW_SM}`}
+          placeholder="08:00"
+          aria-label="Horário"
+          inputMode="numeric"
+          {...register(`meals.${mealIndex}.timeLabel`)}
+          onChange={(e) => {
+            const formatted = formatTimeLabel(e.target.value);
+            e.target.value = formatted;
+            setValue(`meals.${mealIndex}.timeLabel` as Path<FormValues>, formatted, { shouldDirty: true });
+          }}
+        />
         {canEdit && (
           <Button type="button" variant="outline" size="sm" className="ml-auto rounded-full text-destructive" onClick={onRemove} aria-label="Remover refeição">✕</Button>
         )}
