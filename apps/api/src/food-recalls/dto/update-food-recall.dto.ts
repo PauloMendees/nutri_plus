@@ -1,7 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
-  IsDateString,
+  IsDate,
   IsOptional,
   IsString,
   MaxLength,
@@ -14,8 +14,9 @@ import { RecallMealDto } from './recall-meal.dto';
 // fields change.
 export class UpdateFoodRecallDto {
   @IsOptional()
-  @IsDateString()
-  recallDate?: string;
+  @Type(() => Date)
+  @IsDate()
+  recallDate?: Date;
 
   @IsOptional()
   @IsString()
