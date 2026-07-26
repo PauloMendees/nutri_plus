@@ -6,6 +6,7 @@ import type { SilhuetaScan } from './silhueta';
 import type { Appointment } from './appointment';
 import type { PatientConsent } from './consent';
 import type { PatientAnamnese } from './anamnese';
+import type { FoodRecall } from './food-recall';
 
 export interface MyDataExportProfile {
   name: string;
@@ -36,6 +37,7 @@ export interface MyDataExport {
   anamnese: PatientAnamnese | null;
   assessments: BodyAssessment[];
   mealPlans: MealPlan[];
+  foodRecalls: FoodRecall[];
   nutritionTargets: NutritionTarget[];
   silhuetaScans: SilhuetaScan[];
   appointments: Appointment[];

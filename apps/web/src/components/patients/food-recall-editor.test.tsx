@@ -159,6 +159,27 @@ describe('FoodRecallEditor (edit mode)', () => {
     expect(within(firstMeal).getAllByLabelText('Na')[0]).toHaveValue(2);
     expect(within(firstMeal).getByDisplayValue('Arroz integral cozido')).toBeInTheDocument();
   });
+
+  it('changing grams on a free-text item (no cached Food) leaves its macros unchanged', async () => {
+    render(<FoodRecallEditor patientId="p1" recallId="r1" canEdit />);
+    const firstMeal = screen.getAllByTestId('recall-meal-card')[0];
+    // "Ovos" has foodId: null — typed in freely, never picked from the dialog, so there's
+    // no cached Food to recompute macros from when grams change.
+    const protein = within(firstMeal).getAllByLabelText('P')[0];
+    await userEvent.clear(protein);
+    await userEvent.type(protein, '99');
+
+    const grams = within(firstMeal).getAllByLabelText('Gramas')[0];
+    await userEvent.type(grams, '50');
+
+    expect(grams).toHaveValue(50);
+    expect(protein).toHaveValue(99);
+    expect(within(firstMeal).getAllByLabelText('Kcal')[0]).toHaveValue(230);
+    expect(within(firstMeal).getAllByLabelText('C')[0]).toHaveValue(2);
+    expect(within(firstMeal).getAllByLabelText('G')[0]).toHaveValue(16);
+    expect(within(firstMeal).getAllByLabelText('Fib')[0]).toHaveValue(3);
+    expect(within(firstMeal).getAllByLabelText('Na')[0]).toHaveValue(5);
+  });
 });
 
 describe('FoodRecallEditor (create mode)', () => {

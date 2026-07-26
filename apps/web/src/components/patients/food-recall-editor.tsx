@@ -186,7 +186,7 @@ export function FoodRecallEditor({
                 <div key={m.key} className="text-center">
                   <b data-testid={`total-${m.key}`} className="block text-sm">
                     {total}
-                    {meta ? <span className="text-muted-foreground">/{meta}</span> : null}
+                    {meta != null ? <span className="text-muted-foreground">/{meta}</span> : null}
                   </b>
                   <span className="text-[10px] text-muted-foreground">{m.label}</span>
                 </div>
