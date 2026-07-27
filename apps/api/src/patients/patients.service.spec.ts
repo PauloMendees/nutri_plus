@@ -772,6 +772,9 @@ describe('PatientsService', () => {
       prisma.silhuetaScan.findMany.mockResolvedValue([{ id: 's1' }] as any);
       prisma.appointment.findMany.mockResolvedValue([{ id: 'ap1' }] as any);
       prisma.patientConsent.findMany.mockResolvedValue([{ id: 'c1' }] as any);
+      prisma.consultationAudio.findMany.mockResolvedValue([
+        { recordedAt: new Date('2026-07-20'), durationSec: 600, transcript: 'olá', transcribedAt: new Date('2026-07-21') },
+      ] as any);
 
       const out = await service.exportMyData(ctxPatient('pp-1', 'nutri-1'));
 
@@ -791,6 +794,14 @@ describe('PatientsService', () => {
       }));
       expect(out.foodRecalls[0].meals[0].items[0].foodName).toBe('Ovos');
       expect(typeof out.exportedAt).toBe('string');
+      expect(out.consultationTranscripts).toEqual([
+        expect.objectContaining({ transcript: 'olá', durationSec: 600 }),
+      ]);
+      expect(prisma.consultationAudio.findMany).toHaveBeenCalledWith({
+        where: { patientId: 'pp-1', transcriptStatus: 'DONE' },
+        orderBy: { recordedAt: 'asc' },
+        select: { recordedAt: true, durationSec: true, transcript: true, transcribedAt: true },
+      });
     });
 
     it('includes anamnese: null when the patient has not filled it out yet', async () => {

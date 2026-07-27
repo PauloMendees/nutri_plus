@@ -19,3 +19,19 @@ export function estimateCostUsd(
     1_000_000
   );
 }
+
+// Whisper é cobrado por minuto de áudio, não por token.
+const TRANSCRIPTION_PER_MINUTE_USD: Record<string, number> = {
+  'whisper-1': 0.006,
+};
+
+export function estimateTranscriptionCostUsd(
+  model: string,
+  durationSec?: number,
+): number | null {
+  const perMinute = TRANSCRIPTION_PER_MINUTE_USD[model];
+  if (perMinute === undefined || durationSec === undefined) {
+    return null;
+  }
+  return (durationSec / 60) * perMinute;
+}

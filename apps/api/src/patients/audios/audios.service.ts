@@ -1,13 +1,16 @@
 import { randomUUID } from 'node:crypto';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SupabaseAdminService } from '../../supabase/supabase-admin.service';
+import { OpenAIProvider } from '../../ai/openai.provider';
+import type { TranscriptStatus } from '../../generated/prisma/client';
 import { AuthContext } from '../../auth/types/auth-context';
 import { resolveScopeNutritionistId } from '../../auth/auth-scope';
 import { CreateAudioDto } from './dto/create-audio.dto';
 
 const AUDIO_BUCKET = 'consultation-audio';
 const SIGNED_TTL = 3600;
+const STALE_TRANSCRIPTION_MS = 10 * 60 * 1000;
 
 const extFromMime = (mimetype: string): string => {
   const subtype = mimetype.split(';')[0].split('/')[1] ?? 'webm';
@@ -18,13 +21,19 @@ const extFromMime = (mimetype: string): string => {
 type AudioRow = {
   id: string; patientId: string; mimeType: string; durationSec: number | null;
   consentConfirmed: boolean; recordedAt: Date; storagePath: string;
+  transcript: string | null; transcriptStatus: TranscriptStatus | null;
+  transcribedAt: Date | null; transcriptError: string | null;
+  transcriptStartedAt: Date | null;
 };
 
 @Injectable()
 export class AudiosService {
+  private readonly logger = new Logger(AudiosService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly admin: SupabaseAdminService,
+    private readonly openai: OpenAIProvider,
   ) {}
 
   private async requireOwnedPatient(ctx: AuthContext, patientId: string) {
@@ -35,7 +44,7 @@ export class AudiosService {
     if (!patient) throw new NotFoundException('Patient not found');
   }
 
-  private async toDto({ storagePath, ...row }: AudioRow) {
+  private async toDto({ storagePath, transcriptStartedAt, ...row }: AudioRow) {
     return { ...row, signedUrl: await this.admin.createSignedUrl(AUDIO_BUCKET, storagePath, SIGNED_TTL) };
   }
 
@@ -81,5 +90,67 @@ export class AudiosService {
     if (!audio) throw new NotFoundException('Audio not found');
     await this.admin.removeObject(AUDIO_BUCKET, audio.storagePath);
     await this.prisma.consultationAudio.delete({ where: { id: audioId } });
+  }
+
+  async transcribe(ctx: AuthContext, patientId: string, audioId: string) {
+    await this.requireOwnedPatient(ctx, patientId);
+    const audio = await this.prisma.consultationAudio.findFirst({ where: { id: audioId, patientId } });
+    if (!audio) throw new NotFoundException('Audio not found');
+
+    // Reserva PROCESSING de forma atômica: começa de null/FAILED, ou reclama uma
+    // linha PROCESSING travada (sem transcriptStartedAt, ou iniciada há mais de
+    // STALE_TRANSCRIPTION_MS — API reiniciada no meio da transcrição).
+    // Se já está genuinamente PROCESSING (início recente) ou DONE, count===0 →
+    // devolve o atual sem reprocessar. OR null-safe: `{ in: [null, ...] }` não casa
+    // linhas NULL em SQL.
+    const staleBefore = new Date(Date.now() - STALE_TRANSCRIPTION_MS);
+    const claim = await this.prisma.consultationAudio.updateMany({
+      where: {
+        id: audioId,
+        OR: [
+          { transcriptStatus: null },
+          { transcriptStatus: 'FAILED' },
+          { transcriptStatus: 'PROCESSING', transcriptStartedAt: null },
+          { transcriptStatus: 'PROCESSING', transcriptStartedAt: { lt: staleBefore } },
+        ],
+      },
+      data: { transcriptStatus: 'PROCESSING', transcriptError: null, transcriptStartedAt: new Date() },
+    });
+    if (claim.count === 0) {
+      return this.toDto(audio as AudioRow);
+    }
+
+    // Fire-and-forget: o POST retorna agora; a transcrição segue em background.
+    void this.runTranscription(audioId, patientId, audio.storagePath, audio.durationSec);
+
+    const fresh = await this.prisma.consultationAudio.findUnique({ where: { id: audioId } });
+    if (!fresh) throw new NotFoundException('Audio not found');
+    return this.toDto(fresh as AudioRow);
+  }
+
+  // Background: nunca lança (o request já respondeu). Falha vira FAILED.
+  private async runTranscription(
+    audioId: string,
+    patientId: string,
+    storagePath: string,
+    durationSec: number | null,
+  ): Promise<void> {
+    try {
+      const buffer = await this.admin.downloadObject(AUDIO_BUCKET, storagePath);
+      const ext = storagePath.split('.').pop() ?? 'webm';
+      const transcript = await this.openai.transcribeAudio(buffer, `audio.${ext}`, { patientId, durationSec });
+      await this.prisma.consultationAudio.update({
+        where: { id: audioId },
+        data: { transcript, transcriptStatus: 'DONE', transcribedAt: new Date(), transcriptError: null },
+      });
+    } catch {
+      await this.prisma.consultationAudio
+        .update({
+          where: { id: audioId },
+          data: { transcriptStatus: 'FAILED', transcriptError: 'Não foi possível transcrever o áudio.' },
+        })
+        .catch(() => undefined);
+      this.logger.warn(`Transcription failed (audioId=${audioId})`);
+    }
   }
 }

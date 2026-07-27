@@ -1,9 +1,10 @@
 import { BadGatewayException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { AiInteractionsService } from './ai-interactions.service';
-import { estimateCostUsd } from './pricing';
+import { AIInteractionType } from '../generated/prisma/client';
+import { estimateCostUsd, estimateTranscriptionCostUsd } from './pricing';
 import { GenerateStructuredOptions, ModelTier } from './types/ai.types';
 
 // Keep stored error payloads bounded; full content is never logged (PII).
@@ -20,6 +21,7 @@ export class OpenAIProvider {
   private readonly logger = new Logger(OpenAIProvider.name);
   private readonly client: OpenAI;
   private readonly models: Record<ModelTier, string>;
+  private readonly transcribeModel: string;
 
   constructor(
     config: ConfigService,
@@ -32,6 +34,7 @@ export class OpenAIProvider {
       smart: config.getOrThrow<string>('OPENAI_MODEL_SMART'),
       fast: config.getOrThrow<string>('OPENAI_MODEL_FAST'),
     };
+    this.transcribeModel = config.getOrThrow<string>('OPENAI_MODEL_TRANSCRIBE');
   }
 
   async generateStructured<T>(opts: GenerateStructuredOptions<T>): Promise<T> {
@@ -128,5 +131,51 @@ export class OpenAIProvider {
       `AI ok (type=${opts.type}, model=${model}, promptTokens=${promptTokens ?? '?'}, completionTokens=${completionTokens ?? '?'}, latencyMs=${latencyMs}, costUsd=${common.estimatedCostUsd ?? '?'})`,
     );
     return result.data;
+  }
+
+  // Transcreve um áudio de consulta (Whisper). NUNCA registra o texto (PII):
+  // o AIInteraction guarda só metadados (modelo, custo por duração, latência).
+  async transcribeAudio(
+    buffer: Buffer,
+    filename: string,
+    opts: { patientId?: string; durationSec?: number | null },
+  ): Promise<string> {
+    const model = this.transcribeModel;
+    const startedAt = Date.now();
+    const meta = { system: 'transcription', user: `audio ${opts.durationSec ?? '?'}s` };
+
+    let text: string;
+    try {
+      const file = await toFile(buffer, filename);
+      const result = await this.client.audio.transcriptions.create({ model, file, language: 'pt' });
+      text = result.text;
+    } catch {
+      await this.interactions.record({
+        type: AIInteractionType.CONSULTATION_TRANSCRIPTION,
+        model,
+        input: meta,
+        latencyMs: Date.now() - startedAt,
+        success: false,
+        errorMessage: 'OpenAI transcription failed',
+        patientId: opts.patientId,
+      });
+      this.logger.warn(`OpenAI transcription failed (model=${model})`);
+      throw new BadGatewayException('AI provider unavailable');
+    }
+
+    const latencyMs = Date.now() - startedAt;
+    await this.interactions.record({
+      type: AIInteractionType.CONSULTATION_TRANSCRIPTION,
+      model,
+      input: meta,
+      latencyMs,
+      estimatedCostUsd: estimateTranscriptionCostUsd(model, opts.durationSec ?? undefined),
+      success: true,
+      patientId: opts.patientId,
+    });
+    this.logger.log(
+      `Transcription ok (model=${model}, durationSec=${opts.durationSec ?? '?'}, latencyMs=${latencyMs})`,
+    );
+    return text;
   }
 }

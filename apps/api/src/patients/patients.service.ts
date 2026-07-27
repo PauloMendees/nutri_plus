@@ -359,7 +359,17 @@ export class PatientsService {
       where: { id: patientId },
       include: { user: { select: { name: true, email: true } } },
     });
-    const [anamnese, assessments, mealPlans, foodRecalls, nutritionTargets, silhuetaScans, appointments, consents] =
+    const [
+      anamnese,
+      assessments,
+      mealPlans,
+      foodRecalls,
+      nutritionTargets,
+      silhuetaScans,
+      appointments,
+      consents,
+      consultationTranscripts,
+    ] =
       await Promise.all([
         this.prisma.patientAnamnese.findUnique({ where: { patientId } }),
         this.prisma.bodyAssessment.findMany({ where: { patientId }, orderBy: { assessmentDate: 'asc' } }),
@@ -389,6 +399,11 @@ export class PatientsService {
         this.prisma.silhuetaScan.findMany({ where: { patientId }, orderBy: { scanDate: 'asc' } }),
         this.prisma.appointment.findMany({ where: { patientId }, orderBy: { startsAt: 'asc' } }),
         this.prisma.patientConsent.findMany({ where: { patientId }, orderBy: { acceptedAt: 'asc' } }),
+        this.prisma.consultationAudio.findMany({
+          where: { patientId, transcriptStatus: 'DONE' },
+          orderBy: { recordedAt: 'asc' },
+          select: { recordedAt: true, durationSec: true, transcript: true, transcribedAt: true },
+        }),
       ]);
 
     return {
@@ -420,6 +435,7 @@ export class PatientsService {
       silhuetaScans,
       appointments,
       consents,
+      consultationTranscripts,
     };
   }
 

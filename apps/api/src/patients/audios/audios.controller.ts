@@ -41,6 +41,11 @@ export class AudiosController {
     return this.service.list(ctx, id);
   }
 
+  @Post(':audioId/transcribe')
+  transcribe(@CurrentUser() ctx: AuthContext, @Param('id') id: string, @Param('audioId') audioId: string) {
+    return this.service.transcribe(ctx, id, audioId);
+  }
+
   @Delete(':audioId')
   remove(@CurrentUser() ctx: AuthContext, @Param('id') id: string, @Param('audioId') audioId: string) {
     return this.service.delete(ctx, id, audioId);
