@@ -36,3 +36,19 @@ services:
         sync: false
       - key: OPENAI_MODEL_FAST
         sync: false
+      - key: REMINDER_DISPATCH_KEY
+        sync: false
+  - type: cron
+    name: nutri-plus-reminders
+    runtime: docker
+    region: oregon
+    schedule: "*/30 * * * *"
+    dockerfilePath: apps/api/Dockerfile
+    dockerContext: .
+    dockerCommand: bun -e "const r = await fetch(process.env.REMINDER_DISPATCH_URL, { method: 'POST', headers: { 'x-reminder-key': process.env.REMINDER_DISPATCH_KEY } }); console.log(r.status); process.exit(r.ok ? 0 : 1)"
+    envVars:
+      # https://<api-host>/v1/internal/reminders/dispatch — set in the Render dashboard.
+      - key: REMINDER_DISPATCH_URL
+        sync: false
+      - key: REMINDER_DISPATCH_KEY
+        sync: false
