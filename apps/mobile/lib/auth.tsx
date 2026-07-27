@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import * as SecureStore from 'expo-secure-store';
 import { supabase } from './supabase';
+import { unregisterPush } from './push';
 
 type AuthState = {
   session: Session | null;
@@ -26,6 +28,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signOut() {
+    try {
+      const token = await SecureStore.getItemAsync('push-token');
+      if (token) {
+        await unregisterPush(token);
+        await SecureStore.deleteItemAsync('push-token');
+      }
+    } catch {
+      // best-effort: never block logout on push cleanup
+    }
     await supabase.auth.signOut();
   }
 

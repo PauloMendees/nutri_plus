@@ -46,7 +46,7 @@ services:
     dockerfilePath: apps/api/Dockerfile
     dockerContext: .
     dockerCommand: >-
-      bun -e "const r = await fetch(process.env.REMINDER_DISPATCH_URL, { method: 'POST', headers: { 'x-reminder-key': process.env.REMINDER_DISPATCH_KEY } }); console.log(r.status); process.exit(r.ok ? 0 : 1)"
+      node -e "fetch(process.env.REMINDER_DISPATCH_URL, { method: 'POST', headers: { 'x-reminder-key': process.env.REMINDER_DISPATCH_KEY } }).then((r) => { console.log(r.status); process.exit(r.ok ? 0 : 1); }).catch((e) => { console.error(e); process.exit(1); })"
     envVars:
       # https://<api-host>/v1/internal/reminders/dispatch — set in the Render dashboard.
       - key: REMINDER_DISPATCH_URL

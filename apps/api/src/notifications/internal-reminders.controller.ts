@@ -1,5 +1,5 @@
 import { Controller, Headers, Post, UnauthorizedException } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiExcludeEndpoint, ApiTags } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { Public } from '../auth/decorators/public.decorator';
 import { RemindersService } from './reminders.service';
@@ -13,6 +13,7 @@ export class InternalRemindersController {
   ) {}
 
   @Public()
+  @ApiExcludeEndpoint()
   @Post('dispatch')
   async dispatch(@Headers('x-reminder-key') key?: string) {
     const expected = this.config.get<string>('REMINDER_DISPATCH_KEY');
