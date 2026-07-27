@@ -12,7 +12,7 @@ vi.mock('@/lib/queries/consultation-audio', () => ({
   useAudios: (...args: unknown[]) => useAudiosMock(...args),
   useUploadAudio: () => ({ mutate, mutateAsync, isPending: false }),
   useDeleteAudio: () => ({ mutate, mutateAsync, isPending: false }),
-  useTranscribeAudio: () => ({ mutate: transcribeMock, isPending: false }),
+  useTranscribeAudio: () => ({ mutate: transcribeMock, mutateAsync: transcribeMock, isPending: false }),
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -39,7 +39,7 @@ beforeEach(() => {
   useAudiosMock.mockReset().mockReturnValue({ data: [audio()], isLoading: false });
   mutate.mockReset();
   mutateAsync.mockReset().mockResolvedValue(audio());
-  transcribeMock.mockReset();
+  transcribeMock.mockReset().mockResolvedValue(undefined);
 });
 
 describe('ConsultationAudioSection', () => {
@@ -98,6 +98,13 @@ describe('ConsultationAudioSection', () => {
 
   it('offers "Tentar de novo" when FAILED and triggers the mutation', async () => {
     useAudiosMock.mockReturnValue({ data: [audio({ transcriptStatus: 'FAILED' })], isLoading: false });
+    render(<ConsultationAudioSection patientId="p1" canEdit />);
+    await userEvent.click(screen.getByRole('button', { name: /tentar de novo/i }));
+    expect(transcribeMock).toHaveBeenCalledWith('a1');
+  });
+
+  it('offers "Tentar de novo" when PROCESSING (stuck row) and triggers the mutation', async () => {
+    useAudiosMock.mockReturnValue({ data: [audio({ transcriptStatus: 'PROCESSING' })], isLoading: false });
     render(<ConsultationAudioSection patientId="p1" canEdit />);
     await userEvent.click(screen.getByRole('button', { name: /tentar de novo/i }));
     expect(transcribeMock).toHaveBeenCalledWith('a1');

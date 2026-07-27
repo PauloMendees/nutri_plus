@@ -486,6 +486,7 @@ model ConsultationAudio {
   transcriptStatus TranscriptStatus?
   transcribedAt    DateTime?
   transcriptError  String?
+  transcriptStartedAt DateTime?
   createdAt        DateTime @default(now())
 
   @@index([patientId, recordedAt])

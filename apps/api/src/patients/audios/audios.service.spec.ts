@@ -83,7 +83,8 @@ describe('AudiosService', () => {
   const audioRow = (over: Partial<any> = {}) => ({
     id: 'au1', patientId: 'p1', mimeType: 'audio/webm', durationSec: 12, consentConfirmed: true,
     recordedAt: new Date('2026-07-23'), storagePath: 'p1/au1.webm',
-    transcript: null, transcriptStatus: null, transcribedAt: null, transcriptError: null, ...over,
+    transcript: null, transcriptStatus: null, transcribedAt: null, transcriptError: null,
+    transcriptStartedAt: null, ...over,
   });
 
   describe('transcribe', () => {
@@ -98,8 +99,16 @@ describe('AudiosService', () => {
       const out: any = await service.transcribe(ctx, 'p1', 'au1');
 
       expect(prisma.consultationAudio.updateMany).toHaveBeenCalledWith({
-        where: { id: 'au1', OR: [{ transcriptStatus: null }, { transcriptStatus: 'FAILED' }] },
-        data: { transcriptStatus: 'PROCESSING', transcriptError: null },
+        where: {
+          id: 'au1',
+          OR: [
+            { transcriptStatus: null },
+            { transcriptStatus: 'FAILED' },
+            { transcriptStatus: 'PROCESSING', transcriptStartedAt: null },
+            { transcriptStatus: 'PROCESSING', transcriptStartedAt: { lt: expect.any(Date) } },
+          ],
+        },
+        data: { transcriptStatus: 'PROCESSING', transcriptError: null, transcriptStartedAt: expect.any(Date) },
       });
       expect(out.transcriptStatus).toBe('PROCESSING');
       expect(out.signedUrl).toBe('https://signed/x');
@@ -115,6 +124,24 @@ describe('AudiosService', () => {
       expect(out.transcriptStatus).toBe('DONE');
       expect(admin.downloadObject).not.toHaveBeenCalled();
       expect(openai.transcribeAudio).not.toHaveBeenCalled();
+    });
+
+    it('re-claims a stale PROCESSING row (claim count 1) and proceeds instead of early-returning', async () => {
+      prisma.consultationAudio.findFirst.mockResolvedValue(
+        audioRow({ transcriptStatus: 'PROCESSING', transcriptStartedAt: new Date('2026-07-01') }) as any,
+      );
+      prisma.consultationAudio.updateMany.mockResolvedValue({ count: 1 } as any);
+      prisma.consultationAudio.findUnique.mockResolvedValue(
+        audioRow({ transcriptStatus: 'PROCESSING', transcriptStartedAt: new Date() }) as any,
+      );
+      admin.downloadObject.mockResolvedValue(Buffer.from('x'));
+      openai.transcribeAudio.mockResolvedValue('texto');
+      prisma.consultationAudio.update.mockResolvedValue(audioRow() as any);
+
+      const out: any = await service.transcribe(ctx, 'p1', 'au1');
+
+      expect(prisma.consultationAudio.findUnique).toHaveBeenCalledWith({ where: { id: 'au1' } });
+      expect(out.transcriptStatus).toBe('PROCESSING');
     });
 
     it('404s when the patient is not owned', async () => {

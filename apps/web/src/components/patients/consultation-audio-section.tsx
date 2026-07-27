@@ -84,6 +84,14 @@ export function ConsultationAudioSection({ patientId, canEdit }: { patientId: st
     }
   }
 
+  async function handleTranscribe(id: string) {
+    try {
+      await transcribe.mutateAsync(id);
+    } catch {
+      toast.error('Não foi possível iniciar a transcrição.');
+    }
+  }
+
   if (query.isLoading) return <Skeleton className="h-64 w-full max-w-4xl" />;
   const audios = query.data ?? [];
 
@@ -137,7 +145,19 @@ export function ConsultationAudioSection({ patientId, canEdit }: { patientId: st
               </div>
 
               {a.transcriptStatus === 'PROCESSING' && (
-                <p className="text-sm text-muted-foreground">Transcrevendo…</p>
+                <p className="text-sm text-muted-foreground">
+                  Transcrevendo…{' '}
+                  {canEdit && (
+                    <button
+                      type="button"
+                      className="font-semibold underline"
+                      onClick={() => handleTranscribe(a.id)}
+                      disabled={transcribe.isPending}
+                    >
+                      Tentar de novo
+                    </button>
+                  )}
+                </p>
               )}
               {a.transcriptStatus === 'DONE' && a.transcript && (
                 <div className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted/40 p-3 text-sm">
@@ -148,7 +168,12 @@ export function ConsultationAudioSection({ patientId, canEdit }: { patientId: st
                 <p className="text-sm text-destructive">
                   Falha na transcrição.{' '}
                   {canEdit && (
-                    <button type="button" className="font-semibold underline" onClick={() => transcribe.mutate(a.id)}>
+                    <button
+                      type="button"
+                      className="font-semibold underline"
+                      onClick={() => handleTranscribe(a.id)}
+                      disabled={transcribe.isPending}
+                    >
                       Tentar de novo
                     </button>
                   )}
@@ -156,7 +181,7 @@ export function ConsultationAudioSection({ patientId, canEdit }: { patientId: st
               )}
               {canEdit && a.transcriptStatus == null && (
                 <Button type="button" variant="outline" size="sm" className="w-fit rounded-full"
-                  onClick={() => transcribe.mutate(a.id)} disabled={transcribe.isPending}>
+                  onClick={() => handleTranscribe(a.id)} disabled={transcribe.isPending}>
                   Transcrever
                 </Button>
               )}

@@ -10,6 +10,7 @@ import { CreateAudioDto } from './dto/create-audio.dto';
 
 const AUDIO_BUCKET = 'consultation-audio';
 const SIGNED_TTL = 3600;
+const STALE_TRANSCRIPTION_MS = 10 * 60 * 1000;
 
 const extFromMime = (mimetype: string): string => {
   const subtype = mimetype.split(';')[0].split('/')[1] ?? 'webm';
@@ -22,6 +23,7 @@ type AudioRow = {
   consentConfirmed: boolean; recordedAt: Date; storagePath: string;
   transcript: string | null; transcriptStatus: TranscriptStatus | null;
   transcribedAt: Date | null; transcriptError: string | null;
+  transcriptStartedAt: Date | null;
 };
 
 @Injectable()
@@ -42,7 +44,7 @@ export class AudiosService {
     if (!patient) throw new NotFoundException('Patient not found');
   }
 
-  private async toDto({ storagePath, ...row }: AudioRow) {
+  private async toDto({ storagePath, transcriptStartedAt, ...row }: AudioRow) {
     return { ...row, signedUrl: await this.admin.createSignedUrl(AUDIO_BUCKET, storagePath, SIGNED_TTL) };
   }
 
@@ -95,12 +97,24 @@ export class AudiosService {
     const audio = await this.prisma.consultationAudio.findFirst({ where: { id: audioId, patientId } });
     if (!audio) throw new NotFoundException('Audio not found');
 
-    // Reserva PROCESSING de forma atômica: só (re)começa de null ou FAILED.
-    // Se já está PROCESSING/DONE, count===0 → devolve o atual sem reprocessar.
-    // OR null-safe: `{ in: [null, ...] }` não casa linhas NULL em SQL.
+    // Reserva PROCESSING de forma atômica: começa de null/FAILED, ou reclama uma
+    // linha PROCESSING travada (sem transcriptStartedAt, ou iniciada há mais de
+    // STALE_TRANSCRIPTION_MS — API reiniciada no meio da transcrição).
+    // Se já está genuinamente PROCESSING (início recente) ou DONE, count===0 →
+    // devolve o atual sem reprocessar. OR null-safe: `{ in: [null, ...] }` não casa
+    // linhas NULL em SQL.
+    const staleBefore = new Date(Date.now() - STALE_TRANSCRIPTION_MS);
     const claim = await this.prisma.consultationAudio.updateMany({
-      where: { id: audioId, OR: [{ transcriptStatus: null }, { transcriptStatus: 'FAILED' }] },
-      data: { transcriptStatus: 'PROCESSING', transcriptError: null },
+      where: {
+        id: audioId,
+        OR: [
+          { transcriptStatus: null },
+          { transcriptStatus: 'FAILED' },
+          { transcriptStatus: 'PROCESSING', transcriptStartedAt: null },
+          { transcriptStatus: 'PROCESSING', transcriptStartedAt: { lt: staleBefore } },
+        ],
+      },
+      data: { transcriptStatus: 'PROCESSING', transcriptError: null, transcriptStartedAt: new Date() },
     });
     if (claim.count === 0) {
       return this.toDto(audio as AudioRow);
@@ -110,6 +124,7 @@ export class AudiosService {
     void this.runTranscription(audioId, patientId, audio.storagePath, audio.durationSec);
 
     const fresh = await this.prisma.consultationAudio.findUnique({ where: { id: audioId } });
+    if (!fresh) throw new NotFoundException('Audio not found');
     return this.toDto(fresh as AudioRow);
   }
 
