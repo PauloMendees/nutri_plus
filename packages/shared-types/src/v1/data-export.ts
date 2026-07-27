@@ -7,6 +7,7 @@ import type { Appointment } from './appointment';
 import type { PatientConsent } from './consent';
 import type { PatientAnamnese } from './anamnese';
 import type { FoodRecall } from './food-recall';
+import type { ConsultationTranscript } from './consultation-audio';
 
 export interface MyDataExportProfile {
   name: string;
@@ -42,4 +43,5 @@ export interface MyDataExport {
   silhuetaScans: SilhuetaScan[];
   appointments: Appointment[];
   consents: PatientConsent[];
+  consultationTranscripts: ConsultationTranscript[];
 }

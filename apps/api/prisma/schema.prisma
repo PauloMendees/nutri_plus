@@ -320,11 +320,18 @@ model MealItem {
   @@index([mealOptionId])
 }
 
+enum TranscriptStatus {
+  PROCESSING
+  DONE
+  FAILED
+}
+
 enum AIInteractionType {
   MEAL_PLAN_GENERATION
   OUTSIDE_HOME_SUGGESTION
   MEAL_PLAN_ADJUSTMENT
   SILHUETA_SCAN
+  CONSULTATION_TRANSCRIPTION
 }
 
 // Audit trail for every AI call, successful or failed. The patient FK is explicitly
@@ -475,6 +482,10 @@ model ConsultationAudio {
   durationSec      Int?
   consentConfirmed Boolean
   recordedAt       DateTime @default(now())
+  transcript       String?
+  transcriptStatus TranscriptStatus?
+  transcribedAt    DateTime?
+  transcriptError  String?
   createdAt        DateTime @default(now())
 
   @@index([patientId, recordedAt])
