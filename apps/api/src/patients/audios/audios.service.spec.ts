@@ -2,6 +2,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SupabaseAdminService } from '../../supabase/supabase-admin.service';
+import { OpenAIProvider } from '../../ai/openai.provider';
 import { AudiosService } from './audios.service';
 import { AuthContext } from '../../auth/types/auth-context';
 
@@ -11,11 +12,13 @@ const file = { buffer: Buffer.from('x'), mimetype: 'audio/webm' };
 describe('AudiosService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let admin: DeepMockProxy<SupabaseAdminService>;
+  let openai: DeepMockProxy<OpenAIProvider>;
   let service: AudiosService;
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
     admin = mockDeep<SupabaseAdminService>();
-    service = new AudiosService(prisma, admin);
+    openai = mockDeep<OpenAIProvider>();
+    service = new AudiosService(prisma, admin, openai);
     prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
     admin.createSignedUrl.mockResolvedValue('https://signed/x');
   });
@@ -75,5 +78,81 @@ describe('AudiosService', () => {
 
     prisma.consultationAudio.findFirst.mockResolvedValueOnce(null);
     await expect(service.delete(ctx, 'p1', 'nope')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  const audioRow = (over: Partial<any> = {}) => ({
+    id: 'au1', patientId: 'p1', mimeType: 'audio/webm', durationSec: 12, consentConfirmed: true,
+    recordedAt: new Date('2026-07-23'), storagePath: 'p1/au1.webm',
+    transcript: null, transcriptStatus: null, transcribedAt: null, transcriptError: null, ...over,
+  });
+
+  describe('transcribe', () => {
+    it('claims PROCESSING atomically and returns immediately (dto exposes status, hides storagePath)', async () => {
+      prisma.consultationAudio.findFirst.mockResolvedValue(audioRow() as any);
+      prisma.consultationAudio.updateMany.mockResolvedValue({ count: 1 } as any);
+      prisma.consultationAudio.findUnique.mockResolvedValue(audioRow({ transcriptStatus: 'PROCESSING' }) as any);
+      admin.downloadObject.mockResolvedValue(Buffer.from('x'));
+      openai.transcribeAudio.mockResolvedValue('texto');
+      prisma.consultationAudio.update.mockResolvedValue(audioRow() as any);
+
+      const out: any = await service.transcribe(ctx, 'p1', 'au1');
+
+      expect(prisma.consultationAudio.updateMany).toHaveBeenCalledWith({
+        where: { id: 'au1', OR: [{ transcriptStatus: null }, { transcriptStatus: 'FAILED' }] },
+        data: { transcriptStatus: 'PROCESSING', transcriptError: null },
+      });
+      expect(out.transcriptStatus).toBe('PROCESSING');
+      expect(out.signedUrl).toBe('https://signed/x');
+      expect(out.storagePath).toBeUndefined();
+    });
+
+    it('is idempotent: an already PROCESSING/DONE audio (claim count 0) does not reprocess', async () => {
+      prisma.consultationAudio.findFirst.mockResolvedValue(audioRow({ transcriptStatus: 'DONE', transcript: 't' }) as any);
+      prisma.consultationAudio.updateMany.mockResolvedValue({ count: 0 } as any);
+
+      const out: any = await service.transcribe(ctx, 'p1', 'au1');
+
+      expect(out.transcriptStatus).toBe('DONE');
+      expect(admin.downloadObject).not.toHaveBeenCalled();
+      expect(openai.transcribeAudio).not.toHaveBeenCalled();
+    });
+
+    it('404s when the patient is not owned', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue(null);
+      await expect(service.transcribe(ctx, 'pX', 'au1')).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('404s when the audio is not the patient’s', async () => {
+      prisma.consultationAudio.findFirst.mockResolvedValue(null);
+      await expect(service.transcribe(ctx, 'p1', 'auX')).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('runTranscription (background)', () => {
+    it('on success writes transcript + DONE + transcribedAt', async () => {
+      admin.downloadObject.mockResolvedValue(Buffer.from('x'));
+      openai.transcribeAudio.mockResolvedValue('olá');
+      prisma.consultationAudio.update.mockResolvedValue({} as any);
+
+      await (service as any).runTranscription('au1', 'p1', 'p1/au1.webm', 12);
+
+      expect(prisma.consultationAudio.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'au1' },
+          data: expect.objectContaining({ transcript: 'olá', transcriptStatus: 'DONE' }),
+        }),
+      );
+    });
+
+    it('on failure writes FAILED + error and never throws', async () => {
+      admin.downloadObject.mockRejectedValue(new Error('boom'));
+      prisma.consultationAudio.update.mockResolvedValue({} as any);
+
+      await expect((service as any).runTranscription('au1', 'p1', 'p1/au1.webm', 12)).resolves.toBeUndefined();
+
+      expect(prisma.consultationAudio.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ transcriptStatus: 'FAILED' }) }),
+      );
+    });
   });
 });
