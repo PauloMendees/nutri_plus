@@ -14,6 +14,7 @@ export const envSchema = z.object({
   OPENAI_MODEL_FAST: z.string().min(1).default('gpt-4o-mini'),
   OPENAI_MODEL_TRANSCRIBE: z.string().min(1).default('whisper-1'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+  REMINDER_DISPATCH_KEY: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
