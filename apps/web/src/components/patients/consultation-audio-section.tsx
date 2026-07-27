@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { useAudios, useDeleteAudio, useUploadAudio } from '@/lib/queries/consultation-audio';
+import { useAudios, useDeleteAudio, useTranscribeAudio, useUploadAudio } from '@/lib/queries/consultation-audio';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -14,6 +14,7 @@ export function ConsultationAudioSection({ patientId, canEdit }: { patientId: st
   const query = useAudios(patientId);
   const upload = useUploadAudio(patientId);
   const remove = useDeleteAudio(patientId);
+  const transcribe = useTranscribeAudio(patientId);
   const [consent, setConsent] = useState(false);
   const [recording, setRecording] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -113,24 +114,51 @@ export function ConsultationAudioSection({ patientId, canEdit }: { patientId: st
       ) : (
         <ul className="space-y-2">
           {audios.map((a) => (
-            <li key={a.id} className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3">
-              <span className="text-sm text-muted-foreground">{fmtDate(a.recordedAt)}</span>
-              <audio controls src={a.signedUrl} className="min-w-0 flex-1" />
-              {canEdit && (
-                confirmingId === a.id ? (
-                  <span className="flex items-center gap-2 text-sm">
-                    <span className="text-muted-foreground">Excluir?</span>
-                    <Button type="button" variant="outline" size="sm" className="rounded-full"
-                      onClick={() => setConfirmingId(null)} disabled={deletingId === a.id}>Cancelar</Button>
-                    <Button type="button" size="sm" className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      onClick={() => handleDelete(a.id)} disabled={deletingId === a.id} aria-label="Confirmar exclusão da gravação">
-                      {deletingId === a.id ? 'Excluindo…' : 'Excluir'}
-                    </Button>
-                  </span>
-                ) : (
-                  <Button type="button" variant="outline" size="sm" className="rounded-full text-destructive"
-                    onClick={() => setConfirmingId(a.id)} aria-label="Excluir gravação">Excluir</Button>
-                )
+            <li key={a.id} className="flex flex-col gap-2 rounded-xl border bg-card p-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm text-muted-foreground">{fmtDate(a.recordedAt)}</span>
+                <audio controls src={a.signedUrl} className="min-w-0 flex-1" />
+                {canEdit && (
+                  confirmingId === a.id ? (
+                    <span className="flex items-center gap-2 text-sm">
+                      <span className="text-muted-foreground">Excluir?</span>
+                      <Button type="button" variant="outline" size="sm" className="rounded-full"
+                        onClick={() => setConfirmingId(null)} disabled={deletingId === a.id}>Cancelar</Button>
+                      <Button type="button" size="sm" className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={() => handleDelete(a.id)} disabled={deletingId === a.id} aria-label="Confirmar exclusão da gravação">
+                        {deletingId === a.id ? 'Excluindo…' : 'Excluir'}
+                      </Button>
+                    </span>
+                  ) : (
+                    <Button type="button" variant="outline" size="sm" className="rounded-full text-destructive"
+                      onClick={() => setConfirmingId(a.id)} aria-label="Excluir gravação">Excluir</Button>
+                  )
+                )}
+              </div>
+
+              {a.transcriptStatus === 'PROCESSING' && (
+                <p className="text-sm text-muted-foreground">Transcrevendo…</p>
+              )}
+              {a.transcriptStatus === 'DONE' && a.transcript && (
+                <div className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted/40 p-3 text-sm">
+                  {a.transcript}
+                </div>
+              )}
+              {a.transcriptStatus === 'FAILED' && (
+                <p className="text-sm text-destructive">
+                  Falha na transcrição.{' '}
+                  {canEdit && (
+                    <button type="button" className="font-semibold underline" onClick={() => transcribe.mutate(a.id)}>
+                      Tentar de novo
+                    </button>
+                  )}
+                </p>
+              )}
+              {canEdit && a.transcriptStatus == null && (
+                <Button type="button" variant="outline" size="sm" className="w-fit rounded-full"
+                  onClick={() => transcribe.mutate(a.id)} disabled={transcribe.isPending}>
+                  Transcrever
+                </Button>
               )}
             </li>
           ))}

@@ -19,3 +19,9 @@ export function uploadAudio(
 export function deleteAudio(patientId: string, audioId: string): Promise<void> {
   return browserApiFetch<void>(`/patients/${patientId}/audios/${audioId}`, { method: 'DELETE' });
 }
+
+export function transcribeAudio(patientId: string, audioId: string): Promise<ConsultationAudio> {
+  return browserApiFetch<ConsultationAudio>(`/patients/${patientId}/audios/${audioId}/transcribe`, {
+    method: 'POST',
+  });
+}
