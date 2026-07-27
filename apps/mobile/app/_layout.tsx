@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Notifications from 'expo-notifications';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts, Sora_600SemiBold, Sora_700Bold } from '@expo-google-fonts/sora';
 import {
@@ -15,6 +16,15 @@ import { queryClient } from '../lib/query';
 import '../global.css';
 
 SplashScreen.preventAutoHideAsync();
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 function ThemedApp() {
   const { mode } = useTheme();

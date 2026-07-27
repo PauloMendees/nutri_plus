@@ -26,6 +26,7 @@ const config = {
     'expo-router',
     'expo-secure-store',
     'expo-font',
+    'expo-notifications',
     [
       'expo-splash-screen',
       { image: './assets/splash-icon.png', imageWidth: 200, backgroundColor: '#FFFFFF' },

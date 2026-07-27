@@ -29,6 +29,22 @@ jest.mock('../../../lib/queries/data-export', () => ({
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({ router: { push: (h: unknown) => mockPush(h), back: jest.fn() } }));
 
+const mockRegisterForPush = jest.fn();
+const mockUnregisterPush = jest.fn();
+jest.mock('../../../lib/push', () => ({
+  registerForPush: (...a: unknown[]) => mockRegisterForPush(...a),
+  unregisterPush: (...a: unknown[]) => mockUnregisterPush(...a),
+}));
+
+const mockGetItemAsync = jest.fn();
+const mockSetItemAsync = jest.fn();
+const mockDeleteItemAsync = jest.fn();
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: (...a: unknown[]) => mockGetItemAsync(...a),
+  setItemAsync: (...a: unknown[]) => mockSetItemAsync(...a),
+  deleteItemAsync: (...a: unknown[]) => mockDeleteItemAsync(...a),
+}));
+
 import ConfiguracoesIndex from './index';
 
 beforeEach(() => {
@@ -38,6 +54,11 @@ beforeEach(() => {
   mockApiFetch.mockReset().mockResolvedValue(null);
   mockDownloadMyData.mockReset().mockResolvedValue(undefined);
   mockPush.mockReset();
+  mockRegisterForPush.mockReset();
+  mockUnregisterPush.mockReset().mockResolvedValue(undefined);
+  mockGetItemAsync.mockReset().mockResolvedValue(null);
+  mockSetItemAsync.mockReset().mockResolvedValue(undefined);
+  mockDeleteItemAsync.mockReset().mockResolvedValue(undefined);
   mockNutritionist = {
     isLoading: false,
     data: { name: 'Beatriz', displayName: 'Dra. Bia', email: 'bia@x.com', crn: 'CRN-123', logoUrl: null },
@@ -105,5 +126,45 @@ describe('Configurações index', () => {
     await waitFor(() => expect(mockApiFetch).toHaveBeenCalledWith('/me', { method: 'DELETE' }));
     await waitFor(() => expect(mockSignOut).toHaveBeenCalled());
     alertSpy.mockRestore();
+  });
+
+  it('registers for push when the reminders toggle is turned on', async () => {
+    mockRegisterForPush.mockResolvedValue({ token: 'ExpoTok' });
+    await render(<ConfiguracoesIndex />);
+
+    const toggle = screen.getByLabelText('Lembretes de consulta');
+    await fireEvent(toggle, 'valueChange', true);
+
+    await waitFor(() => expect(mockRegisterForPush).toHaveBeenCalled());
+    await waitFor(() => expect(mockSetItemAsync).toHaveBeenCalledWith('push-token', 'ExpoTok'));
+  });
+
+  it('stays off and alerts when push permission is denied', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    mockRegisterForPush.mockResolvedValue({ denied: true });
+    await render(<ConfiguracoesIndex />);
+
+    const toggle = screen.getByLabelText('Lembretes de consulta');
+    await fireEvent(toggle, 'valueChange', true);
+
+    await waitFor(() => expect(mockRegisterForPush).toHaveBeenCalled());
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Permissão negada',
+      'Ative as notificações nas configurações do sistema para receber lembretes.',
+    );
+    expect(mockSetItemAsync).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
+  });
+
+  it('unregisters the stored token when the reminders toggle is turned off', async () => {
+    mockGetItemAsync.mockResolvedValue('StoredTok');
+    await render(<ConfiguracoesIndex />);
+
+    const toggle = await screen.findByLabelText('Lembretes de consulta');
+    await waitFor(() => expect(mockGetItemAsync).toHaveBeenCalledWith('push-token'));
+    await fireEvent(toggle, 'valueChange', false);
+
+    await waitFor(() => expect(mockUnregisterPush).toHaveBeenCalledWith('StoredTok'));
+    await waitFor(() => expect(mockDeleteItemAsync).toHaveBeenCalledWith('push-token'));
   });
 });
