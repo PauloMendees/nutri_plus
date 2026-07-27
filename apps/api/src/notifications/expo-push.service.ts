@@ -33,18 +33,24 @@ export class ExpoPushService {
       });
       const json = (await res.json()) as { data?: ExpoTicket[] };
       const tickets = json.data ?? [];
+      // Conta o que realmente foi enviado ANTES de tentar a limpeza — uma falha na
+      // deleteMany (abaixo) não pode mascarar um envio bem-sucedido como sent: 0.
+      const sent = tickets.filter((t) => t.status === 'ok').length;
       const toRemove = tickets.flatMap((ticket, i) =>
         ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered' ? [messages[i].to] : [],
       );
       let tokensRemoved = 0;
       if (toRemove.length > 0) {
-        const removed = await this.prisma.patientPushToken.deleteMany({ where: { token: { in: toRemove } } });
-        tokensRemoved = removed.count;
+        try {
+          const removed = await this.prisma.patientPushToken.deleteMany({ where: { token: { in: toRemove } } });
+          tokensRemoved = removed.count;
+        } catch (err) {
+          this.logger.warn(`Expo push token cleanup failed: ${(err as Error).message}`);
+        }
       }
-      const sent = tickets.filter((t) => t.status === 'ok').length;
       return { sent, tokensRemoved };
-    } catch {
-      this.logger.warn('Expo push send failed');
+    } catch (err) {
+      this.logger.warn(`Expo push send failed: ${(err as Error).message}`);
       return { sent: 0, tokensRemoved: 0 };
     }
   }

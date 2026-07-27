@@ -40,4 +40,16 @@ describe('ExpoPushService', () => {
     fetchMock.mockRejectedValue(new Error('network'));
     await expect(service.send([{ to: 'a', title: 't', body: 'b' }])).resolves.toEqual({ sent: 0, tokensRemoved: 0 });
   });
+
+  it('still reports the real sent count when token cleanup fails', async () => {
+    fetchMock.mockResolvedValue({
+      json: async () => ({ data: [{ status: 'ok' }, { status: 'error', details: { error: 'DeviceNotRegistered' } }] }),
+    });
+    prisma.patientPushToken.deleteMany.mockRejectedValue(new Error('db'));
+    const out = await service.send([
+      { to: 'good', title: 't', body: 'b' },
+      { to: 'stale', title: 't', body: 'b' },
+    ]);
+    expect(out).toEqual({ sent: 1, tokensRemoved: 0 });
+  });
 });
