@@ -13,6 +13,7 @@ import { AnamneseSection } from '@/components/patients/anamnese-section';
 import { ConsultationAudioSection } from '@/components/patients/consultation-audio-section';
 import { BioimpedanceSection } from '@/components/patients/bioimpedance-section';
 import { MealPlansSection } from '@/components/patients/meal-plans-section';
+import { RecordatorioSection } from '@/components/patients/recordatorio-section';
 import { SilhuetaSection } from '@/components/patients/silhueta-section';
 import { NutritionTargetsSection } from '@/components/patients/nutrition-targets-section';
 import { CreatedBanner } from '@/components/patients/created-banner';
@@ -178,6 +179,7 @@ export function PatientDetail({
           <TabsTrigger value="bioimpedancia">Bioimpedância</TabsTrigger>
           {canEdit && <TabsTrigger value="metas">Metas</TabsTrigger>}
           <TabsTrigger value="planos">Planos alimentares</TabsTrigger>
+          <TabsTrigger value="recordatorio">Recordatório</TabsTrigger>
           {canEdit && (
             <TabsTrigger value="silhueta">
               <Sparkles className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
@@ -207,6 +209,9 @@ export function PatientDetail({
         )}
         <TabsContent value="planos">
           <MealPlansSection patientId={patient.id} canEdit={canEdit} />
+        </TabsContent>
+        <TabsContent value="recordatorio">
+          <RecordatorioSection patientId={patient.id} canEdit={canEdit} />
         </TabsContent>
         {canEdit && (
           <TabsContent value="silhueta">

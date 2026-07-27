@@ -133,6 +133,7 @@ model PatientProfile {
   consents       PatientConsent[]
   anamnese           PatientAnamnese?
   consultationAudios ConsultationAudio[]
+  foodRecalls    FoodRecall[]
 
   @@index([nutritionistId])
 }
@@ -438,6 +439,7 @@ model Food {
   createdAt    DateTime @default(now())
 
   mealItems    MealItem[]
+  recallItems  RecallItem[]
 
   @@index([searchName])
 }
@@ -476,4 +478,49 @@ model ConsultationAudio {
   createdAt        DateTime @default(now())
 
   @@index([patientId, recordedAt])
+}
+
+model FoodRecall {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     PatientProfile @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  recallDate  DateTime @default(now())
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  meals       RecallMeal[]
+
+  @@index([patientId, recallDate])
+}
+
+model RecallMeal {
+  id           String   @id @default(uuid())
+  foodRecallId String
+  foodRecall   FoodRecall @relation(fields: [foodRecallId], references: [id], onDelete: Cascade)
+  name         String?
+  timeLabel    String?
+  order        Int
+  items        RecallItem[]
+
+  @@index([foodRecallId])
+}
+
+model RecallItem {
+  id           String   @id @default(uuid())
+  recallMealId String
+  recallMeal   RecallMeal @relation(fields: [recallMealId], references: [id], onDelete: Cascade)
+  foodId       String?
+  food         Food?    @relation(fields: [foodId], references: [id], onDelete: SetNull)
+  foodName     String?
+  quantity     String?
+  grams        Float?
+  calories     Float?
+  protein      Float?
+  carbs        Float?
+  fats        Float?
+  fiber        Float?
+  sodium       Float?
+  order        Int
+
+  @@index([recallMealId])
 }

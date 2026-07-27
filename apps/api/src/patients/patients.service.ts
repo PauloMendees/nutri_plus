@@ -359,7 +359,7 @@ export class PatientsService {
       where: { id: patientId },
       include: { user: { select: { name: true, email: true } } },
     });
-    const [anamnese, assessments, mealPlans, nutritionTargets, silhuetaScans, appointments, consents] =
+    const [anamnese, assessments, mealPlans, foodRecalls, nutritionTargets, silhuetaScans, appointments, consents] =
       await Promise.all([
         this.prisma.patientAnamnese.findUnique({ where: { patientId } }),
         this.prisma.bodyAssessment.findMany({ where: { patientId }, orderBy: { assessmentDate: 'asc' } }),
@@ -372,6 +372,16 @@ export class PatientsService {
               include: {
                 options: { orderBy: { order: 'asc' }, include: { items: { orderBy: { order: 'asc' } } } },
               },
+            },
+          },
+        }),
+        this.prisma.foodRecall.findMany({
+          where: { patientId },
+          orderBy: { recallDate: 'asc' },
+          include: {
+            meals: {
+              orderBy: { order: 'asc' },
+              include: { items: { orderBy: { order: 'asc' } } },
             },
           },
         }),
@@ -405,6 +415,7 @@ export class PatientsService {
       anamnese,
       assessments,
       mealPlans,
+      foodRecalls,
       nutritionTargets,
       silhuetaScans,
       appointments,
