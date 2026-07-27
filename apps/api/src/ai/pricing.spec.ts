@@ -1,4 +1,4 @@
-import { estimateCostUsd } from './pricing';
+import { estimateCostUsd, estimateTranscriptionCostUsd } from './pricing';
 
 describe('estimateCostUsd', () => {
   it('computes prompt + completion cost for a known model', () => {
@@ -14,5 +14,15 @@ describe('estimateCostUsd', () => {
   it('returns null when token counts are missing', () => {
     expect(estimateCostUsd('gpt-4o', undefined, 2000)).toBeNull();
     expect(estimateCostUsd('gpt-4o', 1000, undefined)).toBeNull();
+  });
+});
+
+describe('estimateTranscriptionCostUsd', () => {
+  it('bills whisper-1 per minute (600s = 10min → 0.06)', () => {
+    expect(estimateTranscriptionCostUsd('whisper-1', 600)).toBeCloseTo(0.06, 5);
+  });
+  it('returns null for an unknown model or missing duration', () => {
+    expect(estimateTranscriptionCostUsd('nope', 600)).toBeNull();
+    expect(estimateTranscriptionCostUsd('whisper-1', undefined)).toBeNull();
   });
 });

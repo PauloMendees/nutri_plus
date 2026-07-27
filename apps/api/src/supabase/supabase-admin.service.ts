@@ -157,4 +157,18 @@ export class SupabaseAdminService {
       throw new BadGatewayException('Signed URL failed');
     }
   }
+
+  // Baixa um objeto privado como Buffer (para reprocessamento server-side, ex.: transcrição).
+  async downloadObject(bucket: string, path: string): Promise<Buffer> {
+    try {
+      const { data, error } = await this.client.storage.from(bucket).download(path);
+      if (error || !data) {
+        throw error ?? new Error('no object');
+      }
+      return Buffer.from(await data.arrayBuffer());
+    } catch {
+      this.logger.warn(`Storage download failed (bucket=${bucket})`);
+      throw new BadGatewayException('Storage download failed');
+    }
+  }
 }

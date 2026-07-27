@@ -9,6 +9,7 @@ const ENV: Record<string, string> = {
   OPENAI_API_KEY: 'sk-test',
   OPENAI_MODEL_SMART: 'gpt-4o',
   OPENAI_MODEL_FAST: 'gpt-4o-mini',
+  OPENAI_MODEL_TRANSCRIBE: 'whisper-1',
 };
 
 const schema = z.object({ title: z.string() });
@@ -221,5 +222,53 @@ describe('OpenAIProvider.generateStructured', () => {
 
     const msg = create.mock.calls[0][0].messages[1];
     expect(msg.content).toBe(baseOpts.user);
+  });
+});
+
+describe('OpenAIProvider.transcribeAudio', () => {
+  function makeTranscribeProvider() {
+    const config = {
+      getOrThrow: (key: string) => {
+        const env: Record<string, string> = {
+          OPENAI_API_KEY: 'sk-test', OPENAI_MODEL_SMART: 'gpt-4o',
+          OPENAI_MODEL_FAST: 'gpt-4o-mini', OPENAI_MODEL_TRANSCRIBE: 'whisper-1',
+        };
+        if (env[key] === undefined) throw new Error(`missing ${key}`);
+        return env[key];
+      },
+    } as any;
+    const interactions = mockDeep<AiInteractionsService>();
+    const provider = new OpenAIProvider(config, interactions);
+    const create = jest.fn();
+    (provider as any).client = { audio: { transcriptions: { create } } };
+    return { provider, interactions, create };
+  }
+
+  it('returns the transcript text and records a successful interaction WITHOUT the text', async () => {
+    const { provider, interactions, create } = makeTranscribeProvider();
+    create.mockResolvedValue({ text: 'olá paciente' });
+
+    const text = await provider.transcribeAudio(Buffer.from('x'), 'audio.webm', { patientId: 'p1', durationSec: 600 });
+
+    expect(text).toBe('olá paciente');
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({ model: 'whisper-1', language: 'pt' }),
+    );
+    const recorded = interactions.record.mock.calls[0][0];
+    expect(recorded.type).toBe(AIInteractionType.CONSULTATION_TRANSCRIPTION);
+    expect(recorded.success).toBe(true);
+    expect(recorded.estimatedCostUsd).toBeCloseTo(0.06, 5);
+    // Nunca grava o texto transcrito (PII):
+    expect(JSON.stringify(recorded)).not.toContain('olá paciente');
+  });
+
+  it('records a failure and throws BadGatewayException when the API fails', async () => {
+    const { provider, interactions, create } = makeTranscribeProvider();
+    create.mockRejectedValue(new Error('boom'));
+
+    await expect(
+      provider.transcribeAudio(Buffer.from('x'), 'audio.webm', { patientId: 'p1', durationSec: 600 }),
+    ).rejects.toBeInstanceOf(BadGatewayException);
+    expect(interactions.record).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
   });
 });
