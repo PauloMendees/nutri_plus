@@ -34,7 +34,7 @@ Encadear build+submit: `eas build --platform all --profile production --auto-sub
 
 ## 4. Antes de liberar geral
 - Testar num **device físico** (push remoto não funciona no simulador iOS nem no Expo Go — precisa de dev/production build).
-- **Backend:** confirmar no Render que `REMINDER_DISPATCH_URL` + `REMINDER_DISPATCH_KEY` estão setados, senão o cron de lembretes não dispara.
+- **Lembretes (backend):** setar `REMINDER_DISPATCH_KEY` no serviço da API no Render **e** como *secret* do GitHub (mesmo valor). O gatilho periódico é o GitHub Actions `.github/workflows/reminders.yml` (a cada 30 min) — não um cron do Render. Sem a chave nos dois lados, o dispatch responde 401 e os lembretes não disparam.
 
 ## Caminho feliz (FCM/APNs já configurados)
 ```bash

@@ -36,20 +36,9 @@ services:
         sync: false
       - key: OPENAI_MODEL_FAST
         sync: false
-      - key: REMINDER_DISPATCH_KEY
-        sync: false
-  - type: cron
-    name: nutri-plus-reminders
-    runtime: docker
-    region: oregon
-    schedule: "*/30 * * * *"
-    dockerfilePath: apps/api/Dockerfile
-    dockerContext: .
-    dockerCommand: >-
-      node -e "fetch(process.env.REMINDER_DISPATCH_URL, { method: 'POST', headers: { 'x-reminder-key': process.env.REMINDER_DISPATCH_KEY } }).then((r) => { console.log(r.status); process.exit(r.ok ? 0 : 1); }).catch((e) => { console.error(e); process.exit(1); })"
-    envVars:
-      # https://<api-host>/v1/internal/reminders/dispatch — set in the Render dashboard.
-      - key: REMINDER_DISPATCH_URL
-        sync: false
+      # Segredo do endpoint interno de disparo de lembretes. O gatilho periódico
+      # NÃO é um cron do Render — é um GitHub Actions agendado
+      # (.github/workflows/reminders.yml) que faz POST em
+      # /v1/internal/reminders/dispatch com o header x-reminder-key = este valor.
       - key: REMINDER_DISPATCH_KEY
         sync: false
