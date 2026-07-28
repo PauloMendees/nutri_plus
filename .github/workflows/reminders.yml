@@ -22,4 +22,8 @@ jobs:
             -H "x-reminder-key: ${REMINDER_DISPATCH_KEY}")
           echo "HTTP ${code}"
           cat /tmp/body || true
-          test "${code}" = "200"
+          # Sucesso = qualquer 2xx (o Nest retorna 201 Created por padrão em POST).
+          case "${code}" in
+            2*) ;;
+            *) echo "dispatch failed (HTTP ${code})" >&2; exit 1 ;;
+          esac
