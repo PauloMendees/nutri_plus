@@ -134,6 +134,7 @@ model PatientProfile {
   anamnese           PatientAnamnese?
   consultationAudios ConsultationAudio[]
   foodRecalls    FoodRecall[]
+  pushTokens     PatientPushToken[]
 
   @@index([nutritionistId])
 }
@@ -189,6 +190,7 @@ model Appointment {
   description    String?
   startsAt       DateTime
   endsAt         DateTime
+  appointmentReminderSentAt DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -535,4 +537,16 @@ model RecallItem {
   order        Int
 
   @@index([recallMealId])
+}
+
+model PatientPushToken {
+  id        String   @id @default(uuid())
+  patientId String
+  patient   PatientProfile @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([patientId])
 }

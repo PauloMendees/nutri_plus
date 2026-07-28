@@ -22,3 +22,4 @@ export * from './data-export';
 export * from './anamnese';
 export * from './consultation-audio';
 export * from './food-recall';
+export * from './push';

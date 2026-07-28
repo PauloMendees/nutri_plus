@@ -36,6 +36,18 @@
     "production": {
       "android": {
         "track": "internal"
+        // Envio não-interativo ao Google Play: gere uma Service Account JSON
+        // (Play Console → Configurações → Acesso via API) e aponte aqui — o arquivo
+        // fica FORA do git (não commitar credenciais):
+        // "serviceAccountKeyPath": "../../credentials/google-play-service-account.json"
+      },
+      "ios": {
+        // App Store Connect API key — senão `eas submit` pede login interativo.
+        // Gere em App Store Connect → Usuários e Acesso → Integrações → chaves de API.
+        // O .p8 fica FORA do git:
+        // "ascApiKeyPath": "../../credentials/asc-api-key.p8",
+        // "ascApiKeyId": "XXXXXXXXXX",
+        // "ascApiKeyIssuerId": "00000000-0000-0000-0000-000000000000"
       }
     }
   }

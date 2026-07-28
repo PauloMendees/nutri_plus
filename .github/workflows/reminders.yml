@@ -1,0 +1,25 @@
+name: Dispatch appointment reminders
+
+# Gatilho periódico dos lembretes de consulta (E1): faz POST no endpoint interno
+# protegido da API a cada 30 min. Substitui um Cron Job do Render — não precisa de
+# um segundo serviço. Agendamentos do GitHub rodam só no branch padrão (main) e têm
+# uma folga de alguns minutos, absorvida pela janela de 24h do scan.
+on:
+  schedule:
+    - cron: '*/30 * * * *' # a cada 30 minutos (UTC)
+  workflow_dispatch: {} # permite disparar manualmente pela aba Actions
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /v1/internal/reminders/dispatch
+        env:
+          REMINDER_DISPATCH_KEY: ${{ secrets.REMINDER_DISPATCH_KEY }}
+        run: |
+          code=$(curl -sS -o /tmp/body -w '%{http_code}' -X POST \
+            "https://nutri-plus-mfzt.onrender.com/v1/internal/reminders/dispatch" \
+            -H "x-reminder-key: ${REMINDER_DISPATCH_KEY}")
+          echo "HTTP ${code}"
+          cat /tmp/body || true
+          test "${code}" = "200"

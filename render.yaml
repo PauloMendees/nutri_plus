@@ -36,3 +36,9 @@ services:
         sync: false
       - key: OPENAI_MODEL_FAST
         sync: false
+      # Segredo do endpoint interno de disparo de lembretes. O gatilho periódico
+      # NÃO é um cron do Render — é um GitHub Actions agendado
+      # (.github/workflows/reminders.yml) que faz POST em
+      # /v1/internal/reminders/dispatch com o header x-reminder-key = este valor.
+      - key: REMINDER_DISPATCH_KEY
+        sync: false

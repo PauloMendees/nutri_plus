@@ -1,12 +1,14 @@
-import { useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Pressable, Switch, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 import { useSession } from '../../../lib/auth';
 import { useTheme, useThemeColor } from '../../../lib/theme';
 import { useMyNutritionist } from '../../../lib/queries/nutritionist';
 import { downloadMyData } from '../../../lib/queries/data-export';
 import { apiFetch } from '../../../lib/api';
+import { registerForPush, unregisterPush } from '../../../lib/push';
 import { Screen } from '../../../components/ui/screen';
 import { BrandHeader } from '../../../components/brand/brand-header';
 import type { ModeType } from '../../../components/ui/gluestack-ui-provider';
@@ -28,6 +30,41 @@ export default function ConfiguracoesIndex() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [pushOn, setPushOn] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+
+  useEffect(() => {
+    SecureStore.getItemAsync('push-token').then((t) => setPushOn(!!t));
+  }, []);
+
+  async function onTogglePush(next: boolean) {
+    setPushBusy(true);
+    try {
+      if (next) {
+        const result = await registerForPush();
+        if ('denied' in result) {
+          Alert.alert(
+            'Permissão negada',
+            'Ative as notificações nas configurações do sistema para receber lembretes.',
+          );
+          setPushOn(false);
+          return;
+        }
+        await SecureStore.setItemAsync('push-token', result.token);
+        setPushOn(true);
+      } else {
+        const token = await SecureStore.getItemAsync('push-token');
+        if (token) await unregisterPush(token);
+        await SecureStore.deleteItemAsync('push-token');
+        setPushOn(false);
+      }
+    } catch {
+      Alert.alert('Erro', 'Não foi possível atualizar os lembretes. Tente novamente.');
+      setPushOn(!next);
+    } finally {
+      setPushBusy(false);
+    }
+  }
 
   async function onExport() {
     setExportError(null);
@@ -128,6 +165,19 @@ export default function ConfiguracoesIndex() {
                 </Pressable>
               );
             })}
+          </View>
+        </View>
+
+        <View className="gap-2">
+          <Text className="font-sans-medium text-sm uppercase text-muted-foreground">Notificações</Text>
+          <View className="flex-row items-center justify-between rounded-xl border border-border bg-card p-4">
+            <Text className="font-sans-medium text-base text-foreground">Lembretes de consulta</Text>
+            <Switch
+              accessibilityLabel="Lembretes de consulta"
+              value={pushOn}
+              onValueChange={onTogglePush}
+              disabled={pushBusy}
+            />
           </View>
         </View>
 

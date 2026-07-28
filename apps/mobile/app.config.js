@@ -4,7 +4,7 @@ const config = {
   slug: 'nutri-plus-mobile',
   owner: 'paulo-mendes-tecnologia',
   scheme: 'nutriplus',
-  version: '1.0.0',
+  version: '1.1.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
   // 'automatic' lets the app switch appearance at runtime and lets 'system'
@@ -26,6 +26,7 @@ const config = {
     'expo-router',
     'expo-secure-store',
     'expo-font',
+    'expo-notifications',
     [
       'expo-splash-screen',
       { image: './assets/splash-icon.png', imageWidth: 200, backgroundColor: '#FFFFFF' },
