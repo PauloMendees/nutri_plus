@@ -5,6 +5,7 @@ import { SUPABASE_PROVIDER } from '../auth/auth.constants';
 import { LocalUser } from '../auth/types/auth-context';
 import { generateReferralCode } from '../common/referral-code';
 import { UpdatePatientDto } from '../patients/dto/update-patient.dto';
+import { TRIAL_DAYS } from '../billing/plan-policy';
 
 interface CreateWithProfileInput {
   authProviderId: string;
@@ -157,7 +158,15 @@ export class UsersService {
           data: {
             ...base,
             nutritionistProfile: {
-              create: { referralCode: generateReferralCode() },
+              create: {
+                referralCode: generateReferralCode(),
+                subscription: {
+                  create: {
+                    status: 'TRIALING',
+                    trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 24 * 3600 * 1000),
+                  },
+                },
+              },
             },
           },
           include: INCLUDE_PROFILES,

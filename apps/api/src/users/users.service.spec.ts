@@ -223,6 +223,19 @@ describe('UsersService', () => {
     expect(result).toEqual({ id: 'u-e' });
   });
 
+  it('createWithProfile(NUTRITIONIST) cria assinatura TRIALING com trialEndsAt ~ +7d', async () => {
+    const create = jest.fn().mockResolvedValue({ id: 'u1' });
+    const prisma = { user: { create } } as any;
+    const svc = new UsersService(prisma);
+    await svc.createWithProfile({ authProviderId: 'a1', email: 'n@x.com', name: 'N', role: 'NUTRITIONIST' as any });
+    const data = create.mock.calls[0][0].data;
+    const trialEndsAt: Date = data.nutritionistProfile.create.subscription.create.trialEndsAt;
+    const days = (trialEndsAt.getTime() - Date.now()) / (24 * 3600 * 1000);
+    expect(data.nutritionistProfile.create.subscription.create.status).toBe('TRIALING');
+    expect(days).toBeGreaterThan(6.9);
+    expect(days).toBeLessThan(7.1);
+  });
+
   it('rejects EMPLOYEE self-signup with BadRequestException and does not create a DB row', async () => {
     await expect(
       service.createWithProfile({
