@@ -8,6 +8,7 @@ import { UserRole } from '../../generated/prisma/client';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { AuthContext } from '../../auth/types/auth-context';
+import { RequiresFeature } from '../../billing/decorators';
 import { AudiosService } from './audios.service';
 import { CreateAudioDto } from './dto/create-audio.dto';
 
@@ -42,6 +43,7 @@ export class AudiosController {
   }
 
   @Post(':audioId/transcribe')
+  @RequiresFeature('transcription')
   transcribe(@CurrentUser() ctx: AuthContext, @Param('id') id: string, @Param('audioId') audioId: string) {
     return this.service.transcribe(ctx, id, audioId);
   }
