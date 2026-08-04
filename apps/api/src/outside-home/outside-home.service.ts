@@ -31,6 +31,7 @@ export class OutsideHomeService {
         allergies: true,
         medicalConditions: true,
         notes: true,
+        nutritionistId: true,
       },
     });
 
@@ -56,6 +57,7 @@ export class OutsideHomeService {
       schemaName: 'outside_home_suggestion',
       type: AIInteractionType.OUTSIDE_HOME_SUGGESTION,
       patientId,
+      nutritionistId: profile?.nutritionistId ?? undefined,
     });
 
     await this.prisma.outsideHomeRequest.create({

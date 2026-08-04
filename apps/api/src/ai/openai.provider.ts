@@ -77,6 +77,7 @@ export class OpenAIProvider {
         success: false,
         errorMessage: 'OpenAI request failed',
         patientId: opts.patientId,
+        nutritionistId: opts.nutritionistId,
       });
       this.logger.warn(`OpenAI request failed (type=${opts.type}, model=${model})`);
       throw new BadGatewayException('AI provider unavailable');
@@ -94,6 +95,7 @@ export class OpenAIProvider {
       latencyMs,
       estimatedCostUsd: estimateCostUsd(model, promptTokens, completionTokens),
       patientId: opts.patientId,
+      nutritionistId: opts.nutritionistId,
     };
 
     const reject = async (errorMessage: string): Promise<never> => {
@@ -138,7 +140,7 @@ export class OpenAIProvider {
   async transcribeAudio(
     buffer: Buffer,
     filename: string,
-    opts: { patientId?: string; durationSec?: number | null },
+    opts: { patientId?: string; durationSec?: number | null; nutritionistId?: string },
   ): Promise<string> {
     const model = this.transcribeModel;
     const startedAt = Date.now();
@@ -158,6 +160,7 @@ export class OpenAIProvider {
         success: false,
         errorMessage: 'OpenAI transcription failed',
         patientId: opts.patientId,
+        nutritionistId: opts.nutritionistId,
       });
       this.logger.warn(`OpenAI transcription failed (model=${model})`);
       throw new BadGatewayException('AI provider unavailable');
@@ -172,6 +175,7 @@ export class OpenAIProvider {
       estimatedCostUsd: estimateTranscriptionCostUsd(model, opts.durationSec ?? undefined),
       success: true,
       patientId: opts.patientId,
+      nutritionistId: opts.nutritionistId,
     });
     this.logger.log(
       `Transcription ok (model=${model}, durationSec=${opts.durationSec ?? '?'}, latencyMs=${latencyMs})`,

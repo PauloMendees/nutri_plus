@@ -65,6 +65,25 @@ describe('AiInteractionsService', () => {
     });
   });
 
+  it('persists nutritionistId when provided (tenant stamp for metering)', async () => {
+    prisma.aIInteraction.create.mockResolvedValue({ id: 'i3' } as any);
+
+    await service.record({
+      type: AIInteractionType.MEAL_PLAN_GENERATION,
+      model: 'gpt-4o',
+      input: { system: 's', user: 'u' },
+      success: true,
+      nutritionistId: 'n1',
+      patientId: 'p1',
+    });
+
+    expect(prisma.aIInteraction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ nutritionistId: 'n1', patientId: 'p1' }),
+      }),
+    );
+  });
+
   it('never throws when the audit write fails (logs instead)', async () => {
     prisma.aIInteraction.create.mockRejectedValue(new Error('db down'));
 

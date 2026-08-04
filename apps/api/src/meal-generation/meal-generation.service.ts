@@ -82,6 +82,7 @@ export class MealGenerationService {
       schemaName: 'meal_plan',
       type: AIInteractionType.MEAL_PLAN_GENERATION,
       patientId,
+      nutritionistId,
     });
 
     const foods = await this.prisma.food.findMany();
@@ -106,6 +107,8 @@ export class MealGenerationService {
   // enforced by mealPlans.getPlan (404 for missing/not-owned); daily targets and
   // objective are carried over from the existing plan, never recalculated here.
   async adjust(ctx: AuthContext, planId: string, instructions: string): Promise<MealPlanDraft> {
+    const nutritionistId = resolveScopeNutritionistId(ctx);
+
     // Ownership + full tree (404 propagates for missing/not-owned).
     const plan = await this.mealPlans.getPlan(ctx, planId);
     const patient = await this.prisma.patientProfile.findUnique({
@@ -153,6 +156,7 @@ export class MealGenerationService {
       schemaName: 'meal_plan',
       type: AIInteractionType.MEAL_PLAN_ADJUSTMENT,
       patientId: plan.patientId,
+      nutritionistId,
     });
 
     return {
