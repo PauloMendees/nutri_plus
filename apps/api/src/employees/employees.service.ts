@@ -4,6 +4,7 @@ import { AuthContext } from '../auth/types/auth-context';
 import { resolveScopeNutritionistId } from '../auth/auth-scope';
 import { UsersService } from '../users/users.service';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
+import { EntitlementsService } from '../billing/entitlements.service';
 import { InviteEmployeeDto } from './dto/invite-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 
@@ -15,6 +16,7 @@ export class EmployeesService {
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
     private readonly supabaseAdmin: SupabaseAdminService,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   // Invite a staff account by email: create the Supabase identity (emails the
@@ -22,6 +24,7 @@ export class EmployeesService {
   // write fails. Mirrors PatientsService.createPatient.
   async inviteEmployee(ctx: AuthContext, dto: InviteEmployeeDto) {
     const nutritionistId = resolveScopeNutritionistId(ctx);
+    await this.entitlements.assertSeatAvailable(nutritionistId);
     const { id: authProviderId } = await this.supabaseAdmin.inviteUser(dto.email, {
       name: dto.name,
     });

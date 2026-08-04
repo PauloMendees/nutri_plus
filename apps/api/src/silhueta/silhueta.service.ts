@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/types/auth-context';
 import { resolveScopeNutritionistId } from '../auth/auth-scope';
 import { OpenAIProvider } from '../ai/openai.provider';
+import { EntitlementsService } from '../billing/entitlements.service';
 import { AIInteractionType } from '../generated/prisma/client';
 import { UploadedImage, isSupportedImage } from '../supabase/image-upload';
 import { silhuetaResponseSchema, SilhuetaResponse } from './silhueta-response.schema';
@@ -26,6 +27,7 @@ export class SilhuetaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly provider: OpenAIProvider,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   // Confirms the patient exists AND is linked to this nutritionist. A non-owned
@@ -70,6 +72,8 @@ export class SilhuetaService {
     if (back) {
       images.push(dataUrl(back));
     }
+
+    await this.entitlements.assertUsageCap(nutritionistId, 'silhueta');
 
     const est = await this.provider.generateStructured<SilhuetaResponse>({
       tier: 'smart',

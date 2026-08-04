@@ -3,6 +3,7 @@ import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
+import { EntitlementsService } from '../billing/entitlements.service';
 import { EmployeesService } from './employees.service';
 import { AuthContext } from '../auth/types/auth-context';
 
@@ -25,6 +26,7 @@ describe('EmployeesService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let users: DeepMockProxy<UsersService>;
   let supabaseAdmin: DeepMockProxy<SupabaseAdminService>;
+  let entitlements: DeepMockProxy<EntitlementsService>;
   let service: EmployeesService;
   const ctx = nutCtx('nutri-1');
 
@@ -32,7 +34,8 @@ describe('EmployeesService', () => {
     prisma = mockDeep<PrismaService>();
     users = mockDeep<UsersService>();
     supabaseAdmin = mockDeep<SupabaseAdminService>();
-    service = new EmployeesService(prisma, users, supabaseAdmin);
+    entitlements = mockDeep<EntitlementsService>();
+    service = new EmployeesService(prisma, users, supabaseAdmin, entitlements);
   });
 
   it('lists only employees linked to the nutritionist', async () => {

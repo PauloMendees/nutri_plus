@@ -6,6 +6,7 @@ import { OpenAIProvider } from '../../ai/openai.provider';
 import type { TranscriptStatus } from '../../generated/prisma/client';
 import { AuthContext } from '../../auth/types/auth-context';
 import { resolveScopeNutritionistId } from '../../auth/auth-scope';
+import { EntitlementsService } from '../../billing/entitlements.service';
 import { CreateAudioDto } from './dto/create-audio.dto';
 
 const AUDIO_BUCKET = 'consultation-audio';
@@ -34,6 +35,7 @@ export class AudiosService {
     private readonly prisma: PrismaService,
     private readonly admin: SupabaseAdminService,
     private readonly openai: OpenAIProvider,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   // Returns the resolved nutritionistId so callers can reuse it (e.g. to stamp
@@ -100,6 +102,8 @@ export class AudiosService {
     const nutritionistId = await this.requireOwnedPatient(ctx, patientId);
     const audio = await this.prisma.consultationAudio.findFirst({ where: { id: audioId, patientId } });
     if (!audio) throw new NotFoundException('Audio not found');
+
+    await this.entitlements.assertUsageCap(nutritionistId, 'transcription');
 
     // Reserva PROCESSING de forma atômica: começa de null/FAILED, ou reclama uma
     // linha PROCESSING travada (sem transcriptStartedAt, ou iniciada há mais de
