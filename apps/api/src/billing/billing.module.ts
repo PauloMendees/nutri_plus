@@ -6,10 +6,11 @@ import { SubscriptionGuard } from './subscription.guard';
 import { AsaasService } from './asaas.service';
 import { SubscriptionService } from './subscription.service';
 import { MeSubscriptionController } from './me-subscription.controller';
+import { InternalAsaasController } from './internal-asaas.controller';
 
 @Module({
   imports: [PrismaModule, ConfigModule],
-  controllers: [MeSubscriptionController],
+  controllers: [MeSubscriptionController, InternalAsaasController],
   providers: [EntitlementsService, SubscriptionGuard, AsaasService, SubscriptionService],
   exports: [EntitlementsService, SubscriptionGuard, SubscriptionService],
 })

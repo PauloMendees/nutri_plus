@@ -5,6 +5,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EntitlementsService } from './entitlements.service';
 import { AsaasService } from './asaas.service';
 
+export interface AsaasWebhookEvent {
+  event: string;
+  payment?: {
+    id: string; subscription?: string; value: number; status: string;
+    billingType?: string; dueDate?: string; paymentDate?: string;
+  };
+}
+
 @Injectable()
 export class SubscriptionService {
   constructor(
@@ -76,5 +84,45 @@ export class SubscriptionService {
       await this.asaas.cancelSubscription(sub.asaasSubscriptionId);
     }
     await this.prisma.subscription.update({ where: { nutritionistId }, data: { cancelAtPeriodEnd: true } });
+  }
+
+  async handleWebhook(event: AsaasWebhookEvent): Promise<void> {
+    const p = event.payment;
+    if (!p?.subscription) return;
+    const sub = await this.prisma.subscription.findFirst({ where: { asaasSubscriptionId: p.subscription } });
+    if (!sub) return; // assinatura não é nossa / ainda não persistida
+
+    await this.prisma.subscriptionPayment.upsert({
+      where: { asaasPaymentId: p.id },
+      create: {
+        subscriptionId: sub.id, asaasPaymentId: p.id, amount: p.value, status: p.status,
+        billingType: p.billingType ?? null,
+        dueDate: p.dueDate ? new Date(p.dueDate) : null,
+        paidAt: p.paymentDate ? new Date(p.paymentDate) : null,
+      },
+      update: {
+        status: p.status,
+        paidAt: p.paymentDate ? new Date(p.paymentDate) : null,
+      },
+    });
+
+    if (event.event === 'PAYMENT_CONFIRMED' || event.event === 'PAYMENT_RECEIVED') {
+      await this.prisma.subscription.update({
+        where: { id: sub.id },
+        data: { status: 'ACTIVE', currentPeriodEnd: this.nextPeriodEnd(sub.billingPeriod, p.dueDate) },
+      });
+    } else if (event.event === 'PAYMENT_OVERDUE') {
+      await this.prisma.subscription.update({ where: { id: sub.id }, data: { status: 'PAST_DUE' } });
+    } else if (event.event === 'PAYMENT_REFUNDED' || event.event === 'SUBSCRIPTION_DELETED') {
+      await this.prisma.subscription.update({ where: { id: sub.id }, data: { status: 'CANCELED' } });
+    }
+  }
+
+  private nextPeriodEnd(period: 'MONTHLY' | 'YEARLY' | null, dueDate?: string): Date {
+    const base = dueDate ? new Date(dueDate) : new Date();
+    const end = new Date(base);
+    if (period === 'YEARLY') end.setUTCFullYear(end.getUTCFullYear() + 1);
+    else end.setUTCMonth(end.getUTCMonth() + 1);
+    return end;
   }
 }
