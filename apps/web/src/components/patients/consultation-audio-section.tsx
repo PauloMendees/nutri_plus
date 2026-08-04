@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useAudios, useDeleteAudio, useTranscribeAudio, useUploadAudio } from '@/lib/queries/consultation-audio';
+import { ProGate } from '@/components/billing/pro-gate';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -180,10 +181,12 @@ export function ConsultationAudioSection({ patientId, canEdit }: { patientId: st
                 </p>
               )}
               {canEdit && a.transcriptStatus == null && (
-                <Button type="button" variant="outline" size="sm" className="w-fit rounded-full"
-                  onClick={() => handleTranscribe(a.id)} disabled={transcribe.isPending}>
-                  Transcrever
-                </Button>
+                <ProGate feature="transcription" label="Transcrever (Pro)">
+                  <Button type="button" variant="outline" size="sm" className="w-fit rounded-full"
+                    onClick={() => handleTranscribe(a.id)} disabled={transcribe.isPending}>
+                    Transcrever
+                  </Button>
+                </ProGate>
               )}
             </li>
           ))}

@@ -15,6 +15,9 @@ vi.mock('@/lib/queries/consultation-audio', () => ({
   useTranscribeAudio: () => ({ mutate: transcribeMock, mutateAsync: transcribeMock, isPending: false }),
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('@/lib/queries/subscription', () => ({
+  useSubscription: () => ({ data: { entitlements: { features: { transcription: true } } } }),
+}));
 
 import { ConsultationAudioSection } from './consultation-audio-section';
 

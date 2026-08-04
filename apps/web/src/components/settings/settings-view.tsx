@@ -34,6 +34,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { ThemeToggleSwitch } from '@/components/settings/theme-toggle-switch';
+import { SubscriptionTab } from '@/components/settings/subscription-tab';
 
 function defaults(s?: NutritionistSettings): SettingsValues {
   return {
@@ -126,6 +127,7 @@ export function SettingsView() {
               <TabsTrigger value="plano">Plano alimentar</TabsTrigger>
               <TabsTrigger value="aparencia">Aparência</TabsTrigger>
               <TabsTrigger value="app">Aplicativo Paciente</TabsTrigger>
+              <TabsTrigger value="assinatura">Assinatura</TabsTrigger>
             </TabsList>
 
             <TabsContent value="plano">
@@ -298,6 +300,13 @@ export function SettingsView() {
                     Salvar
                   </Button>
                 </div>
+              </section>
+            </TabsContent>
+
+            <TabsContent value="assinatura">
+              <section className="space-y-4 rounded-xl border bg-card p-5">
+                <h2 className="font-heading text-base font-bold">Assinatura</h2>
+                <SubscriptionTab />
               </section>
             </TabsContent>
           </Tabs>

@@ -38,6 +38,9 @@ vi.mock('@/lib/queries/nutrition-targets', () => ({
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));
+vi.mock('@/lib/queries/subscription', () => ({
+  useSubscription: () => ({ data: { entitlements: { features: { silhueta: true } } } }),
+}));
 
 import { PatientDetail } from './patient-detail';
 
