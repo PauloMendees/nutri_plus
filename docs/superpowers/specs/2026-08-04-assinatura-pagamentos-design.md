@@ -30,13 +30,13 @@ Durante trial (7d) **e** cortesia (30d), o acesso é **nível Pro** (o nutri exp
 | Anamnese, recordatório 24h | ✅ | ✅ |
 | App do paciente + lembretes push | ✅ | ✅ |
 | Contabilidade (financeiro) | ✅ | ✅ |
-| **Ações de IA/mês** (gerar plano + fora-de-casa + ajuste IA) | **30** | **200** |
+| **Ações de IA/mês** (gerar plano + ajuste IA) | **30** | **200** |
 | **Silhueta** (estimativa por foto/visão) | 🔒 só Pro | ✅ (cap 40/mês) |
 | **Transcrição de consulta** | 🔒 só Pro | ✅ (cap 30/mês) |
 | **Funcionários** (assentos RBAC) | 🔒 solo | ✅ até 2 |
 
 **Regras de gating:**
-- **Cota de IA** conta as 3 ações do dia a dia (`MEAL_PLAN_GENERATION`, `OUTSIDE_HOME_SUGGESTION`, `MEAL_PLAN_ADJUSTMENT`); esgotou → **402 `AI_QUOTA_EXCEEDED`** (CTA upgrade/aguardar renovação).
+- **Cota de IA** conta as 2 ações **iniciadas pelo nutricionista** (`MEAL_PLAN_GENERATION`, `MEAL_PLAN_ADJUSTMENT` — as caras, `smart`-tier); esgotou → **402 `AI_QUOTA_EXCEEDED`** (CTA upgrade/aguardar renovação). **Fora-de-casa (`OUTSIDE_HOME_SUGGESTION`) NÃO entra na cota** — é iniciada pelo **paciente** no app grátis (`@Roles(PATIENT)`, modelo `fast` barato); não dá pra mostrar paywall de nutri a um paciente. Continua **registrada** (carimba o `nutritionistId` do paciente) pra análise, mas nunca bloqueia.
 - **Silhueta / transcrição / funcionários** = exclusivos do Pro (na Essencial: cadeado + upsell). No Pro têm cap próprio via contagem (`SILHUETA_SCAN` 40, `CONSULTATION_TRANSCRIPTION` 30) pra proteger a margem dos dois recursos de IA mais caros.
 - **Trial/cortesia** = acesso Pro até `trialEndsAt`; depois → somente-leitura se não assinar.
 - **`isComp`** = Pro permanente, nunca gateado.
@@ -119,7 +119,7 @@ Novo módulo `billing`, com um **`EntitlementsService`** como fonte única da ve
 - Escrita (POST/PUT/PATCH/DELETE) de NUTRITIONIST/EMPLOYEE com conta read-only → **402 `READ_ONLY`**.
 - Handler com `@RequiresFeature('silhueta'|'transcription'|'employees')` sem direito → **402 `FEATURE_PRO_ONLY`** (com `feature`). Aplicado em: Silhueta `POST /patients/:id/silhueta`, transcrição `POST /patients/:id/audios/:audioId/transcribe`, funcionários `POST /employees`.
 
-**Cota de IA — inline nos 3 serviços de IA** (`meal-generation`, `outside-home`, `meal-plan-adjustment`): `assertAiQuota(...)` **antes** de chamar a OpenAI + passam `nutritionistId` ao `AiInteractionsService.record()`. Silhueta/transcrição chamam o mesmo mecanismo com seus caps (40/30).
+**Cota de IA — inline nos serviços do nutricionista** (`MealGenerationService.generate` e `.adjust`): `assertAiQuota(nutritionistId, type)` **antes** de chamar a OpenAI. Todos os serviços de IA (inclusive `outside-home` e transcrição) passam a **carimbar `nutritionistId`** ao registrar o `AIInteraction` (via `generateStructured`/`transcribeAudio`). Silhueta/transcrição = feature-gated (Pro) + cap próprio por contagem (40/30); `outside-home` só carimba (não bloqueia).
 
 **Contrato de erro (402):** corpo `{ statusCode: 402, code, feature? }`, `code ∈ {READ_ONLY, AI_QUOTA_EXCEEDED, FEATURE_PRO_ONLY, SEAT_LIMIT}` — legível por máquina, pra web mapear na UI certa.
 
