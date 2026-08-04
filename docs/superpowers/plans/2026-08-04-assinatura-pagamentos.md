@@ -1666,7 +1666,7 @@ async function main() {
 main().catch((e) => { console.error(e); process.exit(1); });
 ```
 
-*(Rodar no deploy uma vez: `COMP_NUTRITIONIST_EMAILS="paulo@empathmsp.com" pnpm --filter @nutri-plus/api exec tsx scripts/seed-subscriptions.ts`. É idempotente — rodar duas vezes não duplica.)*
+*(Rodar no deploy uma vez: `COMP_NUTRITIONIST_EMAILS="paulo@empathmsp.com" pnpm --filter @nutri-plus/api run seed:subscriptions`. Requer o script `"seed:subscriptions": "ts-node scripts/seed-subscriptions.ts"` em `apps/api/package.json` — `tsx` não está instalado no projeto, `ts-node` já é devDependency. É idempotente — rodar duas vezes não duplica.)*
 
 - [ ] **Step 6: Rodar testes + tsc**
 
@@ -2382,7 +2382,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - [ ] API: `pnpm --filter @nutri-plus/api test && pnpm --filter @nutri-plus/api exec tsc --noEmit` — verde.
 - [ ] Web: `pnpm --filter @nutri-plus/web test && pnpm --filter @nutri-plus/web exec tsc --noEmit` — verde.
 - [ ] Mobile (não deve ripar): `pnpm --filter @nutri-plus/mobile exec tsc --noEmit` — limpo (nenhum arquivo mobile tocado).
-- [ ] Deploy: setar `ASAAS_API_KEY`, `ASAAS_API_URL`, `ASAAS_WEBHOOK_TOKEN` no Render (`sync:false`); registrar a URL do webhook (`/v1/internal/asaas/webhook`) + o token no painel do Asaas; rodar o script de cortesia uma vez com `COMP_NUTRITIONIST_EMAILS`.
+- [ ] Deploy: setar `ASAAS_API_KEY`, `ASAAS_API_URL`, `ASAAS_WEBHOOK_TOKEN` no Render (`sync:false`); registrar a URL do webhook (`/v1/internal/asaas/webhook`) + o token no painel do Asaas; rodar o script de cortesia uma vez com `COMP_NUTRITIONIST_EMAILS="paulo@empathmsp.com" pnpm --filter @nutri-plus/api run seed:subscriptions`.
 
 ## Notas de escopo / decisões travadas
 
