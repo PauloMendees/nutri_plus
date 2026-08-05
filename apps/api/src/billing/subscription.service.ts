@@ -1,5 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import type {
+  ChangePlanRequest,
+  ChangePlanResponse,
   CheckoutRequest,
   CheckoutResponse,
   PaymentMethod,
@@ -18,6 +20,12 @@ export interface AsaasWebhookEvent {
     id: string; subscription?: string; value: number; status: string;
     billingType?: string; dueDate?: string; paymentDate?: string;
   };
+}
+
+const TIER_RANK: Record<'ESSENCIAL' | 'PRO', number> = { ESSENCIAL: 0, PRO: 1 };
+function planValue(plan: 'ESSENCIAL' | 'PRO', period: 'MONTHLY' | 'YEARLY'): number {
+  const c = PLAN_CATALOG[plan];
+  return period === 'MONTHLY' ? c.monthlyBrl : c.yearlyBrl;
 }
 
 @Injectable()
@@ -87,13 +95,13 @@ export class SubscriptionService {
       });
       await this.prisma.subscription.update({
         where: { nutritionistId },
-        data: { ...base, asaasSubscriptionId: subscriptionId, paymentMethod: 'PIX', cardLast4: null, cardBrand: null },
+        data: { ...base, asaasSubscriptionId: subscriptionId, paymentMethod: 'PIX', cardLast4: null, cardBrand: null, asaasCardToken: null },
       });
       return { method: 'PIX', pixQrCode };
     }
 
     // CREDIT_CARD (o DTO garante card/holderInfo presentes)
-    const { subscriptionId, status, cardLast4, cardBrand } = await this.asaas.createCardSubscription({
+    const { subscriptionId, status, cardLast4, cardBrand, creditCardToken } = await this.asaas.createCardSubscription({
       customerId, value, cycle: dto.period, description: `nutri_plus ${dto.plan}`,
       card: dto.card!, holderInfo: dto.holderInfo!,
       holder: { name: customer.name, email: customer.email, cpfCnpj: dto.cpfCnpj }, remoteIp,
@@ -101,7 +109,7 @@ export class SubscriptionService {
     await this.prisma.subscription.update({
       where: { nutritionistId },
       data: {
-        ...base, asaasSubscriptionId: subscriptionId, paymentMethod: 'CREDIT_CARD', cardLast4, cardBrand,
+        ...base, asaasSubscriptionId: subscriptionId, paymentMethod: 'CREDIT_CARD', cardLast4, cardBrand, asaasCardToken: creditCardToken,
         ...(status === 'ACTIVE' ? { status: 'ACTIVE', currentPeriodEnd: this.nextPeriodEnd(dto.period, undefined) } : {}),
       },
     });
@@ -125,14 +133,51 @@ export class SubscriptionService {
   ): Promise<void> {
     const sub = await this.prisma.subscription.findUnique({ where: { nutritionistId } });
     if (!sub?.asaasSubscriptionId) throw new NotFoundException('Assinatura ativa não encontrada');
-    const { cardLast4, cardBrand } = await this.asaas.updateSubscriptionBilling(sub.asaasSubscriptionId, {
+    const { cardLast4, cardBrand, creditCardToken } = await this.asaas.updateSubscriptionBilling(sub.asaasSubscriptionId, {
       method: dto.method, card: dto.card, holderInfo: dto.holderInfo,
       holder: { name: customer.name, email: customer.email, cpfCnpj: customer.cpfCnpj }, remoteIp,
     });
     await this.prisma.subscription.update({
       where: { nutritionistId },
-      data: { paymentMethod: dto.method, cardLast4, cardBrand },
+      data: { paymentMethod: dto.method, cardLast4, cardBrand, asaasCardToken: creditCardToken },
     });
+  }
+
+  async changePlan(nutritionistId: string, dto: ChangePlanRequest): Promise<ChangePlanResponse> {
+    const sub = await this.prisma.subscription.findUnique({ where: { nutritionistId } });
+    if (!sub || sub.status !== 'ACTIVE' || !sub.asaasSubscriptionId || !sub.asaasCustomerId || !sub.plan || !sub.billingPeriod || !sub.currentPeriodEnd) {
+      throw new UnprocessableEntityException({ code: 'NOT_ACTIVE', message: 'Troca de plano só está disponível para uma assinatura ativa.' });
+    }
+    const currentTier = sub.plan as 'ESSENCIAL' | 'PRO';
+    const currentPeriod = sub.billingPeriod as 'MONTHLY' | 'YEARLY';
+    const newValue = planValue(dto.plan, dto.period);
+    const isUpgrade = dto.period === currentPeriod && TIER_RANK[dto.plan] > TIER_RANK[currentTier];
+
+    if (isUpgrade) {
+      const cur = planValue(currentTier, currentPeriod);
+      const cycleDays = currentPeriod === 'YEARLY' ? 365 : 30;
+      const remainingDays = Math.max(0, Math.ceil((sub.currentPeriodEnd.getTime() - Date.now()) / 86400000));
+      const diff = Math.round((newValue - cur) * remainingDays / cycleDays * 100) / 100;
+
+      if (sub.paymentMethod === 'CREDIT_CARD') {
+        if (!sub.asaasCardToken) {
+          throw new UnprocessableEntityException({ code: 'CARD_TOKEN_MISSING', message: 'Atualize seu cartão em Configurações antes de fazer o upgrade.' });
+        }
+        const charge = await this.asaas.createOneOffCharge({ customerId: sub.asaasCustomerId, value: diff, billingType: 'CREDIT_CARD', creditCardToken: sub.asaasCardToken, description: `Upgrade nutri_plus ${dto.plan}` });
+        await this.asaas.updateSubscriptionValue(sub.asaasSubscriptionId, { value: newValue });
+        await this.prisma.subscription.update({ where: { nutritionistId }, data: { plan: dto.plan, billingPeriod: dto.period } });
+        return { kind: 'UPGRADE', method: 'CREDIT_CARD', status: charge.status, amount: diff };
+      }
+      // PIX
+      const charge = await this.asaas.createOneOffCharge({ customerId: sub.asaasCustomerId, value: diff, billingType: 'PIX', description: `Upgrade nutri_plus ${dto.plan}` });
+      await this.prisma.subscription.update({ where: { nutritionistId }, data: { pendingPlan: dto.plan, pendingBillingPeriod: dto.period, pendingChargeAsaasId: charge.paymentId } });
+      return { kind: 'UPGRADE', method: 'PIX', pixQrCode: charge.pixQrCode!, amount: diff };
+    }
+
+    // downgrade ou troca de período → agenda
+    await this.asaas.updateSubscriptionValue(sub.asaasSubscriptionId, { value: newValue, cycle: dto.period });
+    await this.prisma.subscription.update({ where: { nutritionistId }, data: { pendingPlan: dto.plan, pendingBillingPeriod: dto.period } });
+    return { kind: 'SCHEDULED', effectiveDate: sub.currentPeriodEnd.toISOString() };
   }
 
   async cancel(nutritionistId: string): Promise<void> {
@@ -146,14 +191,55 @@ export class SubscriptionService {
 
   async handleWebhook(event: AsaasWebhookEvent): Promise<void> {
     const p = event.payment;
-    if (!p?.subscription) return;
+    if (!p) return;
+    const confirmed = event.event === 'PAYMENT_CONFIRMED' || event.event === 'PAYMENT_RECEIVED';
+
+    // 1. Cobrança avulsa de upgrade (não tem p.subscription) — identifica por pendingChargeAsaasId.
+    if (confirmed) {
+      const upgradeSub = await this.prisma.subscription.findFirst({ where: { pendingChargeAsaasId: p.id } });
+      if (upgradeSub && upgradeSub.pendingChargeAsaasId === p.id) {
+        const period = (upgradeSub.pendingBillingPeriod ?? upgradeSub.billingPeriod) as 'MONTHLY' | 'YEARLY';
+        await this.asaas.updateSubscriptionValue(upgradeSub.asaasSubscriptionId!, { value: planValue(upgradeSub.pendingPlan as 'ESSENCIAL' | 'PRO', period) });
+        await this.upsertPayment(upgradeSub.id, p);
+        await this.prisma.subscription.update({
+          where: { id: upgradeSub.id },
+          data: { plan: upgradeSub.pendingPlan, billingPeriod: period, pendingPlan: null, pendingBillingPeriod: null, pendingChargeAsaasId: null },
+        });
+        return;
+      }
+    }
+
+    if (!p.subscription) return;
     const sub = await this.prisma.subscription.findFirst({ where: { asaasSubscriptionId: p.subscription } });
     if (!sub) return; // assinatura não é nossa / ainda não persistida
+    await this.upsertPayment(sub.id, p);
 
+    if (confirmed) {
+      if (sub.pendingPlan && !sub.pendingChargeAsaasId) {
+        // downgrade/período agendado → promove neste ciclo
+        const period = (sub.pendingBillingPeriod ?? sub.billingPeriod) as 'MONTHLY' | 'YEARLY';
+        await this.prisma.subscription.update({
+          where: { id: sub.id },
+          data: { status: 'ACTIVE', currentPeriodEnd: this.nextPeriodEnd(period, p.dueDate), plan: sub.pendingPlan, billingPeriod: period, pendingPlan: null, pendingBillingPeriod: null },
+        });
+      } else {
+        await this.prisma.subscription.update({
+          where: { id: sub.id },
+          data: { status: 'ACTIVE', currentPeriodEnd: this.nextPeriodEnd(sub.billingPeriod, p.dueDate) },
+        });
+      }
+    } else if (event.event === 'PAYMENT_OVERDUE') {
+      await this.prisma.subscription.update({ where: { id: sub.id }, data: { status: 'PAST_DUE' } });
+    } else if (event.event === 'PAYMENT_REFUNDED' || event.event === 'SUBSCRIPTION_DELETED') {
+      await this.prisma.subscription.update({ where: { id: sub.id }, data: { status: 'CANCELED' } });
+    }
+  }
+
+  private async upsertPayment(subscriptionId: string, p: NonNullable<AsaasWebhookEvent['payment']>): Promise<void> {
     await this.prisma.subscriptionPayment.upsert({
       where: { asaasPaymentId: p.id },
       create: {
-        subscriptionId: sub.id, asaasPaymentId: p.id, amount: p.value, status: p.status,
+        subscriptionId, asaasPaymentId: p.id, amount: p.value, status: p.status,
         billingType: p.billingType ?? null,
         dueDate: p.dueDate ? new Date(p.dueDate) : null,
         paidAt: p.paymentDate ? new Date(p.paymentDate) : null,
@@ -163,17 +249,6 @@ export class SubscriptionService {
         paidAt: p.paymentDate ? new Date(p.paymentDate) : null,
       },
     });
-
-    if (event.event === 'PAYMENT_CONFIRMED' || event.event === 'PAYMENT_RECEIVED') {
-      await this.prisma.subscription.update({
-        where: { id: sub.id },
-        data: { status: 'ACTIVE', currentPeriodEnd: this.nextPeriodEnd(sub.billingPeriod, p.dueDate) },
-      });
-    } else if (event.event === 'PAYMENT_OVERDUE') {
-      await this.prisma.subscription.update({ where: { id: sub.id }, data: { status: 'PAST_DUE' } });
-    } else if (event.event === 'PAYMENT_REFUNDED' || event.event === 'SUBSCRIPTION_DELETED') {
-      await this.prisma.subscription.update({ where: { id: sub.id }, data: { status: 'CANCELED' } });
-    }
   }
 
   private nextPeriodEnd(period: 'MONTHLY' | 'YEARLY' | null, dueDate?: string): Date {

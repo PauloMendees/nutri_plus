@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Ip, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import type { CheckoutResponse, SubscriptionView } from '@nutri-plus/shared-types';
+import type { ChangePlanResponse, CheckoutResponse, SubscriptionView } from '@nutri-plus/shared-types';
 import { UserRole } from '../generated/prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -10,6 +10,7 @@ import { BillingExempt } from './decorators';
 import { SubscriptionService } from './subscription.service';
 import { CheckoutDto } from './dto/checkout.dto';
 import { PaymentMethodDto } from './dto/payment-method.dto';
+import { ChangePlanDto } from './dto/change-plan.dto';
 
 @ApiTags('subscription')
 @ApiBearerAuth()
@@ -45,5 +46,10 @@ export class MeSubscriptionController {
   async updatePaymentMethod(@CurrentUser() ctx: AuthContext, @Body() dto: PaymentMethodDto, @Ip() ip: string): Promise<{ ok: true }> {
     await this.subscription.updatePaymentMethod(resolveScopeNutritionistId(ctx), dto, { name: ctx.name, email: ctx.email, cpfCnpj: dto.cpfCnpj ?? '' }, ip);
     return { ok: true };
+  }
+
+  @Post('change-plan')
+  changePlan(@CurrentUser() ctx: AuthContext, @Body() dto: ChangePlanDto): Promise<ChangePlanResponse> {
+    return this.subscription.changePlan(resolveScopeNutritionistId(ctx), dto);
   }
 }

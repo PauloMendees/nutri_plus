@@ -109,3 +109,47 @@ describe('SubscriptionService.updatePaymentMethod', () => {
     expect(prisma.subscription.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ paymentMethod: 'CREDIT_CARD', cardLast4: '9999', cardBrand: 'VISA' }) }));
   });
 });
+
+const activeSub = (over: any = {}) => ({ id: 's1', nutritionistId: 'n1', status: 'ACTIVE', asaasSubscriptionId: 'sub_1', asaasCustomerId: 'cus_1', plan: 'ESSENCIAL', billingPeriod: 'MONTHLY', currentPeriodEnd: new Date(Date.now() + 15 * 86400000), paymentMethod: 'CREDIT_CARD', asaasCardToken: 'tok_1', ...over });
+
+describe('SubscriptionService.changePlan', () => {
+  it('changePlan upgrade no cartão cobra a diferença e aplica na hora (mantém vencimento)', async () => {
+    const { svc, prisma, asaas } = deps(activeSub());
+    asaas.createOneOffCharge = jest.fn().mockResolvedValue({ paymentId: 'pay_1', status: 'ACTIVE' });
+    asaas.updateSubscriptionValue = jest.fn().mockResolvedValue(undefined);
+    const out = await svc.changePlan('n1', { plan: 'PRO', period: 'MONTHLY' });
+    expect(out).toMatchObject({ kind: 'UPGRADE', method: 'CREDIT_CARD', status: 'ACTIVE' });
+    expect((out as any).amount).toBeGreaterThan(0); // ChangePlanResponse.SCHEDULED não tem `amount`; TS não estreita via toMatchObject
+    expect(asaas.createOneOffCharge).toHaveBeenCalledWith(expect.objectContaining({ billingType: 'CREDIT_CARD', creditCardToken: 'tok_1' }));
+    expect(asaas.updateSubscriptionValue).toHaveBeenCalledWith('sub_1', { value: 99 });
+    const data = prisma.subscription.update.mock.calls[0][0].data;
+    expect(data).toMatchObject({ plan: 'PRO' });
+    expect(data.currentPeriodEnd).toBeUndefined(); // mantém o vencimento
+  });
+
+  it('changePlan upgrade no Pix guarda pendingChargeAsaasId + retorna QR, sem mudar o plano ainda', async () => {
+    const { svc, prisma, asaas } = deps(activeSub({ paymentMethod: 'PIX', asaasCardToken: null }));
+    asaas.createOneOffCharge = jest.fn().mockResolvedValue({ paymentId: 'pay_2', status: 'PENDING', pixQrCode: { encodedImage: 'B64', payload: 'p' } });
+    const out = await svc.changePlan('n1', { plan: 'PRO', period: 'MONTHLY' });
+    expect(out).toMatchObject({ kind: 'UPGRADE', method: 'PIX', pixQrCode: { encodedImage: 'B64', payload: 'p' } });
+    const data = prisma.subscription.update.mock.calls[0][0].data;
+    expect(data).toMatchObject({ pendingPlan: 'PRO', pendingChargeAsaasId: 'pay_2' });
+    expect(data.plan).toBeUndefined();
+  });
+
+  it('changePlan downgrade/período agenda pro próximo ciclo (sem cobrança)', async () => {
+    const { svc, prisma, asaas } = deps(activeSub({ plan: 'PRO' }));
+    asaas.updateSubscriptionValue = jest.fn().mockResolvedValue(undefined);
+    asaas.createOneOffCharge = jest.fn();
+    const out = await svc.changePlan('n1', { plan: 'ESSENCIAL', period: 'MONTHLY' });
+    expect(out).toMatchObject({ kind: 'SCHEDULED' });
+    expect(asaas.createOneOffCharge).not.toHaveBeenCalled();
+    expect(asaas.updateSubscriptionValue).toHaveBeenCalledWith('sub_1', { value: 49, cycle: 'MONTHLY' });
+    expect(prisma.subscription.update.mock.calls[0][0].data).toMatchObject({ pendingPlan: 'ESSENCIAL' });
+  });
+
+  it('changePlan rejeita quando não está ACTIVE', async () => {
+    const { svc } = deps({ id: 's1', nutritionistId: 'n1', status: 'TRIALING' });
+    await expect(svc.changePlan('n1', { plan: 'PRO', period: 'MONTHLY' })).rejects.toBeDefined();
+  });
+});

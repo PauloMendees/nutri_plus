@@ -28,4 +28,35 @@ describe('SubscriptionService.handleWebhook', () => {
     await svc.handleWebhook({ event: 'PAYMENT_CONFIRMED', payment });
     expect(prisma.subscription.update).not.toHaveBeenCalled();
   });
+
+  it('webhook do diff (pendingChargeAsaasId) aplica o upgrade e limpa o pending', async () => {
+    const prisma = {
+      subscription: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce({ id: 's1', asaasSubscriptionId: 'sub_1', pendingPlan: 'PRO', pendingBillingPeriod: 'MONTHLY', pendingChargeAsaasId: 'pay_2', billingPeriod: 'MONTHLY' }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      subscriptionPayment: { upsert: jest.fn().mockResolvedValue({}) },
+    } as any;
+    const asaas = { updateSubscriptionValue: jest.fn().mockResolvedValue(undefined) } as any;
+    const svc = new SubscriptionService(prisma, {} as any, asaas);
+    await svc.handleWebhook({ event: 'PAYMENT_CONFIRMED', payment: { id: 'pay_2', value: 25, status: 'CONFIRMED' } });
+    expect(asaas.updateSubscriptionValue).toHaveBeenCalledWith('sub_1', { value: 99 });
+    expect(prisma.subscription.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ plan: 'PRO', pendingChargeAsaasId: null }) }));
+  });
+
+  it('webhook do ciclo com pendingPlan agendado promove o plano', async () => {
+    const prisma = {
+      subscription: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce(null) // não é diff de upgrade
+          .mockResolvedValueOnce({ id: 's1', asaasSubscriptionId: 'sub_1', pendingPlan: 'ESSENCIAL', pendingBillingPeriod: 'MONTHLY', pendingChargeAsaasId: null, billingPeriod: 'MONTHLY' }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      subscriptionPayment: { upsert: jest.fn().mockResolvedValue({}) },
+    } as any;
+    const svc = new SubscriptionService(prisma, {} as any, {} as any);
+    await svc.handleWebhook({ event: 'PAYMENT_CONFIRMED', payment: { id: 'cycle_1', subscription: 'sub_1', value: 49, status: 'CONFIRMED', dueDate: '2026-09-01' } });
+    expect(prisma.subscription.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ plan: 'ESSENCIAL', pendingPlan: null }) }));
+  });
 });
