@@ -1,6 +1,9 @@
 'use client';
+import { useState } from 'react';
+import type { CardHolderInfo, CardInput } from '@nutri-plus/shared-types';
 import { useSubscription } from '@/lib/queries/subscription';
-import { cancelSubscription } from '@/lib/api/subscription';
+import { cancelSubscription, updatePaymentMethod } from '@/lib/api/subscription';
+import { CardForm } from '@/components/billing/card-form';
 
 const STATUS_LABEL: Record<string, string> = {
   TRIALING: 'Em teste',
@@ -12,6 +15,9 @@ const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('pt-
 
 export function SubscriptionTab() {
   const { data, refetch } = useSubscription();
+  const [editingCard, setEditingCard] = useState(false);
+  const [pmLoading, setPmLoading] = useState(false);
+  const [pmError, setPmError] = useState<string | null>(null);
   if (!data) return <p className="text-sm text-muted-foreground">Carregando…</p>;
 
   async function onCancel() {
@@ -19,6 +25,40 @@ export function SubscriptionTab() {
     await cancelSubscription();
     await refetch?.();
   }
+
+  async function onCardSubmit(card: CardInput, holderInfo: CardHolderInfo, cpfCnpj: string) {
+    setPmLoading(true);
+    setPmError(null);
+    try {
+      await updatePaymentMethod({ method: 'CREDIT_CARD', cpfCnpj, card, holderInfo });
+      await refetch?.();
+      setEditingCard(false);
+    } catch {
+      setPmError('Não foi possível atualizar o cartão. Confira os dados e tente novamente.');
+    } finally {
+      setPmLoading(false);
+    }
+  }
+
+  async function onSwitchToPix() {
+    setPmLoading(true);
+    setPmError(null);
+    try {
+      await updatePaymentMethod({ method: 'PIX' });
+      await refetch?.();
+    } catch {
+      setPmError('Não foi possível mudar para Pix. Tente novamente.');
+    } finally {
+      setPmLoading(false);
+    }
+  }
+
+  const paymentMethodLabel =
+    data.paymentMethod === 'CREDIT_CARD'
+      ? `Cartão •••• ${data.cardLast4} (${data.cardBrand})`
+      : data.paymentMethod === 'PIX'
+        ? 'Pix'
+        : '—';
 
   return (
     <div className="space-y-6">
@@ -48,6 +88,51 @@ export function SubscriptionTab() {
           <button type="button" className="rounded border px-4 py-2 text-sm" onClick={onCancel}>
             Cancelar assinatura
           </button>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="text-sm font-medium">Método de pagamento</h4>
+        <p className="text-sm">{paymentMethodLabel}</p>
+        {editingCard ? (
+          <CardForm onSubmit={onCardSubmit} loading={pmLoading} error={pmError} />
+        ) : (
+          <div className="flex gap-2">
+            {data.paymentMethod === 'PIX' && (
+              <button
+                type="button"
+                className="rounded border px-4 py-2 text-sm"
+                onClick={() => {
+                  setPmError(null);
+                  setEditingCard(true);
+                }}
+              >
+                Trocar para cartão
+              </button>
+            )}
+            {data.paymentMethod === 'CREDIT_CARD' && (
+              <>
+                <button
+                  type="button"
+                  className="rounded border px-4 py-2 text-sm"
+                  onClick={() => {
+                    setPmError(null);
+                    setEditingCard(true);
+                  }}
+                >
+                  Atualizar cartão
+                </button>
+                <button
+                  type="button"
+                  className="rounded border px-4 py-2 text-sm"
+                  disabled={pmLoading}
+                  onClick={onSwitchToPix}
+                >
+                  Mudar para Pix
+                </button>
+              </>
+            )}
+          </div>
         )}
       </div>
 
