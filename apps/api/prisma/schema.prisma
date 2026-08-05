@@ -472,6 +472,11 @@ model Subscription {
   asaasCustomerId     String?
   asaasSubscriptionId String?
 
+  pendingPlan          PlanTier?
+  pendingBillingPeriod BillingPeriod?
+  pendingChargeAsaasId String?
+  asaasCardToken       String?
+
   onboardedAt   DateTime?
   paymentMethod String?
   cardLast4     String?

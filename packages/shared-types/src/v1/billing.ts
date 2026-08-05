@@ -36,6 +36,16 @@ export interface PaymentMethodRequest {
   holderInfo?: CardHolderInfo;
 }
 
+export interface ChangePlanRequest {
+  plan: PlanTier;
+  period: BillingPeriod;
+}
+
+export type ChangePlanResponse =
+  | { kind: 'UPGRADE'; method: 'PIX'; pixQrCode: PixQrCode; amount: number }
+  | { kind: 'UPGRADE'; method: 'CREDIT_CARD'; status: 'ACTIVE' | 'PENDING'; amount: number }
+  | { kind: 'SCHEDULED'; effectiveDate: string };
+
 export interface PlanConfig {
   tier: PlanTier;
   monthlyBrl: number;
