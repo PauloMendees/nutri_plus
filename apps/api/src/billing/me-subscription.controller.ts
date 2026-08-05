@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Ip, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { CheckoutResponse, SubscriptionView } from '@nutri-plus/shared-types';
 import { UserRole } from '../generated/prisma/client';
@@ -24,10 +24,8 @@ export class MeSubscriptionController {
   }
 
   @Post('checkout')
-  checkout(@CurrentUser() ctx: AuthContext, @Body() dto: CheckoutDto): Promise<CheckoutResponse> {
-    return this.subscription.checkout(resolveScopeNutritionistId(ctx), dto, {
-      name: ctx.name, email: ctx.email,
-    });
+  checkout(@CurrentUser() ctx: AuthContext, @Body() dto: CheckoutDto, @Ip() ip: string): Promise<CheckoutResponse> {
+    return this.subscription.checkout(resolveScopeNutritionistId(ctx), dto, { name: ctx.name, email: ctx.email }, ip);
   }
 
   @Post('cancel')

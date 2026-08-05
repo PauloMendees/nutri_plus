@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { CheckoutRequest, CheckoutResponse, SubscriptionView } from '@nutri-plus/shared-types';
+import type { CheckoutRequest, CheckoutResponse, PaymentMethod, SubscriptionView } from '@nutri-plus/shared-types';
 import { PLAN_CATALOG } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { EntitlementsService } from './entitlements.service';
@@ -43,6 +43,10 @@ export class SubscriptionService {
         id: p.id, amount: p.amount, status: p.status, billingType: p.billingType,
         dueDate: p.dueDate?.toISOString() ?? null, paidAt: p.paidAt?.toISOString() ?? null,
       })),
+      onboardedAt: sub.onboardedAt?.toISOString() ?? null,
+      paymentMethod: sub.paymentMethod as PaymentMethod | null,
+      cardLast4: sub.cardLast4,
+      cardBrand: sub.cardBrand,
     };
   }
 
@@ -50,6 +54,7 @@ export class SubscriptionService {
     nutritionistId: string,
     dto: CheckoutRequest,
     customer: { name: string; email: string },
+    remoteIp: string,
   ): Promise<CheckoutResponse> {
     const sub = await this.prisma.subscription.findUnique({ where: { nutritionistId } });
     if (!sub) throw new NotFoundException('Assinatura não encontrada');
@@ -58,23 +63,42 @@ export class SubscriptionService {
     if (!customerId) {
       customerId = await this.asaas.ensureCustomer({ ...customer, cpfCnpj: dto.cpfCnpj });
     }
-    // Troca de plano: encerra a assinatura Asaas anterior antes de criar a nova.
     if (sub.asaasSubscriptionId) {
-      await this.asaas.cancelSubscription(sub.asaasSubscriptionId);
+      await this.asaas.cancelSubscription(sub.asaasSubscriptionId); // troca de plano
     }
 
     const cfg = PLAN_CATALOG[dto.plan];
     const value = dto.period === 'MONTHLY' ? cfg.monthlyBrl : cfg.yearlyBrl;
-    const { subscriptionId, invoiceUrl } = await this.asaas.createSubscription({
-      customerId, value, cycle: dto.period, description: `nutri_plus ${dto.plan}`,
-    });
+    const base = {
+      asaasCustomerId: customerId, plan: dto.plan, billingPeriod: dto.period,
+      cancelAtPeriodEnd: false, onboardedAt: new Date(),
+    };
 
-    // status permanece como está (TRIALING/PAST_DUE) até o webhook confirmar o pagamento.
+    if (dto.method === 'PIX') {
+      const { subscriptionId, pixQrCode } = await this.asaas.createPixSubscription({
+        customerId, value, cycle: dto.period, description: `nutri_plus ${dto.plan}`,
+      });
+      await this.prisma.subscription.update({
+        where: { nutritionistId },
+        data: { ...base, asaasSubscriptionId: subscriptionId, paymentMethod: 'PIX', cardLast4: null, cardBrand: null },
+      });
+      return { method: 'PIX', pixQrCode };
+    }
+
+    // CREDIT_CARD (o DTO garante card/holderInfo presentes)
+    const { subscriptionId, status, cardLast4, cardBrand } = await this.asaas.createCardSubscription({
+      customerId, value, cycle: dto.period, description: `nutri_plus ${dto.plan}`,
+      card: dto.card!, holderInfo: dto.holderInfo!,
+      holder: { name: customer.name, email: customer.email, cpfCnpj: dto.cpfCnpj }, remoteIp,
+    });
     await this.prisma.subscription.update({
       where: { nutritionistId },
-      data: { asaasCustomerId: customerId, asaasSubscriptionId: subscriptionId, plan: dto.plan, billingPeriod: dto.period, cancelAtPeriodEnd: false },
+      data: {
+        ...base, asaasSubscriptionId: subscriptionId, paymentMethod: 'CREDIT_CARD', cardLast4, cardBrand,
+        ...(status === 'ACTIVE' ? { status: 'ACTIVE', currentPeriodEnd: this.nextPeriodEnd(dto.period, undefined) } : {}),
+      },
     });
-    return { invoiceUrl };
+    return { method: 'CREDIT_CARD', status };
   }
 
   async cancel(nutritionistId: string): Promise<void> {
