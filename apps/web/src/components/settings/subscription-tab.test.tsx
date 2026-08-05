@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const useSubscription = vi.fn();
@@ -11,6 +11,11 @@ vi.mock('@/lib/api/subscription', () => ({
 }));
 
 import { SubscriptionTab } from './subscription-tab';
+
+beforeEach(() => {
+  cancel.mockReset();
+  updatePM.mockReset();
+});
 
 it('mostra o plano atual e cancela ao confirmar', async () => {
   cancel.mockResolvedValue({ ok: true });
@@ -30,5 +35,24 @@ it('mostra o método atual e muda para Pix', async () => {
   render(<SubscriptionTab />);
   expect(screen.getByText(/1234/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /mudar para pix/i }));
+  fireEvent.click(screen.getByRole('button', { name: /confirmar/i }));
   await waitFor(() => expect(updatePM).toHaveBeenCalledWith(expect.objectContaining({ method: 'PIX' })));
+});
+
+it('traduz status/método das faturas para português', () => {
+  useSubscription.mockReturnValue({ data: { status: 'ACTIVE', plan: 'PRO', billingPeriod: 'MONTHLY', currentPeriodEnd: '2026-09-01T00:00:00Z', cancelAtPeriodEnd: false, paymentMethod: 'PIX', cardLast4: null, cardBrand: null, entitlements: { isReadOnly: false }, recentPayments: [{ id: 'p1', amount: 99, status: 'CONFIRMED', billingType: 'CREDIT_CARD', dueDate: '2026-08-10T00:00:00Z', paidAt: null }] }, refetch: vi.fn() });
+  render(<SubscriptionTab />);
+  expect(screen.getByText('Pago')).toBeInTheDocument();
+  expect(screen.getByText('Cartão')).toBeInTheDocument();
+});
+
+it('pede confirmação num dialog antes de mudar para Pix', async () => {
+  updatePM.mockResolvedValue({ ok: true });
+  useSubscription.mockReturnValue({ data: { status: 'ACTIVE', plan: 'PRO', billingPeriod: 'MONTHLY', currentPeriodEnd: '2026-09-01T00:00:00Z', cancelAtPeriodEnd: false, paymentMethod: 'CREDIT_CARD', cardLast4: '1234', cardBrand: 'VISA', entitlements: { isReadOnly: false }, recentPayments: [] }, refetch: vi.fn() });
+  render(<SubscriptionTab />);
+  fireEvent.click(screen.getByRole('button', { name: /mudar para pix/i }));
+  // abre o dialog de confirmação; só executa ao confirmar
+  expect(updatePM).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: /confirmar/i }));
+  await waitFor(() => expect(updatePM).toHaveBeenCalledWith({ method: 'PIX' }));
 });
