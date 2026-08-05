@@ -6,7 +6,7 @@ function deps(sub: any) {
       findUnique: jest.fn().mockResolvedValue(sub),
       update: jest.fn().mockResolvedValue({}),
     },
-    subscriptionPayment: { findMany: jest.fn().mockResolvedValue([]) },
+    subscriptionPayment: { findMany: jest.fn().mockResolvedValue([]), upsert: jest.fn().mockResolvedValue({}) },
   } as any;
   const entitlements = { getEntitlements: jest.fn().mockResolvedValue({ tier: 'PRO', isReadOnly: false, features: {}, aiQuota: 200, aiUsed: 1 }) } as any;
   const asaas = {
@@ -125,6 +125,23 @@ describe('SubscriptionService.changePlan', () => {
     const data = prisma.subscription.update.mock.calls[0][0].data;
     expect(data).toMatchObject({ plan: 'PRO' });
     expect(data.currentPeriodEnd).toBeUndefined(); // mantém o vencimento
+    expect(prisma.subscriptionPayment.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { asaasPaymentId: 'pay_1' },
+      create: expect.objectContaining({ subscriptionId: 's1', amount: expect.any(Number), status: 'CONFIRMED', billingType: 'CREDIT_CARD' }),
+    }));
+  });
+
+  it('changePlan upgrade no cartão com cobrança PENDING (antifraude) não aplica o plano ainda, guarda pendingChargeAsaasId', async () => {
+    const { svc, prisma, asaas } = deps(activeSub());
+    asaas.createOneOffCharge = jest.fn().mockResolvedValue({ paymentId: 'pay_3', status: 'PENDING' });
+    asaas.updateSubscriptionValue = jest.fn().mockResolvedValue(undefined);
+    const out = await svc.changePlan('n1', { plan: 'PRO', period: 'MONTHLY' });
+    expect(out).toMatchObject({ kind: 'UPGRADE', method: 'CREDIT_CARD', status: 'PENDING' });
+    expect(asaas.updateSubscriptionValue).not.toHaveBeenCalled();
+    const data = prisma.subscription.update.mock.calls[0][0].data;
+    expect(data).toMatchObject({ pendingPlan: 'PRO', pendingChargeAsaasId: 'pay_3' });
+    expect(data.plan).toBeUndefined();
+    expect(prisma.subscriptionPayment.upsert).not.toHaveBeenCalled();
   });
 
   it('changePlan upgrade no Pix guarda pendingChargeAsaasId + retorna QR, sem mudar o plano ainda', async () => {

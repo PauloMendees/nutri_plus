@@ -164,9 +164,16 @@ export class SubscriptionService {
           throw new UnprocessableEntityException({ code: 'CARD_TOKEN_MISSING', message: 'Atualize seu cartão em Configurações antes de fazer o upgrade.' });
         }
         const charge = await this.asaas.createOneOffCharge({ customerId: sub.asaasCustomerId, value: diff, billingType: 'CREDIT_CARD', creditCardToken: sub.asaasCardToken, description: `Upgrade nutri_plus ${dto.plan}` });
-        await this.asaas.updateSubscriptionValue(sub.asaasSubscriptionId, { value: newValue });
-        await this.prisma.subscription.update({ where: { nutritionistId }, data: { plan: dto.plan, billingPeriod: dto.period } });
-        return { kind: 'UPGRADE', method: 'CREDIT_CARD', status: charge.status, amount: diff };
+        if (charge.status === 'ACTIVE') {
+          // cobrança confirmada na hora → aplica o upgrade já
+          await this.asaas.updateSubscriptionValue(sub.asaasSubscriptionId, { value: newValue });
+          await this.prisma.subscription.update({ where: { nutritionistId }, data: { plan: dto.plan, billingPeriod: dto.period } });
+          await this.upsertPayment(sub.id, { id: charge.paymentId, value: diff, status: 'CONFIRMED', billingType: 'CREDIT_CARD', paymentDate: new Date().toISOString() });
+          return { kind: 'UPGRADE', method: 'CREDIT_CARD', status: 'ACTIVE', amount: diff };
+        }
+        // PENDING (ex.: análise antifraude) → não muda o plano ainda; o webhook aplica quando confirmar.
+        await this.prisma.subscription.update({ where: { nutritionistId }, data: { pendingPlan: dto.plan, pendingBillingPeriod: dto.period, pendingChargeAsaasId: charge.paymentId } });
+        return { kind: 'UPGRADE', method: 'CREDIT_CARD', status: 'PENDING', amount: diff };
       }
       // PIX
       const charge = await this.asaas.createOneOffCharge({ customerId: sub.asaasCustomerId, value: diff, billingType: 'PIX', description: `Upgrade nutri_plus ${dto.plan}` });
