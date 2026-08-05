@@ -167,7 +167,10 @@ export class SubscriptionService {
         if (charge.status === 'ACTIVE') {
           // cobrança confirmada na hora → aplica o upgrade já
           await this.asaas.updateSubscriptionValue(sub.asaasSubscriptionId, { value: newValue });
-          await this.prisma.subscription.update({ where: { nutritionistId }, data: { plan: dto.plan, billingPeriod: dto.period } });
+          await this.prisma.subscription.update({
+            where: { nutritionistId },
+            data: { plan: dto.plan, billingPeriod: dto.period, pendingPlan: null, pendingBillingPeriod: null, pendingChargeAsaasId: null },
+          });
           await this.upsertPayment(sub.id, { id: charge.paymentId, value: diff, status: 'CONFIRMED', billingType: 'CREDIT_CARD', paymentDate: new Date().toISOString() });
           return { kind: 'UPGRADE', method: 'CREDIT_CARD', status: 'ACTIVE', amount: diff };
         }
@@ -183,7 +186,13 @@ export class SubscriptionService {
 
     // downgrade ou troca de período → agenda
     await this.asaas.updateSubscriptionValue(sub.asaasSubscriptionId, { value: newValue, cycle: dto.period });
-    await this.prisma.subscription.update({ where: { nutritionistId }, data: { pendingPlan: dto.plan, pendingBillingPeriod: dto.period } });
+    // Limpa pendingChargeAsaasId: um upgrade Pix/cartão abandonado anteriormente não pode
+    // sobreviver aqui, senão o guard do webhook (`pendingPlan && !pendingChargeAsaasId`) nunca
+    // fecha e esse agendamento nunca promove no próximo ciclo.
+    await this.prisma.subscription.update({
+      where: { nutritionistId },
+      data: { pendingPlan: dto.plan, pendingBillingPeriod: dto.period, pendingChargeAsaasId: null },
+    });
     return { kind: 'SCHEDULED', effectiveDate: sub.currentPeriodEnd.toISOString() };
   }
 

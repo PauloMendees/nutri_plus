@@ -13,3 +13,11 @@ it('mostra os dois planos, destaca o Pro e troca preço no toggle anual', () => 
   fireEvent.click(screen.getAllByRole('button', { name: /assinar/i })[1]);
   expect(onChoose).toHaveBeenCalledWith('PRO', 'YEARLY');
 });
+
+it('busy desabilita os botões de escolha (evita double-click disparar 2 requisições)', () => {
+  const onChoose = vi.fn();
+  render(<PlanPicker onChoose={onChoose} currentPlan="ESSENCIAL" currentPeriod="MONTHLY" busy />);
+  const chooseButtons = screen.getAllByRole('button', { name: /assinar|trocar/i });
+  expect(chooseButtons.length).toBeGreaterThan(0);
+  chooseButtons.forEach((btn) => expect(btn).toBeDisabled());
+});

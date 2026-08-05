@@ -125,6 +125,8 @@ describe('SubscriptionService.changePlan', () => {
     const data = prisma.subscription.update.mock.calls[0][0].data;
     expect(data).toMatchObject({ plan: 'PRO' });
     expect(data.currentPeriodEnd).toBeUndefined(); // mantém o vencimento
+    // Limpa qualquer pending de um upgrade anterior abandonado, senão fica lixo no estado.
+    expect(data).toMatchObject({ pendingPlan: null, pendingBillingPeriod: null, pendingChargeAsaasId: null });
     expect(prisma.subscriptionPayment.upsert).toHaveBeenCalledWith(expect.objectContaining({
       where: { asaasPaymentId: 'pay_1' },
       create: expect.objectContaining({ subscriptionId: 's1', amount: expect.any(Number), status: 'CONFIRMED', billingType: 'CREDIT_CARD' }),
@@ -163,6 +165,19 @@ describe('SubscriptionService.changePlan', () => {
     expect(asaas.createOneOffCharge).not.toHaveBeenCalled();
     expect(asaas.updateSubscriptionValue).toHaveBeenCalledWith('sub_1', { value: 49, cycle: 'MONTHLY' });
     expect(prisma.subscription.update.mock.calls[0][0].data).toMatchObject({ pendingPlan: 'ESSENCIAL' });
+  });
+
+  it('changePlan agendado limpa pendingChargeAsaasId órfão de um upgrade anterior abandonado', async () => {
+    // Regressão: um upgrade Pix/cartão abandonado deixa pendingChargeAsaasId setado.
+    // Se o downgrade/troca de período agendado não limpar esse campo, o guard do webhook
+    // (`sub.pendingPlan && !sub.pendingChargeAsaasId`) nunca fecha e o agendamento nunca promove.
+    const { svc, prisma, asaas } = deps(activeSub({ plan: 'PRO', pendingChargeAsaasId: 'pay_stale' }));
+    asaas.updateSubscriptionValue = jest.fn().mockResolvedValue(undefined);
+    asaas.createOneOffCharge = jest.fn();
+    const out = await svc.changePlan('n1', { plan: 'ESSENCIAL', period: 'MONTHLY' });
+    expect(out).toMatchObject({ kind: 'SCHEDULED' });
+    const data = prisma.subscription.update.mock.calls[0][0].data;
+    expect(data).toMatchObject({ pendingPlan: 'ESSENCIAL', pendingChargeAsaasId: null });
   });
 
   it('changePlan rejeita quando não está ACTIVE', async () => {

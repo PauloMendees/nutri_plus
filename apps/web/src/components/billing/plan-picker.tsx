@@ -11,10 +11,12 @@ export function PlanPicker({
   onChoose,
   currentPlan,
   currentPeriod,
+  busy,
 }: {
   onChoose: (plan: PlanTier, period: BillingPeriod) => void;
   currentPlan?: PlanTier;
   currentPeriod?: BillingPeriod;
+  busy?: boolean;
 }) {
   const [period, setPeriod] = useState<BillingPeriod>(currentPeriod ?? 'MONTHLY');
   return (
@@ -83,6 +85,7 @@ export function PlanPicker({
                   className="mt-auto w-full"
                   variant={pro ? 'default' : 'outline'}
                   size="lg"
+                  disabled={busy}
                   onClick={() => onChoose(tier, period)}
                 >
                   {currentPlan ? `Trocar para ${pro ? 'Pro' : 'Essencial'}` : `Assinar ${pro ? 'Pro' : 'Essencial'}`}

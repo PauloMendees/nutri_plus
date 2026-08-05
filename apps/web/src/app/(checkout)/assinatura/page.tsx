@@ -169,6 +169,7 @@ export default function AssinaturaPage() {
               currentPlan={data!.plan ?? undefined}
               currentPeriod={data!.billingPeriod ?? undefined}
               onChoose={onChangePlan}
+              busy={loading}
             />
           )}
         </div>
