@@ -9,6 +9,7 @@ import { resolveScopeNutritionistId } from '../auth/auth-scope';
 import { BillingExempt } from './decorators';
 import { SubscriptionService } from './subscription.service';
 import { CheckoutDto } from './dto/checkout.dto';
+import { PaymentMethodDto } from './dto/payment-method.dto';
 
 @ApiTags('subscription')
 @ApiBearerAuth()
@@ -31,6 +32,18 @@ export class MeSubscriptionController {
   @Post('cancel')
   async cancel(@CurrentUser() ctx: AuthContext): Promise<{ ok: true }> {
     await this.subscription.cancel(resolveScopeNutritionistId(ctx));
+    return { ok: true };
+  }
+
+  @Post('start-trial')
+  async startTrial(@CurrentUser() ctx: AuthContext): Promise<{ ok: true }> {
+    await this.subscription.startTrial(resolveScopeNutritionistId(ctx));
+    return { ok: true };
+  }
+
+  @Post('payment-method')
+  async updatePaymentMethod(@CurrentUser() ctx: AuthContext, @Body() dto: PaymentMethodDto, @Ip() ip: string): Promise<{ ok: true }> {
+    await this.subscription.updatePaymentMethod(resolveScopeNutritionistId(ctx), dto, { name: ctx.name, email: ctx.email, cpfCnpj: dto.cpfCnpj ?? '' }, ip);
     return { ok: true };
   }
 }

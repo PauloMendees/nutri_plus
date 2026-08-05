@@ -14,6 +14,7 @@ function deps(sub: any) {
     createPixSubscription: jest.fn().mockResolvedValue({ subscriptionId: 'sub_1', pixQrCode: { encodedImage: 'B64', payload: 'p' } }),
     createCardSubscription: jest.fn().mockResolvedValue({ subscriptionId: 'sub_2', status: 'ACTIVE', cardLast4: '1234', cardBrand: 'VISA' }),
     cancelSubscription: jest.fn().mockResolvedValue(undefined),
+    updateSubscriptionBilling: jest.fn().mockResolvedValue({ cardLast4: null, cardBrand: null }),
   } as any;
   return { prisma, entitlements, asaas, svc: new SubscriptionService(prisma, entitlements, asaas) };
 }
@@ -72,5 +73,30 @@ describe('SubscriptionService.cancel', () => {
     await svc.cancel('n1');
     expect(asaas.cancelSubscription).toHaveBeenCalledWith('sub_1');
     expect(prisma.subscription.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ cancelAtPeriodEnd: true }) }));
+  });
+});
+
+describe('SubscriptionService.startTrial', () => {
+  it('startTrial seta trialEndsAt (+7d) e onboardedAt, status TRIALING', async () => {
+    const { svc, prisma } = deps({ id: 's1', nutritionistId: 'n1' });
+    await svc.startTrial('n1');
+    const data = prisma.subscription.update.mock.calls[0][0].data;
+    const days = (data.trialEndsAt.getTime() - Date.now()) / 86400000;
+    expect(days).toBeGreaterThan(6.9); expect(days).toBeLessThan(7.1);
+    expect(data).toMatchObject({ status: 'TRIALING', onboardedAt: expect.any(Date) });
+  });
+});
+
+describe('SubscriptionService.updatePaymentMethod', () => {
+  it('updatePaymentMethod troca para cartão e grava last4/brand', async () => {
+    const { svc, prisma, asaas } = deps({ id: 's1', nutritionistId: 'n1', asaasSubscriptionId: 'sub_1' });
+    asaas.updateSubscriptionBilling = jest.fn().mockResolvedValue({ cardLast4: '9999', cardBrand: 'VISA' });
+    await svc.updatePaymentMethod('n1', {
+      method: 'CREDIT_CARD',
+      card: { holderName: 'A', number: '4111111111111111', expiryMonth: '12', expiryYear: '2030', ccv: '123' },
+      holderInfo: { postalCode: '01310000', addressNumber: '1', phone: '11999999999' },
+    }, { name: 'A', email: 'a@x.com', cpfCnpj: '12345678901' }, '1.2.3.4');
+    expect(asaas.updateSubscriptionBilling).toHaveBeenCalledWith('sub_1', expect.objectContaining({ method: 'CREDIT_CARD', remoteIp: '1.2.3.4' }));
+    expect(prisma.subscription.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ paymentMethod: 'CREDIT_CARD', cardLast4: '9999', cardBrand: 'VISA' }) }));
   });
 });

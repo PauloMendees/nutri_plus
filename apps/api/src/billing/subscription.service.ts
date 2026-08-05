@@ -1,9 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { CheckoutRequest, CheckoutResponse, PaymentMethod, SubscriptionView } from '@nutri-plus/shared-types';
+import type {
+  CheckoutRequest,
+  CheckoutResponse,
+  PaymentMethod,
+  PaymentMethodRequest,
+  SubscriptionView,
+} from '@nutri-plus/shared-types';
 import { PLAN_CATALOG } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { EntitlementsService } from './entitlements.service';
 import { AsaasService } from './asaas.service';
+import { TRIAL_DAYS } from './plan-policy';
 
 export interface AsaasWebhookEvent {
   event: string;
@@ -99,6 +106,33 @@ export class SubscriptionService {
       },
     });
     return { method: 'CREDIT_CARD', status };
+  }
+
+  async startTrial(nutritionistId: string): Promise<void> {
+    const sub = await this.prisma.subscription.findUnique({ where: { nutritionistId } });
+    if (!sub) throw new NotFoundException('Assinatura não encontrada');
+    await this.prisma.subscription.update({
+      where: { nutritionistId },
+      data: { status: 'TRIALING', trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 24 * 3600 * 1000), onboardedAt: new Date() },
+    });
+  }
+
+  async updatePaymentMethod(
+    nutritionistId: string,
+    dto: PaymentMethodRequest,
+    customer: { name: string; email: string; cpfCnpj: string },
+    remoteIp: string,
+  ): Promise<void> {
+    const sub = await this.prisma.subscription.findUnique({ where: { nutritionistId } });
+    if (!sub?.asaasSubscriptionId) throw new NotFoundException('Assinatura ativa não encontrada');
+    const { cardLast4, cardBrand } = await this.asaas.updateSubscriptionBilling(sub.asaasSubscriptionId, {
+      method: dto.method, card: dto.card, holderInfo: dto.holderInfo,
+      holder: { name: customer.name, email: customer.email, cpfCnpj: customer.cpfCnpj }, remoteIp,
+    });
+    await this.prisma.subscription.update({
+      where: { nutritionistId },
+      data: { paymentMethod: dto.method, cardLast4, cardBrand },
+    });
   }
 
   async cancel(nutritionistId: string): Promise<void> {
