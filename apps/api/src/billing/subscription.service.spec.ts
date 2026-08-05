@@ -67,6 +67,15 @@ describe('SubscriptionService.checkout', () => {
   });
 });
 
+describe('SubscriptionService.getView', () => {
+  it('getView expõe onboardedAt/paymentMethod/cardLast4/cardBrand', async () => {
+    const { svc } = deps({ id: 's1', nutritionistId: 'n1', status: 'ACTIVE', onboardedAt: new Date(), paymentMethod: 'CREDIT_CARD', cardLast4: '1234', cardBrand: 'VISA' });
+    const view = await svc.getView('n1');
+    expect(view).toMatchObject({ paymentMethod: 'CREDIT_CARD', cardLast4: '1234', cardBrand: 'VISA' });
+    expect(view.onboardedAt).toEqual(expect.any(String));
+  });
+});
+
 describe('SubscriptionService.cancel', () => {
   it('cancela no Asaas e marca cancelAtPeriodEnd', async () => {
     const { svc, prisma, asaas } = deps({ id: 's1', nutritionistId: 'n1', asaasSubscriptionId: 'sub_1' });
