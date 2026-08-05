@@ -8,6 +8,34 @@ export type BillingErrorCode =
   | 'SEAT_LIMIT';
 export type PlanFeature = 'silhueta' | 'transcription' | 'employees';
 
+export type PaymentMethod = 'PIX' | 'CREDIT_CARD';
+
+export interface PixQrCode {
+  encodedImage: string;
+  payload: string;
+}
+
+export interface CardInput {
+  holderName: string;
+  number: string;
+  expiryMonth: string;
+  expiryYear: string;
+  ccv: string;
+}
+
+export interface CardHolderInfo {
+  postalCode: string;
+  addressNumber: string;
+  phone: string;
+}
+
+export interface PaymentMethodRequest {
+  method: PaymentMethod;
+  cpfCnpj?: string;
+  card?: CardInput;
+  holderInfo?: CardHolderInfo;
+}
+
 export interface PlanConfig {
   tier: PlanTier;
   monthlyBrl: number;
@@ -70,14 +98,21 @@ export interface SubscriptionView {
   cancelAtPeriodEnd: boolean;
   entitlements: Entitlements;
   recentPayments: SubscriptionPaymentView[];
+  onboardedAt: string | null;
+  paymentMethod: PaymentMethod | null;
+  cardLast4: string | null;
+  cardBrand: string | null;
 }
 
 export interface CheckoutRequest {
   plan: PlanTier;
   period: BillingPeriod;
   cpfCnpj: string;
+  method: PaymentMethod;
+  card?: CardInput;
+  holderInfo?: CardHolderInfo;
 }
 
-export interface CheckoutResponse {
-  invoiceUrl: string;
-}
+export type CheckoutResponse =
+  | { method: 'PIX'; pixQrCode: PixQrCode }
+  | { method: 'CREDIT_CARD'; status: 'ACTIVE' | 'PENDING' }
