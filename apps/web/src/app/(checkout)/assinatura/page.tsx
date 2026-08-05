@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import type { BillingPeriod, CardHolderInfo, CardInput, PixQrCode, PlanTier } from '@nutri-plus/shared-types';
 import { ApiError } from '@/lib/api/client';
@@ -17,6 +17,7 @@ const CARD_DECLINED_MESSAGE = 'Cartão recusado. Confira os dados ou tente outro
 
 export default function AssinaturaPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   // Poll enquanto pendente: após pagar no Asaas o webhook vira o status.
   const { data } = useQuery({ queryKey: SUBSCRIPTION_KEY, queryFn: getSubscription, refetchInterval: 5000 });
   const [choice, setChoice] = useState<Choice | null>(null);
@@ -55,6 +56,9 @@ export default function AssinaturaPage() {
     setTrialLoading(true);
     try {
       await startTrial();
+      // Invalida o cache de assinatura antes de navegar: sem isso, `/` serve o
+      // cache stale (onboardedAt === null) e o OnboardingGate manda de volta pra cá.
+      await queryClient.invalidateQueries({ queryKey: SUBSCRIPTION_KEY });
       router.replace('/');
     } catch {
       setError('Não foi possível iniciar o teste grátis. Tente novamente.');
@@ -88,6 +92,8 @@ export default function AssinaturaPage() {
     setError(null);
     try {
       await checkoutSubscription({ plan: choice.plan, period: choice.period, cpfCnpj, method: 'CREDIT_CARD', card, holderInfo });
+      // Mesmo motivo do trial: invalida o cache antes de navegar pra `/`.
+      await queryClient.invalidateQueries({ queryKey: SUBSCRIPTION_KEY });
       router.replace('/');
     } catch (err) {
       if (err instanceof ApiError && err.status === 422) {

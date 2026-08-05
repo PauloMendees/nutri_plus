@@ -9,16 +9,22 @@ vi.mock('@/lib/api/subscription', () => ({
   getSubscription: vi.fn(),
 }));
 const useQuery = vi.fn();
-vi.mock('@tanstack/react-query', () => ({ useQuery: () => useQuery() }));
+const invalidateQueries = vi.fn().mockResolvedValue(undefined);
+vi.mock('@tanstack/react-query', () => ({
+  useQuery: () => useQuery(),
+  useQueryClient: () => ({ invalidateQueries }),
+}));
 const replace = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace, push: replace }) }));
 
 import AssinaturaPage from './page';
+import { SUBSCRIPTION_KEY } from '@/lib/queries/subscription';
 
 beforeEach(() => {
   startTrial.mockReset().mockResolvedValue({ ok: true });
   checkout.mockReset();
   replace.mockClear();
+  invalidateQueries.mockClear();
   useQuery.mockReturnValue({ data: { onboardedAt: null, status: 'TRIALING', entitlements: { isReadOnly: true } } });
 });
 
@@ -27,6 +33,12 @@ it('no onboarding mostra "Começar teste grátis" e inicia o trial', async () =>
   fireEvent.click(screen.getByRole('button', { name: /começar teste grátis/i }));
   await waitFor(() => expect(startTrial).toHaveBeenCalled());
   await waitFor(() => expect(replace).toHaveBeenCalledWith('/'));
+  // Sem isso, `/` serve o cache stale de useSubscription e o OnboardingGate
+  // manda o usuário de volta pra /assinatura logo após o trial começar.
+  expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: SUBSCRIPTION_KEY });
+  const invalidateOrder = invalidateQueries.mock.invocationCallOrder[0];
+  const replaceOrder = replace.mock.invocationCallOrder[0];
+  expect(invalidateOrder).toBeLessThan(replaceOrder);
 });
 
 it('escolher plano + Pix mostra o QR', async () => {

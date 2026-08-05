@@ -51,12 +51,27 @@ describe('AsaasService', () => {
   });
 
   it('createCardSubscription mapeia recusa do Asaas (400) para 422 sem vazar detalhe cru', async () => {
-    jest.spyOn(global, 'fetch' as any).mockResolvedValue({ ok: false, status: 400, text: async () => '{"errors":[{"description":"Transação não autorizada"}]}' } as any);
-    await expect(new AsaasService(config(CFG)).createCardSubscription({
-      customerId: 'cus_1', value: 99, cycle: 'MONTHLY', description: 'x',
-      card: { holderName: 'A B', number: '4', expiryMonth: '12', expiryYear: '2030', ccv: '1' },
-      holderInfo: { postalCode: '0', addressNumber: '1', phone: '1' },
-      holder: { name: 'A B', email: 'a@x.com', cpfCnpj: '12345678901' }, remoteIp: '1.2.3.4',
-    })).rejects.toMatchObject({ status: 422 });
+    const RAW_ASAAS_TEXT = '{"errors":[{"description":"Transação não autorizada"}]}';
+    jest.spyOn(global, 'fetch' as any).mockResolvedValue({ ok: false, status: 400, text: async () => RAW_ASAAS_TEXT } as any);
+    let caught: any;
+    try {
+      await new AsaasService(config(CFG)).createCardSubscription({
+        customerId: 'cus_1', value: 99, cycle: 'MONTHLY', description: 'x',
+        card: { holderName: 'A B', number: '4', expiryMonth: '12', expiryYear: '2030', ccv: '1' },
+        holderInfo: { postalCode: '0', addressNumber: '1', phone: '1' },
+        holder: { name: 'A B', email: 'a@x.com', cpfCnpj: '12345678901' }, remoteIp: '1.2.3.4',
+      });
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toMatchObject({ status: 422 });
+    // Insurance PCI: a mensagem exposta ao cliente deve ser o texto limpo e
+    // fixo, nunca o corpo cru retornado pelo Asaas (que pode conter dados
+    // sensíveis do cartão/transação).
+    expect(caught.message).toBe('Cartão recusado. Confira os dados ou tente outro cartão.');
+    expect(caught.message).not.toContain('Transação não autorizada');
+    const responseBody = JSON.stringify(caught.getResponse?.() ?? caught);
+    expect(responseBody).not.toContain('Transação não autorizada');
+    expect(responseBody).not.toContain(RAW_ASAAS_TEXT);
   });
 });
