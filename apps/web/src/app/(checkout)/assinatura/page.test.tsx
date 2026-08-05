@@ -3,9 +3,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const startTrial = vi.fn();
 const checkout = vi.fn();
+const changePlan = vi.fn();
 vi.mock('@/lib/api/subscription', () => ({
   startTrial: () => startTrial(),
   checkoutSubscription: (b: any) => checkout(b),
+  changePlan: (b: any) => changePlan(b),
   getSubscription: vi.fn(),
 }));
 const useQuery = vi.fn();
@@ -23,6 +25,7 @@ import { SUBSCRIPTION_KEY } from '@/lib/queries/subscription';
 beforeEach(() => {
   startTrial.mockReset().mockResolvedValue({ ok: true });
   checkout.mockReset();
+  changePlan.mockReset();
   replace.mockClear();
   invalidateQueries.mockClear();
   useQuery.mockReturnValue({ data: { onboardedAt: null, status: 'TRIALING', entitlements: { isReadOnly: true } } });
@@ -49,4 +52,37 @@ it('escolher plano + Pix mostra o QR', async () => {
   fireEvent.change(screen.getByLabelText(/cpf\/cnpj/i), { target: { value: '123.456.789-01' } });
   fireEvent.click(screen.getByRole('button', { name: /gerar código pix/i }));
   await waitFor(() => expect(screen.getByAltText(/qr code pix/i)).toBeInTheDocument());
+});
+
+it('assinante ativo NÃO é redirecionado e vê o picker com o plano atual', () => {
+  useQuery.mockReturnValue({
+    data: {
+      status: 'ACTIVE',
+      plan: 'ESSENCIAL',
+      billingPeriod: 'MONTHLY',
+      onboardedAt: '2026-08-01T00:00:00Z',
+      entitlements: { isReadOnly: false },
+    },
+  });
+  render(<AssinaturaPage />);
+  expect(replace).not.toHaveBeenCalledWith('/');
+  expect(screen.getByText(/seu plano atual/i)).toBeInTheDocument();
+});
+
+it('upgrade no cartão chama changePlan e mostra sucesso', async () => {
+  changePlan.mockResolvedValue({ kind: 'UPGRADE', method: 'CREDIT_CARD', status: 'ACTIVE', amount: 25 });
+  useQuery.mockReturnValue({
+    data: {
+      status: 'ACTIVE',
+      plan: 'ESSENCIAL',
+      billingPeriod: 'MONTHLY',
+      paymentMethod: 'CREDIT_CARD',
+      onboardedAt: '2026-08-01T00:00:00Z',
+      entitlements: { isReadOnly: false },
+    },
+  });
+  render(<AssinaturaPage />);
+  fireEvent.click(screen.getByRole('button', { name: /assinar pro|trocar|fazer upgrade/i }));
+  await waitFor(() => expect(changePlan).toHaveBeenCalledWith({ plan: 'PRO', period: 'MONTHLY' }));
+  await waitFor(() => expect(screen.getByText(/upgrade|pagou|plano alterado/i)).toBeInTheDocument());
 });

@@ -4,14 +4,16 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import type { BillingPeriod, CardHolderInfo, CardInput, PixQrCode, PlanTier } from '@nutri-plus/shared-types';
 import { ApiError } from '@/lib/api/client';
-import { checkoutSubscription, getSubscription, startTrial } from '@/lib/api/subscription';
+import { changePlan, checkoutSubscription, getSubscription, startTrial } from '@/lib/api/subscription';
 import { SUBSCRIPTION_KEY } from '@/lib/queries/subscription';
+import { Button } from '@/components/ui/button';
 import { CardForm } from '@/components/billing/card-form';
 import { PixPayment } from '@/components/billing/pix-payment';
 import { PlanPicker } from '@/components/billing/plan-picker';
 
 type Choice = { plan: PlanTier; period: BillingPeriod };
 type Method = 'PIX' | 'CREDIT_CARD';
+type Done = { text: string };
 
 const CARD_DECLINED_MESSAGE = 'Cartão recusado. Confira os dados ou tente outro cartão.';
 
@@ -27,12 +29,19 @@ export default function AssinaturaPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [trialLoading, setTrialLoading] = useState(false);
+  const [done, setDone] = useState<Done | null>(null);
+  const [changePlanTarget, setChangePlanTarget] = useState<PlanTier | null>(null);
+  const [changePix, setChangePix] = useState<PixQrCode | null>(null);
 
-  const active = Boolean(data?.status === 'ACTIVE' && !data?.entitlements.isReadOnly);
+  const isActive = Boolean(data?.status === 'ACTIVE' && !data?.entitlements.isReadOnly);
 
   useEffect(() => {
-    if (active) router.replace('/');
-  }, [active, router]);
+    if (changePix && changePlanTarget && data?.plan === changePlanTarget) {
+      setDone({ text: 'Upgrade concluído!' });
+      setChangePix(null);
+      setChangePlanTarget(null);
+    }
+  }, [changePix, changePlanTarget, data?.plan]);
 
   function onChoosePlan(plan: PlanTier, period: BillingPeriod) {
     setChoice({ plan, period });
@@ -107,30 +116,70 @@ export default function AssinaturaPage() {
     }
   }
 
-  if (active) {
+  async function onChangePlan(plan: PlanTier, period: BillingPeriod) {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await changePlan({ plan, period });
+      if (res.kind === 'SCHEDULED') {
+        setDone({ text: `Seu plano muda em ${new Date(res.effectiveDate).toLocaleDateString('pt-BR')}.` });
+      } else if (res.method === 'CREDIT_CARD') {
+        await queryClient.invalidateQueries({ queryKey: SUBSCRIPTION_KEY });
+        setDone({ text: `Upgrade concluído! Você pagou R$ ${res.amount.toLocaleString('pt-BR')}.` });
+      } else {
+        setChangePlanTarget(plan);
+        setChangePix(res.pixQrCode);
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 422) {
+        const body = err.body as { code?: string; message?: string } | null;
+        setError(body?.message ?? 'Não foi possível trocar de plano.');
+      } else {
+        setError('Não foi possível trocar de plano. Tente novamente.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (done) {
     return (
       <div className="mx-auto max-w-md space-y-3 py-12 text-center">
-        <h1 className="text-xl font-semibold">Assinatura ativa 🎉</h1>
-        <p className="text-sm text-muted-foreground">Redirecionando…</p>
+        <h1 className="text-xl font-semibold">{done.text}</h1>
+        <Button asChild>
+          <a href="/">Ir para o painel</a>
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-center text-2xl font-semibold">Escolha seu plano</h1>
-      {!choice ? (
+      <h1 className="text-center text-2xl font-semibold">{isActive ? 'Troque de plano' : 'Escolha seu plano'}</h1>
+      {isActive ? (
+        <div className="space-y-6">
+          {error && <p className="text-center text-sm text-destructive">{error}</p>}
+          {changePix ? (
+            <div className="mx-auto max-w-sm space-y-4 rounded-lg border p-6 text-center">
+              <p className="text-sm text-muted-foreground">Pague a diferença para concluir o upgrade.</p>
+              <PixPayment pixQrCode={changePix} />
+            </div>
+          ) : (
+            <PlanPicker
+              currentPlan={data!.plan ?? undefined}
+              currentPeriod={data!.billingPeriod ?? undefined}
+              onChoose={onChangePlan}
+            />
+          )}
+        </div>
+      ) : !choice ? (
         <div className="space-y-6">
           {data?.onboardedAt === null && (
             <div className="mx-auto max-w-sm space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-4 text-center">
               <p className="text-sm text-muted-foreground">Ainda não decidiu? Experimente grátis por 7 dias, sem cartão.</p>
-              <button
-                className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-                disabled={trialLoading}
-                onClick={handleStartTrial}
-              >
+              <Button className="w-full" disabled={trialLoading} onClick={handleStartTrial}>
                 {trialLoading ? 'Iniciando…' : 'Começar teste grátis (7 dias)'}
-              </button>
+              </Button>
             </div>
           )}
           <PlanPicker onChoose={onChoosePlan} />
@@ -142,20 +191,22 @@ export default function AssinaturaPage() {
             {choice.period === 'MONTHLY' ? 'mensal' : 'anual'}.
           </p>
           <div className="mx-auto flex w-fit items-center gap-1 rounded-full border p-1 text-sm">
-            <button
+            <Button
+              variant={method === 'PIX' ? 'default' : 'ghost'}
+              size="sm"
               aria-pressed={method === 'PIX'}
-              className={`rounded-full px-4 py-1 ${method === 'PIX' ? 'bg-primary text-primary-foreground' : ''}`}
               onClick={() => selectMethod('PIX')}
             >
               Pix
-            </button>
-            <button
+            </Button>
+            <Button
+              variant={method === 'CREDIT_CARD' ? 'default' : 'ghost'}
+              size="sm"
               aria-pressed={method === 'CREDIT_CARD'}
-              className={`rounded-full px-4 py-1 ${method === 'CREDIT_CARD' ? 'bg-primary text-primary-foreground' : ''}`}
               onClick={() => selectMethod('CREDIT_CARD')}
             >
               Cartão
-            </button>
+            </Button>
           </div>
           {method === 'PIX' ? (
             pix ? (
@@ -173,22 +224,18 @@ export default function AssinaturaPage() {
                   />
                 </label>
                 {error && <p className="text-sm text-destructive">{error}</p>}
-                <button
-                  className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-                  disabled={loading}
-                  onClick={generatePix}
-                >
+                <Button className="w-full" disabled={loading} onClick={generatePix}>
                   {loading ? 'Gerando…' : 'Gerar código Pix'}
-                </button>
+                </Button>
               </div>
             )
           ) : (
             <CardForm onSubmit={handleCardSubmit} loading={loading} error={error} />
           )}
           {!pix && (
-            <button className="text-sm" onClick={backToPlans}>
+            <Button variant="ghost" size="sm" onClick={backToPlans}>
               Voltar
-            </button>
+            </Button>
           )}
         </div>
       )}

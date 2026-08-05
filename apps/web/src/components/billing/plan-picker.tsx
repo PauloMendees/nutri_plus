@@ -7,8 +7,16 @@ import { Button } from '@/components/ui/button';
 const TIERS: PlanTier[] = ['ESSENCIAL', 'PRO'];
 const brl = (n: number) => `R$ ${n.toLocaleString('pt-BR')}`;
 
-export function PlanPicker({ onChoose }: { onChoose: (plan: PlanTier, period: BillingPeriod) => void }) {
-  const [period, setPeriod] = useState<BillingPeriod>('MONTHLY');
+export function PlanPicker({
+  onChoose,
+  currentPlan,
+  currentPeriod,
+}: {
+  onChoose: (plan: PlanTier, period: BillingPeriod) => void;
+  currentPlan?: PlanTier;
+  currentPeriod?: BillingPeriod;
+}) {
+  const [period, setPeriod] = useState<BillingPeriod>(currentPeriod ?? 'MONTHLY');
   return (
     <div className="space-y-6">
       <div className="mx-auto flex w-fit items-center gap-1 rounded-full border p-1 text-sm">
@@ -34,6 +42,7 @@ export function PlanPicker({ onChoose }: { onChoose: (plan: PlanTier, period: Bi
           const cfg = PLAN_CATALOG[tier];
           const price = period === 'MONTHLY' ? cfg.monthlyBrl : cfg.yearlyBrl;
           const pro = tier === 'PRO';
+          const isCurrent = tier === currentPlan && period === currentPeriod;
           return (
             <div
               key={tier}
@@ -42,6 +51,11 @@ export function PlanPicker({ onChoose }: { onChoose: (plan: PlanTier, period: Bi
               {pro && (
                 <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-xs font-semibold text-primary-foreground">
                   Mais popular
+                </span>
+              )}
+              {isCurrent && (
+                <span className="w-fit rounded-full bg-muted px-3 py-0.5 text-xs font-semibold text-muted-foreground">
+                  Seu plano atual
                 </span>
               )}
               <div>
@@ -60,14 +74,20 @@ export function PlanPicker({ onChoose }: { onChoose: (plan: PlanTier, period: Bi
                 <li>{cfg.features.includes('transcription') ? '✓' : '—'} Transcrição de consulta</li>
                 <li>{cfg.employeeSeats > 0 ? `✓ Até ${cfg.employeeSeats} funcionários` : '— Sem funcionários'}</li>
               </ul>
-              <Button
-                className="mt-auto w-full"
-                variant={pro ? 'default' : 'outline'}
-                size="lg"
-                onClick={() => onChoose(tier, period)}
-              >
-                Assinar {pro ? 'Pro' : 'Essencial'}
-              </Button>
+              {isCurrent ? (
+                <Button className="mt-auto w-full" variant="outline" size="lg" disabled>
+                  Plano atual
+                </Button>
+              ) : (
+                <Button
+                  className="mt-auto w-full"
+                  variant={pro ? 'default' : 'outline'}
+                  size="lg"
+                  onClick={() => onChoose(tier, period)}
+                >
+                  {currentPlan ? `Trocar para ${pro ? 'Pro' : 'Essencial'}` : `Assinar ${pro ? 'Pro' : 'Essencial'}`}
+                </Button>
+              )}
             </div>
           );
         })}
