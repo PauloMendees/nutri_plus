@@ -472,6 +472,11 @@ model Subscription {
   asaasCustomerId     String?
   asaasSubscriptionId String?
 
+  onboardedAt   DateTime?
+  paymentMethod String?
+  cardLast4     String?
+  cardBrand     String?
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   payments       SubscriptionPayment[]
