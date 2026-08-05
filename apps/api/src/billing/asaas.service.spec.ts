@@ -39,7 +39,7 @@ describe('AsaasService', () => {
 
   it('createCardSubscription envia creditCard/holderInfo/remoteIp e mapeia CONFIRMED → ACTIVE + last4/brand', async () => {
     jest.spyOn(global, 'fetch' as any)
-      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ id: 'sub_2', creditCard: { creditCardNumber: '1234', creditCardBrand: 'MASTERCARD' } }) } as any)
+      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ id: 'sub_2', creditCard: { creditCardNumber: '1234', creditCardBrand: 'MASTERCARD', creditCardToken: 'tok_x' } }) } as any)
       .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ data: [{ status: 'CONFIRMED' }] }) } as any);
     const out = await new AsaasService(config(CFG)).createCardSubscription({
       customerId: 'cus_1', value: 99, cycle: 'MONTHLY', description: 'x',
@@ -47,7 +47,7 @@ describe('AsaasService', () => {
       holderInfo: { postalCode: '01310000', addressNumber: '100', phone: '11999999999' },
       holder: { name: 'A B', email: 'a@x.com', cpfCnpj: '12345678901' }, remoteIp: '1.2.3.4',
     });
-    expect(out).toEqual({ subscriptionId: 'sub_2', status: 'ACTIVE', cardLast4: '1234', cardBrand: 'MASTERCARD' });
+    expect(out).toEqual({ subscriptionId: 'sub_2', status: 'ACTIVE', cardLast4: '1234', cardBrand: 'MASTERCARD', creditCardToken: 'tok_x' });
   });
 
   it('createCardSubscription mapeia recusa do Asaas (400) para 422 sem vazar detalhe cru', async () => {
@@ -73,5 +73,28 @@ describe('AsaasService', () => {
     const responseBody = JSON.stringify(caught.getResponse?.() ?? caught);
     expect(responseBody).not.toContain('Transação não autorizada');
     expect(responseBody).not.toContain(RAW_ASAAS_TEXT);
+  });
+
+  it('createOneOffCharge Pix cria /payments e busca o QR', async () => {
+    jest.spyOn(global, 'fetch' as any)
+      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ id: 'pay_9', status: 'PENDING' }) } as any)
+      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ encodedImage: 'B64', payload: 'p' }) } as any);
+    const out = await new AsaasService(config(CFG)).createOneOffCharge({ customerId: 'cus_1', value: 25, billingType: 'PIX', description: 'Upgrade' });
+    expect(out).toEqual({ paymentId: 'pay_9', status: 'PENDING', pixQrCode: { encodedImage: 'B64', payload: 'p' } });
+  });
+
+  it('createOneOffCharge cartão usa o token e mapeia CONFIRMED → ACTIVE', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch' as any).mockResolvedValue({ ok: true, status: 200, text: async () => JSON.stringify({ id: 'pay_10', status: 'CONFIRMED' }) } as any);
+    const out = await new AsaasService(config(CFG)).createOneOffCharge({ customerId: 'cus_1', value: 25, billingType: 'CREDIT_CARD', description: 'Upgrade', creditCardToken: 'tok_1' });
+    expect(out).toEqual({ paymentId: 'pay_10', status: 'ACTIVE' });
+    expect((fetchMock.mock.calls[0][1] as any).body).toContain('"creditCardToken":"tok_1"');
+  });
+
+  it('updateSubscriptionValue faz POST /subscriptions/{id} com value/cycle', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch' as any).mockResolvedValue({ ok: true, status: 200, text: async () => '{}' } as any);
+    await new AsaasService(config(CFG)).updateSubscriptionValue('sub_1', { value: 990, cycle: 'YEARLY' });
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api-sandbox.asaas.com/v3/subscriptions/sub_1');
+    expect((fetchMock.mock.calls[0][1] as any).body).toContain('"value":990');
+    expect((fetchMock.mock.calls[0][1] as any).body).toContain('"cycle":"YEARLY"');
   });
 });
