@@ -111,13 +111,13 @@ export class AsaasService {
     method: PaymentMethod; card?: CardInput; holderInfo?: CardHolderInfo; holder?: { name: string; email: string; cpfCnpj: string }; remoteIp?: string;
   }): Promise<{ cardLast4: string | null; cardBrand: string | null; creditCardToken: string | null }> {
     if (input.method === 'PIX') {
-      await this.callOrGateway(`/subscriptions/${subscriptionId}`, { method: 'POST', body: { billingType: 'PIX' } });
+      await this.callOrGateway(`/subscriptions/${subscriptionId}`, { method: 'PUT', body: { billingType: 'PIX' } });
       return { cardLast4: null, cardBrand: null, creditCardToken: null };
     }
     let updated: { creditCard?: { creditCardNumber?: string; creditCardBrand?: string; creditCardToken?: string } };
     try {
       updated = await this.call(`/subscriptions/${subscriptionId}`, {
-        method: 'POST',
+        method: 'PUT',
         body: {
           billingType: 'CREDIT_CARD',
           creditCard: input.card && {
@@ -177,7 +177,7 @@ export class AsaasService {
 
   async updateSubscriptionValue(subscriptionId: string, input: { value: number; cycle?: 'MONTHLY' | 'YEARLY' }): Promise<void> {
     await this.callOrGateway(`/subscriptions/${subscriptionId}`, {
-      method: 'POST',
+      method: 'PUT',
       body: { value: input.value, ...(input.cycle ? { cycle: input.cycle } : {}) },
     });
   }

@@ -90,11 +90,22 @@ describe('AsaasService', () => {
     expect((fetchMock.mock.calls[0][1] as any).body).toContain('"creditCardToken":"tok_1"');
   });
 
-  it('updateSubscriptionValue faz POST /subscriptions/{id} com value/cycle', async () => {
+  it('updateSubscriptionValue faz PUT /subscriptions/{id} com value/cycle', async () => {
     const fetchMock = jest.spyOn(global, 'fetch' as any).mockResolvedValue({ ok: true, status: 200, text: async () => '{}' } as any);
     await new AsaasService(config(CFG)).updateSubscriptionValue('sub_1', { value: 990, cycle: 'YEARLY' });
     expect(fetchMock.mock.calls[0][0]).toBe('https://api-sandbox.asaas.com/v3/subscriptions/sub_1');
+    // Atualização de assinatura no Asaas é PUT /v3/subscriptions/{id} (POST é rejeitado
+    // com "A assinatura não pode ser atualizada").
+    expect((fetchMock.mock.calls[0][1] as any).method).toBe('PUT');
     expect((fetchMock.mock.calls[0][1] as any).body).toContain('"value":990');
     expect((fetchMock.mock.calls[0][1] as any).body).toContain('"cycle":"YEARLY"');
+  });
+
+  it('updateSubscriptionBilling (PIX) faz PUT /subscriptions/{id}', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch' as any).mockResolvedValue({ ok: true, status: 200, text: async () => '{}' } as any);
+    await new AsaasService(config(CFG)).updateSubscriptionBilling('sub_1', { method: 'PIX' });
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api-sandbox.asaas.com/v3/subscriptions/sub_1');
+    expect((fetchMock.mock.calls[0][1] as any).method).toBe('PUT');
+    expect((fetchMock.mock.calls[0][1] as any).body).toContain('"billingType":"PIX"');
   });
 });
