@@ -19,19 +19,44 @@ describe('AsaasService', () => {
     expect((opts as any).headers.access_token).toBe('key_123');
   });
 
-  it('createSubscription cria a assinatura e busca o invoiceUrl do 1º pagamento', async () => {
-    const fetchMock = jest.spyOn(global, 'fetch' as any)
-      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ id: 'sub_1' }) } as any)
-      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ data: [{ invoiceUrl: 'https://asaas/inv/1' }] }) } as any);
-    const out = await new AsaasService(config(CFG)).createSubscription({ customerId: 'cus_1', value: 49, cycle: 'MONTHLY', description: 'Essencial' });
-    expect(out).toEqual({ subscriptionId: 'sub_1', invoiceUrl: 'https://asaas/inv/1' });
-    expect((fetchMock.mock.calls[0][0] as string)).toBe('https://api-sandbox.asaas.com/v3/subscriptions');
-    expect((fetchMock.mock.calls[1][0] as string)).toContain('/subscriptions/sub_1/payments');
-  });
-
   it('lança erro claro quando a API do Asaas responde não-ok', async () => {
     jest.spyOn(global, 'fetch' as any).mockResolvedValue({ ok: false, status: 400, text: async () => '{"errors":[{"description":"bad"}]}' } as any);
     await expect(new AsaasService(config(CFG)).ensureCustomer({ name: 'A', email: 'a@x.com', cpfCnpj: '1' }))
       .rejects.toThrow();
+  });
+
+  it('createPixSubscription cria assinatura PIX e busca o QR do 1º pagamento', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch' as any)
+      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ id: 'sub_1' }) } as any)
+      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ data: [{ id: 'pay_1' }] }) } as any)
+      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ encodedImage: 'BASE64', payload: '00020126...' }) } as any);
+    const out = await new AsaasService(config(CFG)).createPixSubscription({ customerId: 'cus_1', value: 49, cycle: 'MONTHLY', description: 'x' });
+    expect(out).toEqual({ subscriptionId: 'sub_1', pixQrCode: { encodedImage: 'BASE64', payload: '00020126...' } });
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api-sandbox.asaas.com/v3/subscriptions');
+    expect((fetchMock.mock.calls[0][1] as any).body).toContain('"billingType":"PIX"');
+    expect(fetchMock.mock.calls[2][0]).toBe('https://api-sandbox.asaas.com/v3/payments/pay_1/pixQrCode');
+  });
+
+  it('createCardSubscription envia creditCard/holderInfo/remoteIp e mapeia CONFIRMED → ACTIVE + last4/brand', async () => {
+    jest.spyOn(global, 'fetch' as any)
+      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ id: 'sub_2', creditCard: { creditCardNumber: '1234', creditCardBrand: 'MASTERCARD' } }) } as any)
+      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ data: [{ status: 'CONFIRMED' }] }) } as any);
+    const out = await new AsaasService(config(CFG)).createCardSubscription({
+      customerId: 'cus_1', value: 99, cycle: 'MONTHLY', description: 'x',
+      card: { holderName: 'A B', number: '5162306219378829', expiryMonth: '12', expiryYear: '2030', ccv: '123' },
+      holderInfo: { postalCode: '01310000', addressNumber: '100', phone: '11999999999' },
+      holder: { name: 'A B', email: 'a@x.com', cpfCnpj: '12345678901' }, remoteIp: '1.2.3.4',
+    });
+    expect(out).toEqual({ subscriptionId: 'sub_2', status: 'ACTIVE', cardLast4: '1234', cardBrand: 'MASTERCARD' });
+  });
+
+  it('createCardSubscription mapeia recusa do Asaas (400) para 422 sem vazar detalhe cru', async () => {
+    jest.spyOn(global, 'fetch' as any).mockResolvedValue({ ok: false, status: 400, text: async () => '{"errors":[{"description":"Transação não autorizada"}]}' } as any);
+    await expect(new AsaasService(config(CFG)).createCardSubscription({
+      customerId: 'cus_1', value: 99, cycle: 'MONTHLY', description: 'x',
+      card: { holderName: 'A B', number: '4', expiryMonth: '12', expiryYear: '2030', ccv: '1' },
+      holderInfo: { postalCode: '0', addressNumber: '1', phone: '1' },
+      holder: { name: 'A B', email: 'a@x.com', cpfCnpj: '12345678901' }, remoteIp: '1.2.3.4',
+    })).rejects.toMatchObject({ status: 422 });
   });
 });

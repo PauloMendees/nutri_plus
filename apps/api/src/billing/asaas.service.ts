@@ -1,5 +1,10 @@
-import { BadGatewayException, Injectable, Logger } from '@nestjs/common';
+import { BadGatewayException, Injectable, Logger, UnprocessableEntityException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { CardHolderInfo, CardInput, PaymentMethod, PixQrCode } from '@nutri-plus/shared-types';
+
+class AsaasRequestError extends Error {
+  constructor(readonly status: number, readonly body: unknown) { super(`Asaas ${status}`); }
+}
 
 @Injectable()
 export class AsaasService {
@@ -22,10 +27,19 @@ export class AsaasService {
     }
     const text = await res.text();
     if (!res.ok) {
-      this.logger.warn(`Asaas ${init.method} ${path} → ${res.status}: ${text.slice(0, 300)}`);
-      throw new BadGatewayException('Falha ao falar com o Asaas');
+      this.logger.warn(`Asaas ${init.method} ${path} → ${res.status}`);
+      throw new AsaasRequestError(res.status, text ? JSON.parse(text) : null);
     }
     return (text ? JSON.parse(text) : {}) as T;
+  }
+
+  private async callOrGateway<T>(path: string, init: { method: string; body?: unknown }): Promise<T> {
+    try {
+      return await this.call<T>(path, init);
+    } catch (e) {
+      if (e instanceof AsaasRequestError) throw new BadGatewayException('Falha ao falar com o Asaas');
+      throw e;
+    }
   }
 
   // Data de hoje (America/Sao_Paulo) em 'YYYY-MM-DD' para nextDueDate.
@@ -36,33 +50,92 @@ export class AsaasService {
   }
 
   async ensureCustomer(input: { name: string; email: string; cpfCnpj: string }): Promise<string> {
-    const c = await this.call<{ id: string }>('/customers', { method: 'POST', body: input });
+    const c = await this.callOrGateway<{ id: string }>('/customers', { method: 'POST', body: input });
     return c.id;
   }
 
-  async createSubscription(input: {
+  async createPixSubscription(input: {
     customerId: string; value: number; cycle: 'MONTHLY' | 'YEARLY'; description: string;
-  }): Promise<{ subscriptionId: string; invoiceUrl: string }> {
-    const sub = await this.call<{ id: string }>('/subscriptions', {
+  }): Promise<{ subscriptionId: string; pixQrCode: PixQrCode }> {
+    const sub = await this.callOrGateway<{ id: string }>('/subscriptions', {
       method: 'POST',
-      body: {
-        customer: input.customerId,
-        billingType: 'UNDEFINED', // cliente escolhe Pix/cartão na página hospedada
-        value: input.value,
-        cycle: input.cycle,
-        nextDueDate: this.todaySaoPaulo(),
-        description: input.description,
-      },
+      body: { customer: input.customerId, billingType: 'PIX', value: input.value, cycle: input.cycle, nextDueDate: this.todaySaoPaulo(), description: input.description },
     });
-    const payments = await this.call<{ data: { invoiceUrl: string }[] }>(
-      `/subscriptions/${sub.id}/payments`, { method: 'GET' },
-    );
-    const invoiceUrl = payments.data[0]?.invoiceUrl;
-    if (!invoiceUrl) throw new BadGatewayException('Asaas não retornou a cobrança inicial');
-    return { subscriptionId: sub.id, invoiceUrl };
+    const payments = await this.callOrGateway<{ data: { id: string }[] }>(`/subscriptions/${sub.id}/payments`, { method: 'GET' });
+    const paymentId = payments.data[0]?.id;
+    if (!paymentId) throw new BadGatewayException('Asaas não retornou a cobrança inicial');
+    const qr = await this.callOrGateway<{ encodedImage: string; payload: string }>(`/payments/${paymentId}/pixQrCode`, { method: 'GET' });
+    return { subscriptionId: sub.id, pixQrCode: { encodedImage: qr.encodedImage, payload: qr.payload } };
+  }
+
+  async createCardSubscription(input: {
+    customerId: string; value: number; cycle: 'MONTHLY' | 'YEARLY'; description: string;
+    card: CardInput; holderInfo: CardHolderInfo; holder: { name: string; email: string; cpfCnpj: string }; remoteIp: string;
+  }): Promise<{ subscriptionId: string; status: 'ACTIVE' | 'PENDING'; cardLast4: string | null; cardBrand: string | null }> {
+    let sub: { id: string; creditCard?: { creditCardNumber?: string; creditCardBrand?: string } };
+    try {
+      sub = await this.call('/subscriptions', {
+        method: 'POST',
+        body: {
+          customer: input.customerId, billingType: 'CREDIT_CARD', value: input.value, cycle: input.cycle,
+          nextDueDate: this.todaySaoPaulo(), description: input.description,
+          creditCard: {
+            holderName: input.card.holderName, number: input.card.number,
+            expiryMonth: input.card.expiryMonth, expiryYear: input.card.expiryYear, ccv: input.card.ccv,
+          },
+          creditCardHolderInfo: {
+            name: input.holder.name, email: input.holder.email, cpfCnpj: input.holder.cpfCnpj,
+            postalCode: input.holderInfo.postalCode, addressNumber: input.holderInfo.addressNumber, phone: input.holderInfo.phone,
+          },
+          remoteIp: input.remoteIp,
+        },
+      });
+    } catch (e) {
+      if (e instanceof AsaasRequestError && e.status >= 400 && e.status < 500) {
+        throw new UnprocessableEntityException({ code: 'CARD_DECLINED', message: 'Cartão recusado. Confira os dados ou tente outro cartão.' });
+      }
+      throw new BadGatewayException('Falha ao falar com o Asaas');
+    }
+    const payments = await this.callOrGateway<{ data: { status: string }[] }>(`/subscriptions/${sub.id}/payments`, { method: 'GET' });
+    const st = payments.data[0]?.status;
+    const status: 'ACTIVE' | 'PENDING' = st === 'CONFIRMED' || st === 'RECEIVED' ? 'ACTIVE' : 'PENDING';
+    return { subscriptionId: sub.id, status, cardLast4: sub.creditCard?.creditCardNumber ?? null, cardBrand: sub.creditCard?.creditCardBrand ?? null };
+  }
+
+  async updateSubscriptionBilling(subscriptionId: string, input: {
+    method: PaymentMethod; card?: CardInput; holderInfo?: CardHolderInfo; holder?: { name: string; email: string; cpfCnpj: string }; remoteIp?: string;
+  }): Promise<{ cardLast4: string | null; cardBrand: string | null }> {
+    if (input.method === 'PIX') {
+      await this.callOrGateway(`/subscriptions/${subscriptionId}`, { method: 'POST', body: { billingType: 'PIX' } });
+      return { cardLast4: null, cardBrand: null };
+    }
+    let updated: { creditCard?: { creditCardNumber?: string; creditCardBrand?: string } };
+    try {
+      updated = await this.call(`/subscriptions/${subscriptionId}`, {
+        method: 'POST',
+        body: {
+          billingType: 'CREDIT_CARD',
+          creditCard: input.card && {
+            holderName: input.card.holderName, number: input.card.number,
+            expiryMonth: input.card.expiryMonth, expiryYear: input.card.expiryYear, ccv: input.card.ccv,
+          },
+          creditCardHolderInfo: input.holder && input.holderInfo && {
+            name: input.holder.name, email: input.holder.email, cpfCnpj: input.holder.cpfCnpj,
+            postalCode: input.holderInfo.postalCode, addressNumber: input.holderInfo.addressNumber, phone: input.holderInfo.phone,
+          },
+          remoteIp: input.remoteIp,
+        },
+      });
+    } catch (e) {
+      if (e instanceof AsaasRequestError && e.status >= 400 && e.status < 500) {
+        throw new UnprocessableEntityException({ code: 'CARD_DECLINED', message: 'Cartão recusado. Confira os dados ou tente outro cartão.' });
+      }
+      throw new BadGatewayException('Falha ao falar com o Asaas');
+    }
+    return { cardLast4: updated.creditCard?.creditCardNumber ?? null, cardBrand: updated.creditCard?.creditCardBrand ?? null };
   }
 
   async cancelSubscription(subscriptionId: string): Promise<void> {
-    await this.call(`/subscriptions/${subscriptionId}`, { method: 'DELETE' });
+    await this.callOrGateway(`/subscriptions/${subscriptionId}`, { method: 'DELETE' });
   }
 }
