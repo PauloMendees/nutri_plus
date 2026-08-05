@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { Logo } from '@/components/brand/logo';
 import { AppSidebar } from '@/components/app/app-sidebar';
 import { BillingGate } from '@/components/billing/billing-gate';
+import { OnboardingGate } from '@/components/billing/onboarding-gate';
 import { MobileNavTrigger } from '@/components/app/mobile-nav-trigger';
 import { TodayAgendaWidget } from '@/components/agenda/today-agenda-widget';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
@@ -20,6 +21,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <AppSidebar user={me ? { name: me.name, role: me.role } : null} />
       <SidebarInset>
         <BillingGate />
+        <OnboardingGate />
         <header className="flex h-14 items-center justify-between border-b bg-background px-4 md:hidden">
           <Logo variant="full" className="h-6" />
           <MobileNavTrigger />
