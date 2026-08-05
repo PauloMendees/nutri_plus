@@ -20,3 +20,21 @@ it('normaliza e envia os dados do cartão', () => {
     '12345678901',
   );
 });
+
+it('mascara a validade automaticamente (MM/AAAA) sem digitar a barra', () => {
+  const onSubmit = vi.fn();
+  render(<CardForm onSubmit={onSubmit} loading={false} error={null} />);
+  const validade = screen.getByLabelText(/validade/i) as HTMLInputElement;
+  fireEvent.change(validade, { target: { value: '122030' } });
+  expect(validade.value).toBe('12/2030');
+  // e o submit continua parseando certo:
+  fireEvent.change(screen.getByLabelText(/número do cartão/i), { target: { value: '5162306219378829' } });
+  fireEvent.change(screen.getByLabelText(/nome no cartão/i), { target: { value: 'Teste' } });
+  fireEvent.change(screen.getByLabelText(/cvv/i), { target: { value: '123' } });
+  fireEvent.change(screen.getByLabelText(/^cpf/i), { target: { value: '12345678901' } });
+  fireEvent.change(screen.getByLabelText(/cep/i), { target: { value: '01310000' } });
+  fireEvent.change(screen.getByLabelText(/número.*endereço/i), { target: { value: '100' } });
+  fireEvent.change(screen.getByLabelText(/telefone/i), { target: { value: '11999999999' } });
+  fireEvent.click(screen.getByRole('button', { name: /pagar/i }));
+  expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ expiryMonth: '12', expiryYear: '2030' }), expect.anything(), '12345678901');
+});

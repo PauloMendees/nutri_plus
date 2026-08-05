@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import type { CardHolderInfo, CardInput } from '@nutri-plus/shared-types';
+import { Button } from '@/components/ui/button';
 
 type FormState = {
   number: string;
@@ -25,6 +26,11 @@ const INITIAL_STATE: FormState = {
 };
 
 const onlyDigits = (s: string) => s.replace(/\D/g, '');
+
+function maskExpiry(v: string): string {
+  const d = v.replace(/\D/g, '').slice(0, 6); // MMAAAA
+  return d.length <= 2 ? d : `${d.slice(0, 2)}/${d.slice(2)}`;
+}
 
 export function CardForm({
   onSubmit,
@@ -75,7 +81,16 @@ export function CardForm({
       {Input('Número do cartão', 'number')}
       {Input('Nome no cartão', 'holderName')}
       <div className="grid grid-cols-2 gap-3">
-        {Input('Validade', 'expiry', 'MM/AAAA')}
+        <label className="block text-sm">
+          Validade
+          <input
+            aria-label="Validade"
+            className="mt-1 w-full rounded border px-3 py-2"
+            value={f.expiry}
+            onChange={(e) => setF({ ...f, expiry: maskExpiry(e.target.value) })}
+            placeholder="MM/AAAA"
+          />
+        </label>
         {Input('CVV', 'ccv')}
       </div>
       {Input('CPF', 'cpf')}
@@ -85,13 +100,9 @@ export function CardForm({
       </div>
       {Input('Telefone', 'phone')}
       {error && <p className="text-sm text-destructive">{error}</p>}
-      <button
-        className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-        disabled={loading}
-        onClick={submit}
-      >
+      <Button className="w-full" size="lg" disabled={loading} onClick={submit}>
         {loading ? 'Processando…' : 'Pagar'}
-      </button>
+      </Button>
     </div>
   );
 }

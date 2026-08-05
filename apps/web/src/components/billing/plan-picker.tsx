@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import type { BillingPeriod, PlanTier } from '@nutri-plus/shared-types';
 import { PLAN_CATALOG } from '@nutri-plus/shared-types';
+import { Button } from '@/components/ui/button';
 
 const TIERS: PlanTier[] = ['ESSENCIAL', 'PRO'];
 const brl = (n: number) => `R$ ${n.toLocaleString('pt-BR')}`;
@@ -11,20 +12,22 @@ export function PlanPicker({ onChoose }: { onChoose: (plan: PlanTier, period: Bi
   return (
     <div className="space-y-6">
       <div className="mx-auto flex w-fit items-center gap-1 rounded-full border p-1 text-sm">
-        <button
+        <Button
+          variant={period === 'MONTHLY' ? 'default' : 'ghost'}
+          size="sm"
           aria-pressed={period === 'MONTHLY'}
           onClick={() => setPeriod('MONTHLY')}
-          className={`rounded-full px-4 py-1 ${period === 'MONTHLY' ? 'bg-primary text-primary-foreground' : ''}`}
         >
           Mensal
-        </button>
-        <button
+        </Button>
+        <Button
+          variant={period === 'YEARLY' ? 'default' : 'ghost'}
+          size="sm"
           aria-pressed={period === 'YEARLY'}
           onClick={() => setPeriod('YEARLY')}
-          className={`rounded-full px-4 py-1 ${period === 'YEARLY' ? 'bg-primary text-primary-foreground' : ''}`}
         >
           Anual <span className="text-xs opacity-80">2 meses grátis</span>
-        </button>
+        </Button>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {TIERS.map((tier) => {
@@ -57,12 +60,14 @@ export function PlanPicker({ onChoose }: { onChoose: (plan: PlanTier, period: Bi
                 <li>{cfg.features.includes('transcription') ? '✓' : '—'} Transcrição de consulta</li>
                 <li>{cfg.employeeSeats > 0 ? `✓ Até ${cfg.employeeSeats} funcionários` : '— Sem funcionários'}</li>
               </ul>
-              <button
-                className={`mt-auto w-full rounded-lg py-2.5 text-sm font-semibold ${pro ? 'bg-primary text-primary-foreground' : 'border'}`}
+              <Button
+                className="mt-auto w-full"
+                variant={pro ? 'default' : 'outline'}
+                size="lg"
                 onClick={() => onChoose(tier, period)}
               >
                 Assinar {pro ? 'Pro' : 'Essencial'}
-              </button>
+              </Button>
             </div>
           );
         })}
