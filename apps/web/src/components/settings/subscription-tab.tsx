@@ -96,7 +96,7 @@ export function SubscriptionTab() {
           <a href="/assinatura">Trocar plano</a>
         </Button>
         {(data.status === 'ACTIVE' || data.status === 'PAST_DUE') && !data.cancelAtPeriodEnd && (
-          <Button variant="outline" onClick={onCancel}>
+          <Button type="button" variant="outline" onClick={onCancel}>
             Cancelar assinatura
           </Button>
         )}
@@ -108,6 +108,7 @@ export function SubscriptionTab() {
         <div className="flex gap-2">
           {data.paymentMethod === 'PIX' && (
             <Button
+              type="button"
               variant="outline"
               onClick={() => {
                 setPmError(null);
@@ -120,6 +121,7 @@ export function SubscriptionTab() {
           {data.paymentMethod === 'CREDIT_CARD' && (
             <>
               <Button
+                type="button"
                 variant="outline"
                 onClick={() => {
                   setPmError(null);
@@ -128,7 +130,7 @@ export function SubscriptionTab() {
               >
                 Atualizar cartão
               </Button>
-              <Button variant="outline" disabled={pmLoading} onClick={() => setConfirmPix(true)}>
+              <Button type="button" variant="outline" disabled={pmLoading} onClick={() => setConfirmPix(true)}>
                 Mudar para Pix
               </Button>
             </>
@@ -145,10 +147,11 @@ export function SubscriptionTab() {
             O Pix não auto-renova; você recebe uma cobrança a cada ciclo.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmPix(false)}>
+            <Button type="button" variant="outline" onClick={() => setConfirmPix(false)}>
               Cancelar
             </Button>
             <Button
+              type="button"
               onClick={async () => {
                 setConfirmPix(false);
                 await onSwitchToPix();

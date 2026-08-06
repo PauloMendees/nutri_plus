@@ -19,7 +19,8 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries }),
 }));
 const replace = vi.fn();
-vi.mock('next/navigation', () => ({ useRouter: () => ({ replace, push: replace }) }));
+const back = vi.fn();
+vi.mock('next/navigation', () => ({ useRouter: () => ({ replace, push: replace, back }) }));
 
 import AssinaturaPage from './page';
 import { SUBSCRIPTION_KEY } from '@/lib/queries/subscription';
@@ -30,6 +31,7 @@ beforeEach(() => {
   changePlan.mockReset();
   previewChangePlan.mockReset();
   replace.mockClear();
+  back.mockClear();
   invalidateQueries.mockClear();
   useQuery.mockReturnValue({ data: { onboardedAt: null, status: 'TRIALING', entitlements: { isReadOnly: true } } });
 });
@@ -94,6 +96,23 @@ it('upgrade no cartão: escolher plano mostra o preview; confirmar chama changeP
   fireEvent.click(screen.getByRole('button', { name: /confirmar troca/i }));
   await waitFor(() => expect(changePlan).toHaveBeenCalledWith({ plan: 'PRO', period: 'MONTHLY' }));
   await waitFor(() => expect(screen.getByText(/upgrade|pagou|plano alterado/i)).toBeInTheDocument());
+});
+
+it('assinante ativo vê "Cancelar" no picker que volta para a página anterior', () => {
+  useQuery.mockReturnValue({
+    data: {
+      status: 'ACTIVE',
+      plan: 'ESSENCIAL',
+      billingPeriod: 'MONTHLY',
+      onboardedAt: '2026-08-01T00:00:00Z',
+      entitlements: { isReadOnly: false },
+    },
+  });
+  render(<AssinaturaPage />);
+  fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
+  expect(back).toHaveBeenCalled();
+  expect(changePlan).not.toHaveBeenCalled();
+  expect(previewChangePlan).not.toHaveBeenCalled();
 });
 
 it('preview agendado mostra "sem cobrança agora"; Voltar retorna ao picker sem chamar changePlan', async () => {

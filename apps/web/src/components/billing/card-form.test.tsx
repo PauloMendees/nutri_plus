@@ -21,6 +21,38 @@ it('normaliza e envia os dados do cartão', () => {
   );
 });
 
+it('valida a validade e mostra erro por campo (12/35) sem enviar', () => {
+  const onSubmit = vi.fn();
+  render(<CardForm onSubmit={onSubmit} loading={false} error={null} />);
+  fireEvent.change(screen.getByLabelText(/número do cartão/i), { target: { value: '5162306219378829' } });
+  fireEvent.change(screen.getByLabelText(/nome no cartão/i), { target: { value: 'Teste' } });
+  fireEvent.change(screen.getByLabelText(/validade/i), { target: { value: '12/35' } });
+  fireEvent.change(screen.getByLabelText(/cvv/i), { target: { value: '123' } });
+  fireEvent.change(screen.getByLabelText(/^cpf/i), { target: { value: '12345678901' } });
+  fireEvent.change(screen.getByLabelText(/cep/i), { target: { value: '01310000' } });
+  fireEvent.change(screen.getByLabelText(/número.*endereço/i), { target: { value: '100' } });
+  fireEvent.change(screen.getByLabelText(/telefone/i), { target: { value: '11999999999' } });
+  fireEvent.click(screen.getByRole('button', { name: /pagar/i }));
+  expect(onSubmit).not.toHaveBeenCalled();
+  expect(screen.getByText(/MM\/AAAA/i)).toBeInTheDocument();
+});
+
+it('mostra erros por campo ao enviar vazio e não chama onSubmit', () => {
+  const onSubmit = vi.fn();
+  render(<CardForm onSubmit={onSubmit} loading={false} error={null} />);
+  fireEvent.click(screen.getByRole('button', { name: /pagar/i }));
+  expect(onSubmit).not.toHaveBeenCalled();
+  expect(screen.getByText(/informe o número do cartão/i)).toBeInTheDocument();
+  expect(screen.getByText(/informe o cep/i)).toBeInTheDocument();
+});
+
+it('máscara de CEP formata para 00000-000', () => {
+  render(<CardForm onSubmit={vi.fn()} loading={false} error={null} />);
+  const cep = screen.getByLabelText(/cep/i) as HTMLInputElement;
+  fireEvent.change(cep, { target: { value: '01310000' } });
+  expect(cep.value).toBe('01310-000');
+});
+
 it('mascara a validade automaticamente (MM/AAAA) sem digitar a barra', () => {
   const onSubmit = vi.fn();
   render(<CardForm onSubmit={onSubmit} loading={false} error={null} />);

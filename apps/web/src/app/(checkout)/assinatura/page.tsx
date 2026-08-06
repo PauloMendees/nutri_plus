@@ -224,12 +224,19 @@ export default function AssinaturaPage() {
               </div>
             </div>
           ) : (
-            <PlanPicker
-              currentPlan={data!.plan ?? undefined}
-              currentPeriod={data!.billingPeriod ?? undefined}
-              onChoose={onPickChange}
-              busy={loading}
-            />
+            <div className="space-y-4">
+              <PlanPicker
+                currentPlan={data!.plan ?? undefined}
+                currentPeriod={data!.billingPeriod ?? undefined}
+                onChoose={onPickChange}
+                busy={loading}
+              />
+              <div className="text-center">
+                <Button variant="ghost" size="sm" disabled={loading} onClick={() => router.back()}>
+                  Cancelar
+                </Button>
+              </div>
+            </div>
           )}
         </div>
       ) : !choice ? (

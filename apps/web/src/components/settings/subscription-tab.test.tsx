@@ -56,3 +56,18 @@ it('pede confirmação num dialog antes de mudar para Pix', async () => {
   fireEvent.click(screen.getByRole('button', { name: /confirmar/i }));
   await waitFor(() => expect(updatePM).toHaveBeenCalledWith({ method: 'PIX' }));
 });
+
+it('não submete um <form> ao redor ao clicar "Atualizar cartão" (type=button)', () => {
+  // Regressão: SubscriptionTab é renderizado dentro do <form> de Configurações.
+  // Sem type="button", os botões viram submit e disparam PATCH /nutritionist-settings
+  // + toast "Configurações salvas." sem o usuário ter salvado nada.
+  const onSubmit = vi.fn((e) => e.preventDefault());
+  useSubscription.mockReturnValue({ data: { status: 'ACTIVE', plan: 'PRO', billingPeriod: 'MONTHLY', currentPeriodEnd: '2026-09-01T00:00:00Z', cancelAtPeriodEnd: false, paymentMethod: 'CREDIT_CARD', cardLast4: '1234', cardBrand: 'VISA', entitlements: { isReadOnly: false }, recentPayments: [] }, refetch: vi.fn() });
+  render(
+    <form onSubmit={onSubmit}>
+      <SubscriptionTab />
+    </form>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: /atualizar cartão/i }));
+  expect(onSubmit).not.toHaveBeenCalled();
+});
