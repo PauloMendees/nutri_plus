@@ -1,4 +1,5 @@
 import type {
+  ChangePlanPreview,
   ChangePlanRequest,
   ChangePlanResponse,
   CheckoutRequest,
@@ -18,6 +19,10 @@ export function checkoutSubscription(body: CheckoutRequest): Promise<CheckoutRes
 
 export function changePlan(body: ChangePlanRequest): Promise<ChangePlanResponse> {
   return browserApiFetch<ChangePlanResponse>('/me/subscription/change-plan', { method: 'POST', body });
+}
+
+export function previewChangePlan(body: ChangePlanRequest): Promise<ChangePlanPreview> {
+  return browserApiFetch<ChangePlanPreview>('/me/subscription/change-plan/preview', { method: 'POST', body });
 }
 
 export function startTrial(): Promise<{ ok: true }> {

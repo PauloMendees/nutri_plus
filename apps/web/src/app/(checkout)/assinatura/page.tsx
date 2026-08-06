@@ -2,9 +2,9 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import type { BillingPeriod, CardHolderInfo, CardInput, PixQrCode, PlanTier } from '@nutri-plus/shared-types';
+import type { BillingPeriod, CardHolderInfo, CardInput, ChangePlanPreview, PixQrCode, PlanTier } from '@nutri-plus/shared-types';
 import { ApiError } from '@/lib/api/client';
-import { changePlan, checkoutSubscription, getSubscription, startTrial } from '@/lib/api/subscription';
+import { changePlan, checkoutSubscription, getSubscription, previewChangePlan, startTrial } from '@/lib/api/subscription';
 import { SUBSCRIPTION_KEY } from '@/lib/queries/subscription';
 import { Button } from '@/components/ui/button';
 import { CardForm } from '@/components/billing/card-form';
@@ -16,6 +16,8 @@ type Method = 'PIX' | 'CREDIT_CARD';
 type Done = { text: string };
 
 const CARD_DECLINED_MESSAGE = 'Cartão recusado. Confira os dados ou tente outro cartão.';
+const moneyBrl = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const periodLabel = (p: BillingPeriod) => (p === 'MONTHLY' ? 'mês' : 'ano');
 
 export default function AssinaturaPage() {
   const router = useRouter();
@@ -32,6 +34,8 @@ export default function AssinaturaPage() {
   const [done, setDone] = useState<Done | null>(null);
   const [changePlanTarget, setChangePlanTarget] = useState<PlanTier | null>(null);
   const [changePix, setChangePix] = useState<PixQrCode | null>(null);
+  const [changeChoice, setChangeChoice] = useState<Choice | null>(null);
+  const [changePreview, setChangePreview] = useState<ChangePlanPreview | null>(null);
 
   const isActive = Boolean(data?.status === 'ACTIVE' && !data?.entitlements.isReadOnly);
 
@@ -116,6 +120,38 @@ export default function AssinaturaPage() {
     }
   }
 
+  async function onPickChange(plan: PlanTier, period: BillingPeriod) {
+    setLoading(true);
+    setError(null);
+    try {
+      const preview = await previewChangePlan({ plan, period });
+      setChangeChoice({ plan, period });
+      setChangePreview(preview);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 422) {
+        const body = err.body as { message?: string } | null;
+        setError(body?.message ?? 'Não foi possível calcular a troca de plano.');
+      } else {
+        setError('Não foi possível calcular a troca de plano. Tente novamente.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function backToPicker() {
+    setChangePreview(null);
+    setChangeChoice(null);
+    setError(null);
+  }
+
+  async function confirmChange() {
+    if (!changeChoice) return;
+    await onChangePlan(changeChoice.plan, changeChoice.period);
+    setChangePreview(null);
+    setChangeChoice(null);
+  }
+
   async function onChangePlan(plan: PlanTier, period: BillingPeriod) {
     setLoading(true);
     setError(null);
@@ -164,11 +200,34 @@ export default function AssinaturaPage() {
               <p className="text-sm text-muted-foreground">Pague a diferença para concluir o upgrade.</p>
               <PixPayment pixQrCode={changePix} />
             </div>
+          ) : changePreview ? (
+            <div className="mx-auto max-w-sm space-y-4 rounded-lg border p-6">
+              {changePreview.kind === 'UPGRADE' ? (
+                <p className="text-sm">
+                  Você paga <strong>R$ {moneyBrl(changePreview.amountNow)} agora</strong> (proporcional aos dias restantes) e depois{' '}
+                  <strong>R$ {moneyBrl(changePreview.recurringValue)}/{periodLabel(changePreview.recurringPeriod)}</strong>. Seu vencimento continua em{' '}
+                  <strong>{new Date(changePreview.effectiveDate).toLocaleDateString('pt-BR')}</strong>.
+                </p>
+              ) : (
+                <p className="text-sm">
+                  Sem cobrança agora. A partir de <strong>{new Date(changePreview.effectiveDate).toLocaleDateString('pt-BR')}</strong> você paga{' '}
+                  <strong>R$ {moneyBrl(changePreview.recurringValue)}/{periodLabel(changePreview.recurringPeriod)}</strong>.
+                </p>
+              )}
+              <div className="flex gap-2">
+                <Button className="flex-1" disabled={loading} onClick={confirmChange}>
+                  {loading ? 'Processando…' : 'Confirmar troca'}
+                </Button>
+                <Button variant="ghost" disabled={loading} onClick={backToPicker}>
+                  Voltar
+                </Button>
+              </div>
+            </div>
           ) : (
             <PlanPicker
               currentPlan={data!.plan ?? undefined}
               currentPeriod={data!.billingPeriod ?? undefined}
-              onChoose={onChangePlan}
+              onChoose={onPickChange}
               busy={loading}
             />
           )}

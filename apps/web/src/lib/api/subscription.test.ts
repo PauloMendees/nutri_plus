@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 const fetchMock = vi.fn();
 vi.mock('@/lib/api/browser', () => ({ browserApiFetch: (...a: any[]) => fetchMock(...a) }));
-import { startTrial, updatePaymentMethod, checkoutSubscription } from './subscription';
+import { startTrial, updatePaymentMethod, checkoutSubscription, previewChangePlan } from './subscription';
 
 beforeEach(() => { fetchMock.mockReset().mockResolvedValue({ ok: true }); });
 
@@ -17,5 +17,9 @@ describe('subscription api', () => {
   it('checkoutSubscription → POST /me/subscription/checkout', async () => {
     await checkoutSubscription({ plan: 'PRO', period: 'MONTHLY', cpfCnpj: '12345678901', method: 'PIX' });
     expect(fetchMock).toHaveBeenCalledWith('/me/subscription/checkout', { method: 'POST', body: expect.objectContaining({ method: 'PIX' }) });
+  });
+  it('previewChangePlan → POST /me/subscription/change-plan/preview', async () => {
+    await previewChangePlan({ plan: 'PRO', period: 'MONTHLY' });
+    expect(fetchMock).toHaveBeenCalledWith('/me/subscription/change-plan/preview', { method: 'POST', body: { plan: 'PRO', period: 'MONTHLY' } });
   });
 });
