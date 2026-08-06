@@ -46,6 +46,14 @@ export type ChangePlanResponse =
   | { kind: 'UPGRADE'; method: 'CREDIT_CARD'; status: 'ACTIVE' | 'PENDING'; amount: number }
   | { kind: 'SCHEDULED'; effectiveDate: string };
 
+export interface ChangePlanPreview {
+  kind: 'UPGRADE' | 'SCHEDULED';
+  amountNow: number; // 0 no agendado; diferença pro-rata no upgrade
+  recurringValue: number; // valor do plano novo por ciclo
+  recurringPeriod: BillingPeriod;
+  effectiveDate: string; // ISO — vencimento (upgrade) / quando passa a valer (agendado)
+}
+
 export interface PlanConfig {
   tier: PlanTier;
   monthlyBrl: number;

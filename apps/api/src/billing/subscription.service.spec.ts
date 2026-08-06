@@ -185,3 +185,38 @@ describe('SubscriptionService.changePlan', () => {
     await expect(svc.changePlan('n1', { plan: 'PRO', period: 'MONTHLY' })).rejects.toBeDefined();
   });
 });
+
+describe('SubscriptionService.previewChangePlan', () => {
+  it('preview de upgrade (mesmo período, tier↑) retorna amountNow>0 e recurringValue novo, sem efeito colateral', async () => {
+    const { svc, prisma, asaas } = deps(activeSub()); // ESSENCIAL/MONTHLY, 15 dias restantes
+    asaas.createOneOffCharge = jest.fn();
+    asaas.updateSubscriptionValue = jest.fn();
+    const out = await svc.previewChangePlan('n1', { plan: 'PRO', period: 'MONTHLY' });
+    expect(out.kind).toBe('UPGRADE');
+    expect(out.amountNow).toBeGreaterThan(0);
+    expect(out.recurringValue).toBe(99);
+    expect(out.recurringPeriod).toBe('MONTHLY');
+    expect(typeof out.effectiveDate).toBe('string');
+    // Sem efeito colateral: nada de Asaas nem gravação.
+    expect(prisma.subscription.update).not.toHaveBeenCalled();
+    expect(asaas.createOneOffCharge).not.toHaveBeenCalled();
+    expect(asaas.updateSubscriptionValue).not.toHaveBeenCalled();
+  });
+
+  it('preview de downgrade/troca de período retorna SCHEDULED e amountNow 0, sem efeito colateral', async () => {
+    const { svc, prisma, asaas } = deps(activeSub({ plan: 'PRO' }));
+    asaas.updateSubscriptionValue = jest.fn();
+    const out = await svc.previewChangePlan('n1', { plan: 'ESSENCIAL', period: 'MONTHLY' });
+    expect(out.kind).toBe('SCHEDULED');
+    expect(out.amountNow).toBe(0);
+    expect(out.recurringValue).toBe(49);
+    expect(out.recurringPeriod).toBe('MONTHLY');
+    expect(prisma.subscription.update).not.toHaveBeenCalled();
+    expect(asaas.updateSubscriptionValue).not.toHaveBeenCalled();
+  });
+
+  it('preview rejeita quando não está ACTIVE', async () => {
+    const { svc } = deps({ id: 's1', nutritionistId: 'n1', status: 'TRIALING' });
+    await expect(svc.previewChangePlan('n1', { plan: 'PRO', period: 'MONTHLY' })).rejects.toBeDefined();
+  });
+});

@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Ip, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import type { ChangePlanResponse, CheckoutResponse, SubscriptionView } from '@nutri-plus/shared-types';
+import type { ChangePlanPreview, ChangePlanResponse, CheckoutResponse, SubscriptionView } from '@nutri-plus/shared-types';
 import { UserRole } from '../generated/prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -51,5 +51,10 @@ export class MeSubscriptionController {
   @Post('change-plan')
   changePlan(@CurrentUser() ctx: AuthContext, @Body() dto: ChangePlanDto): Promise<ChangePlanResponse> {
     return this.subscription.changePlan(resolveScopeNutritionistId(ctx), dto);
+  }
+
+  @Post('change-plan/preview')
+  previewChangePlan(@CurrentUser() ctx: AuthContext, @Body() dto: ChangePlanDto): Promise<ChangePlanPreview> {
+    return this.subscription.previewChangePlan(resolveScopeNutritionistId(ctx), dto);
   }
 }

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import type {
+  ChangePlanPreview,
   ChangePlanRequest,
   ChangePlanResponse,
   CheckoutRequest,
@@ -26,6 +27,14 @@ const TIER_RANK: Record<'ESSENCIAL' | 'PRO', number> = { ESSENCIAL: 0, PRO: 1 };
 function planValue(plan: 'ESSENCIAL' | 'PRO', period: 'MONTHLY' | 'YEARLY'): number {
   const c = PLAN_CATALOG[plan];
   return period === 'MONTHLY' ? c.monthlyBrl : c.yearlyBrl;
+}
+
+interface ChangeComputation {
+  kind: 'UPGRADE' | 'SCHEDULED';
+  amountNow: number; // diferença pro-rata (upgrade) ou 0 (agendado)
+  recurringValue: number; // valor do plano novo por ciclo
+  recurringPeriod: 'MONTHLY' | 'YEARLY';
+  effectiveDate: Date; // vencimento mantido (upgrade) / quando passa a valer (agendado)
 }
 
 @Injectable()
@@ -143,13 +152,12 @@ export class SubscriptionService {
     });
   }
 
-  async changePlan(nutritionistId: string, dto: ChangePlanRequest): Promise<ChangePlanResponse> {
-    const sub = await this.prisma.subscription.findUnique({ where: { nutritionistId } });
-    if (!sub || sub.status !== 'ACTIVE' || !sub.asaasSubscriptionId || !sub.asaasCustomerId || !sub.plan || !sub.billingPeriod || !sub.currentPeriodEnd) {
-      throw new UnprocessableEntityException({ code: 'NOT_ACTIVE', message: 'Troca de plano só está disponível para uma assinatura ativa.' });
-    }
-    const currentTier = sub.plan as 'ESSENCIAL' | 'PRO';
-    const currentPeriod = sub.billingPeriod as 'MONTHLY' | 'YEARLY';
+  private computeChange(
+    sub: { plan: 'ESSENCIAL' | 'PRO'; billingPeriod: 'MONTHLY' | 'YEARLY'; currentPeriodEnd: Date },
+    dto: ChangePlanRequest,
+  ): ChangeComputation {
+    const currentTier = sub.plan;
+    const currentPeriod = sub.billingPeriod;
     const newValue = planValue(dto.plan, dto.period);
     const isUpgrade = dto.period === currentPeriod && TIER_RANK[dto.plan] > TIER_RANK[currentTier];
 
@@ -158,6 +166,24 @@ export class SubscriptionService {
       const cycleDays = currentPeriod === 'YEARLY' ? 365 : 30;
       const remainingDays = Math.max(0, Math.ceil((sub.currentPeriodEnd.getTime() - Date.now()) / 86400000));
       const diff = Math.round((newValue - cur) * remainingDays / cycleDays * 100) / 100;
+      return { kind: 'UPGRADE', amountNow: diff, recurringValue: newValue, recurringPeriod: dto.period, effectiveDate: sub.currentPeriodEnd };
+    }
+    return { kind: 'SCHEDULED', amountNow: 0, recurringValue: newValue, recurringPeriod: dto.period, effectiveDate: sub.currentPeriodEnd };
+  }
+
+  async changePlan(nutritionistId: string, dto: ChangePlanRequest): Promise<ChangePlanResponse> {
+    const sub = await this.prisma.subscription.findUnique({ where: { nutritionistId } });
+    if (!sub || sub.status !== 'ACTIVE' || !sub.asaasSubscriptionId || !sub.asaasCustomerId || !sub.plan || !sub.billingPeriod || !sub.currentPeriodEnd) {
+      throw new UnprocessableEntityException({ code: 'NOT_ACTIVE', message: 'Troca de plano só está disponível para uma assinatura ativa.' });
+    }
+    const change = this.computeChange(
+      { plan: sub.plan as 'ESSENCIAL' | 'PRO', billingPeriod: sub.billingPeriod as 'MONTHLY' | 'YEARLY', currentPeriodEnd: sub.currentPeriodEnd },
+      dto,
+    );
+    const newValue = change.recurringValue;
+
+    if (change.kind === 'UPGRADE') {
+      const diff = change.amountNow;
 
       if (sub.paymentMethod === 'CREDIT_CARD') {
         if (!sub.asaasCardToken) {
@@ -194,6 +220,24 @@ export class SubscriptionService {
       data: { pendingPlan: dto.plan, pendingBillingPeriod: dto.period, pendingChargeAsaasId: null },
     });
     return { kind: 'SCHEDULED', effectiveDate: sub.currentPeriodEnd.toISOString() };
+  }
+
+  async previewChangePlan(nutritionistId: string, dto: ChangePlanRequest): Promise<ChangePlanPreview> {
+    const sub = await this.prisma.subscription.findUnique({ where: { nutritionistId } });
+    if (!sub || sub.status !== 'ACTIVE' || !sub.asaasSubscriptionId || !sub.asaasCustomerId || !sub.plan || !sub.billingPeriod || !sub.currentPeriodEnd) {
+      throw new UnprocessableEntityException({ code: 'NOT_ACTIVE', message: 'Troca de plano só está disponível para uma assinatura ativa.' });
+    }
+    const change = this.computeChange(
+      { plan: sub.plan as 'ESSENCIAL' | 'PRO', billingPeriod: sub.billingPeriod as 'MONTHLY' | 'YEARLY', currentPeriodEnd: sub.currentPeriodEnd },
+      dto,
+    );
+    return {
+      kind: change.kind,
+      amountNow: change.amountNow,
+      recurringValue: change.recurringValue,
+      recurringPeriod: change.recurringPeriod,
+      effectiveDate: change.effectiveDate.toISOString(),
+    };
   }
 
   async cancel(nutritionistId: string): Promise<void> {
