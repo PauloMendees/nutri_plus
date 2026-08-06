@@ -120,6 +120,10 @@ export interface SubscriptionView {
   paymentMethod: PaymentMethod | null;
   cardLast4: string | null;
   cardBrand: string | null;
+  // Mudança agendada (troca de período/downgrade) que passa a valer em currentPeriodEnd.
+  // null quando não há agendamento (ou quando é upgrade aguardando pagamento).
+  pendingPlan: PlanTier | null;
+  pendingBillingPeriod: BillingPeriod | null;
 }
 
 export interface CheckoutRequest {

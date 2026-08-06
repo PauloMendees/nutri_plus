@@ -57,6 +57,19 @@ it('pede confirmação num dialog antes de mudar para Pix', async () => {
   await waitFor(() => expect(updatePM).toHaveBeenCalledWith({ method: 'PIX' }));
 });
 
+it('mostra a confirmação de mudança de plano agendada (pendingPlan/pendingBillingPeriod)', () => {
+  useSubscription.mockReturnValue({ data: { status: 'ACTIVE', plan: 'PRO', billingPeriod: 'MONTHLY', currentPeriodEnd: '2026-09-01T00:00:00Z', cancelAtPeriodEnd: false, paymentMethod: 'CREDIT_CARD', cardLast4: '1234', cardBrand: 'VISA', entitlements: { isReadOnly: false }, recentPayments: [], pendingPlan: 'PRO', pendingBillingPeriod: 'YEARLY' }, refetch: vi.fn() });
+  render(<SubscriptionTab />);
+  expect(screen.getByText(/mudança agendada/i)).toBeInTheDocument();
+  expect(screen.getByText(/pro \(anual\)/i)).toBeInTheDocument();
+});
+
+it('não mostra aviso de mudança agendada quando não há pending', () => {
+  useSubscription.mockReturnValue({ data: { status: 'ACTIVE', plan: 'PRO', billingPeriod: 'MONTHLY', currentPeriodEnd: '2026-09-01T00:00:00Z', cancelAtPeriodEnd: false, paymentMethod: 'PIX', cardLast4: null, cardBrand: null, entitlements: { isReadOnly: false }, recentPayments: [], pendingPlan: null, pendingBillingPeriod: null }, refetch: vi.fn() });
+  render(<SubscriptionTab />);
+  expect(screen.queryByText(/mudança agendada/i)).not.toBeInTheDocument();
+});
+
 it('não submete um <form> ao redor ao clicar "Atualizar cartão" (type=button)', () => {
   // Regressão: SubscriptionTab é renderizado dentro do <form> de Configurações.
   // Sem type="button", os botões viram submit e disparam PATCH /nutritionist-settings

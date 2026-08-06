@@ -91,6 +91,17 @@ export function SubscriptionTab() {
         </p>
       </div>
 
+      {data.pendingPlan && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+          Mudança agendada: em <strong>{fmt(data.currentPeriodEnd)}</strong> seu plano passa a ser{' '}
+          <strong>
+            {data.pendingPlan === 'PRO' ? 'Pro' : 'Essencial'}
+            {data.pendingBillingPeriod ? ` (${data.pendingBillingPeriod === 'MONTHLY' ? 'mensal' : 'anual'})` : ''}
+          </strong>
+          .
+        </div>
+      )}
+
       <div className="flex gap-2">
         <Button asChild>
           <a href="/assinatura">Trocar plano</a>

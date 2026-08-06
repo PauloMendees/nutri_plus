@@ -74,6 +74,20 @@ describe('SubscriptionService.getView', () => {
     expect(view).toMatchObject({ paymentMethod: 'CREDIT_CARD', cardLast4: '1234', cardBrand: 'VISA' });
     expect(view.onboardedAt).toEqual(expect.any(String));
   });
+
+  it('getView expõe a mudança agendada (pendingPlan/pendingBillingPeriod) quando não há cobrança pendente', async () => {
+    const { svc } = deps({ id: 's1', nutritionistId: 'n1', status: 'ACTIVE', plan: 'PRO', billingPeriod: 'MONTHLY', currentPeriodEnd: new Date('2026-09-01T00:00:00Z'), pendingPlan: 'PRO', pendingBillingPeriod: 'YEARLY', pendingChargeAsaasId: null });
+    const view = await svc.getView('n1');
+    expect(view.pendingPlan).toBe('PRO');
+    expect(view.pendingBillingPeriod).toBe('YEARLY');
+  });
+
+  it('getView NÃO expõe pending quando é upgrade aguardando pagamento (pendingChargeAsaasId setado)', async () => {
+    const { svc } = deps({ id: 's1', nutritionistId: 'n1', status: 'ACTIVE', plan: 'ESSENCIAL', billingPeriod: 'MONTHLY', pendingPlan: 'PRO', pendingBillingPeriod: 'MONTHLY', pendingChargeAsaasId: 'pay_1' });
+    const view = await svc.getView('n1');
+    expect(view.pendingPlan).toBeNull();
+    expect(view.pendingBillingPeriod).toBeNull();
+  });
 });
 
 describe('SubscriptionService.cancel', () => {

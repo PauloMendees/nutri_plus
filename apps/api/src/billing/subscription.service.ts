@@ -54,6 +54,9 @@ export class SubscriptionService {
       orderBy: { createdAt: 'desc' },
       take: 12,
     });
+    // Mudança agendada = pending sem cobrança pendente. Um upgrade aguardando
+    // pagamento (pendingChargeAsaasId setado) NÃO é um agendamento pra próximo ciclo.
+    const scheduledChange = Boolean(sub.pendingPlan && !sub.pendingChargeAsaasId);
     return {
       status: sub.status,
       isComp: sub.isComp,
@@ -71,6 +74,8 @@ export class SubscriptionService {
       paymentMethod: sub.paymentMethod as PaymentMethod | null,
       cardLast4: sub.cardLast4,
       cardBrand: sub.cardBrand,
+      pendingPlan: scheduledChange ? sub.pendingPlan : null,
+      pendingBillingPeriod: scheduledChange ? sub.pendingBillingPeriod : null,
     };
   }
 
