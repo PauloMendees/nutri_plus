@@ -83,15 +83,6 @@ export function PlanPicker({
                   <span className="text-sm font-medium text-muted-foreground">/{unit}</span>
                 </p>
               </div>
-              <ul className="space-y-2 text-sm">
-                <li>✓ Pacientes ilimitados, planos, bioimpedância, agenda</li>
-                <li>
-                  ✓ <strong>{cfg.aiActionsPerMonth}</strong> ações de IA/mês
-                </li>
-                <li>{cfg.features.includes('silhueta') ? '✓' : '—'} Silhueta (IA)</li>
-                <li>{cfg.features.includes('transcription') ? '✓' : '—'} Transcrição de consulta</li>
-                <li>{cfg.employeeSeats > 0 ? `✓ Até ${cfg.employeeSeats} funcionários` : '— Sem funcionários'}</li>
-              </ul>
               {!isCurrent && currentPlan && (
                 <div className="rounded-lg bg-muted/50 p-3 text-xs">
                   {previewsLoading ? (
@@ -111,6 +102,15 @@ export function PlanPicker({
                   ) : null}
                 </div>
               )}
+              <ul className="space-y-2 text-sm">
+                <li>✓ Pacientes ilimitados, planos, bioimpedância, agenda</li>
+                <li>
+                  ✓ <strong>{cfg.aiActionsPerMonth}</strong> ações de IA/mês
+                </li>
+                <li>{cfg.features.includes('silhueta') ? '✓' : '—'} Silhueta (IA)</li>
+                <li>{cfg.features.includes('transcription') ? '✓' : '—'} Transcrição de consulta</li>
+                <li>{cfg.employeeSeats > 0 ? `✓ Até ${cfg.employeeSeats} funcionários` : '— Sem funcionários'}</li>
+              </ul>
               {isCurrent ? (
                 <Button type="button" className="mt-auto w-full" variant="outline" size="lg" disabled>
                   Plano atual
