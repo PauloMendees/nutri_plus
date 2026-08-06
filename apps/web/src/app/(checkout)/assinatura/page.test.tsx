@@ -74,7 +74,7 @@ it('assinante ativo NÃO é redirecionado e vê o picker com o plano atual', () 
   expect(screen.getByText(/seu plano atual/i)).toBeInTheDocument();
 });
 
-it('upgrade no cartão: escolher plano mostra o preview; confirmar chama changePlan e mostra sucesso', async () => {
+it('upgrade: mostra o valor DENTRO do card e troca direto ao clicar (sem passo extra)', async () => {
   previewChangePlan.mockResolvedValue({ kind: 'UPGRADE', amountNow: 25, recurringValue: 99, recurringPeriod: 'MONTHLY', effectiveDate: '2026-08-20T00:00:00Z' });
   changePlan.mockResolvedValue({ kind: 'UPGRADE', method: 'CREDIT_CARD', status: 'ACTIVE', amount: 25 });
   useQuery.mockReturnValue({
@@ -88,17 +88,18 @@ it('upgrade no cartão: escolher plano mostra o preview; confirmar chama changeP
     },
   });
   render(<AssinaturaPage />);
-  fireEvent.click(screen.getByRole('button', { name: /trocar para pro/i }));
+  // valor aparece DENTRO do card, sem precisar clicar
   await waitFor(() => expect(previewChangePlan).toHaveBeenCalledWith({ plan: 'PRO', period: 'MONTHLY' }));
-  // painel de confirmação com os valores
-  await waitFor(() => expect(screen.getByText(/agora/i)).toBeInTheDocument());
-  expect(screen.getByText(/99/)).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: /confirmar troca/i }));
+  await waitFor(() => expect(screen.getByText(/25,00 agora/i)).toBeInTheDocument());
+  expect(screen.getByText(/99,00\/mês/i)).toBeInTheDocument();
+  // clicar troca DIRETO (sem passo de confirmação)
+  fireEvent.click(screen.getByRole('button', { name: /trocar para pro/i }));
   await waitFor(() => expect(changePlan).toHaveBeenCalledWith({ plan: 'PRO', period: 'MONTHLY' }));
   await waitFor(() => expect(screen.getByText(/upgrade|pagou|plano alterado/i)).toBeInTheDocument());
 });
 
 it('assinante ativo vê "Cancelar" no picker que volta para a página anterior', () => {
+  previewChangePlan.mockResolvedValue({ kind: 'UPGRADE', amountNow: 25, recurringValue: 99, recurringPeriod: 'MONTHLY', effectiveDate: '2026-08-20T00:00:00Z' });
   useQuery.mockReturnValue({
     data: {
       status: 'ACTIVE',
@@ -112,10 +113,9 @@ it('assinante ativo vê "Cancelar" no picker que volta para a página anterior',
   fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
   expect(back).toHaveBeenCalled();
   expect(changePlan).not.toHaveBeenCalled();
-  expect(previewChangePlan).not.toHaveBeenCalled();
 });
 
-it('preview agendado mostra "sem cobrança agora"; Voltar retorna ao picker sem chamar changePlan', async () => {
+it('agendado: card mostra "sem cobrança agora" com a data de vigência', async () => {
   previewChangePlan.mockResolvedValue({ kind: 'SCHEDULED', amountNow: 0, recurringValue: 49, recurringPeriod: 'MONTHLY', effectiveDate: '2026-09-01T00:00:00Z' });
   useQuery.mockReturnValue({
     data: {
@@ -128,9 +128,5 @@ it('preview agendado mostra "sem cobrança agora"; Voltar retorna ao picker sem 
     },
   });
   render(<AssinaturaPage />);
-  fireEvent.click(screen.getByRole('button', { name: /trocar para essencial/i }));
   await waitFor(() => expect(screen.getByText(/sem cobrança agora/i)).toBeInTheDocument());
-  fireEvent.click(screen.getByRole('button', { name: /voltar/i }));
-  await waitFor(() => expect(screen.getByRole('button', { name: /trocar para essencial/i })).toBeInTheDocument());
-  expect(changePlan).not.toHaveBeenCalled();
 });

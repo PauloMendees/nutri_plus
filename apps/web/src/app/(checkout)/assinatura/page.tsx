@@ -16,8 +16,6 @@ type Method = 'PIX' | 'CREDIT_CARD';
 type Done = { text: string };
 
 const CARD_DECLINED_MESSAGE = 'Cartão recusado. Confira os dados ou tente outro cartão.';
-const moneyBrl = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const periodLabel = (p: BillingPeriod) => (p === 'MONTHLY' ? 'mês' : 'ano');
 
 export default function AssinaturaPage() {
   const router = useRouter();
@@ -34,10 +32,13 @@ export default function AssinaturaPage() {
   const [done, setDone] = useState<Done | null>(null);
   const [changePlanTarget, setChangePlanTarget] = useState<PlanTier | null>(null);
   const [changePix, setChangePix] = useState<PixQrCode | null>(null);
-  const [changeChoice, setChangeChoice] = useState<Choice | null>(null);
-  const [changePreview, setChangePreview] = useState<ChangePlanPreview | null>(null);
+  // Troca de plano: período (controlado) + previews de valor por plano, mostrados dentro do card.
+  const [period, setPeriod] = useState<BillingPeriod | null>(null);
+  const [previews, setPreviews] = useState<Partial<Record<PlanTier, ChangePlanPreview | null>>>({});
+  const [previewsLoading, setPreviewsLoading] = useState(false);
 
   const isActive = Boolean(data?.status === 'ACTIVE' && !data?.entitlements.isReadOnly);
+  const effectivePeriod: BillingPeriod = period ?? data?.billingPeriod ?? 'MONTHLY';
 
   useEffect(() => {
     if (changePix && changePlanTarget && data?.plan === changePlanTarget) {
@@ -46,6 +47,35 @@ export default function AssinaturaPage() {
       setChangePlanTarget(null);
     }
   }, [changePix, changePlanTarget, data?.plan]);
+
+  // Busca o preview (autoritativo, sem efeito colateral) de cada plano visível para
+  // exibir o valor DENTRO do card. Só recalcula quando muda o período ou o plano atual.
+  useEffect(() => {
+    if (!isActive) return;
+    let cancelled = false;
+    setPreviewsLoading(true);
+    setPreviews({});
+    Promise.all(
+      (['ESSENCIAL', 'PRO'] as PlanTier[]).map(async (tier) => {
+        if (tier === data?.plan && effectivePeriod === data?.billingPeriod) return [tier, null] as const;
+        try {
+          return [tier, await previewChangePlan({ plan: tier, period: effectivePeriod })] as const;
+        } catch {
+          return [tier, null] as const;
+        }
+      }),
+    ).then((entries) => {
+      if (cancelled) return;
+      const map: Partial<Record<PlanTier, ChangePlanPreview | null>> = {};
+      for (const [tier, p] of entries) map[tier] = p;
+      setPreviews(map);
+      setPreviewsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive, effectivePeriod, data?.plan, data?.billingPeriod]);
 
   function onChoosePlan(plan: PlanTier, period: BillingPeriod) {
     setChoice({ plan, period });
@@ -120,38 +150,6 @@ export default function AssinaturaPage() {
     }
   }
 
-  async function onPickChange(plan: PlanTier, period: BillingPeriod) {
-    setLoading(true);
-    setError(null);
-    try {
-      const preview = await previewChangePlan({ plan, period });
-      setChangeChoice({ plan, period });
-      setChangePreview(preview);
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 422) {
-        const body = err.body as { message?: string } | null;
-        setError(body?.message ?? 'Não foi possível calcular a troca de plano.');
-      } else {
-        setError('Não foi possível calcular a troca de plano. Tente novamente.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function backToPicker() {
-    setChangePreview(null);
-    setChangeChoice(null);
-    setError(null);
-  }
-
-  async function confirmChange() {
-    if (!changeChoice) return;
-    await onChangePlan(changeChoice.plan, changeChoice.period);
-    setChangePreview(null);
-    setChangeChoice(null);
-  }
-
   async function onChangePlan(plan: PlanTier, period: BillingPeriod) {
     setLoading(true);
     setError(null);
@@ -200,35 +198,16 @@ export default function AssinaturaPage() {
               <p className="text-sm text-muted-foreground">Pague a diferença para concluir o upgrade.</p>
               <PixPayment pixQrCode={changePix} />
             </div>
-          ) : changePreview ? (
-            <div className="mx-auto max-w-sm space-y-4 rounded-lg border p-6">
-              {changePreview.kind === 'UPGRADE' ? (
-                <p className="text-sm">
-                  Você paga <strong>R$ {moneyBrl(changePreview.amountNow)} agora</strong> (proporcional aos dias restantes) e depois{' '}
-                  <strong>R$ {moneyBrl(changePreview.recurringValue)}/{periodLabel(changePreview.recurringPeriod)}</strong>. Seu vencimento continua em{' '}
-                  <strong>{new Date(changePreview.effectiveDate).toLocaleDateString('pt-BR')}</strong>.
-                </p>
-              ) : (
-                <p className="text-sm">
-                  Sem cobrança agora. A partir de <strong>{new Date(changePreview.effectiveDate).toLocaleDateString('pt-BR')}</strong> você paga{' '}
-                  <strong>R$ {moneyBrl(changePreview.recurringValue)}/{periodLabel(changePreview.recurringPeriod)}</strong>.
-                </p>
-              )}
-              <div className="flex gap-2">
-                <Button className="flex-1" disabled={loading} onClick={confirmChange}>
-                  {loading ? 'Processando…' : 'Confirmar troca'}
-                </Button>
-                <Button variant="ghost" disabled={loading} onClick={backToPicker}>
-                  Voltar
-                </Button>
-              </div>
-            </div>
           ) : (
             <div className="space-y-4">
               <PlanPicker
                 currentPlan={data!.plan ?? undefined}
                 currentPeriod={data!.billingPeriod ?? undefined}
-                onChoose={onPickChange}
+                period={effectivePeriod}
+                onPeriodChange={setPeriod}
+                previews={previews}
+                previewsLoading={previewsLoading}
+                onChoose={onChangePlan}
                 busy={loading}
               />
               <div className="text-center">

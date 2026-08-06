@@ -1,24 +1,39 @@
 'use client';
 import { useState } from 'react';
-import type { BillingPeriod, PlanTier } from '@nutri-plus/shared-types';
+import type { BillingPeriod, ChangePlanPreview, PlanTier } from '@nutri-plus/shared-types';
 import { PLAN_CATALOG } from '@nutri-plus/shared-types';
 import { Button } from '@/components/ui/button';
 
 const TIERS: PlanTier[] = ['ESSENCIAL', 'PRO'];
 const brl = (n: number) => `R$ ${n.toLocaleString('pt-BR')}`;
+const money = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('pt-BR');
 
 export function PlanPicker({
   onChoose,
   currentPlan,
   currentPeriod,
   busy,
+  period: periodProp,
+  onPeriodChange,
+  previews,
+  previewsLoading,
 }: {
   onChoose: (plan: PlanTier, period: BillingPeriod) => void;
   currentPlan?: PlanTier;
   currentPeriod?: BillingPeriod;
   busy?: boolean;
+  // Período controlado (fluxo de troca de plano); se ausente, usa estado interno.
+  period?: BillingPeriod;
+  onPeriodChange?: (period: BillingPeriod) => void;
+  // Preview de valor (autoritativo do server) por plano, exibido dentro do card.
+  previews?: Partial<Record<PlanTier, ChangePlanPreview | null>>;
+  previewsLoading?: boolean;
 }) {
-  const [period, setPeriod] = useState<BillingPeriod>(currentPeriod ?? 'MONTHLY');
+  const [internalPeriod, setInternalPeriod] = useState<BillingPeriod>(currentPeriod ?? 'MONTHLY');
+  const period = periodProp ?? internalPeriod;
+  const changePeriod = (p: BillingPeriod) => (onPeriodChange ? onPeriodChange(p) : setInternalPeriod(p));
+  const unit = period === 'MONTHLY' ? 'mês' : 'ano';
   return (
     <div className="space-y-6">
       <div className="mx-auto flex w-fit items-center gap-1 rounded-full border p-1 text-sm">
@@ -26,7 +41,7 @@ export function PlanPicker({
           variant={period === 'MONTHLY' ? 'default' : 'ghost'}
           size="sm"
           aria-pressed={period === 'MONTHLY'}
-          onClick={() => setPeriod('MONTHLY')}
+          onClick={() => changePeriod('MONTHLY')}
         >
           Mensal
         </Button>
@@ -34,7 +49,7 @@ export function PlanPicker({
           variant={period === 'YEARLY' ? 'default' : 'ghost'}
           size="sm"
           aria-pressed={period === 'YEARLY'}
-          onClick={() => setPeriod('YEARLY')}
+          onClick={() => changePeriod('YEARLY')}
         >
           Anual <span className="text-xs opacity-80">2 meses grátis</span>
         </Button>
@@ -45,6 +60,7 @@ export function PlanPicker({
           const price = period === 'MONTHLY' ? cfg.monthlyBrl : cfg.yearlyBrl;
           const pro = tier === 'PRO';
           const isCurrent = tier === currentPlan && period === currentPeriod;
+          const preview = previews?.[tier];
           return (
             <div
               key={tier}
@@ -64,7 +80,7 @@ export function PlanPicker({
                 <h3 className="text-xl font-bold">{pro ? 'Pro' : 'Essencial'}</h3>
                 <p className="mt-1 text-3xl font-extrabold">
                   {brl(price)}
-                  <span className="text-sm font-medium text-muted-foreground">/{period === 'MONTHLY' ? 'mês' : 'ano'}</span>
+                  <span className="text-sm font-medium text-muted-foreground">/{unit}</span>
                 </p>
               </div>
               <ul className="space-y-2 text-sm">
@@ -76,12 +92,32 @@ export function PlanPicker({
                 <li>{cfg.features.includes('transcription') ? '✓' : '—'} Transcrição de consulta</li>
                 <li>{cfg.employeeSeats > 0 ? `✓ Até ${cfg.employeeSeats} funcionários` : '— Sem funcionários'}</li>
               </ul>
+              {!isCurrent && currentPlan && (
+                <div className="rounded-lg bg-muted/50 p-3 text-xs">
+                  {previewsLoading ? (
+                    <span className="text-muted-foreground">Calculando valor…</span>
+                  ) : preview ? (
+                    preview.kind === 'UPGRADE' ? (
+                      <span className="text-muted-foreground">
+                        <strong className="text-foreground">R$ {money(preview.amountNow)} agora</strong> (proporcional aos dias restantes), depois{' '}
+                        <strong className="text-foreground">R$ {money(preview.recurringValue)}/{unit}</strong>. Vencimento mantém {fmtDate(preview.effectiveDate)}.
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        Sem cobrança agora. A partir de {fmtDate(preview.effectiveDate)}:{' '}
+                        <strong className="text-foreground">R$ {money(preview.recurringValue)}/{unit}</strong>.
+                      </span>
+                    )
+                  ) : null}
+                </div>
+              )}
               {isCurrent ? (
-                <Button className="mt-auto w-full" variant="outline" size="lg" disabled>
+                <Button type="button" className="mt-auto w-full" variant="outline" size="lg" disabled>
                   Plano atual
                 </Button>
               ) : (
                 <Button
+                  type="button"
                   className="mt-auto w-full"
                   variant={pro ? 'default' : 'outline'}
                   size="lg"
