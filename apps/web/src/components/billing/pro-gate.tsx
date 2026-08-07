@@ -3,6 +3,7 @@ import type { PlanFeature } from '@nutri-plus/shared-types';
 import { Lock } from 'lucide-react';
 import { useSubscription } from '@/lib/queries/subscription';
 import { emitBilling } from '@/lib/billing/billing-events';
+import { Button } from '@/components/ui/button';
 
 export function useFeature(feature: PlanFeature): boolean {
   const { data } = useSubscription();
@@ -23,12 +24,13 @@ export function ProGate({
   const allowed = useFeature(feature);
   if (allowed) return <>{children}</>;
   return (
-    <button
+    <Button
       type="button"
-      className="inline-flex items-center gap-1 rounded border px-3 py-2 text-sm text-muted-foreground"
+      variant="outline"
+      className="rounded-full text-muted-foreground"
       onClick={() => emitBilling('FEATURE_PRO_ONLY', feature)}
     >
       <Lock className="h-4 w-4" /> {label ?? 'Recurso Pro'}
-    </button>
+    </Button>
   );
 }

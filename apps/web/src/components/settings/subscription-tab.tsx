@@ -1,6 +1,8 @@
 'use client';
+import Link from 'next/link';
 import { useSubscription } from '@/lib/queries/subscription';
 import { cancelSubscription } from '@/lib/api/subscription';
+import { Button } from '@/components/ui/button';
 
 const STATUS_LABEL: Record<string, string> = {
   TRIALING: 'Em teste',
@@ -40,14 +42,14 @@ export function SubscriptionTab() {
         </p>
       </div>
 
-      <div className="flex gap-2">
-        <a href="/assinatura" className="rounded bg-primary text-primary-foreground px-4 py-2 text-sm">
-          Trocar plano
-        </a>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild className="rounded-full">
+          <Link href="/assinatura">Trocar plano</Link>
+        </Button>
         {(data.status === 'ACTIVE' || data.status === 'PAST_DUE') && !data.cancelAtPeriodEnd && (
-          <button type="button" className="rounded border px-4 py-2 text-sm" onClick={onCancel}>
+          <Button type="button" variant="outline" className="rounded-full" onClick={onCancel}>
             Cancelar assinatura
-          </button>
+          </Button>
         )}
       </div>
 
