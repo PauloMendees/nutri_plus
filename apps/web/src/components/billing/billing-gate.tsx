@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import type { BillingErrorCode, PlanFeature } from '@nutri-plus/shared-types';
 import { onBilling } from '@/lib/billing/billing-events';
 import { useSubscription } from '@/lib/queries/subscription';
+import { Button } from '@/components/ui/button';
 
 const MODAL_COPY: Record<Exclude<BillingErrorCode, 'READ_ONLY'>, { title: string; body: string }> = {
   AI_QUOTA_EXCEEDED: { title: 'Cota de IA esgotada', body: 'Você usou suas ações de IA deste mês. Faça upgrade para o Pro ou aguarde a renovação no dia 1º.' },
@@ -48,8 +49,19 @@ export function BillingGate() {
             <h2 className="text-lg font-semibold">{MODAL_COPY[modal.code].title}</h2>
             <p className="text-sm text-muted-foreground">{MODAL_COPY[modal.code].body}</p>
             <div className="flex justify-end gap-2">
-              <button className="text-sm px-3 py-2" onClick={() => setModal(null)}>Fechar</button>
-              <button className="text-sm px-3 py-2 rounded bg-primary text-primary-foreground" onClick={() => { setModal(null); router.push('/assinatura'); }}>Ver planos</button>
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => setModal(null)}>
+                Fechar
+              </Button>
+              <Button
+                type="button"
+                className="rounded-full"
+                onClick={() => {
+                  setModal(null);
+                  router.push('/assinatura');
+                }}
+              >
+                Ver planos
+              </Button>
             </div>
           </div>
         </div>
