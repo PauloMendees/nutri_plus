@@ -5,6 +5,9 @@
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**", ".next/**", "!.next/cache/**"] },
     "test": { "dependsOn": ["^build"] },
     "lint": {},
-    "dev": { "cache": false, "persistent": true }
+    // ^build so workspace packages (e.g. shared-types) recompile before api/web
+    // start — a stale dist can leave Nest failing TS checks with no listener,
+    // which surfaces on the web as Server Component "fetch failed".
+    "dev": { "dependsOn": ["^build"], "cache": false, "persistent": true }
   }
 }
