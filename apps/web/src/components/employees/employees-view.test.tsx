@@ -9,6 +9,9 @@ vi.mock('@/lib/queries/employees', () => ({
   useUpdateEmployee: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteEmployee: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+vi.mock('@/lib/queries/subscription', () => ({
+  useSubscription: () => ({ data: { entitlements: { features: { employees: true } } } }),
+}));
 
 import { EmployeesView } from './employees-view';
 

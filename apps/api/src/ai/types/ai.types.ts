@@ -15,6 +15,7 @@ export interface GenerateStructuredOptions<T> {
   schemaName: string;
   type: AIInteractionType;
   patientId?: string;
+  nutritionistId?: string;
   // Optional image data URLs for multimodal prompts. Never logged.
   images?: string[];
 }

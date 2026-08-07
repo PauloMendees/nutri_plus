@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { OpenAIProvider } from '../ai/openai.provider';
 import { AuthContext } from '../auth/types/auth-context';
 import { AIInteractionType } from '../generated/prisma/client';
+import { EntitlementsService } from '../billing/entitlements.service';
 import { SilhuetaService } from './silhueta.service';
 import { CreateSilhuetaScanDto } from './dto/create-silhueta-scan.dto';
 
@@ -52,12 +53,14 @@ const aiEstimate = {
 describe('SilhuetaService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let provider: DeepMockProxy<OpenAIProvider>;
+  let entitlements: DeepMockProxy<EntitlementsService>;
   let service: SilhuetaService;
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
     provider = mockDeep<OpenAIProvider>();
-    service = new SilhuetaService(prisma, provider);
+    entitlements = mockDeep<EntitlementsService>();
+    service = new SilhuetaService(prisma, provider, entitlements);
   });
 
   describe('create', () => {

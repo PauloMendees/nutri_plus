@@ -3,6 +3,7 @@ import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SupabaseAdminService } from '../../supabase/supabase-admin.service';
 import { OpenAIProvider } from '../../ai/openai.provider';
+import { EntitlementsService } from '../../billing/entitlements.service';
 import { AudiosService } from './audios.service';
 import { AuthContext } from '../../auth/types/auth-context';
 
@@ -13,12 +14,14 @@ describe('AudiosService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let admin: DeepMockProxy<SupabaseAdminService>;
   let openai: DeepMockProxy<OpenAIProvider>;
+  let entitlements: DeepMockProxy<EntitlementsService>;
   let service: AudiosService;
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
     admin = mockDeep<SupabaseAdminService>();
     openai = mockDeep<OpenAIProvider>();
-    service = new AudiosService(prisma, admin, openai);
+    entitlements = mockDeep<EntitlementsService>();
+    service = new AudiosService(prisma, admin, openai, entitlements);
     prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
     admin.createSignedUrl.mockResolvedValue('https://signed/x');
   });

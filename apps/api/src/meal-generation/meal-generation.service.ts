@@ -7,6 +7,7 @@ import type { MealPlanDraft } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { OpenAIProvider } from '../ai/openai.provider';
 import { MealPlansService, GeneratedMealInput } from '../meal-plans/meal-plans.service';
+import { EntitlementsService } from '../billing/entitlements.service';
 import { AuthContext } from '../auth/types/auth-context';
 import { AIInteractionType, Food } from '../generated/prisma/client';
 import { resolveScopeNutritionistId } from '../auth/auth-scope';
@@ -36,6 +37,7 @@ export class MealGenerationService {
     private readonly prisma: PrismaService,
     private readonly provider: OpenAIProvider,
     private readonly mealPlans: MealPlansService,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   async generate(ctx: AuthContext, patientId: string, instructions?: string) {
@@ -60,6 +62,8 @@ export class MealGenerationService {
       select: { mealPlanAiInstructions: true },
     });
 
+    await this.entitlements.assertAiActionQuota(nutritionistId);
+
     const generated = await this.provider.generateStructured<MealPlanResponse>({
       tier: 'smart',
       system: MEAL_PLAN_SYSTEM_PROMPT,
@@ -82,6 +86,7 @@ export class MealGenerationService {
       schemaName: 'meal_plan',
       type: AIInteractionType.MEAL_PLAN_GENERATION,
       patientId,
+      nutritionistId,
     });
 
     const foods = await this.prisma.food.findMany();
@@ -106,12 +111,16 @@ export class MealGenerationService {
   // enforced by mealPlans.getPlan (404 for missing/not-owned); daily targets and
   // objective are carried over from the existing plan, never recalculated here.
   async adjust(ctx: AuthContext, planId: string, instructions: string): Promise<MealPlanDraft> {
+    const nutritionistId = resolveScopeNutritionistId(ctx);
+
     // Ownership + full tree (404 propagates for missing/not-owned).
     const plan = await this.mealPlans.getPlan(ctx, planId);
     const patient = await this.prisma.patientProfile.findUnique({
       where: { id: plan.patientId },
       select: { objective: true, restrictions: true, allergies: true, medicalConditions: true, notes: true },
     });
+
+    await this.entitlements.assertAiActionQuota(nutritionistId);
 
     const revised = await this.provider.generateStructured<MealPlanResponse>({
       tier: 'smart',
@@ -153,6 +162,7 @@ export class MealGenerationService {
       schemaName: 'meal_plan',
       type: AIInteractionType.MEAL_PLAN_ADJUSTMENT,
       patientId: plan.patientId,
+      nutritionistId,
     });
 
     return {

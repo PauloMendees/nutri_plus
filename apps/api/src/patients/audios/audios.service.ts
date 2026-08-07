@@ -6,6 +6,7 @@ import { OpenAIProvider } from '../../ai/openai.provider';
 import type { TranscriptStatus } from '../../generated/prisma/client';
 import { AuthContext } from '../../auth/types/auth-context';
 import { resolveScopeNutritionistId } from '../../auth/auth-scope';
+import { EntitlementsService } from '../../billing/entitlements.service';
 import { CreateAudioDto } from './dto/create-audio.dto';
 
 const AUDIO_BUCKET = 'consultation-audio';
@@ -34,14 +35,19 @@ export class AudiosService {
     private readonly prisma: PrismaService,
     private readonly admin: SupabaseAdminService,
     private readonly openai: OpenAIProvider,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
-  private async requireOwnedPatient(ctx: AuthContext, patientId: string) {
+  // Returns the resolved nutritionistId so callers can reuse it (e.g. to stamp
+  // the AIInteraction) without re-deriving it from ctx.
+  private async requireOwnedPatient(ctx: AuthContext, patientId: string): Promise<string> {
+    const nutritionistId = resolveScopeNutritionistId(ctx);
     const patient = await this.prisma.patientProfile.findFirst({
-      where: { id: patientId, nutritionistId: resolveScopeNutritionistId(ctx) },
+      where: { id: patientId, nutritionistId },
       select: { id: true },
     });
     if (!patient) throw new NotFoundException('Patient not found');
+    return nutritionistId;
   }
 
   private async toDto({ storagePath, transcriptStartedAt, ...row }: AudioRow) {
@@ -93,9 +99,11 @@ export class AudiosService {
   }
 
   async transcribe(ctx: AuthContext, patientId: string, audioId: string) {
-    await this.requireOwnedPatient(ctx, patientId);
+    const nutritionistId = await this.requireOwnedPatient(ctx, patientId);
     const audio = await this.prisma.consultationAudio.findFirst({ where: { id: audioId, patientId } });
     if (!audio) throw new NotFoundException('Audio not found');
+
+    await this.entitlements.assertUsageCap(nutritionistId, 'transcription');
 
     // Reserva PROCESSING de forma atômica: começa de null/FAILED, ou reclama uma
     // linha PROCESSING travada (sem transcriptStartedAt, ou iniciada há mais de
@@ -121,7 +129,7 @@ export class AudiosService {
     }
 
     // Fire-and-forget: o POST retorna agora; a transcrição segue em background.
-    void this.runTranscription(audioId, patientId, audio.storagePath, audio.durationSec);
+    void this.runTranscription(audioId, patientId, audio.storagePath, audio.durationSec, nutritionistId);
 
     const fresh = await this.prisma.consultationAudio.findUnique({ where: { id: audioId } });
     if (!fresh) throw new NotFoundException('Audio not found');
@@ -134,11 +142,16 @@ export class AudiosService {
     patientId: string,
     storagePath: string,
     durationSec: number | null,
+    nutritionistId?: string,
   ): Promise<void> {
     try {
       const buffer = await this.admin.downloadObject(AUDIO_BUCKET, storagePath);
       const ext = storagePath.split('.').pop() ?? 'webm';
-      const transcript = await this.openai.transcribeAudio(buffer, `audio.${ext}`, { patientId, durationSec });
+      const transcript = await this.openai.transcribeAudio(buffer, `audio.${ext}`, {
+        patientId,
+        durationSec,
+        nutritionistId,
+      });
       await this.prisma.consultationAudio.update({
         where: { id: audioId },
         data: { transcript, transcriptStatus: 'DONE', transcribedAt: new Date(), transcriptError: null },

@@ -14,6 +14,7 @@ export interface RecordInteractionInput {
   success: boolean;
   errorMessage?: string;
   patientId?: string;
+  nutritionistId?: string;
 }
 
 @Injectable()
@@ -42,6 +43,7 @@ export class AiInteractionsService {
           success: data.success,
           errorMessage: data.errorMessage,
           patientId: data.patientId,
+          nutritionistId: data.nutritionistId,
         },
       });
     } catch (error) {

@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import type { Employee } from '@nutri-plus/shared-types';
 import { useEmployees } from '@/lib/queries/employees';
+import { ProGate } from '@/components/billing/pro-gate';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -43,9 +44,11 @@ export function EmployeesView() {
             </p>
           )}
         </div>
-        <Button className="rounded-full" onClick={() => setCreating(true)}>
-          + Novo funcionário
-        </Button>
+        <ProGate feature="employees" label="Funcionários (Pro)">
+          <Button className="rounded-full" onClick={() => setCreating(true)}>
+            + Novo funcionário
+          </Button>
+        </ProGate>
       </div>
 
       {query.data && employees.length > 0 && (

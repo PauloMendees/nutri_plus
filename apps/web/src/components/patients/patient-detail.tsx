@@ -17,6 +17,7 @@ import { RecordatorioSection } from '@/components/patients/recordatorio-section'
 import { SilhuetaSection } from '@/components/patients/silhueta-section';
 import { NutritionTargetsSection } from '@/components/patients/nutrition-targets-section';
 import { CreatedBanner } from '@/components/patients/created-banner';
+import { ProGate } from '@/components/billing/pro-gate';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PatientAvatar } from '@/components/patients/patient-avatar';
@@ -181,10 +182,12 @@ export function PatientDetail({
           <TabsTrigger value="planos">Planos alimentares</TabsTrigger>
           <TabsTrigger value="recordatorio">Recordatório</TabsTrigger>
           {canEdit && (
-            <TabsTrigger value="silhueta">
-              <Sparkles className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-              Silhueta
-            </TabsTrigger>
+            <ProGate feature="silhueta" label="Silhueta (Pro)">
+              <TabsTrigger value="silhueta">
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                Silhueta
+              </TabsTrigger>
+            </ProGate>
           )}
         </TabsList>
         <TabsContent value="dados">

@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/types/auth-context';
 import { resolveScopeNutritionistId } from '../auth/auth-scope';
 import { OpenAIProvider } from '../ai/openai.provider';
+import { EntitlementsService } from '../billing/entitlements.service';
 import { AIInteractionType } from '../generated/prisma/client';
 import { UploadedImage, isSupportedImage } from '../supabase/image-upload';
 import { silhuetaResponseSchema, SilhuetaResponse } from './silhueta-response.schema';
@@ -26,18 +27,23 @@ export class SilhuetaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly provider: OpenAIProvider,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   // Confirms the patient exists AND is linked to this nutritionist. A non-owned
   // id looks identical to a missing one (404) so existence does not leak.
-  private async requireOwned(ctx: AuthContext, patientId: string): Promise<void> {
+  // Returns the resolved nutritionistId so callers can reuse it (e.g. to stamp
+  // the AIInteraction) without re-deriving it from ctx.
+  private async requireOwned(ctx: AuthContext, patientId: string): Promise<string> {
+    const nutritionistId = resolveScopeNutritionistId(ctx);
     const patient = await this.prisma.patientProfile.findFirst({
-      where: { id: patientId, nutritionistId: resolveScopeNutritionistId(ctx) },
+      where: { id: patientId, nutritionistId },
       select: { id: true },
     });
     if (!patient) {
       throw new NotFoundException('Patient not found');
     }
+    return nutritionistId;
   }
 
   async create(
@@ -48,7 +54,7 @@ export class SilhuetaService {
     side: UploadedImage,
     back?: UploadedImage,
   ) {
-    await this.requireOwned(ctx, patientId);
+    const nutritionistId = await this.requireOwned(ctx, patientId);
     if (!dto.consent) {
       throw new ForbiddenException('Consent required');
     }
@@ -67,6 +73,8 @@ export class SilhuetaService {
       images.push(dataUrl(back));
     }
 
+    await this.entitlements.assertUsageCap(nutritionistId, 'silhueta');
+
     const est = await this.provider.generateStructured<SilhuetaResponse>({
       tier: 'smart',
       system: SILHUETA_SYSTEM_PROMPT,
@@ -80,6 +88,7 @@ export class SilhuetaService {
       schemaName: 'silhueta',
       type: AIInteractionType.SILHUETA_SCAN,
       patientId,
+      nutritionistId,
       images,
     });
 

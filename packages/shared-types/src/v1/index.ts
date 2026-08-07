@@ -1,5 +1,6 @@
 export * from './user-role';
 export * from './auth';
+export * from './billing';
 export * from './patient';
 export * from './pagination';
 export * from './appointment';

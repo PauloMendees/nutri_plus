@@ -48,6 +48,23 @@ enum TmbFormula {
   KATCH_MCARDLE
 }
 
+enum PlanTier {
+  ESSENCIAL
+  PRO
+}
+
+enum BillingPeriod {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
 model User {
   id             String   @id @default(uuid())
   authProvider   String
@@ -85,6 +102,8 @@ model NutritionistProfile {
   appointmentCategories AppointmentCategory[]
   transactions          Transaction[]
   transactionCategories TransactionCategory[]
+  subscription          Subscription?
+  aiInteractions        AIInteraction[]
 }
 
 model EmployeeProfile {
@@ -344,6 +363,8 @@ model AIInteraction {
   id        String   @id @default(uuid())
   patientId String?
   patient   PatientProfile? @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  nutritionistId String?
+  nutritionist   NutritionistProfile? @relation(fields: [nutritionistId], references: [id], onDelete: SetNull)
   type      AIInteractionType
   model     String           // literal model used (e.g. "gpt-4o-mini")
   input     Json             // prompt/context sent
@@ -358,6 +379,7 @@ model AIInteraction {
 
   @@index([patientId, createdAt])
   @@index([type, createdAt])
+  @@index([nutritionistId, createdAt])
 }
 
 // A patient's "fora de casa" (outside-home) request: they describe where they
@@ -431,6 +453,45 @@ model Transaction {
   updatedAt      DateTime             @updatedAt
 
   @@index([nutritionistId, occurredOn])
+}
+
+model Subscription {
+  id             String   @id @default(uuid())
+  nutritionistId String   @unique
+  nutritionist   NutritionistProfile @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+
+  status         SubscriptionStatus @default(TRIALING)
+  isComp         Boolean  @default(false)
+  trialEndsAt    DateTime?
+
+  plan           PlanTier?
+  billingPeriod  BillingPeriod?
+  currentPeriodEnd  DateTime?
+  cancelAtPeriodEnd Boolean @default(false)
+
+  asaasCustomerId     String?
+  asaasSubscriptionId String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  payments       SubscriptionPayment[]
+
+  @@index([status])
+}
+
+model SubscriptionPayment {
+  id             String   @id @default(uuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  asaasPaymentId String   @unique
+  amount         Float
+  status         String
+  billingType    String?
+  dueDate        DateTime?
+  paidAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([subscriptionId, createdAt])
 }
 
 model Food {

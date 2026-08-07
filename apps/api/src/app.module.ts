@@ -27,6 +27,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { SupabaseAuthGuard } from './auth/guards/supabase-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
+import { BillingModule } from './billing/billing.module';
+import { SubscriptionGuard } from './billing/subscription.guard';
 
 @Module({
   imports: [
@@ -53,11 +55,13 @@ import { RolesGuard } from './auth/guards/roles.guard';
     FoodRecallsModule,
     ConsentModule,
     NotificationsModule,
+    BillingModule,
   ],
   // Global pipe/filter/guards are registered as providers (not imperatively in
   // main.ts) so any bootstrap of AppModule — including e2e Test modules —
   // inherits identical behavior. Guard order matters: SupabaseAuthGuard
-  // populates request.user before RolesGuard reads the role.
+  // populates request.user before RolesGuard reads the role, and SubscriptionGuard
+  // (billing) runs last since it depends on both request.user and the resolved role.
   providers: [
     {
       provide: APP_PIPE,
@@ -70,6 +74,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_GUARD, useClass: SupabaseAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: SubscriptionGuard },
   ],
 })
 export class AppModule {}

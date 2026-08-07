@@ -15,6 +15,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AuthContext } from '../auth/types/auth-context';
 import { UploadedImage } from '../supabase/image-upload';
+import { RequiresFeature } from '../billing/decorators';
 import { SilhuetaService } from './silhueta.service';
 import { CreateSilhuetaScanDto } from './dto/create-silhueta-scan.dto';
 
@@ -26,6 +27,7 @@ export class SilhuetaController {
   constructor(private readonly silhueta: SilhuetaService) {}
 
   @Post()
+  @RequiresFeature('silhueta')
   @UseInterceptors(
     FileFieldsInterceptor(
       [

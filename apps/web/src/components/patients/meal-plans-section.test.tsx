@@ -15,6 +15,7 @@ vi.mock('@/lib/queries/meal-plans', () => ({
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
+vi.mock('@/lib/queries/subscription', () => ({ useSubscription: () => ({ data: undefined }) }));
 
 import { MealPlansSection } from './meal-plans-section';
 import { missingFieldsFromError } from '@/lib/meal-plans/generate-error';

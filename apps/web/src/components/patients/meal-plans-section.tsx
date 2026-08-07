@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import type { MealPlanSummary } from '@nutri-plus/shared-types';
 import { useMealPlans, useSetMealPlanVisibility } from '@/lib/queries/meal-plans';
+import { AiQuotaChip } from '@/components/billing/ai-quota-chip';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -34,7 +35,10 @@ export function MealPlansSection({
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-heading text-base font-bold">Planos alimentares</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="font-heading text-base font-bold">Planos alimentares</h2>
+          <AiQuotaChip />
+        </div>
         {canEdit && (
           <div className="flex items-center gap-2">
             <Button

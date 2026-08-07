@@ -15,6 +15,7 @@ import { UserRole } from '../generated/prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AuthContext } from '../auth/types/auth-context';
+import { RequiresFeature } from '../billing/decorators';
 import { EmployeesService } from './employees.service';
 import { InviteEmployeeDto } from './dto/invite-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
@@ -27,6 +28,7 @@ export class EmployeesController {
   constructor(private readonly employees: EmployeesService) {}
 
   @Post()
+  @RequiresFeature('employees')
   invite(@CurrentUser() ctx: AuthContext, @Body() dto: InviteEmployeeDto) {
     return this.employees.inviteEmployee(ctx, dto);
   }
