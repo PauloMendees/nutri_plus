@@ -17,7 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <SidebarProvider>
-      <AppSidebar user={me ? { name: me.name, role: me.role } : null} />
+      <AppSidebar user={me ? { name: me.name, email: me.email, role: me.role } : null} />
       <SidebarInset>
         <BillingGate />
         <header className="flex h-14 items-center justify-between border-b bg-background px-4 md:hidden">

@@ -29,6 +29,7 @@ import { SupabaseAuthGuard } from './auth/guards/supabase-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 import { BillingModule } from './billing/billing.module';
 import { SubscriptionGuard } from './billing/subscription.guard';
+import { SupportModule } from './support/support.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { SubscriptionGuard } from './billing/subscription.guard';
     ConsentModule,
     NotificationsModule,
     BillingModule,
+    SupportModule,
   ],
   // Global pipe/filter/guards are registered as providers (not imperatively in
   // main.ts) so any bootstrap of AppModule — including e2e Test modules —

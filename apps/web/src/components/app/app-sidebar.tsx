@@ -1,13 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LifeBuoy, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/brand/logo";
 import { NAV_ITEMS } from "@/components/app/nav-items";
 import { UserRole } from "@nutri-plus/shared-types";
 import { ThemeToggle } from "@/components/app/theme-toggle";
+import { SupportDialog } from "@/components/support/support-dialog";
 import {
   Sidebar,
   SidebarHeader,
@@ -23,7 +25,7 @@ import {
 } from "@/components/ui/sidebar";
 
 type AppSidebarProps = {
-  user: { name: string; role: UserRole } | null;
+  user: { name: string; email: string; role: UserRole } | null;
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -44,6 +46,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
+  const [supportOpen, setSupportOpen] = useState(false);
 
   const role = user?.role;
   const items = NAV_ITEMS.filter(
@@ -111,6 +114,20 @@ export function AppSidebar({ user }: AppSidebarProps) {
           <SidebarMenuItem>
             <ThemeToggle />
           </SidebarMenuItem>
+          {user && (
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                className="cursor-pointer"
+                onClick={() => {
+                  if (isMobile) setOpenMobile(false);
+                  setSupportOpen(true);
+                }}
+              >
+                <LifeBuoy />
+                <span>Suporte</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
         {user && (
           <div className="flex items-center gap-2 px-2 py-1.5">
@@ -136,6 +153,14 @@ export function AppSidebar({ user }: AppSidebarProps) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+
+      {user && (
+        <SupportDialog
+          open={supportOpen}
+          onOpenChange={setSupportOpen}
+          defaultEmail={user.email}
+        />
+      )}
     </Sidebar>
   );
 }

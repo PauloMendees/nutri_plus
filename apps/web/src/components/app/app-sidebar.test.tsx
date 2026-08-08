@@ -21,7 +21,11 @@ import { AppSidebar } from './app-sidebar';
 import { NAV_ITEMS } from './nav-items';
 
 function renderSidebar(
-  user: { name: string; role: UserRole } | null = { name: 'Dra. Ana', role: UserRole.NUTRITIONIST },
+  user: { name: string; email: string; role: UserRole } | null = {
+    name: 'Dra. Ana',
+    email: 'ana@inutri.life',
+    role: UserRole.NUTRITIONIST,
+  },
 ) {
   return render(
     <SidebarProvider>
@@ -78,6 +82,16 @@ describe('AppSidebar', () => {
     renderSidebar();
     expect(screen.getByRole('img', { name: /inutri/i })).toBeInTheDocument();
   });
+
+  it('shows Suporte above the user block and opens the dialog', async () => {
+    renderSidebar();
+    const support = screen.getByRole('button', { name: /suporte/i });
+    expect(support).toBeInTheDocument();
+    await userEvent.click(support);
+    expect(await screen.findByRole('heading', { name: /^suporte$/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/e-mail para retorno/i)).toHaveValue('ana@inutri.life');
+  });
+
 
   it('renders the Agenda sub-items', () => {
     renderSidebar();
