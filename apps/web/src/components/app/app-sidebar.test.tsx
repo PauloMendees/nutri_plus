@@ -143,7 +143,9 @@ describe('AppSidebar', () => {
       render(
         <SidebarProvider>
           <MobileState />
-          <AppSidebar user={{ name: 'Dra. Ana', role: UserRole.NUTRITIONIST }} />
+          <AppSidebar
+            user={{ name: 'Dra. Ana', email: 'ana@inutri.life', role: UserRole.NUTRITIONIST }}
+          />
         </SidebarProvider>,
       );
       await userEvent.click(screen.getByRole('button', { name: 'force-open' }));
@@ -157,33 +159,38 @@ describe('AppSidebar', () => {
   });
 
   it('hides the Funcionários item for an employee', () => {
-    renderSidebar({ name: 'João', role: UserRole.EMPLOYEE });
+    renderSidebar({ name: 'João', email: 'joao@inutri.life', role: UserRole.EMPLOYEE });
     expect(screen.queryByRole('link', { name: /funcionários/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /pacientes/i })).toBeInTheDocument();
   });
 
   it('shows the Funcionários item for a nutritionist', () => {
-    renderSidebar({ name: 'Dra. Ana', role: UserRole.NUTRITIONIST });
+    renderSidebar({ name: 'Dra. Ana', email: 'ana@inutri.life', role: UserRole.NUTRITIONIST });
     expect(screen.getByRole('link', { name: /funcionários/i })).toBeInTheDocument();
   });
 
   it('shows Configurações only for a nutritionist', () => {
-    renderSidebar({ name: 'Dra. Ana', role: UserRole.NUTRITIONIST });
+    renderSidebar({ name: 'Dra. Ana', email: 'ana@inutri.life', role: UserRole.NUTRITIONIST });
     expect(screen.getByRole('link', { name: /configurações/i })).toHaveAttribute('href', '/configuracoes');
   });
 
   it('hides Configurações for an employee', () => {
-    renderSidebar({ name: 'João', role: UserRole.EMPLOYEE });
+    renderSidebar({ name: 'João', email: 'joao@inutri.life', role: UserRole.EMPLOYEE });
     expect(screen.queryByRole('link', { name: /configurações/i })).not.toBeInTheDocument();
   });
 
   it('shows the Alimentos item for a nutritionist', () => {
-    renderSidebar({ name: 'Dra. Ana', role: UserRole.NUTRITIONIST });
+    renderSidebar({ name: 'Dra. Ana', email: 'ana@inutri.life', role: UserRole.NUTRITIONIST });
     expect(screen.getByRole('link', { name: /alimentos/i })).toHaveAttribute('href', '/alimentos');
   });
 
   it('hides the Alimentos item for an employee', () => {
-    renderSidebar({ name: 'João', role: UserRole.EMPLOYEE });
+    renderSidebar({ name: 'João', email: 'joao@inutri.life', role: UserRole.EMPLOYEE });
     expect(screen.queryByRole('link', { name: /alimentos/i })).not.toBeInTheDocument();
+  });
+
+  it('does not render the sidebar theme toggle', () => {
+    renderSidebar();
+    expect(screen.queryByRole('button', { name: /tema (escuro|claro)/i })).not.toBeInTheDocument();
   });
 });

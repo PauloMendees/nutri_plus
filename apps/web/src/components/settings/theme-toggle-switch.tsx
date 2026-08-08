@@ -5,8 +5,7 @@ import { useTheme } from 'next-themes';
 import { Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-// A page-level theme control (the sidebar's ThemeToggle is coupled to the
-// sidebar menu; this one is a plain button for the settings page).
+// Theme control for Configurações → Aparência (sole UI for switching theme).
 export function ThemeToggleSwitch() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
