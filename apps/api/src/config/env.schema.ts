@@ -18,6 +18,11 @@ export const envSchema = z.object({
   ASAAS_API_KEY: z.string().min(1).optional(),
   ASAAS_API_URL: z.string().url().optional(),
   ASAAS_WEBHOOK_TOKEN: z.string().min(1).optional(),
+  // Resend (pedidos de suporte do dashboard). Opcionais no boot; se
+  // ausentes no envio, o endpoint devolve 503 com mensagem clara.
+  RESEND_API_KEY: z.string().min(1).optional(),
+  SUPPORT_INBOX_EMAIL: z.string().email().optional(),
+  SUPPORT_FROM_EMAIL: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
