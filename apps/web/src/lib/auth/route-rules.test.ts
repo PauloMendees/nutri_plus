@@ -2,8 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { decideRedirect } from './route-rules';
 
 describe('decideRedirect', () => {
+  it('lets unauthenticated users reach the marketing landing at /', () => {
+    expect(decideRedirect(false, '/')).toBeNull();
+  });
+
   it('sends unauthenticated users from a protected route to /login', () => {
-    expect(decideRedirect(false, '/')).toBe('/login');
+    expect(decideRedirect(false, '/patients')).toBe('/login');
   });
 
   it('lets unauthenticated users reach public auth routes', () => {
@@ -12,13 +16,17 @@ describe('decideRedirect', () => {
     }
   });
 
-  it('sends authenticated users away from /login and /signup', () => {
-    expect(decideRedirect(true, '/login')).toBe('/');
-    expect(decideRedirect(true, '/signup')).toBe('/');
+  it('sends authenticated users away from /login and /signup into the app', () => {
+    expect(decideRedirect(true, '/login')).toBe('/patients');
+    expect(decideRedirect(true, '/signup')).toBe('/patients');
+  });
+
+  it('sends authenticated users from the landing into the app', () => {
+    expect(decideRedirect(true, '/')).toBe('/patients');
   });
 
   it('lets authenticated users reach protected routes and the callback', () => {
-    expect(decideRedirect(true, '/')).toBeNull();
+    expect(decideRedirect(true, '/patients')).toBeNull();
     expect(decideRedirect(true, '/auth/callback')).toBeNull();
     expect(decideRedirect(true, '/verify-email')).toBeNull();
   });

@@ -12,8 +12,12 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'iNutri',
-  description: 'Plataforma para nutricionistas.',
+  title: {
+    default: 'iNutri',
+    template: '%s · iNutri',
+  },
+  description:
+    'Software para nutricionistas: planos com IA, app do paciente e consultório em um só lugar.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
