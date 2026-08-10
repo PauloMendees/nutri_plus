@@ -1,3 +1,4 @@
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -18,14 +19,34 @@ import { Logo } from '@/components/brand/logo';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { CtaLink } from './cta-link';
-import { PricingSection } from './pricing-section';
-import { StickyMobileCta } from './sticky-mobile-cta';
 import { marketingAssets } from './marketing-assets';
 import {
   DashboardMockup,
   PatientAppMockup,
   SilhuetaMockup,
 } from './product-mockups';
+
+/** Below-the-fold / interactive pieces — keep them out of the initial marketing JS. */
+const PricingSection = dynamic(
+  () => import('./pricing-section').then((m) => m.PricingSection),
+  {
+    loading: () => (
+      <section id="precos" className="scroll-mt-24 border-t border-border bg-muted/30 py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="mx-auto h-10 max-w-md animate-pulse rounded-lg bg-muted" />
+          <div className="mt-10 grid gap-4 md:grid-cols-2">
+            <div className="h-80 animate-pulse rounded-2xl bg-muted" />
+            <div className="h-80 animate-pulse rounded-2xl bg-muted" />
+          </div>
+        </div>
+      </section>
+    ),
+  },
+);
+
+const StickyMobileCta = dynamic(() =>
+  import('./sticky-mobile-cta').then((m) => m.StickyMobileCta),
+);
 
 const FAQ = [
   {
@@ -241,7 +262,7 @@ export function LandingPage() {
               title="Seu tempo some depois da consulta. E o paciente some entre uma e outra."
               subtitle="Você se formou para cuidar de gente — não para virar editor de planilha, copiar refeição e caçar conversa no WhatsApp."
             />
-            <p className="mx-auto mt-6 max-w-xl text-center text-sm font-medium text-[#0A5C45] sm:text-base">
+            <p className="mx-auto mt-6 max-w-xl text-center text-sm font-medium text-secondary-foreground sm:text-base">
               Uma consulta bem feita não deveria virar mais uma hora de trabalho invisível em casa.
             </p>
             <div className="mt-10 grid gap-4 sm:grid-cols-3 sm:gap-6">

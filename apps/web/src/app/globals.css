@@ -12,7 +12,8 @@
   --popover: #ffffff;
   --popover-foreground: #0f1714;
   --primary: #14bfa6;
-  --primary-foreground: #ffffff;
+  /* Dark ink on teal (~7:1) — white on #14BFA6 fails WCAG AA (~2.3:1). */
+  --primary-foreground: #04241b;
   --secondary: #e7ece9;
   --secondary-foreground: #0a5c45;
   --muted: #f2f7f5;
