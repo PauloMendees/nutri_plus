@@ -207,10 +207,11 @@ export function LandingPage() {
                 <br />
                 <span className="text-[#0A5C45]">Mais tempo no consultório.</span>
               </h1>
-              <p className="mt-5 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
+              {/* Short sub: keeps first view light; long Word/Excel line lived here before. */}
+              <p className="mt-5 max-w-lg text-base leading-relaxed text-muted-foreground sm:mt-6 sm:text-lg">
                 Monte planos com <strong className="text-foreground">IA</strong>, libere no{' '}
                 <strong className="text-foreground">app do paciente</strong> e acompanhe tudo num
-                só fluxo — sem passar a noite no Word, no Excel e no “manda de novo o PDF?”.
+                só fluxo.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <CtaLink>Começar 7 dias grátis</CtaLink>
@@ -218,19 +219,23 @@ export function LandingPage() {
                   href="#como-funciona"
                   className={cn(
                     buttonVariants({ variant: 'outline', size: 'lg' }),
-                    'h-11 px-6 text-sm font-semibold',
+                    'hidden h-11 px-6 text-sm font-semibold md:inline-flex',
                   )}
                 >
                   Ver como funciona
                   <ArrowRight className="size-4" />
                 </a>
               </div>
-              <p className="mt-3 text-xs text-muted-foreground sm:text-sm">
+              {/* Mobile: one thin trust line. Desktop: full risk-reversal + control message. */}
+              <p className="mt-3 text-xs text-muted-foreground md:hidden">
+                Sem fidelidade · Cancele quando quiser
+              </p>
+              <p className="mt-3 hidden text-xs text-muted-foreground sm:text-sm md:block">
                 Sem fidelidade · Cancele quando quiser · A IA acelera —{' '}
                 <strong className="font-medium text-foreground">você decide</strong> o plano
               </p>
 
-              <ul className="mt-8 grid grid-cols-2 gap-3 text-sm">
+              <ul className="mt-8 hidden grid-cols-2 gap-3 text-sm md:grid">
                 {[
                   'A partir de R$59/mês · menos de R$2/dia',
                   'App do paciente incluso',
@@ -244,7 +249,7 @@ export function LandingPage() {
                 ))}
               </ul>
 
-              <p className="mt-6 inline-flex items-center rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground">
+              <p className="mt-6 hidden items-center rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground md:inline-flex">
                 Em lançamento — foco no que importa: plano, paciente e rotina
               </p>
             </div>
