@@ -1,8 +1,7 @@
 import { Logo } from '@/components/brand/logo';
 
 const APP_STORE_URL = 'https://apps.apple.com/br/app/inutri-pacientes/id6789184541';
-const ANDROID_APK_URL =
-  'https://expo.dev/accounts/paulo-mendes-tecnologia/projects/nutri-plus-mobile/builds/b5903c35-7462-4d67-8ce6-15e22d2beeea';
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=com.inutri.app';
 
 function AppleIcon() {
   return (
@@ -49,24 +48,19 @@ export default function DownloadAppPage() {
         </a>
 
         <a
-          href={ANDROID_APK_URL}
+          href={PLAY_STORE_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3 text-foreground transition-colors hover:border-primary/60 hover:bg-muted"
         >
           <AndroidIcon />
           <span className="flex-1">
-            <span className="block text-xs text-muted-foreground">Baixar para</span>
-            <span className="block text-sm font-semibold">Android (APK)</span>
+            <span className="block text-xs text-muted-foreground">Baixar na</span>
+            <span className="block text-sm font-semibold">Google Play</span>
           </span>
-          <span className="text-xs font-medium text-primary">Baixar →</span>
+          <span className="text-xs font-medium text-primary">Abrir →</span>
         </a>
       </div>
-
-      <p className="text-xs text-muted-foreground">
-        No Android o app é instalado fora da Play Store: ao abrir o arquivo, confirme
-        &ldquo;instalar de fonte desconhecida&rdquo; se o celular solicitar.
-      </p>
     </div>
   );
 }

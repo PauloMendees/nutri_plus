@@ -16,10 +16,10 @@ describe('DownloadAppPage', () => {
       'https://apps.apple.com/br/app/inutri-pacientes/id6789184541',
     );
 
-    const android = screen.getByRole('link', { name: /android/i });
-    expect(android).toHaveAttribute(
+    const playStore = screen.getByRole('link', { name: /google play/i });
+    expect(playStore).toHaveAttribute(
       'href',
-      'https://expo.dev/accounts/paulo-mendes-tecnologia/projects/nutri-plus-mobile/builds/b5903c35-7462-4d67-8ce6-15e22d2beeea',
+      'https://play.google.com/store/apps/details?id=com.inutri.app',
     );
   });
 });
