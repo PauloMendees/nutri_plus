@@ -2,7 +2,7 @@ import { SubscriptionService } from './subscription.service';
 
 function svcWith(
   sub: any,
-  opts?: { paymentRow?: any; resend?: any; config?: Record<string, string | undefined> },
+  opts?: { paymentRow?: any; resend?: any; config?: Record<string, string | undefined>; asaas?: any },
 ) {
   const paymentRow = opts?.paymentRow ?? { id: 'row_1', receiptEmailSentAt: null };
   const prisma = {
@@ -26,7 +26,8 @@ function svcWith(
       return v;
     },
   } as any;
-  return { prisma, resend, svc: new SubscriptionService(prisma, {} as any, {} as any, resend, config) };
+  const asaas = opts?.asaas ?? {};
+  return { prisma, resend, asaas, svc: new SubscriptionService(prisma, {} as any, asaas, resend, config) };
 }
 
 const nutri = { user: { name: 'Ana', email: 'ana@x.com' } };
@@ -98,5 +99,39 @@ describe('SubscriptionService.handleWebhook', () => {
     await expect(svc.handleWebhook({ event: 'PAYMENT_CONFIRMED', payment })).resolves.toBeUndefined();
     expect(prisma.subscription.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'ACTIVE' }) }));
     expect(prisma.subscriptionPayment.update).not.toHaveBeenCalled();
+  });
+
+  it('webhook do diff (pendingChargeAsaasId) aplica o upgrade e limpa o pending', async () => {
+    const { svc, prisma, asaas } = svcWith(
+      {
+        id: 's1', asaasSubscriptionId: 'sub_1', pendingPlan: 'PRO', pendingBillingPeriod: 'MONTHLY',
+        pendingChargeAsaasId: 'pay_2', billingPeriod: 'MONTHLY',
+      },
+      { asaas: { updateSubscriptionValue: jest.fn().mockResolvedValue(undefined) } },
+    );
+    await svc.handleWebhook({ event: 'PAYMENT_CONFIRMED', payment: { id: 'pay_2', value: 25, status: 'CONFIRMED' } });
+    expect(asaas.updateSubscriptionValue).toHaveBeenCalledWith('sub_1', { value: 99 });
+    expect(prisma.subscription.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ plan: 'PRO', pendingChargeAsaasId: null }) }));
+  });
+
+  it('webhook do ciclo com pendingPlan agendado promove o plano', async () => {
+    const prisma = {
+      subscription: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce(null) // não é diff de upgrade
+          .mockResolvedValueOnce({ id: 's1', asaasSubscriptionId: 'sub_1', pendingPlan: 'ESSENCIAL', pendingBillingPeriod: 'MONTHLY', pendingChargeAsaasId: null, billingPeriod: 'MONTHLY' }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      subscriptionPayment: { upsert: jest.fn().mockResolvedValue({ id: 'row_1', receiptEmailSentAt: null }) },
+    } as any;
+    const svc = new SubscriptionService(
+      prisma,
+      {} as any,
+      {} as any,
+      { sendEmail: jest.fn() } as any,
+      { get: () => undefined, getOrThrow: (k: string) => k } as any,
+    );
+    await svc.handleWebhook({ event: 'PAYMENT_CONFIRMED', payment: { id: 'cycle_1', subscription: 'sub_1', value: 49, status: 'CONFIRMED', dueDate: '2026-09-01' } });
+    expect(prisma.subscription.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ plan: 'ESSENCIAL', pendingPlan: null }) }));
   });
 });

@@ -16,10 +16,11 @@ export default async function VerifyEmailPage({
         clique no link para ativar sua conta.
       </p>
       <p className="text-sm text-muted-foreground">
-        Já confirmou?{' '}
-        <Link href="/login" className="font-semibold text-primary hover:underline">
-          Entrar
-        </Link>
+        Clicar no link do e-mail já ativa sua conta e entra automaticamente.
+      </p>
+      <p className="text-sm text-muted-foreground">
+        Abriu em outro dispositivo?{' '}
+        <Link href="/login" className="font-semibold text-primary hover:underline">Entrar</Link>
       </p>
     </div>
   );
