@@ -14,7 +14,18 @@ function deps(sub: any) {
     createSubscription: jest.fn().mockResolvedValue({ subscriptionId: 'sub_1', invoiceUrl: 'https://asaas/inv' }),
     cancelSubscription: jest.fn().mockResolvedValue(undefined),
   } as any;
-  return { prisma, entitlements, asaas, svc: new SubscriptionService(prisma, entitlements, asaas) };
+  return {
+    prisma,
+    entitlements,
+    asaas,
+    svc: new SubscriptionService(
+      prisma,
+      entitlements,
+      asaas,
+      { sendEmail: jest.fn() } as any,
+      { get: () => undefined, getOrThrow: (k: string) => k } as any,
+    ),
+  };
 }
 
 describe('SubscriptionService.checkout', () => {

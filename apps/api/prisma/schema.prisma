@@ -489,6 +489,7 @@ model SubscriptionPayment {
   billingType    String?
   dueDate        DateTime?
   paidAt         DateTime?
+  receiptEmailSentAt DateTime?
   createdAt      DateTime @default(now())
 
   @@index([subscriptionId, createdAt])
