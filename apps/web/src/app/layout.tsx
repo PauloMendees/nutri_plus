@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Sora, Plus_Jakarta_Sans } from 'next/font/google';
+import { ThemeRoot } from './theme-root';
 import './globals.css';
 
 // Variable fonts (omit weight) keep a single woff2 per family — smaller than multi-static.
@@ -25,7 +26,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning className={`${sora.variable} ${jakarta.variable}`}>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <ThemeRoot>{children}</ThemeRoot>
+      </body>
     </html>
   );
 }
