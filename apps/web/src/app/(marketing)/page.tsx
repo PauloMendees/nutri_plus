@@ -4,7 +4,7 @@ import { LandingPage } from '@/components/marketing/landing-page';
 export const metadata: Metadata = {
   title: 'iNutri | Planos com IA e app do paciente para o nutri solo',
   description:
-    'Menos tempo montando plano. Mais tempo no atendimento. IA para planos, app grátis para o paciente, agenda e Silhueta. 7 dias grátis. Cancele quando quiser.',
+    'Menos tempo montando plano. Mais tempo no atendimento. Planos com IA, aplicativo gratuito para o paciente, agenda e Silhueta. Sete dias grátis. Cancele quando quiser.',
   openGraph: {
     title: 'iNutri | Menos tempo no plano. Mais tempo no consultório.',
     description:
