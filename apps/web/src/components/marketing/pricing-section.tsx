@@ -159,13 +159,13 @@ export function PricingSection() {
 
         <div className="mx-auto mt-10 max-w-2xl space-y-2 text-center text-sm text-muted-foreground">
           <p>
-            <strong className="text-foreground">Nos 7 dias você usa o fluxo de verdade.</strong>{' '}
-            Não gostou? Cancele antes do fim do trial e não é cobrado. No Pro, Silhueta e IA
-            ilimitada entram no plano — sem add-on escondido.
+            <strong className="text-foreground">Nos sete dias, você percorre o fluxo completo.</strong>{' '}
+            Não gostou? Cancele antes do fim do período de teste e não será cobrado. No Pro, Silhueta e
+            IA ilimitada entram no plano — sem custo extra escondido.
           </p>
           <p className="text-xs">
-            Líderes do mercado costumam ficar na casa dos R$90+/mês no plano cheio — nem sempre
-            com a simplicidade que o solo precisa.
+            Líderes do mercado costumam ficar na casa dos R$90+/mês no plano completo — nem sempre
+            com a simplicidade que o consultório solo precisa.
           </p>
         </div>
       </div>

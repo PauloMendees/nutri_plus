@@ -1,10 +1,28 @@
-# iNutri — Copy da Landing Page (v1.1)
+# iNutri — Copy da Landing Page (v1.2)
 
-**Status:** aprovável (só texto; sem UI)  
-**Data:** 2026-08-08 · **Rev.:** 1.1 (revisão de conversão + honestidade de produto)  
+**Status:** vigente na LP  
+**Data:** 2026-08-12 · **Rev.:** 1.2 (fluidez + tom de voz do manifesto)  
 **CTA principal (único, em toda a página):** **Começar 7 dias grátis**  
 **ICP:** nutricionista solo (consultório / atendimento online) no Brasil  
-**Tom:** direto, humano, profissional — sem hype de startup, sem jargão médico desnecessário
+**Tom:** profissional, humano, sereno — manifesto em `docs/brand/manifesto.md`
+
+---
+
+## Changelog v1.1 → v1.2 (tom de voz)
+
+Reescrita jornalística guiada pelo manifesto da marca. Mantém a tese de conversão (dor × solução, frases de efeito, um CTA). Suaviza o léxico e os tempos verbais.
+
+| # | Antes (v1.1) | Depois (v1.2) |
+|---|---|---|
+| 1 | “caçar conversa / print” | “recuperar conversas” / “procurar conversas e prints” |
+| 2 | “sem bagunça” / “zero gambiarra” | “em um só fluxo” / “sem improvisar” |
+| 3 | “come sua noite” / “paciente some” | “ocupa a noite” / “o paciente se afasta” |
+| 4 | “morrer no e-mail” / “roubar a noite” | “ficar esquecido no e-mail” / “ocupar a noite” |
+| 5 | “tour turístico” / “sem drama” | “passeio pelas telas” / “sem complicação” |
+| 6 | “coleciona software” | “acumula ferramentas” |
+| 7 | Imperativo + gíria empilhada | Presente do indicativo na descrição; imperativo só em CTA e passos |
+
+Fonte de tom: `docs/brand/manifesto.md`.
 
 ---
 
@@ -97,7 +115,7 @@ Depoimento inventado (nome, CRN, foto) = risco legal + quebra de confiança. **N
 
 ---
 
-# COPY COMPLETA DA LANDING (v1.1)
+# COPY COMPLETA DA LANDING (v1.2)
 
 > Legenda: `[CTA]` · `[nota UI]` · `[essencial|recomendado|opcional]`
 
@@ -135,7 +153,7 @@ Feito para nutricionistas que atendem sozinhos
 Mais tempo no consultório.**
 
 ### Subheadline
-Monte planos com **IA**, libere no **app do paciente** e acompanhe tudo num só fluxo — sem passar a noite no Word, no Excel e no “manda de novo o PDF?”.
+Monte planos com **IA**, compartilhe no **app do paciente** e acompanhe o atendimento em um só fluxo.
 
 ### CTAs
 **[Primário]** Começar 7 dias grátis  
@@ -153,31 +171,31 @@ Monte planos com **IA**, libere no **app do paciente** e acompanhe tudo num só 
 `[nota UI: 4 itens em linha no desktop; grade 2×2 no mobile. Ícones discretos. Hero com mockup web + celular se possível.]`
 
 ### Faixa “Em lançamento” (1 linha, sob o hero ou no proof strip)
-**Em lançamento** — foque no que importa: plano, paciente e rotina. Sem dezenas de telas que você nunca abre.
+**Em lançamento** — o essencial do consultório: plano, paciente e rotina.
 
 ---
 
 ## 3) Seção de dor **[essencial]**
 
 ### Título
-**Seu tempo some depois da consulta. E o paciente some entre uma e outra.**
+**Depois da consulta, o trabalho continua. Entre uma e outra, o paciente se afasta.**
 
 ### Intro
-Você se formou para cuidar de gente — não para virar editor de planilha, copiar refeição e caçar conversa no WhatsApp.
+Você se formou para cuidar de pessoas — não para passar as noites em planilhas, reescrever cardápios e recuperar conversas no WhatsApp.
 
 ### Custo da dor (1 linha, em destaque)
-**Uma consulta bem feita não deveria virar mais uma hora de trabalho invisível em casa.**
+**Uma consulta bem feita não deveria se transformar em mais uma hora de trabalho invisível em casa.**
 
 ### Cards (3 colunas)
 
-**1. Plano que come sua noite**  
-Montar cardápio do zero, ajustar macro, gerar PDF, reenviar. O atendimento termina — o trabalho, não.
+**1. O plano que ocupa a noite**  
+Montar o cardápio, ajustar os macronutrientes, gerar o PDF e reenviar. O atendimento termina; o trabalho, não.
 
-**2. Paciente “some”**  
-O plano mora num PDF de e-mail. Fora da consulta, some o contexto — e a adesão desaba.
+**2. O paciente que se afasta**  
+O plano permanece em um PDF no e-mail. Fora da consulta, o contexto se perde — e a adesão enfraquece.
 
-**3. Software caro e inchado**  
-Você paga preço de clínica grande por telas e módulos que o dia a dia solo quase não usa.
+**3. Software caro demais para o solo**  
+Você paga o preço de uma clínica grande por telas e módulos que o dia a dia quase não utiliza.
 
 ### Ponte
 **O iNutri devolve tempo e continuidade ao consultório solo.**  
@@ -188,19 +206,19 @@ Você paga preço de clínica grande por telas e módulos que o dia a dia solo q
 ## 4) Como funciona `#como-funciona` **[essencial]**
 
 ### Título
-**Do cadastro ao paciente com o plano no bolso — em minutos, não em horas.**
+**Do cadastro ao plano no celular do paciente — em minutos, não em horas.**
 
 ### Passos
 
 **1. Cadastre o paciente**  
-Dados, metas e preferências no mesmo lugar. Sem planilha paralela.
+Dados, metas e preferências ficam no mesmo lugar. Sem planilha à parte.
 
-**2. Gere o plano com IA — e valide com o seu critério**  
-A IA monta um rascunho sólido. Você edita, personaliza e **decide**.  
+**2. Gere o plano com IA e valide com o seu critério**  
+A IA usa o perfil daquele paciente para montar um rascunho sólido. Você edita, personaliza e **decide**.  
 *A IA sugere. Você conduz.*
 
-**3. Libere no app do paciente**  
-O paciente vê o plano no celular. Você acompanha evolução e histórico sem caçar print no WhatsApp.
+**3. Disponibilize no app do paciente**  
+O paciente vê o plano no celular. Você acompanha a evolução e o histórico sem procurar conversas e prints no WhatsApp.
 
 ### Fecho
 **[CTA]** Começar 7 dias grátis
@@ -210,10 +228,10 @@ O paciente vê o plano no celular. Você acompanha evolução e histórico sem c
 ## 5) Três pilares **[essencial]**
 
 ### Título
-**Tudo o que o consultório solo precisa — sem bagunça.**
+**O essencial do consultório solo, em um só fluxo.**
 
 ### Intro
-Três pilares. Um fluxo. Zero gambiarra entre Word, Excel e cinco abas abertas.
+Três pilares. Um caminho contínuo. Sem improvisar entre planilha, PDF e várias abas abertas.
 
 ---
 
@@ -232,14 +250,14 @@ Três pilares. Um fluxo. Zero gambiarra entre Word, Excel e cinco abas abertas.
 ---
 
 ### Pilar 2 — App do paciente (incluso e grátis)  
-**O plano para de morrer no e-mail.**
+**O plano deixa de ficar esquecido no e-mail.**
 
-- Paciente acessa o plano no celular  
-- Menos “nutri, manda de novo o PDF?”  
-- Mais presença e clareza entre consultas  
-- Experiência moderna que eleva a percepção do seu atendimento  
+- O paciente acessa o plano no celular  
+- Menos pedidos para reenviar o PDF  
+- Mais presença e clareza entre as consultas  
+- Uma experiência que eleva a percepção do seu atendimento  
 
-**Em uma frase:** o consultório continua presente depois que a consulta acaba.
+**Em uma frase:** o consultório permanece presente depois que a consulta termina.
 
 **Badge:** Incluso em todos os planos · **paciente não paga**
 
@@ -275,7 +293,7 @@ Três pilares. Um fluxo. Zero gambiarra entre Word, Excel e cinco abas abertas.
 ## 6) O que você faz nos 7 dias grátis **[recomendado]**
 
 ### Título
-**Um teste de rotina — não um tour turístico.**
+**Um teste de rotina — não um passeio pelas telas.**
 
 | Dia | Faça isto |
 |---|---|
@@ -283,7 +301,7 @@ Três pilares. Um fluxo. Zero gambiarra entre Word, Excel e cinco abas abertas.
 | **2–3** | Libere o app para o paciente (ou use em modo demonstração) |
 | **4–7** | Use agenda / evolução; no **Pro**, rode uma Silhueta com consentimento |
 
-Se ao fim da semana o iNutri **não devolver tempo**, cancele. Sem drama.
+Se ao fim da semana o iNutri **não devolver tempo**, cancele. Sem complicação.
 
 **[CTA]** Começar 7 dias grátis
 
@@ -292,7 +310,7 @@ Se ao fim da semana o iNutri **não devolver tempo**, cancele. Sem drama.
 ## 7) Para quem é / não é **[recomendado]**
 
 ### Título
-**Feito para quem atende. Não para quem coleciona software.**
+**Feito para quem atende. Não para quem acumula ferramentas.**
 
 ### Para quem é
 - Nutricionista **solo** ou com rotina enxuta  
@@ -322,7 +340,7 @@ Se ao fim da semana o iNutri **não devolver tempo**, cancele. Sem drama.
 
 ### Fecho
 Você não precisa do software mais antigo do mercado.  
-Precisa do que **paga o seu tempo de volta**.
+Precisa do que **devolve o seu tempo**.
 
 **[CTA]** Começar 7 dias grátis
 
@@ -383,25 +401,25 @@ Tudo do Essencial, mais:
 ---
 
 ### Risk reversal (sob os cards)
-**Nos 7 dias você usa o fluxo de verdade.**  
-Não gostou? Cancele antes do fim do trial e **não é cobrado**.  
-No Pro, Silhueta e IA ilimitada entram no plano — **sem add-on escondido**.
+**Nos sete dias, você percorre o fluxo completo.**  
+Não gostou? Cancele antes do fim do período de teste e **não será cobrado**.  
+No Pro, Silhueta e IA ilimitada entram no plano — **sem custo extra escondido**.
 
 ### Âncora de mercado (discreta)
-*Líderes do mercado costumam ficar na casa dos R$90+/mês no plano cheio — nem sempre com a simplicidade que o solo precisa.*
+*Líderes do mercado costumam ficar na casa dos R$90+/mês no plano completo — nem sempre com a simplicidade que o consultório solo precisa.*
 
 ---
 
 ## 10) O que acontece depois do clique **[recomendado]**
 
 ### Título
-**Simples de começar. Difícil é voltar para a planilha.**
+**Começar é simples. Voltar à planilha, nem tanto.**
 
 1. Crie sua conta em poucos minutos  
 2. Cadastre um paciente (pode ser de teste)  
 3. Gere um plano com IA e veja o app do paciente  
 
-Sem reunião com comercial. Sem “agende uma demo” para ver o básico.
+Sem reunião comercial. Sem agendar uma demonstração para ver o básico.
 
 **[CTA]** Começar 7 dias grátis
 
@@ -448,10 +466,10 @@ Sim. Plano no app e Silhueta por foto também servem quem atende à distância.
 ## 12) CTA final **[essencial]**
 
 ### Headline
-**Sua próxima consulta não precisa roubar a sua noite.**
+**Sua próxima consulta não precisa ocupar a sua noite.**
 
 ### Sub
-Teste 7 dias. Monte um plano com IA, coloque o paciente no app e sinta a diferença — sem compromisso.
+Teste por sete dias. Monte um plano com IA, coloque o paciente no app e avalie a diferença — sem compromisso.
 
 ### CTA
 **[Primário grande]** Começar 7 dias grátis  
@@ -462,7 +480,7 @@ Cancele quando quiser · Paciente grátis · Você no comando do plano
 ### Confiança (sem fake)
 Feito no Brasil, para o nutricionista brasileiro.  
 Privacidade e transparência no uso de IA.  
-**Em lançamento** — construído com foco no dia a dia solo.
+**Em lançamento** — pensado para o dia a dia do consultório solo.
 
 ---
 
@@ -503,7 +521,7 @@ Mesmo destino (`/signup`), **labels variam por seção** para não ficar monóto
 | Pricing Essencial | Começar no Essencial |
 | Pricing Pro | Começar no Pro |
 | Após o clique | Criar conta em minutos |
-| FAQ | Tirar a dúvida na prática |
+| FAQ | Testar sem compromisso |
 | CTA final | Garantir meus 7 dias grátis |
 | Sticky mobile | Testar 7 dias grátis |
 | Secundário | Ver como funciona |
@@ -542,4 +560,4 @@ Mesmo destino (`/signup`), **labels variam por seção** para não ficar monóto
 
 ---
 
-*Fim da v1.1. Próximo passo: sua aprovação final → wireframe/seções na LP Next.js.*
+*Fim da v1.2. Tom alinhado a `docs/brand/manifesto.md`. Aplicado na landing Next.js.*

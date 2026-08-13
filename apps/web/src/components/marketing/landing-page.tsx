@@ -51,35 +51,35 @@ const StickyMobileCta = dynamic(() =>
 const FAQ = [
   {
     q: 'A IA vai padronizar meus pacientes?',
-    a: 'Não. A IA observa os dados únicos de cada paciente — metas, restrições, preferências e o que você registra no acompanhamento — para montar um ponto de partida personalizado, não um cardápio genérico igual para todo mundo. Você edita, corta, troca e finaliza. A conduta continua sendo sua.',
+    a: 'Não. A IA observa os dados únicos de cada paciente — metas, restrições, preferências e o que você registra no acompanhamento — para montar um ponto de partida personalizado, não um cardápio genérico. Você edita, ajusta e finaliza. A conduta continua sendo sua.',
   },
   {
-    q: '7 dias são suficientes?',
-    a: 'Sim, se for um teste de rotina: 1–2 pacientes, um plano com IA, app liberado e (no Pro) uma Silhueta. Não precisa “conhecer cada botão”.',
+    q: 'Sete dias são suficientes?',
+    a: 'Sim, quando o teste acompanha a rotina: um ou dois pacientes, um plano com IA, o aplicativo liberado e, no Pro, uma Silhueta. Não é preciso conhecer cada tela.',
   },
   {
     q: 'O paciente paga alguma coisa?',
-    a: 'Não. O app está incluso. Quem assina é o nutricionista.',
+    a: 'Não. O aplicativo está incluso. Quem assina é o nutricionista.',
   },
   {
-    q: 'Silhueta substitui bioimpedância?',
-    a: 'Não. É estimativa por foto, com consentimento, para tendência e engajamento — não é diagnóstico e não deve ser tratada como igual a outros métodos.',
+    q: 'A Silhueta substitui a bioimpedância?',
+    a: 'Não. É uma estimativa por foto, com consentimento, útil para tendência e engajamento. Não é diagnóstico e não deve ser tratada como equivalente a outros métodos.',
   },
   {
-    q: 'E a LGPD / fotos do paciente?',
-    a: 'A Silhueta exige consentimento. As fotos são usadas na estimativa e não ficam armazenadas no iNutri. Há política de privacidade e controles de conta.',
+    q: 'E a LGPD e as fotos do paciente?',
+    a: 'A Silhueta exige consentimento. As fotos servem à estimativa e não ficam armazenadas no iNutri. Há política de privacidade e controles de conta.',
   },
   {
-    q: 'Consigo cancelar fácil?',
-    a: 'Sim. Sem fidelidade e sem “ligue para o comercial”.',
+    q: 'É fácil cancelar?',
+    a: 'Sim. Sem fidelidade e sem precisar falar com um comercial.',
   },
   {
-    q: 'Já uso outro software. Vale migrar?',
-    a: 'Se você paga caro por telas que não usa — ou ainda vive entre PDF e WhatsApp — o trial mostra na prática se o iNutri devolve tempo. Sem discurso: com uso real.',
+    q: 'Já uso outro software. Vale a pena migrar?',
+    a: 'Se você paga por telas que quase não utiliza — ou ainda trabalha entre PDF e WhatsApp — o período de teste mostra, na prática, se o iNutri devolve tempo.',
   },
   {
-    q: 'Funciona para atendimento online?',
-    a: 'Sim. Plano no app e Silhueta por foto também servem quem atende à distância.',
+    q: 'Funciona no atendimento online?',
+    a: 'Sim. O plano no aplicativo e a Silhueta por foto também atendem quem trabalha à distância.',
   },
 ] as const;
 
@@ -209,9 +209,9 @@ export function LandingPage() {
               </h1>
               {/* Short sub: keeps first view light; long Word/Excel line lived here before. */}
               <p className="mt-5 max-w-lg text-base leading-relaxed text-muted-foreground sm:mt-6 sm:text-lg">
-                Monte planos com <strong className="text-foreground">IA</strong>, libere no{' '}
-                <strong className="text-foreground">app do paciente</strong> e acompanhe tudo num
-                só fluxo.
+                Monte planos com <strong className="text-foreground">IA</strong>, compartilhe no{' '}
+                <strong className="text-foreground">app do paciente</strong> e acompanhe o
+                atendimento em um só fluxo.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <CtaLink>Começar 7 dias grátis</CtaLink>
@@ -250,7 +250,7 @@ export function LandingPage() {
               </ul>
 
               <p className="mt-6 hidden items-center rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-medium text-muted-foreground md:inline-flex">
-                Em lançamento — foco no que importa: plano, paciente e rotina
+                Em lançamento — o essencial do consultório: plano, paciente e rotina
               </p>
             </div>
 
@@ -264,28 +264,29 @@ export function LandingPage() {
         <section className="border-t border-border bg-muted/30 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <SectionHeading
-              title="Seu tempo some depois da consulta. E o paciente some entre uma e outra."
-              subtitle="Você se formou para cuidar de gente — não para virar editor de planilha, copiar refeição e caçar conversa no WhatsApp."
+              title="Depois da consulta, o trabalho continua. Entre uma e outra, o paciente se afasta."
+              subtitle="Você se formou para cuidar de pessoas — não para passar as noites em planilhas, reescrever cardápios e recuperar conversas no WhatsApp."
             />
             <p className="mx-auto mt-6 max-w-xl text-center text-sm font-medium text-secondary-foreground sm:text-base">
-              Uma consulta bem feita não deveria virar mais uma hora de trabalho invisível em casa.
+              Uma consulta bem feita não deveria se transformar em mais uma hora de trabalho
+              invisível em casa.
             </p>
             <div className="mt-10 grid gap-4 sm:grid-cols-3 sm:gap-6">
               {[
                 {
                   icon: Clock,
-                  title: 'Plano que come sua noite',
-                  body: 'Montar cardápio do zero, ajustar macro, gerar PDF, reenviar. O atendimento termina — o trabalho, não.',
+                  title: 'O plano que ocupa a noite',
+                  body: 'Montar o cardápio, ajustar os macronutrientes, gerar o PDF e reenviar. O atendimento termina; o trabalho, não.',
                 },
                 {
                   icon: FileText,
-                  title: 'Paciente “some”',
-                  body: 'O plano mora num PDF de e-mail. Fora da consulta, some o contexto — e a adesão desaba.',
+                  title: 'O paciente que se afasta',
+                  body: 'O plano permanece em um PDF no e-mail. Fora da consulta, o contexto se perde — e a adesão enfraquece.',
                 },
                 {
                   icon: Layers,
-                  title: 'Software caro e inchado',
-                  body: 'Você paga preço de clínica grande por telas e módulos que o dia a dia solo quase não usa.',
+                  title: 'Software caro demais para o solo',
+                  body: 'Você paga o preço de uma clínica grande por telas e módulos que o dia a dia quase não utiliza.',
                 },
               ].map((card) => (
                 <div
@@ -315,24 +316,24 @@ export function LandingPage() {
         <section id="como-funciona" className="scroll-mt-24 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <SectionHeading
-              title="Do cadastro ao paciente com o plano no bolso — em minutos, não em horas."
+              title="Do cadastro ao plano no celular do paciente — em minutos, não em horas."
             />
             <ol className="mt-12 grid gap-6 sm:grid-cols-3">
               {[
                 {
                   n: '1',
                   title: 'Cadastre o paciente',
-                  body: 'Dados, metas e preferências no mesmo lugar. Sem planilha paralela.',
+                  body: 'Dados, metas e preferências ficam no mesmo lugar. Sem planilha à parte.',
                 },
                 {
                   n: '2',
-                  title: 'Gere o plano com IA — e valide com o seu critério',
+                  title: 'Gere o plano com IA e valide com o seu critério',
                   body: 'A IA usa o perfil daquele paciente para montar um rascunho sólido. Você edita, personaliza e decide. A IA sugere. Você conduz.',
                 },
                 {
                   n: '3',
-                  title: 'Libere no app do paciente',
-                  body: 'O paciente vê o plano no celular. Você acompanha evolução e histórico sem caçar print no WhatsApp.',
+                  title: 'Disponibilize no app do paciente',
+                  body: 'O paciente vê o plano no celular. Você acompanha a evolução e o histórico sem procurar conversas e prints no WhatsApp.',
                 },
               ].map((step) => (
                 <li
@@ -359,8 +360,8 @@ export function LandingPage() {
         <section id="pilares" className="scroll-mt-24 border-t border-border bg-muted/30 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <SectionHeading
-              title="Tudo o que o consultório solo precisa — sem bagunça."
-              subtitle="Três pilares. Um fluxo. Zero gambiarra entre planilha, PDF e cinco abas abertas."
+              title="O essencial do consultório solo, em um só fluxo."
+              subtitle="Três pilares. Um caminho contínuo. Sem improvisar entre planilha, PDF e várias abas abertas."
             />
 
             <div className="mt-12 space-y-10">
@@ -378,10 +379,10 @@ export function LandingPage() {
                   </h3>
                   <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
                     {[
-                      'Usa metas, restrições e preferências únicas de cada paciente',
-                      'Gera rascunho alinhado ao perfil — você ajusta no editor',
+                      'Considera metas, restrições e preferências de cada paciente',
+                      'Monta um rascunho alinhado ao perfil — você ajusta no editor',
                       'Banco de alimentos com informações nutricionais',
-                      'Exporte PDF profissional quando precisar',
+                      'Exportação em PDF profissional quando precisar',
                     ].map((b) => (
                       <li key={b} className="flex gap-2">
                         <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
@@ -422,14 +423,14 @@ export function LandingPage() {
                     Pilar 2 · App do paciente
                   </p>
                   <h3 className="mt-1 font-heading text-2xl font-bold text-foreground">
-                    O plano para de morrer no e-mail.
+                    O plano deixa de ficar esquecido no e-mail.
                   </h3>
                   <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
                     {[
-                      'Paciente acessa o plano no celular',
-                      'Menos “nutri, manda de novo o PDF?”',
-                      'Mais presença e clareza entre consultas',
-                      'Experiência moderna que eleva a percepção do seu atendimento',
+                      'O paciente acessa o plano no celular',
+                      'Menos pedidos para reenviar o PDF',
+                      'Mais presença e clareza entre as consultas',
+                      'Uma experiência que eleva a percepção do seu atendimento',
                     ].map((b) => (
                       <li key={b} className="flex gap-2">
                         <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
@@ -438,7 +439,7 @@ export function LandingPage() {
                     ))}
                   </ul>
                   <p className="mt-4 text-sm font-medium text-foreground">
-                    O consultório continua presente depois que a consulta acaba.
+                    O consultório permanece presente depois que a consulta termina.
                   </p>
                   <p className="mt-2 text-xs text-muted-foreground">
                     Incluso em todos os planos · paciente não paga
@@ -460,9 +461,9 @@ export function LandingPage() {
                   </h3>
                   <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
                     {[
-                      'Fluxo com consentimento claro',
+                      'Fluxo com consentimento explícito',
                       'Fotos usadas na estimativa e não armazenadas no iNutri',
-                      'Relatório para tendência do mesmo paciente (Silhueta × Silhueta)',
+                      'Relatório de tendência do mesmo paciente (Silhueta × Silhueta)',
                       'Transparência: estimativa, não diagnóstico',
                     ].map((b) => (
                       <li key={b} className="flex gap-2">
@@ -472,7 +473,7 @@ export function LandingPage() {
                     ))}
                   </ul>
                   <p className="mt-4 text-sm font-medium text-foreground">
-                    Engaja o paciente e enriquece o acompanhamento — com ética e clareza.
+                    Aproxima o paciente e enriquece o acompanhamento — com ética e clareza.
                   </p>
                   <p className="mt-2 text-xs text-muted-foreground">
                     Exclusivo do Pro · não substitui bioimpedância ou DEXA
@@ -521,8 +522,8 @@ export function LandingPage() {
         <section className="py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <SectionHeading
-              title="Um teste de rotina — não um tour turístico."
-              subtitle="Nos 7 dias grátis, use o iNutri de verdade no consultório."
+              title="Um teste de rotina — não um passeio pelas telas."
+              subtitle="Nos sete dias grátis, use o iNutri de verdade no consultório."
             />
             <div className="mx-auto mt-10 max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
               {[
@@ -554,8 +555,9 @@ export function LandingPage() {
               ))}
             </div>
             <p className="mx-auto mt-6 max-w-lg text-center text-sm text-muted-foreground">
-              Se ao fim da semana o iNutri <strong className="text-foreground">não devolver tempo</strong>,
-              cancele. Sem drama.
+              Se ao fim da semana o iNutri{' '}
+              <strong className="text-foreground">não devolver tempo</strong>, cancele. Sem
+              complicação.
             </p>
             <div className="mt-6 text-center">
               <CtaLink>Iniciar meus 7 dias</CtaLink>
@@ -566,7 +568,7 @@ export function LandingPage() {
         {/* Who it's for */}
         <section className="border-t border-border bg-muted/30 py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <SectionHeading title="Feito para quem atende. Não para quem coleciona software." />
+            <SectionHeading title="Feito para quem atende. Não para quem acumula ferramentas." />
             <div className="mt-10 grid gap-6 md:grid-cols-2">
               <div className="rounded-2xl border border-primary/20 bg-card p-6 shadow-sm">
                 <h3 className="font-heading text-lg font-semibold text-[#0A5C45]">Para quem é</h3>
@@ -574,8 +576,8 @@ export function LandingPage() {
                   {[
                     'Nutricionista solo ou com rotina enxuta',
                     'Quem monta vários planos por semana e sente o peso operacional',
-                    'Quem atende presencial, online ou híbrido e quer o paciente no app',
-                    'Quem quer IA como acelerador, não como piloto automático',
+                    'Quem atende presencialmente, online ou de forma híbrida e quer o paciente no app',
+                    'Quem usa a IA como acelerador, não como substituto do critério clínico',
                   ].map((item) => (
                     <li key={item} className="flex gap-2">
                       <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
@@ -626,10 +628,10 @@ export function LandingPage() {
                 <tbody className="bg-card">
                   {[
                     ['Tempo no plano', 'Alto', 'Médio', 'Baixo — IA + editor'],
-                    ['App do paciente', 'Não', 'Sim (em geral)', 'Sim · grátis pro paciente'],
+                    ['App do paciente', 'Não', 'Sim, em geral', 'Sim · gratuito para o paciente'],
                     ['Avaliação por foto', 'Não', 'Em planos caros', 'Silhueta no Pro'],
-                    ['Preço solo', '“Grátis” que custa noites', '~R$90+/mês nos líderes', 'A partir de R$59/mês'],
-                    ['Curva de aprendizado', 'Caótica', 'Pesada', 'Enxuta, do atendimento'],
+                    ['Preço solo', 'Gratuito, mas consome noites', '~R$90+/mês nos líderes', 'A partir de R$59/mês'],
+                    ['Curva de aprendizado', 'Desorganizada', 'Exigente', 'Enxuta, feita para o atendimento'],
                   ].map((row) => (
                     <tr key={row[0]} className="border-t border-border">
                       <th className="px-4 py-3 font-medium text-foreground">{row[0]}</th>
@@ -646,10 +648,10 @@ export function LandingPage() {
             <div className="mt-8 space-y-3 md:hidden">
               {[
                 { label: 'Tempo no plano', value: 'Baixo — IA + editor' },
-                { label: 'App do paciente', value: 'Sim · grátis pro paciente' },
+                { label: 'App do paciente', value: 'Sim · gratuito para o paciente' },
                 { label: 'Avaliação por foto', value: 'Silhueta no Pro' },
                 { label: 'Preço solo', value: 'A partir de R$59/mês' },
-                { label: 'Curva de aprendizado', value: 'Enxuta, do atendimento' },
+                { label: 'Curva de aprendizado', value: 'Enxuta, feita para o atendimento' },
               ].map((row) => (
                 <div
                   key={row.label}
@@ -664,7 +666,7 @@ export function LandingPage() {
             <p className="mx-auto mt-8 max-w-lg text-center text-sm text-muted-foreground">
               Você não precisa do software mais antigo do mercado.
               <br />
-              Precisa do que <strong className="text-foreground">paga o seu tempo de volta</strong>.
+              Precisa do que <strong className="text-foreground">devolve o seu tempo</strong>.
             </p>
             <div className="mt-6 text-center">
               <CtaLink>Experimentar o iNutri grátis</CtaLink>
@@ -678,9 +680,7 @@ export function LandingPage() {
         {/* After click */}
         <section className="py-16 sm:py-20">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <SectionHeading
-              title="Simples de começar. Difícil é voltar para a planilha."
-            />
+            <SectionHeading title="Começar é simples. Voltar à planilha, nem tanto." />
             <ol className="mx-auto mt-10 flex max-w-3xl flex-col gap-4 sm:flex-row sm:gap-6">
               {[
                 'Crie sua conta em poucos minutos',
@@ -699,7 +699,7 @@ export function LandingPage() {
               ))}
             </ol>
             <p className="mt-6 text-center text-sm text-muted-foreground">
-              Sem reunião com comercial. Sem “agende uma demo” para ver o básico.
+              Sem reunião comercial. Sem agendar uma demonstração para ver o básico.
             </p>
             <div className="mt-6 text-center">
               <CtaLink>Criar conta em minutos</CtaLink>
@@ -734,9 +734,9 @@ export function LandingPage() {
             </div>
             <div className="mt-10 text-center">
               <p className="mb-4 text-sm text-muted-foreground">
-                Ainda com dúvida? O trial responde na prática — sem compromisso.
+                Ainda com dúvida? O período de teste responde na prática — sem compromisso.
               </p>
-              <CtaLink>Tirar a dúvida na prática</CtaLink>
+              <CtaLink>Testar sem compromisso</CtaLink>
             </div>
           </div>
         </section>
@@ -749,11 +749,11 @@ export function LandingPage() {
           />
           <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
             <h2 className="font-heading text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Sua próxima consulta não precisa roubar a sua noite.
+              Sua próxima consulta não precisa ocupar a sua noite.
             </h2>
             <p className="mt-4 text-base text-white/85 sm:text-lg">
-              Teste 7 dias. Monte um plano com IA, coloque o paciente no app e sinta a diferença —
-              sem compromisso.
+              Teste por sete dias. Monte um plano com IA, coloque o paciente no app e avalie a
+              diferença — sem compromisso.
             </p>
             <div className="mt-8 flex justify-center">
               <CtaLink className="h-12 bg-white px-8 text-[#0A5C45] hover:bg-white/90 hover:text-[#0A5C45]">
@@ -765,7 +765,7 @@ export function LandingPage() {
             </p>
             <p className="mt-6 text-xs text-white/60">
               Feito no Brasil, para o nutricionista brasileiro. Privacidade e transparência no uso
-              de IA. Em lançamento — construído com foco no dia a dia solo.
+              de IA. Em lançamento — pensado para o dia a dia do consultório solo.
             </p>
           </div>
         </section>

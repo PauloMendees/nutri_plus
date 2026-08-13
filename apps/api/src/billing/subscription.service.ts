@@ -1,9 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { CheckoutRequest, CheckoutResponse, SubscriptionView } from '@nutri-plus/shared-types';
 import { PLAN_CATALOG } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
+import { ResendService } from '../support/resend.service';
 import { EntitlementsService } from './entitlements.service';
 import { AsaasService } from './asaas.service';
+import { buildPaymentReceiptEmail } from './payment-receipt-email';
 
 export interface AsaasWebhookEvent {
   event: string;
@@ -15,10 +18,14 @@ export interface AsaasWebhookEvent {
 
 @Injectable()
 export class SubscriptionService {
+  private readonly logger = new Logger(SubscriptionService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly entitlements: EntitlementsService,
     private readonly asaas: AsaasService,
+    private readonly resend: ResendService,
+    private readonly config: ConfigService,
   ) {}
 
   async getView(nutritionistId: string): Promise<SubscriptionView> {
@@ -89,10 +96,14 @@ export class SubscriptionService {
   async handleWebhook(event: AsaasWebhookEvent): Promise<void> {
     const p = event.payment;
     if (!p?.subscription) return;
-    const sub = await this.prisma.subscription.findFirst({ where: { asaasSubscriptionId: p.subscription } });
+    const sub = await this.prisma.subscription.findFirst({
+      where: { asaasSubscriptionId: p.subscription },
+      include: { nutritionist: { include: { user: { select: { name: true, email: true } } } } },
+    });
     if (!sub) return; // assinatura não é nossa / ainda não persistida
 
-    await this.prisma.subscriptionPayment.upsert({
+    const previousStatus = sub.status;
+    const row = await this.prisma.subscriptionPayment.upsert({
       where: { asaasPaymentId: p.id },
       create: {
         subscriptionId: sub.id, asaasPaymentId: p.id, amount: p.value, status: p.status,
@@ -115,6 +126,39 @@ export class SubscriptionService {
       await this.prisma.subscription.update({ where: { id: sub.id }, data: { status: 'PAST_DUE' } });
     } else if (event.event === 'PAYMENT_REFUNDED' || event.event === 'SUBSCRIPTION_DELETED') {
       await this.prisma.subscription.update({ where: { id: sub.id }, data: { status: 'CANCELED' } });
+    }
+
+    if (event.event !== 'PAYMENT_CONFIRMED' && event.event !== 'PAYMENT_RECEIVED') return;
+    if (row.receiptEmailSentAt) return;
+
+    try {
+      const from = this.config.get<string>('SUPPORT_FROM_EMAIL');
+      if (!from) throw new Error('SUPPORT_FROM_EMAIL ausente');
+      const dashboardUrl = this.config.getOrThrow<string>('WEB_ORIGIN');
+      const mail = buildPaymentReceiptEmail({
+        variant: previousStatus === 'ACTIVE' ? 'renewal' : 'welcome',
+        name: sub.nutritionist.user.name,
+        plan: sub.plan,
+        period: sub.billingPeriod,
+        amount: p.value,
+        periodEnd: this.nextPeriodEnd(sub.billingPeriod, p.dueDate),
+        dashboardUrl,
+      });
+      await this.resend.sendEmail({
+        to: sub.nutritionist.user.email,
+        from,
+        subject: mail.subject,
+        text: mail.text,
+        html: mail.html,
+      });
+      await this.prisma.subscriptionPayment.update({
+        where: { id: row.id },
+        data: { receiptEmailSentAt: new Date() },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Falha ao enviar e-mail de recibo pay=${p.id}: ${err instanceof Error ? err.message : err}`,
+      );
     }
   }
 
