@@ -8,6 +8,52 @@ export type BillingErrorCode =
   | 'SEAT_LIMIT';
 export type PlanFeature = 'silhueta' | 'transcription' | 'employees';
 
+export type PaymentMethod = 'PIX' | 'CREDIT_CARD';
+
+export interface PixQrCode {
+  encodedImage: string;
+  payload: string;
+}
+
+export interface CardInput {
+  holderName: string;
+  number: string;
+  expiryMonth: string;
+  expiryYear: string;
+  ccv: string;
+}
+
+export interface CardHolderInfo {
+  postalCode: string;
+  addressNumber: string;
+  phone: string;
+}
+
+export interface PaymentMethodRequest {
+  method: PaymentMethod;
+  cpfCnpj?: string;
+  card?: CardInput;
+  holderInfo?: CardHolderInfo;
+}
+
+export interface ChangePlanRequest {
+  plan: PlanTier;
+  period: BillingPeriod;
+}
+
+export type ChangePlanResponse =
+  | { kind: 'UPGRADE'; method: 'PIX'; pixQrCode: PixQrCode; amount: number }
+  | { kind: 'UPGRADE'; method: 'CREDIT_CARD'; status: 'ACTIVE' | 'PENDING'; amount: number }
+  | { kind: 'SCHEDULED'; effectiveDate: string };
+
+export interface ChangePlanPreview {
+  kind: 'UPGRADE' | 'SCHEDULED';
+  amountNow: number; // 0 no agendado; diferença pro-rata no upgrade
+  recurringValue: number; // valor do plano novo por ciclo
+  recurringPeriod: BillingPeriod;
+  effectiveDate: string; // ISO — vencimento (upgrade) / quando passa a valer (agendado)
+}
+
 export interface PlanConfig {
   tier: PlanTier;
   monthlyBrl: number;
@@ -70,14 +116,25 @@ export interface SubscriptionView {
   cancelAtPeriodEnd: boolean;
   entitlements: Entitlements;
   recentPayments: SubscriptionPaymentView[];
+  onboardedAt: string | null;
+  paymentMethod: PaymentMethod | null;
+  cardLast4: string | null;
+  cardBrand: string | null;
+  // Mudança agendada (troca de período/downgrade) que passa a valer em currentPeriodEnd.
+  // null quando não há agendamento (ou quando é upgrade aguardando pagamento).
+  pendingPlan: PlanTier | null;
+  pendingBillingPeriod: BillingPeriod | null;
 }
 
 export interface CheckoutRequest {
   plan: PlanTier;
   period: BillingPeriod;
   cpfCnpj: string;
+  method: PaymentMethod;
+  card?: CardInput;
+  holderInfo?: CardHolderInfo;
 }
 
-export interface CheckoutResponse {
-  invoiceUrl: string;
-}
+export type CheckoutResponse =
+  | { method: 'PIX'; pixQrCode: PixQrCode }
+  | { method: 'CREDIT_CARD'; status: 'ACTIVE' | 'PENDING' }
