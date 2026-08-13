@@ -29,4 +29,16 @@ describe('AssinaturaPage', () => {
     render(<AssinaturaPage />);
     expect(screen.getByText(/assinatura ativa/i)).toBeInTheDocument();
   });
+
+  it('em trial oferece continuar com o teste gratuito para a listagem de pacientes', () => {
+    render(<AssinaturaPage />);
+    const trial = screen.getByRole('link', { name: /continuar com o teste gratuito/i });
+    expect(trial).toHaveAttribute('href', '/patients');
+  });
+
+  it('não oferece teste gratuito quando a conta está somente-leitura', () => {
+    useQuery.mockReturnValue({ data: { status: 'TRIALING', entitlements: { isReadOnly: true } } });
+    render(<AssinaturaPage />);
+    expect(screen.queryByRole('link', { name: /continuar com o teste gratuito/i })).not.toBeInTheDocument();
+  });
 });

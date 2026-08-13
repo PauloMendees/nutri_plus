@@ -17,6 +17,7 @@ export default function AssinaturaPage() {
   const [error, setError] = useState<string | null>(null);
 
   const active = data?.status === 'ACTIVE' && !data?.entitlements.isReadOnly;
+  const canContinueTrial = data?.status === 'TRIALING' && !data?.entitlements.isReadOnly;
 
   if (active) {
     return (
@@ -56,9 +57,25 @@ export default function AssinaturaPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 py-6">
-      <h1 className="text-2xl font-semibold text-center">Escolha seu plano</h1>
+      <div className="space-y-2 text-center">
+        <h1 className="text-2xl font-semibold">Escolha seu plano</h1>
+        {canContinueTrial && (
+          <p className="text-sm text-muted-foreground">
+            Assine agora ou continue com o teste gratuito de 7 dias — sem cartão.
+          </p>
+        )}
+      </div>
       {!choice ? (
-        <PlanPicker onChoose={(plan, period) => setChoice({ plan, period })} />
+        <>
+          <PlanPicker onChoose={(plan, period) => setChoice({ plan, period })} />
+          {canContinueTrial && (
+            <div className="text-center">
+              <Button asChild variant="link" className="rounded-full">
+                <Link href="/patients">Continuar com o teste gratuito</Link>
+              </Button>
+            </div>
+          )}
+        </>
       ) : (
         <div className="max-w-sm mx-auto space-y-4 rounded-lg border p-6">
           <p className="text-sm">

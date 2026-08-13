@@ -22,7 +22,7 @@ beforeEach(() => {
 });
 
 describe('GET /auth/callback', () => {
-  it('exchanges the code, syncs the profile, and redirects to /', async () => {
+  it('exchanges the code, syncs the profile, and redirects to /assinatura', async () => {
     exchangeCodeForSession.mockResolvedValue({ error: null });
     getSession.mockResolvedValue({ data: { session: { access_token: 'tok' } } });
     syncUser.mockResolvedValue({});
@@ -32,7 +32,7 @@ describe('GET /auth/callback', () => {
     expect(exchangeCodeForSession).toHaveBeenCalledWith('abc');
     expect(syncUser).toHaveBeenCalledWith('tok', 'NUTRITIONIST');
     expect(res.status).toBe(307);
-    expect(res.headers.get('location')).toBe('http://localhost:3001/');
+    expect(res.headers.get('location')).toBe('http://localhost:3001/assinatura');
   });
 
   it('redirects to /login with an error when the code is missing', async () => {
@@ -81,6 +81,6 @@ describe('GET /auth/callback', () => {
     );
 
     expect(syncUser).toHaveBeenCalledWith('tok', 'NUTRITIONIST');
-    expect(res.headers.get('location')).toBe('http://localhost:3001/');
+    expect(res.headers.get('location')).toBe('http://localhost:3001/assinatura');
   });
 });

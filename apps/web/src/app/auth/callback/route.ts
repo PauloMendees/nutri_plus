@@ -28,7 +28,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}${next}`);
   }
 
-  // Signup confirmation: provision the local profile (idempotent), then land on /.
+  // Signup confirmation: provision the local profile (idempotent), then
+  // land on plan selection so the nutri can start the trial or subscribe.
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -40,5 +41,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/`);
+  return NextResponse.redirect(`${origin}/assinatura`);
 }
