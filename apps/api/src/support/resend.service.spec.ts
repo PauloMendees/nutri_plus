@@ -57,4 +57,24 @@ describe('ResendService', () => {
     const svc = new ResendService({ get: () => 're_key' } as any);
     await expect(svc.sendSupportEmail(input)).rejects.toBeInstanceOf(BadGatewayException);
   });
+
+  it('sendEmail inclui html e omite reply_to quando ausente', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true, status: 200, text: async () => '{}',
+    } as Response);
+    const svc = new ResendService({ get: () => 're_key' } as any);
+    await svc.sendEmail({
+      to: 'a@x.com', from: 'iNutri <suporte@inutri.life>',
+      subject: 'subj', text: 'txt', html: '<p>txt</p>',
+    });
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toEqual({
+      from: 'iNutri <suporte@inutri.life>',
+      to: ['a@x.com'],
+      subject: 'subj',
+      text: 'txt',
+      html: '<p>txt</p>',
+    });
+    expect(body.reply_to).toBeUndefined();
+  });
 });
