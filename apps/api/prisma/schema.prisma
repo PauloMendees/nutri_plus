@@ -65,6 +65,11 @@ enum SubscriptionStatus {
   CANCELED
 }
 
+enum FeedbackSource {
+  WEB
+  MOBILE
+}
+
 model User {
   id             String   @id @default(uuid())
   authProvider   String
@@ -78,6 +83,7 @@ model User {
   nutritionistProfile NutritionistProfile?
   patientProfile      PatientProfile?
   employeeProfile     EmployeeProfile?
+  feedback UserFeedback?
 
   @@unique([authProvider, authProviderId])
 }
@@ -138,6 +144,7 @@ model PatientProfile {
   canLogAssessments Boolean @default(false)
   showMealTargetToPatient Boolean @default(false)
   photoUrl String? // public URL of the patient's profile photo (patient-photos bucket)
+  firstAppLoginAt DateTime?
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -621,4 +628,18 @@ model PatientPushToken {
   updatedAt DateTime @updatedAt
 
   @@index([patientId])
+}
+
+model UserFeedback {
+  id           String          @id @default(uuid())
+  userId       String          @unique
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating       Int?
+  comment      String?
+  source       FeedbackSource?
+  dismissCount Int             @default(0)
+  snoozedUntil DateTime?
+  resolvedAt   DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 }
