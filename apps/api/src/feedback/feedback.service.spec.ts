@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, ServiceUnavailableException } from '@nestjs/common';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import {
   FEEDBACK_SNOOZE_MS,
@@ -177,5 +177,107 @@ describe('FeedbackService.dismiss', () => {
     await expect(svc.dismiss(ctx({ role: UserRole.NUTRITIONIST }))).rejects.toBeInstanceOf(
       ConflictException,
     );
+  });
+});
+
+describe('FeedbackService.submit', () => {
+  let prisma: DeepMockProxy<PrismaService>;
+  let resend: { sendSupportEmail: jest.Mock };
+  let svc: FeedbackService;
+  const env = {
+    SUPPORT_INBOX_EMAIL: 'inbox@inutri.life',
+    SUPPORT_FROM_EMAIL: 'iNutri Suporte <suporte@inutri.life>',
+  };
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(NOW);
+    prisma = mockDeep<PrismaService>();
+    resend = { sendSupportEmail: jest.fn().mockResolvedValue(undefined) };
+    svc = new FeedbackService(prisma, { get: (k: string) => env[k as keyof typeof env] } as any, resend as any);
+    prisma.userFeedback.findUnique.mockResolvedValue(null);
+    prisma.userFeedback.upsert.mockResolvedValue({} as any);
+  });
+  afterEach(() => jest.useRealTimers());
+
+  it('envia e-mail e depois persiste rating + resolvedAt', async () => {
+    const out = await svc.submit(ctx({ role: UserRole.NUTRITIONIST }), {
+      rating: 5,
+      comment: '  top  ',
+    });
+    expect(out).toEqual({ ok: true });
+    expect(resend.sendSupportEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'inbox@inutri.life',
+        from: 'iNutri Suporte <suporte@inutri.life>',
+        replyTo: 'a@x.com',
+        subject: '[iNutri Feedback] 5/5 — Ana',
+      }),
+    );
+    expect(prisma.userFeedback.upsert).toHaveBeenCalledWith({
+      where: { userId: 'u1' },
+      create: {
+        userId: 'u1',
+        rating: 5,
+        comment: 'top',
+        source: 'WEB',
+        resolvedAt: NOW,
+      },
+      update: {
+        rating: 5,
+        comment: 'top',
+        source: 'WEB',
+        resolvedAt: NOW,
+      },
+    });
+    const emailOrder = resend.sendSupportEmail.mock.invocationCallOrder[0];
+    const dbOrder = prisma.userFeedback.upsert.mock.invocationCallOrder[0];
+    expect(emailOrder).toBeLessThan(dbOrder);
+  });
+
+  it('comment vazio vira null; paciente source=MOBILE', async () => {
+    await svc.submit(ctx({ role: UserRole.PATIENT }), { rating: 2, comment: '   ' });
+    expect(prisma.userFeedback.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ comment: null, source: 'MOBILE', rating: 2 }),
+      }),
+    );
+  });
+
+  it('já resolvido → 409 e não manda e-mail', async () => {
+    prisma.userFeedback.findUnique.mockResolvedValue({ resolvedAt: NOW } as any);
+    await expect(
+      svc.submit(ctx({ role: UserRole.NUTRITIONIST }), { rating: 4 }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(resend.sendSupportEmail).not.toHaveBeenCalled();
+    expect(prisma.userFeedback.upsert).not.toHaveBeenCalled();
+  });
+
+  it('env ausente → 503 e não persiste', async () => {
+    svc = new FeedbackService(prisma, { get: () => undefined } as any, resend as any);
+    await expect(
+      svc.submit(ctx({ role: UserRole.NUTRITIONIST }), { rating: 4 }),
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(prisma.userFeedback.upsert).not.toHaveBeenCalled();
+  });
+
+  it('Resend falha → propaga e não persiste (dismiss anterior intacto)', async () => {
+    prisma.userFeedback.findUnique.mockResolvedValue({
+      id: 'f1',
+      dismissCount: 1,
+      resolvedAt: null,
+    } as any);
+    resend.sendSupportEmail.mockRejectedValue(new Error('resend down'));
+    await expect(
+      svc.submit(ctx({ role: UserRole.NUTRITIONIST }), { rating: 3 }),
+    ).rejects.toThrow('resend down');
+    expect(prisma.userFeedback.upsert).not.toHaveBeenCalled();
+    expect(prisma.userFeedback.update).not.toHaveBeenCalled();
+  });
+
+  it('funcionário → 403', async () => {
+    await expect(
+      svc.submit(ctx({ role: UserRole.EMPLOYEE }), { rating: 5 }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

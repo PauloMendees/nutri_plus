@@ -14,6 +14,7 @@ import { UserRole } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/types/auth-context';
 import { ResendService } from '../support/resend.service';
+import { buildFeedbackEmail } from './feedback-email';
 
 function sourceFor(role: UserRole): FeedbackSource {
   return role === UserRole.PATIENT ? 'MOBILE' : 'WEB';
@@ -90,7 +91,45 @@ export class FeedbackService {
     return { ok: true };
   }
 
-  async submit(_ctx: AuthContext, _dto: SubmitFeedbackRequest): Promise<SubmitFeedbackResponse> {
-    throw new Error('not implemented');
+  async submit(ctx: AuthContext, dto: SubmitFeedbackRequest): Promise<SubmitFeedbackResponse> {
+    const user = ctx.user!;
+    if (user.role === UserRole.EMPLOYEE) throw new ForbiddenException();
+
+    const row = await this.prisma.userFeedback.findUnique({ where: { userId: user.id } });
+    if (row?.resolvedAt) throw new ConflictException('Feedback already resolved');
+
+    const to = this.config.get<string>('SUPPORT_INBOX_EMAIL');
+    const from = this.config.get<string>('SUPPORT_FROM_EMAIL');
+    if (!to || !from) {
+      throw new ServiceUnavailableException(
+        'Envio de e-mail não configurado (SUPPORT_INBOX_EMAIL / SUPPORT_FROM_EMAIL)',
+      );
+    }
+
+    const comment = dto.comment?.trim() ? dto.comment.trim() : null;
+    const source = sourceFor(user.role);
+    const now = new Date();
+    const email = buildFeedbackEmail({
+      rating: dto.rating,
+      comment,
+      source,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      sentAt: now,
+    });
+
+    await this.resend.sendSupportEmail({
+      to,
+      from,
+      replyTo: user.email,
+      subject: email.subject,
+      text: email.text,
+    });
+
+    await this.prisma.userFeedback.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id, rating: dto.rating, comment, source, resolvedAt: now },
+      update: { rating: dto.rating, comment, source, resolvedAt: now },
+    });
+    return { ok: true };
   }
 }
