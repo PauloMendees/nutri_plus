@@ -19,6 +19,9 @@ describe('buildPaymentReceiptEmail', () => {
     expect(mail.text).toMatch(/10\/09\/2026/);
     expect(mail.text).toContain('https://app.inutri.life');
     expect(mail.html).toContain('https://app.inutri.life');
+    expect(mail.html).toContain('i<span style="color:#5fd6c2;">nutri</span>');
+    expect(mail.html).toContain('#14bfa6');
+    expect(mail.html).toContain('Acessar o dashboard');
   });
 
   it('renewal: assunto de confirmação, sem bem-vindo', () => {
@@ -27,6 +30,12 @@ describe('buildPaymentReceiptEmail', () => {
     expect(mail.text).toMatch(/recebemos o pagamento da sua renovação/i);
     expect(mail.text).not.toMatch(/Bem-vindo/);
     expect(mail.subject).not.toMatch(/Bem-vindo/);
+  });
+
+  it('escapa HTML no nome', () => {
+    const mail = buildPaymentReceiptEmail({ ...base, variant: 'welcome', name: '<img src=x>' });
+    expect(mail.html).toContain('&lt;img src=x&gt;');
+    expect(mail.html).not.toContain('<img src=x>');
   });
 
   it('plan null omite o tier no assunto', () => {

@@ -1,3 +1,5 @@
+import { escapeHtml, wrapTransactionalEmail } from '../support/transactional-email';
+
 export type ReceiptVariant = 'welcome' | 'renewal';
 
 export interface PaymentReceiptInput {
@@ -68,19 +70,30 @@ export function buildPaymentReceiptEmail(input: PaymentReceiptInput): {
 
   const text = [`Olá, ${input.name}.`, '', opening, '', ...details].join('\n');
 
+  const p = 'margin:0 0 24px;font-size:15px;line-height:1.6;color:#5b6b64;';
   const htmlOpening =
     input.variant === 'welcome'
-      ? `<p>Sua assinatura está ativa. Bem-vindo ao iNutri.</p>`
-      : `<p>Recebemos o pagamento da sua renovação ${plan}.</p>`;
+      ? `<p style="${p}">Sua assinatura está ativa. Bem-vindo ao iNutri.</p>`
+      : `<p style="${p}">Recebemos o pagamento da sua renovação ${escapeHtml(plan)}.</p>`;
 
-  const htmlDetails = [
-    input.variant === 'welcome' ? `<p>Plano: ${plan}</p>` : '',
-    `<p>Valor pago: ${amount}</p>`,
-    `<p>Próximo vencimento: ${when}</p>`,
-    `<p><a href="${input.dashboardUrl}">Acesse o dashboard</a></p>`,
-  ].join('');
+  const detailRow = (label: string, value: string) =>
+    `<tr>
+      <td style="padding:8px 0;font-size:14px;color:#5b6b64;width:48%;">${label}</td>
+      <td style="padding:8px 0;font-size:14px;color:#0f1714;font-weight:600;">${value}</td>
+    </tr>`;
 
-  const html = `<p>Olá, ${input.name}.</p>${htmlOpening}${htmlDetails}`;
+  const htmlDetails = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;border-top:1px solid #e7ece9;">
+    ${input.variant === 'welcome' ? detailRow('Plano', escapeHtml(plan)) : ''}
+    ${detailRow('Valor pago', escapeHtml(amount))}
+    ${detailRow('Próximo vencimento', escapeHtml(when))}
+  </table>`;
+
+  const html = wrapTransactionalEmail({
+    title: input.variant === 'welcome' ? 'Assinatura ativada' : 'Pagamento confirmado',
+    preheader: opening,
+    bodyHtml: `<p style="${p}">Olá, ${escapeHtml(input.name)}.</p>${htmlOpening}${htmlDetails}`,
+    cta: { href: input.dashboardUrl, label: 'Acessar o dashboard' },
+  });
 
   return { subject, text, html };
 }
