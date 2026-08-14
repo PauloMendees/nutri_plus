@@ -59,8 +59,35 @@ export class FeedbackService {
     return { shouldShow: new Date() >= readyAt, source };
   }
 
-  async dismiss(_ctx: AuthContext): Promise<DismissFeedbackResponse> {
-    throw new Error('not implemented');
+  async dismiss(ctx: AuthContext): Promise<DismissFeedbackResponse> {
+    const user = ctx.user!;
+    if (user.role === UserRole.EMPLOYEE) throw new ForbiddenException();
+
+    const row = await this.prisma.userFeedback.findUnique({ where: { userId: user.id } });
+    if (row?.resolvedAt) throw new ConflictException('Feedback already resolved');
+
+    const now = new Date();
+    if (!row || row.dismissCount === 0) {
+      await this.prisma.userFeedback.upsert({
+        where: { userId: user.id },
+        create: {
+          userId: user.id,
+          dismissCount: 1,
+          snoozedUntil: new Date(now.getTime() + FEEDBACK_SNOOZE_MS),
+        },
+        update: {
+          dismissCount: 1,
+          snoozedUntil: new Date(now.getTime() + FEEDBACK_SNOOZE_MS),
+        },
+      });
+      return { ok: true };
+    }
+
+    await this.prisma.userFeedback.update({
+      where: { userId: user.id },
+      data: { dismissCount: 2, resolvedAt: now },
+    });
+    return { ok: true };
   }
 
   async submit(_ctx: AuthContext, _dto: SubmitFeedbackRequest): Promise<SubmitFeedbackResponse> {

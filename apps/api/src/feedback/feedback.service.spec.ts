@@ -122,3 +122,60 @@ describe('FeedbackService.getPrompt', () => {
     expect(after.shouldShow).toBe(true);
   });
 });
+
+describe('FeedbackService.dismiss', () => {
+  let prisma: DeepMockProxy<PrismaService>;
+  let svc: FeedbackService;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(NOW);
+    prisma = mockDeep<PrismaService>();
+    svc = new FeedbackService(prisma, { get: () => undefined } as any, { sendSupportEmail: jest.fn() } as any);
+  });
+  afterEach(() => jest.useRealTimers());
+
+  it('funcionário → 403', async () => {
+    await expect(svc.dismiss(ctx({ role: UserRole.EMPLOYEE }))).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('primeiro dismiss cria snooze de 168h', async () => {
+    prisma.userFeedback.findUnique.mockResolvedValue(null);
+    prisma.userFeedback.upsert.mockResolvedValue({} as any);
+    const out = await svc.dismiss(ctx({ role: UserRole.NUTRITIONIST }));
+    expect(out).toEqual({ ok: true });
+    expect(prisma.userFeedback.upsert).toHaveBeenCalledWith({
+      where: { userId: 'u1' },
+      create: {
+        userId: 'u1',
+        dismissCount: 1,
+        snoozedUntil: new Date(NOW.getTime() + FEEDBACK_SNOOZE_MS),
+      },
+      update: {
+        dismissCount: 1,
+        snoozedUntil: new Date(NOW.getTime() + FEEDBACK_SNOOZE_MS),
+      },
+    });
+  });
+
+  it('segundo dismiss preenche resolvedAt', async () => {
+    prisma.userFeedback.findUnique.mockResolvedValue({
+      id: 'f1',
+      dismissCount: 1,
+      resolvedAt: null,
+    } as any);
+    prisma.userFeedback.update.mockResolvedValue({} as any);
+    await svc.dismiss(ctx({ role: UserRole.PATIENT }));
+    expect(prisma.userFeedback.update).toHaveBeenCalledWith({
+      where: { userId: 'u1' },
+      data: { dismissCount: 2, resolvedAt: NOW },
+    });
+  });
+
+  it('já resolvido → 409', async () => {
+    prisma.userFeedback.findUnique.mockResolvedValue({ resolvedAt: NOW, dismissCount: 2 } as any);
+    await expect(svc.dismiss(ctx({ role: UserRole.NUTRITIONIST }))).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+  });
+});
