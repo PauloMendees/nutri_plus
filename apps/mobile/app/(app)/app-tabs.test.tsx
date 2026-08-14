@@ -32,6 +32,9 @@ jest.mock('../../components/consent/consent-gate', () => {
   const { Text } = require('react-native');
   return { ConsentGate: () => <Text testID="consent-gate-stub">consent gate</Text> };
 });
+jest.mock('../../components/feedback/feedback-prompt', () => ({
+  FeedbackPrompt: () => null,
+}));
 
 import AppLayout from './_layout';
 
