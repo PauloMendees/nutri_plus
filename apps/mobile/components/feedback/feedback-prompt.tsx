@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Alert, Modal, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { FEEDBACK_COMMENT_MAX } from '@nutri-plus/shared-types';
 import { useDismissFeedback, useFeedbackPrompt, useSubmitFeedback } from '../../lib/queries/feedback';
 import { requestStoreReview } from '../../lib/store-review';
 import { Button } from '../ui/button';
@@ -26,7 +27,7 @@ export function FeedbackPrompt() {
   const open = !closed && prompt.data?.shouldShow === true;
 
   async function onDismiss() {
-    if (dismissed.current) return;
+    if (submit.isPending || dismissed.current) return;
     dismissed.current = true;
     setClosed(true);
     try {
@@ -55,7 +56,9 @@ export function FeedbackPrompt() {
       if (isConflict(err)) {
         dismissed.current = true;
         setClosed(true);
+        return;
       }
+      Alert.alert('Não foi possível enviar. Tente novamente.');
     }
   }
 
@@ -105,6 +108,7 @@ export function FeedbackPrompt() {
             multiline
             value={comment}
             onChangeText={setComment}
+            maxLength={FEEDBACK_COMMENT_MAX}
           />
           <View className="flex-row gap-3">
             <Pressable

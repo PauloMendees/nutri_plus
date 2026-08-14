@@ -40,4 +40,10 @@ describe('FeedbackDialog', () => {
     await waitFor(() => expect(onDismiss).toHaveBeenCalled());
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it('X não dispensa enquanto envio está pendente', async () => {
+    render(<FeedbackDialog open onSubmit={onSubmit} onDismiss={onDismiss} pending />);
+    await userEvent.click(screen.getByRole('button', { name: /fechar/i }));
+    expect(onDismiss).not.toHaveBeenCalled();
+  });
 });

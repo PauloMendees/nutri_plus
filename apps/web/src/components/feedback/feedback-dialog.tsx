@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Star } from 'lucide-react';
-import type { SubmitFeedbackRequest } from '@nutri-plus/shared-types';
+import { FEEDBACK_COMMENT_MAX, type SubmitFeedbackRequest } from '@nutri-plus/shared-types';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -29,7 +29,10 @@ export function FeedbackDialog({
   const [comment, setComment] = useState('');
 
   async function handleOpenChange(next: boolean) {
-    if (!next) await onDismiss();
+    if (!next) {
+      if (pending) return;
+      await onDismiss();
+    }
   }
 
   return (
@@ -63,6 +66,7 @@ export function FeedbackDialog({
             placeholder="Sugestão ou correção (opcional)"
             value={comment}
             onChange={(e) => setComment(e.target.value)}
+            maxLength={FEEDBACK_COMMENT_MAX}
           />
         </div>
         <DialogFooter className="justify-end gap-2">

@@ -47,4 +47,16 @@ describe('FeedbackPrompt', () => {
     await waitFor(() => expect(mockDismissFeedback).toHaveBeenCalled());
     expect(mockSubmitFeedback).not.toHaveBeenCalled();
   });
+
+  it('erro de envio (não-409) mostra Alert e mantém o dialog', async () => {
+    mockSubmitFeedback.mockRejectedValueOnce({ status: 502 });
+    await render(<FeedbackPrompt />);
+    await fireEvent.press(screen.getByLabelText('Nota 5'));
+    await fireEvent.press(screen.getByRole('button', { name: /enviar/i }));
+    await waitFor(() =>
+      expect(Alert.alert).toHaveBeenCalledWith('Não foi possível enviar. Tente novamente.'),
+    );
+    expect(mockRequestStoreReview).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /enviar/i })).toBeOnTheScreen();
+  });
 });
