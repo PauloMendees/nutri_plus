@@ -290,7 +290,7 @@ export default function Home() {
         </View>
 
         {pdfError ? <Text className="font-sans text-sm text-destructive">{pdfError}</Text> : null}
-        <Button label="Exportar PDF" onPress={onExport} loading={downloading} />
+        <Button label="Exportar PDF" variant="outline" onPress={onExport} loading={downloading} />
 
         {canLog ? (
           <Button label="Registrar medição" onPress={() => router.push('/nova-medicao')} />
