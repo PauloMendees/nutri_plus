@@ -39,6 +39,8 @@ const config = {
       // Build numbers are managed remotely (eas.json: appVersionSource "remote").
       projectId: '6b0a41da-200c-40b8-bfc5-81dc5362f2d4',
     },
+    appleAppId: '6789184541',
+    androidPackage: 'com.inutri.app',
   },
 };
 

@@ -25,3 +25,4 @@ export * from './consultation-audio';
 export * from './food-recall';
 export * from './push';
 export * from './support';
+export * from './feedback';

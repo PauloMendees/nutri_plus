@@ -31,10 +31,17 @@ O template padrão **"Confirm signup"** usa a variável `{{ .ConfirmationURL }}`
 2. Constrói a URL com `redirect_to=/auth/callback?code=<CODE>`
 3. Envia o link no e-mail
 
-**Não é necessário editar o template** — o Supabase já configura o `redirect_to` corretamente. Verifique se o template contém:
-```html
-<a href="{{ .ConfirmationURL }}">Confirm your signup</a>
-```
+O visual precisa ser o mesmo card iNutri (faixa teal, logo, botão pílula) usado no recibo de pagamento. Cole o HTML correspondente em **Authentication → Email Templates**:
+
+| Template no painel | Arquivo |
+|---|---|
+| Confirm signup | `docs/emails/confirm-signup.html` |
+| Reset password | `docs/emails/reset-password.html` |
+| Invite user | `docs/emails/invite-user.html` |
+
+A fonte desses arquivos é `apps/api/src/support/transactional-email.ts`. O `{{ .ConfirmationURL }}` já aponta para o `redirect_to` (`/auth/callback`).
+
+**Não use o template padrão em inglês** (`Confirm your signup`) — ele quebra o padrão visual dos outros e-mails.
 
 ## Fluxo de Auto-Login
 

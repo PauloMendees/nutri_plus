@@ -5,6 +5,7 @@ import { useSession } from '../../lib/auth';
 import { getTabBarColors, useTheme } from '../../lib/theme';
 import { useMyConsent } from '../../lib/queries/consent';
 import { ConsentGate } from '../../components/consent/consent-gate';
+import { FeedbackPrompt } from '../../components/feedback/feedback-prompt';
 import { Button } from '../../components/ui/button';
 
 export default function AppLayout() {
@@ -35,43 +36,46 @@ export default function AppLayout() {
   }
   const tab = getTabBarColors(scheme);
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: tab.active,
-        tabBarInactiveTintColor: tab.inactive,
-        tabBarStyle: { backgroundColor: tab.background, borderTopColor: tab.border },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Evolução',
-          tabBarIcon: ({ color, size }) => <Ionicons name="pulse" color={color} size={size} />,
+    <>
+      <FeedbackPrompt />
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: tab.active,
+          tabBarInactiveTintColor: tab.inactive,
+          tabBarStyle: { backgroundColor: tab.background, borderTopColor: tab.border },
         }}
-      />
-      <Tabs.Screen
-        name="planos"
-        options={{
-          title: 'Planos',
-          tabBarIcon: ({ color, size }) => <Ionicons name="restaurant" color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="fora-de-casa"
-        options={{
-          title: 'Fora de casa',
-          tabBarIcon: ({ color, size }) => <Ionicons name="compass-outline" color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="configuracoes"
-        options={{
-          title: 'Config',
-          tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen name="nova-medicao" options={{ href: null }} />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Evolução',
+            tabBarIcon: ({ color, size }) => <Ionicons name="pulse" color={color} size={size} />,
+          }}
+        />
+        <Tabs.Screen
+          name="planos"
+          options={{
+            title: 'Planos',
+            tabBarIcon: ({ color, size }) => <Ionicons name="restaurant" color={color} size={size} />,
+          }}
+        />
+        <Tabs.Screen
+          name="fora-de-casa"
+          options={{
+            title: 'Fora de casa',
+            tabBarIcon: ({ color, size }) => <Ionicons name="compass-outline" color={color} size={size} />,
+          }}
+        />
+        <Tabs.Screen
+          name="configuracoes"
+          options={{
+            title: 'Config',
+            tabBarIcon: ({ color, size }) => <Ionicons name="settings-outline" color={color} size={size} />,
+          }}
+        />
+        <Tabs.Screen name="nova-medicao" options={{ href: null }} />
+      </Tabs>
+    </>
   );
 }
