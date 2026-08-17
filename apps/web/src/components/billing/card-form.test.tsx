@@ -46,6 +46,13 @@ it('mostra erros por campo ao enviar vazio e não chama onSubmit', () => {
   expect(screen.getByText(/informe o cep/i)).toBeInTheDocument();
 });
 
+it('máscara do número do cartão agrupa de 4 em 4', () => {
+  render(<CardForm onSubmit={vi.fn()} loading={false} error={null} />);
+  const number = screen.getByLabelText(/número do cartão/i) as HTMLInputElement;
+  fireEvent.change(number, { target: { value: '5162306219378829' } });
+  expect(number.value).toBe('5162 3062 1937 8829');
+});
+
 it('máscara de CEP formata para 00000-000', () => {
   render(<CardForm onSubmit={vi.fn()} loading={false} error={null} />);
   const cep = screen.getByLabelText(/cep/i) as HTMLInputElement;

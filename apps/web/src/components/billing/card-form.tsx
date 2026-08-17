@@ -29,6 +29,11 @@ const INITIAL_STATE: FormState = {
 
 const onlyDigits = (s: string) => s.replace(/\D/g, '');
 
+function maskCardNumber(v: string): string {
+  const d = onlyDigits(v).slice(0, 19);
+  return d.replace(/(.{4})/g, '$1 ').trim();
+}
+
 function maskExpiry(v: string): string {
   const d = v.replace(/\D/g, '').slice(0, 6); // MMAAAA
   return d.length <= 2 ? d : `${d.slice(0, 2)}/${d.slice(2)}`;
@@ -150,7 +155,11 @@ export function CardForm({
 
   return (
     <div className="mx-auto max-w-sm space-y-3">
-      {Field('Número do cartão', 'number', { inputMode: 'numeric' })}
+      {Field('Número do cartão', 'number', {
+        placeholder: '0000 0000 0000 0000',
+        transform: maskCardNumber,
+        inputMode: 'numeric',
+      })}
       {Field('Nome no cartão', 'holderName')}
       <div className="grid grid-cols-2 gap-3">
         {Field('Validade', 'expiry', { placeholder: 'MM/AAAA', transform: maskExpiry, inputMode: 'numeric' })}
