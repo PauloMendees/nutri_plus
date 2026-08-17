@@ -13,7 +13,7 @@ and the design doc at
 | App name | iNutri |
 | iOS bundle identifier | `com.inutri.app` |
 | Android package | `com.inutri.app` |
-| Version (user-facing) | `1.0.0` (in `app.config.ts`; build numbers auto-increment on EAS) |
+| Version (user-facing) | `1.2.0` (in `app.config.js`; build numbers auto-increment on EAS) |
 | Build tool | EAS Build (Expo), CNG (no committed native folders) |
 | API base | `https://nutri-plus-mfzt.onrender.com` (Render) |
 | Web | `https://inutri.life` (Vercel) |
