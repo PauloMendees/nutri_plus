@@ -4,7 +4,7 @@ const config = {
   slug: 'nutri-plus-mobile',
   owner: 'paulo-mendes-tecnologia',
   scheme: 'nutriplus',
-  version: '1.1.0',
+  version: '1.2.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
   // 'automatic' lets the app switch appearance at runtime and lets 'system'
