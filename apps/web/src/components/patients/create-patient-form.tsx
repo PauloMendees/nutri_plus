@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ChevronLeft } from 'lucide-react';
+import { toast } from 'sonner';
 import { createPatientSchema, type CreatePatientValues } from '@/lib/validation/patient';
 import { useCreatePatient } from '@/lib/queries/patients';
 import { ApiError } from '@/lib/api/client';
@@ -14,9 +15,24 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
+function apiMessage(body: unknown): string | null {
+  if (typeof body === 'string' && body.trim()) return body;
+  if (body && typeof body === 'object' && 'message' in body) {
+    const msg = (body as { message: unknown }).message;
+    if (typeof msg === 'string' && msg.trim()) return msg;
+    if (Array.isArray(msg) && typeof msg[0] === 'string') return msg[0];
+  }
+  return null;
+}
+
 function mapCreateError(err: unknown): string {
-  if (err instanceof ApiError && err.status === 409) {
-    return 'Já existe um usuário com este e-mail.';
+  if (err instanceof ApiError) {
+    if (err.status === 409) return 'Já existe um usuário com este e-mail.';
+    const fromApi = apiMessage(err.body);
+    if (fromApi) return fromApi;
+    if (err.status === 502) {
+      return 'Não foi possível enviar o convite para este e-mail. Use um endereço que receba mensagens.';
+    }
   }
   return 'Não foi possível criar o paciente. Tente novamente.';
 }
@@ -50,7 +66,9 @@ export function CreatePatientForm() {
       const created = await create.mutateAsync(values);
       router.push(`/patients/${created.id}?created=1`);
     } catch (err) {
-      setFormError(mapCreateError(err));
+      const message = mapCreateError(err);
+      setFormError(message);
+      toast.error(message);
     }
   }
 

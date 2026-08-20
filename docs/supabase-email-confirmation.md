@@ -36,6 +36,10 @@ O visual precisa ser o mesmo card iNutri (faixa teal, logo, botão pílula) usad
 | Template no painel | Arquivo |
 |---|---|
 | Confirm signup | `docs/emails/confirm-signup.html` |
+
+Assunto do Confirm signup: **Confirme seu e-mail do iNutri**.
+
+Remetente: **Authentication → SMTP Settings** (não está no template). Sender name `iNutri`, sender email `contato@inutri.life`.
 | Reset password | `docs/emails/reset-password.html` |
 | Invite user | `docs/emails/invite-user.html` |
 

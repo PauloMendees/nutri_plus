@@ -35,6 +35,17 @@ describe('GET /auth/callback', () => {
     expect(res.headers.get('location')).toBe('http://localhost:3001/assinatura');
   });
 
+  it('forwards a landing plan query to /assinatura after sync', async () => {
+    exchangeCodeForSession.mockResolvedValue({ error: null });
+    getSession.mockResolvedValue({ data: { session: { access_token: 'tok' } } });
+    syncUser.mockResolvedValue({});
+
+    const res = await GET(req('http://localhost:3001/auth/callback?code=abc&plan=pro'));
+
+    expect(syncUser).toHaveBeenCalled();
+    expect(res.headers.get('location')).toBe('http://localhost:3001/assinatura?plan=pro');
+  });
+
   it('redirects to /login with an error when the code is missing', async () => {
     const res = await GET(req('http://localhost:3001/auth/callback'));
     expect(res.headers.get('location')).toContain('/login?error=');

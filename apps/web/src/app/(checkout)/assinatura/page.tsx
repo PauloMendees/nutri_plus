@@ -1,7 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { BillingPeriod, CardHolderInfo, CardInput, ChangePlanPreview, PixQrCode, PlanTier } from '@nutri-plus/shared-types';
 import { ApiError } from '@/lib/api/client';
 import { changePlan, checkoutSubscription, getSubscription, previewChangePlan, startTrial } from '@/lib/api/subscription';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { CardForm } from '@/components/billing/card-form';
 import { PixPayment } from '@/components/billing/pix-payment';
 import { PlanPicker } from '@/components/billing/plan-picker';
+import { parseSignupPlan } from '@/lib/billing/signup-plan';
 
 type Choice = { plan: PlanTier; period: BillingPeriod };
 type Method = 'PIX' | 'CREDIT_CARD';
@@ -19,6 +20,7 @@ const CARD_DECLINED_MESSAGE = 'Cartão recusado. Confira os dados ou tente outro
 
 export default function AssinaturaPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   // Poll enquanto pendente: após pagar no Asaas o webhook vira o status.
   const { data } = useQuery({ queryKey: SUBSCRIPTION_KEY, queryFn: getSubscription, refetchInterval: 5000 });
@@ -76,6 +78,15 @@ export default function AssinaturaPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, effectivePeriod, data?.plan, data?.billingPeriod]);
+
+  const preselected = parseSignupPlan(searchParams.get('plan'));
+  const appliedPlanQuery = useRef(false);
+  useEffect(() => {
+    if (appliedPlanQuery.current || isActive || choice || !preselected) return;
+    appliedPlanQuery.current = true;
+    setChoice({ plan: preselected, period: 'MONTHLY' });
+    setMethod('PIX');
+  }, [isActive, choice, preselected]);
 
   function onChoosePlan(plan: PlanTier, period: BillingPeriod) {
     setChoice({ plan, period });

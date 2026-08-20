@@ -9,8 +9,9 @@ vi.mock('@/lib/queries/employees', () => ({
   useUpdateEmployee: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteEmployee: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+const useSubscription = vi.fn();
 vi.mock('@/lib/queries/subscription', () => ({
-  useSubscription: () => ({ data: { entitlements: { features: { employees: true } } } }),
+  useSubscription: () => useSubscription(),
 }));
 
 import { EmployeesView } from './employees-view';
@@ -29,6 +30,7 @@ function employee(over: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   useEmployees.mockReset();
+  useSubscription.mockReturnValue({ data: { entitlements: { features: { employees: true } } } });
 });
 
 describe('EmployeesView', () => {
@@ -74,6 +76,14 @@ describe('EmployeesView', () => {
     render(<EmployeesView />);
     await userEvent.type(screen.getByLabelText(/buscar por nome/i), 'zzz');
     expect(screen.getByText(/nenhum funcionário encontrado/i)).toBeInTheDocument();
+  });
+
+  it('locks the empty-state CTA on Essencial', async () => {
+    useSubscription.mockReturnValue({ data: { entitlements: { features: { employees: false } } } });
+    useEmployees.mockReturnValue({ isLoading: false, isError: false, data: [] });
+    render(<EmployeesView />);
+    expect(screen.getAllByRole('button', { name: /funcionários \(pro\)/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /convidar funcionário/i })).not.toBeInTheDocument();
   });
 
   it('opens the create dialog from the header button', async () => {

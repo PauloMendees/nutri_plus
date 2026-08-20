@@ -40,6 +40,20 @@ describe('CreatePatientForm', () => {
     expect(push).toHaveBeenCalledWith('/patients/p-new?created=1');
   });
 
+  it('shows the API message when invite is rejected', async () => {
+    mutateAsync.mockRejectedValue(
+      new ApiError(422, {
+        message: 'Use um e-mail que receba mensagens. Endereços de exemplo (example.com) não podem receber o convite.',
+      }),
+    );
+    render(<CreatePatientForm />);
+    await userEvent.type(screen.getByLabelText(/nome/i), 'Maria Silva');
+    await userEvent.type(screen.getByLabelText(/e-mail/i), 'maria@example.com');
+    await userEvent.click(screen.getByRole('button', { name: /criar paciente/i }));
+    expect(await screen.findByText(/e-mail que receba mensagens/i)).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it('shows a mapped error when creation fails', async () => {
     mutateAsync.mockRejectedValue(new ApiError(409, {}));
     render(<CreatePatientForm />);

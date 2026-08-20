@@ -237,7 +237,7 @@ export function LandingPage() {
 
               <ul className="mt-8 hidden grid-cols-2 gap-3 text-sm md:grid">
                 {[
-                  'A partir de R$59/mês · menos de R$2/dia',
+                  'A partir de R$49/mês · menos de R$2/dia',
                   'App do paciente incluso',
                   'IA com dados de cada paciente',
                   'Silhueta no Pro',
@@ -394,7 +394,7 @@ export function LandingPage() {
                     Energia no raciocínio clínico — não na digitação.
                   </p>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Essencial: até ~30 gerações/mês · Pro: IA ilimitada
+                    Essencial: até 30 gerações/mês · Pro: até 200 gerações/mês
                   </p>
                 </div>
                 <DashboardMockup className="shadow-lg" />
@@ -630,7 +630,7 @@ export function LandingPage() {
                     ['Tempo no plano', 'Alto', 'Médio', 'Baixo — IA + editor'],
                     ['App do paciente', 'Não', 'Sim, em geral', 'Sim · gratuito para o paciente'],
                     ['Avaliação por foto', 'Não', 'Em planos caros', 'Silhueta no Pro'],
-                    ['Preço solo', 'Gratuito, mas consome noites', '~R$90+/mês nos líderes', 'A partir de R$59/mês'],
+                    ['Preço solo', 'Gratuito, mas consome noites', '~R$90+/mês nos líderes', 'A partir de R$49/mês'],
                     ['Curva de aprendizado', 'Desorganizada', 'Exigente', 'Enxuta, feita para o atendimento'],
                   ].map((row) => (
                     <tr key={row[0]} className="border-t border-border">
@@ -650,7 +650,7 @@ export function LandingPage() {
                 { label: 'Tempo no plano', value: 'Baixo — IA + editor' },
                 { label: 'App do paciente', value: 'Sim · gratuito para o paciente' },
                 { label: 'Avaliação por foto', value: 'Silhueta no Pro' },
-                { label: 'Preço solo', value: 'A partir de R$59/mês' },
+                { label: 'Preço solo', value: 'A partir de R$49/mês' },
                 { label: 'Curva de aprendizado', value: 'Enxuta, feita para o atendimento' },
               ].map((row) => (
                 <div

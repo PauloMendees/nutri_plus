@@ -7,10 +7,15 @@ export function imcCategory(imc: number | null): string | null {
   return 'Obesidade';
 }
 
-// "24,2 · Peso normal", or "—" when unavailable.
+// Classify the exact value. Show 1 decimal unless that rounding would change the band.
 export function formatImc(imc: number | null): string {
   if (imc == null) return '—';
-  return `${imc.toLocaleString('pt-BR')} · ${imcCategory(imc)}`;
+  const rounded1 = Math.round(imc * 10) / 10;
+  const display =
+    imcCategory(rounded1) === imcCategory(imc)
+      ? rounded1.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+      : imc.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${display} · ${imcCategory(imc)}`;
 }
 
 // EXPERIMENTAL (see spec §3): the real value in kg represented by a percentage

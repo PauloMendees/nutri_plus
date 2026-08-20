@@ -3,11 +3,12 @@ import { useState } from 'react';
 import type { BillingPeriod, ChangePlanPreview, PlanTier } from '@nutri-plus/shared-types';
 import { PLAN_CATALOG } from '@nutri-plus/shared-types';
 import { Button } from '@/components/ui/button';
+import { formatIsoDateUtc } from '@/lib/format/date';
 
 const TIERS: PlanTier[] = ['ESSENCIAL', 'PRO'];
 const brl = (n: number) => `R$ ${n.toLocaleString('pt-BR')}`;
 const money = (n: number) => n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtDate = (iso: string) => new Date(iso).toLocaleDateString('pt-BR');
+const fmtDate = (iso: string) => formatIsoDateUtc(iso);
 
 export function PlanPicker({
   onChoose,

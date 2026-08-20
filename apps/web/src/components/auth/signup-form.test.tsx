@@ -8,8 +8,11 @@ const push = vi.fn();
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({ auth: { signUp } }),
 }));
+let currentSearchParams = new URLSearchParams();
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push, refresh: vi.fn() }),
+  useSearchParams: () => currentSearchParams,
 }));
 
 import { SignupForm } from './signup-form';
@@ -17,6 +20,7 @@ import { SignupForm } from './signup-form';
 beforeEach(() => {
   signUp.mockReset();
   push.mockReset();
+  currentSearchParams = new URLSearchParams();
 });
 
 async function fillValid() {
@@ -48,7 +52,19 @@ describe('SignupForm', () => {
     expect(arg.email).toBe('ana@clinica.com');
     expect(arg.options.data.name).toBe('Dra. Ana');
     expect(arg.options.emailRedirectTo).toContain('/auth/callback');
+    expect(arg.options.emailRedirectTo).not.toContain('plan=');
     expect(push).toHaveBeenCalledWith('/verify-email?email=ana%40clinica.com');
+  });
+
+  it('shows the chosen plan and keeps it on the confirmation redirect', async () => {
+    currentSearchParams = new URLSearchParams('plan=pro');
+    signUp.mockResolvedValue({ error: null });
+    render(<SignupForm />);
+    expect(screen.getByText(/plano escolhido/i)).toHaveTextContent(/pro/i);
+    await fillValid();
+    await userEvent.click(screen.getByRole('button', { name: /criar conta/i }));
+    await waitFor(() => expect(signUp).toHaveBeenCalledTimes(1));
+    expect(signUp.mock.calls[0][0].options.emailRedirectTo).toContain('plan=pro');
   });
 
   it('shows a mapped error on failure', async () => {

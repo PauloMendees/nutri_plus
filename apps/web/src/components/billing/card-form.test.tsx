@@ -53,6 +53,13 @@ it('máscara do número do cartão agrupa de 4 em 4', () => {
   expect(number.value).toBe('5162 3062 1937 8829');
 });
 
+it('máscara de CPF formata para 000.000.000-00', () => {
+  render(<CardForm onSubmit={vi.fn()} loading={false} error={null} />);
+  const cpf = screen.getByLabelText(/^cpf/i) as HTMLInputElement;
+  fireEvent.change(cpf, { target: { value: '12345678901' } });
+  expect(cpf.value).toBe('123.456.789-01');
+});
+
 it('máscara de CEP formata para 00000-000', () => {
   render(<CardForm onSubmit={vi.fn()} loading={false} error={null} />);
   const cep = screen.getByLabelText(/cep/i) as HTMLInputElement;

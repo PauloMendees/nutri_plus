@@ -22,6 +22,9 @@ describe('formatImc', () => {
   it('formats value + category with pt-BR decimal', () => {
     expect(formatImc(24.2)).toBe('24,2 · Peso normal');
   });
+  it('classifies the exact value so 24.98 is not labelled Sobrepeso', () => {
+    expect(formatImc(24.98)).toBe('24,98 · Peso normal');
+  });
   it('returns an em dash for null', () => {
     expect(formatImc(null)).toBe('—');
   });

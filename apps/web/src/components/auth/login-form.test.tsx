@@ -68,6 +68,17 @@ describe('LoginForm', () => {
     );
   });
 
+  it('clears the server error when the user edits the form', async () => {
+    signInWithPassword.mockResolvedValue({ error: { code: 'invalid_credentials' } });
+    render(<LoginForm />);
+    await userEvent.type(screen.getByLabelText(/e-mail/i), 'ana@clinica.com');
+    await userEvent.type(screen.getByLabelText(/^senha$/i), 'secret123');
+    await userEvent.click(screen.getByRole('button', { name: /entrar/i }));
+    expect(await screen.findByText(/inválidos/i)).toBeInTheDocument();
+    await userEvent.clear(screen.getByLabelText(/e-mail/i));
+    expect(screen.queryByText(/inválidos/i)).not.toBeInTheDocument();
+  });
+
   it('shows a success notice when ?reset=1 is present', () => {
     currentSearchParams = new URLSearchParams('reset=1');
     render(<LoginForm />);

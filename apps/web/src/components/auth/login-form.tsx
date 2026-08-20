@@ -60,7 +60,14 @@ export function LoginForm() {
       )}
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            onChange={() => {
+              if (formError) setFormError(null);
+            }}
+            className="space-y-4"
+            noValidate
+          >
           <FormField
             control={form.control}
             name="email"

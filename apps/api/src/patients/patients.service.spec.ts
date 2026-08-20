@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../prisma/prisma.service';
 import { PatientsService } from './patients.service';
@@ -179,7 +179,7 @@ describe('PatientsService', () => {
     });
     expect(prisma.patientProfile.count).toHaveBeenCalledWith({ where });
     expect(result).toEqual({
-      items: [{ id: 'p1', height: 170, imc: 24.2 }],
+      items: [{ id: 'p1', height: 170, imc: 24.22 }],
       total: 35,
       page: 2,
       pageSize: 10,
@@ -568,6 +568,13 @@ describe('PatientsService', () => {
       await expect(
         service.createPatient(ctxWithNutritionist(null), dto),
       ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects reserved example.com addresses before inviting', async () => {
+      await expect(
+        service.createPatient(ctx, { name: 'Ann', email: 'qa@example.com' } as any),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
       expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
     });
   });
