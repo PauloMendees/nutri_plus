@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { UserRole } from '@nutri-plus/shared-types';
 import { createClient } from '@/lib/supabase/server';
 import { syncUser } from '@/lib/api/auth';
+import { parseSignupPlan } from '@/lib/billing/signup-plan';
 
 /** Only honor internal paths — never an absolute or protocol-relative URL. */
 function isSafeNext(next: string): boolean {
@@ -41,5 +42,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/assinatura`);
+  const plan = parseSignupPlan(searchParams.get('plan'));
+  const dest = plan ? `/assinatura?plan=${plan === 'PRO' ? 'pro' : 'essencial'}` : '/assinatura';
+  return NextResponse.redirect(`${origin}${dest}`);
 }

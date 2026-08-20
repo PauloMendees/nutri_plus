@@ -17,7 +17,10 @@ export function useAssessments(patientId: string) {
 
 function useInvalidateAssessments(patientId: string) {
   const qc = useQueryClient();
-  return () => qc.invalidateQueries({ queryKey: ['assessments', patientId] });
+  return () => {
+    qc.invalidateQueries({ queryKey: ['assessments', patientId] });
+    qc.invalidateQueries({ queryKey: ['patient', patientId] });
+  };
 }
 
 export function useCreateAssessment(patientId: string) {

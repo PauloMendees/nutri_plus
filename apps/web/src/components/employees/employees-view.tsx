@@ -87,9 +87,11 @@ export function EmployeesView() {
           <p className="max-w-sm text-sm text-muted-foreground">
             Convide o primeiro membro da sua equipe para começar.
           </p>
-          <Button className="rounded-full" onClick={() => setCreating(true)}>
-            Convidar funcionário
-          </Button>
+          <ProGate feature="employees" label="Funcionários (Pro)">
+            <Button className="rounded-full" onClick={() => setCreating(true)}>
+              Convidar funcionário
+            </Button>
+          </ProGate>
         </div>
       )}
 

@@ -1,4 +1,10 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import type { NutritionistContact } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/types/auth-context';
@@ -15,6 +21,8 @@ import { computeImc } from './imc';
 export type { UploadedImage } from '../supabase/image-upload';
 
 const USER_SUMMARY = { select: { id: true, name: true, email: true } } as const;
+
+const UNDELIVERABLE_EMAIL = /@(example\.(com|net|org)|test|invalid|localhost)$/i;
 
 const PHOTO_BUCKET = 'patient-photos';
 
@@ -47,6 +55,12 @@ export class PatientsService {
   async createPatient(ctx: AuthContext, dto: CreatePatientDto) {
     const nutritionistId = resolveScopeNutritionistId(ctx);
     const { name, email, ...clinical } = dto;
+
+    if (UNDELIVERABLE_EMAIL.test(email)) {
+      throw new UnprocessableEntityException(
+        'Use um e-mail que receba mensagens. Endereços de exemplo (example.com) não podem receber o convite.',
+      );
+    }
 
     // New patients inherit the nutritionist's configured defaults for the two
     // patient-app toggles; the per-patient value can be changed afterwards via

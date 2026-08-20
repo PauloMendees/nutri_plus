@@ -20,7 +20,11 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 const replace = vi.fn();
 const back = vi.fn();
-vi.mock('next/navigation', () => ({ useRouter: () => ({ replace, push: replace, back }) }));
+let currentSearchParams = new URLSearchParams();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace, push: replace, back }),
+  useSearchParams: () => currentSearchParams,
+}));
 
 import AssinaturaPage from './page';
 import { SUBSCRIPTION_KEY } from '@/lib/queries/subscription';
@@ -34,6 +38,7 @@ beforeEach(() => {
   back.mockClear();
   invalidateQueries.mockClear();
   useQuery.mockReturnValue({ data: { onboardedAt: null, status: 'TRIALING', entitlements: { isReadOnly: true } } });
+  currentSearchParams = new URLSearchParams();
 });
 
 it('no onboarding mostra "Começar teste grátis" e inicia o trial', async () => {
@@ -113,6 +118,14 @@ it('assinante ativo vê "Cancelar" no picker que volta para a página anterior',
   fireEvent.click(screen.getByRole('button', { name: /cancelar/i }));
   expect(back).toHaveBeenCalled();
   expect(changePlan).not.toHaveBeenCalled();
+});
+
+it('?plan=pro pulando o picker abre o checkout do Pro', async () => {
+  currentSearchParams = new URLSearchParams('plan=pro');
+  render(<AssinaturaPage />);
+  expect(await screen.findByRole('button', { name: /^pix$/i })).toBeInTheDocument();
+  expect(screen.getByText(/mensal/i)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /começar teste grátis/i })).not.toBeInTheDocument();
 });
 
 it('agendado: card mostra "sem cobrança agora" com a data de vigência', async () => {

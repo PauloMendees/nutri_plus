@@ -31,7 +31,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Logo variant="full" className="h-6" />
             <MobileNavTrigger />
           </header>
-          <main className="flex-1 p-6 md:p-8">{children}</main>
+          <main className="flex-1 p-6 md:p-8 md:pb-32">{children}</main>
           <TodayAgendaWidget />
         </SidebarInset>
       </SidebarProvider>

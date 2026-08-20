@@ -39,6 +39,14 @@ function maskExpiry(v: string): string {
   return d.length <= 2 ? d : `${d.slice(0, 2)}/${d.slice(2)}`;
 }
 
+function maskCpf(v: string): string {
+  const d = onlyDigits(v).slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
 function maskCep(v: string): string {
   const d = v.replace(/\D/g, '').slice(0, 8); // 00000000
   return d.length <= 5 ? d : `${d.slice(0, 5)}-${d.slice(5)}`;
@@ -165,10 +173,10 @@ export function CardForm({
         {Field('Validade', 'expiry', { placeholder: 'MM/AAAA', transform: maskExpiry, inputMode: 'numeric' })}
         {Field('CVV', 'ccv', { inputMode: 'numeric' })}
       </div>
-      {Field('CPF', 'cpf', { inputMode: 'numeric' })}
+      {Field('CPF', 'cpf', { placeholder: '000.000.000-00', transform: maskCpf, inputMode: 'numeric' })}
       <div className="grid grid-cols-2 gap-3">
         {Field('CEP', 'cep', { placeholder: '00000-000', transform: maskCep, inputMode: 'numeric' })}
-        {Field('Número (endereço)', 'addressNumber', { inputMode: 'numeric' })}
+        {Field('Número (endereço)', 'addressNumber', { placeholder: 'nº ou s/n' })}
       </div>
       {Field('Telefone', 'phone', { inputMode: 'numeric' })}
       {error && <p className="text-sm text-destructive">{error}</p>}

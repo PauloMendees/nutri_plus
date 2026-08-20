@@ -7,6 +7,7 @@ import { cancelSubscription, updatePaymentMethod } from '@/lib/api/subscription'
 import { CardForm } from '@/components/billing/card-form';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { formatIsoDateUtc } from '@/lib/format/date';
 
 const STATUS_LABEL: Record<string, string> = {
   TRIALING: 'Em teste',
@@ -22,7 +23,7 @@ const PAYMENT_STATUS_LABEL: Record<string, string> = {
   REFUNDED: 'Estornado',
 };
 const BILLING_TYPE_LABEL: Record<string, string> = { PIX: 'Pix', CREDIT_CARD: 'Cartão', BOLETO: 'Boleto' };
-const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '—');
+const fmt = (iso: string | null) => formatIsoDateUtc(iso);
 
 export function SubscriptionTab() {
   const { data, refetch } = useSubscription();

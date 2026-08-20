@@ -10,7 +10,8 @@ import type {
   PaymentMethodRequest,
   SubscriptionView,
 } from '@nutri-plus/shared-types';
-import { PLAN_CATALOG } from '@nutri-plus/shared-types';
+import { PLAN_CATALOG, type PlanTier } from '@nutri-plus/shared-types';
+import { computePlanChange, planValue } from './prorata';
 import { PrismaService } from '../prisma/prisma.service';
 import { ResendService } from '../support/resend.service';
 import { EntitlementsService } from './entitlements.service';
@@ -26,19 +27,7 @@ export interface AsaasWebhookEvent {
   };
 }
 
-const TIER_RANK: Record<'ESSENCIAL' | 'PRO', number> = { ESSENCIAL: 0, PRO: 1 };
-function planValue(plan: 'ESSENCIAL' | 'PRO', period: 'MONTHLY' | 'YEARLY'): number {
-  const c = PLAN_CATALOG[plan];
-  return period === 'MONTHLY' ? c.monthlyBrl : c.yearlyBrl;
-}
 
-interface ChangeComputation {
-  kind: 'UPGRADE' | 'SCHEDULED';
-  amountNow: number; // diferença pro-rata (upgrade) ou 0 (agendado)
-  recurringValue: number; // valor do plano novo por ciclo
-  recurringPeriod: 'MONTHLY' | 'YEARLY';
-  effectiveDate: Date; // vencimento mantido (upgrade) / quando passa a valer (agendado)
-}
 
 const NUTRI_USER = { nutritionist: { include: { user: { select: { name: true, email: true } } } } } as const;
 type SubWithUser = {
@@ -174,22 +163,16 @@ export class SubscriptionService {
   }
 
   private computeChange(
-    sub: { plan: 'ESSENCIAL' | 'PRO'; billingPeriod: 'MONTHLY' | 'YEARLY'; currentPeriodEnd: Date },
+    sub: { plan: PlanTier; billingPeriod: 'MONTHLY' | 'YEARLY'; currentPeriodEnd: Date },
     dto: ChangePlanRequest,
-  ): ChangeComputation {
-    const currentTier = sub.plan;
-    const currentPeriod = sub.billingPeriod;
-    const newValue = planValue(dto.plan, dto.period);
-    const isUpgrade = dto.period === currentPeriod && TIER_RANK[dto.plan] > TIER_RANK[currentTier];
-
-    if (isUpgrade) {
-      const cur = planValue(currentTier, currentPeriod);
-      const cycleDays = currentPeriod === 'YEARLY' ? 365 : 30;
-      const remainingDays = Math.max(0, Math.ceil((sub.currentPeriodEnd.getTime() - Date.now()) / 86400000));
-      const diff = Math.round((newValue - cur) * remainingDays / cycleDays * 100) / 100;
-      return { kind: 'UPGRADE', amountNow: diff, recurringValue: newValue, recurringPeriod: dto.period, effectiveDate: sub.currentPeriodEnd };
-    }
-    return { kind: 'SCHEDULED', amountNow: 0, recurringValue: newValue, recurringPeriod: dto.period, effectiveDate: sub.currentPeriodEnd };
+  ) {
+    return computePlanChange({
+      currentPlan: sub.plan,
+      currentPeriod: sub.billingPeriod,
+      currentPeriodEnd: sub.currentPeriodEnd,
+      newPlan: dto.plan,
+      newPeriod: dto.period,
+    });
   }
 
   async changePlan(nutritionistId: string, dto: ChangePlanRequest): Promise<ChangePlanResponse> {

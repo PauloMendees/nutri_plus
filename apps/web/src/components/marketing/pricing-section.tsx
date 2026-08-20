@@ -3,28 +3,33 @@
 import { useState } from 'react';
 import { Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PLAN_CATALOG } from '@nutri-plus/shared-types';
 import { CtaLink } from './cta-link';
 
 type Billing = 'monthly' | 'yearly';
+
+const essencial = PLAN_CATALOG.ESSENCIAL;
+const pro = PLAN_CATALOG.PRO;
 
 const PLANS = {
   essencial: {
     name: 'Essencial',
     blurb: 'Para organizar o consultório e acelerar planos.',
-    monthly: 59,
-    yearly: 590,
-    yearlyPerMonth: 49,
-    yearlySave: 118,
+    monthly: essencial.monthlyBrl,
+    yearly: essencial.yearlyBrl,
+    yearlyPerMonth: Math.round(essencial.yearlyBrl / 12),
+    yearlySave: essencial.monthlyBrl * 12 - essencial.yearlyBrl,
     includes: [
       'Pacientes ilimitados',
       'Editor de planos + banco de alimentos',
-      'IA de planos — até ~30 gerações/mês',
+      `IA de planos — até ${essencial.aiActionsPerMonth} gerações/mês`,
       'App do paciente (paciente não paga)',
       'Agenda',
       'Bioimpedância e evolução',
       'Exportação em PDF',
+      'Contabilidade do consultório',
     ],
-    excludes: ['Silhueta', 'Contabilidade', 'IA ilimitada'],
+    excludes: ['Silhueta', 'Transcrição de consulta', 'Funcionários'],
     href: '/signup?plan=essencial',
     cta: 'Começar no Essencial',
     featured: false,
@@ -32,15 +37,16 @@ const PLANS = {
   pro: {
     name: 'Pro',
     blurb: 'Para velocidade máxima e atendimento diferenciado.',
-    monthly: 97,
-    yearly: 970,
-    yearlyPerMonth: 81,
-    yearlySave: 194,
+    monthly: pro.monthlyBrl,
+    yearly: pro.yearlyBrl,
+    yearlyPerMonth: Math.round(pro.yearlyBrl / 12),
+    yearlySave: pro.monthlyBrl * 12 - pro.yearlyBrl,
     includes: [
       'Tudo do Essencial',
-      'IA de planos ilimitada',
+      `IA de planos — até ${pro.aiActionsPerMonth} gerações/mês`,
       'Silhueta (estimativa por foto)',
-      'Contabilidade do consultório',
+      'Transcrição de consulta',
+      `Até ${pro.employeeSeats} funcionários`,
     ],
     excludes: [] as string[],
     href: '/signup?plan=pro',
@@ -102,7 +108,7 @@ export function PricingSection() {
               billing === 'monthly'
                 ? key === 'essencial'
                   ? 'Menos de R$2 por dia'
-                  : 'IA ilimitada + Silhueta'
+                  : 'IA, Silhueta e transcrição'
                 : `R$${plan.yearly}/ano · economize R$${plan.yearlySave}`;
 
             return (
@@ -161,7 +167,7 @@ export function PricingSection() {
           <p>
             <strong className="text-foreground">Nos sete dias, você percorre o fluxo completo.</strong>{' '}
             Não gostou? Cancele antes do fim do período de teste e não será cobrado. No Pro, Silhueta e
-            IA ilimitada entram no plano — sem custo extra escondido.
+            até 200 ações de IA/mês entram no plano — sem custo extra escondido.
           </p>
           <p className="text-xs">
             Líderes do mercado costumam ficar na casa dos R$90+/mês no plano completo — nem sempre

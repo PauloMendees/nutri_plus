@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createClient } from '@/lib/supabase/client';
 import { signupSchema, type SignupValues } from '@/lib/validation/auth';
 import { mapAuthError } from '@/lib/auth/errors';
+import { parseSignupPlan } from '@/lib/billing/signup-plan';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -22,6 +23,8 @@ import {
 
 export function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const chosenPlan = parseSignupPlan(searchParams.get('plan'));
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<SignupValues>({
@@ -37,7 +40,9 @@ export function SignupForm() {
       password: values.password,
       options: {
         data: { name: values.name },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: chosenPlan
+          ? `${window.location.origin}/auth/callback?plan=${chosenPlan === 'PRO' ? 'pro' : 'essencial'}`
+          : `${window.location.origin}/auth/callback`,
       },
     });
     if (error) {
@@ -52,6 +57,11 @@ export function SignupForm() {
       <div className="space-y-1">
         <h2 className="font-heading text-2xl font-bold text-foreground">Crie sua conta</h2>
         <p className="text-sm text-muted-foreground">Comece a organizar seus atendimentos.</p>
+        {chosenPlan && (
+          <p className="text-sm text-foreground">
+            Plano escolhido: <strong>{chosenPlan === 'PRO' ? 'Pro' : 'Essencial'}</strong>
+          </p>
+        )}
       </div>
 
       <Form {...form}>
