@@ -784,13 +784,33 @@ describe('PatientsService', () => {
       prisma.consultationAudio.findMany.mockResolvedValue([
         { recordedAt: new Date('2026-07-20'), durationSec: 600, transcript: 'olá', transcribedAt: new Date('2026-07-21') },
       ] as any);
+      const logCreatedAt = new Date('2026-08-01T10:00:00.000Z');
+      prisma.mealLog.findMany.mockResolvedValue([
+        {
+          id: 'ml1',
+          patientId: 'pp-1',
+          consumedAt: new Date('2026-08-01T12:00:00.000Z'),
+          source: 'FREE_TEXT',
+          note: null,
+          freeText: 'Pizza',
+          mealName: null,
+          mealTimeLabel: null,
+          optionLabel: null,
+          itemsJson: null,
+          mealPlanId: null,
+          mealId: null,
+          mealOptionId: null,
+          createdAt: logCreatedAt,
+          updatedAt: logCreatedAt,
+        },
+      ] as any);
 
       const out = await service.exportMyData(ctxPatient('pp-1', 'nutri-1'));
 
       // every collection query is scoped to the caller's patientId
       for (const m of [
         prisma.bodyAssessment.findMany, prisma.mealPlan.findMany, prisma.foodRecall.findMany, prisma.nutritionTarget.findMany,
-        prisma.silhuetaScan.findMany, prisma.appointment.findMany, prisma.patientConsent.findMany,
+        prisma.silhuetaScan.findMany, prisma.appointment.findMany, prisma.patientConsent.findMany, prisma.mealLog.findMany,
       ]) {
         expect(m).toHaveBeenCalledWith(expect.objectContaining({ where: { patientId: 'pp-1' } }));
       }
@@ -811,6 +831,30 @@ describe('PatientsService', () => {
         orderBy: { recordedAt: 'asc' },
         select: { recordedAt: true, durationSec: true, transcript: true, transcribedAt: true },
       });
+      expect(prisma.mealLog.findMany).toHaveBeenCalledWith({
+        where: { patientId: 'pp-1' },
+        orderBy: { consumedAt: 'asc' },
+      });
+      expect(out.mealLogs).toEqual([
+        {
+          id: 'ml1',
+          patientId: 'pp-1',
+          consumedAt: '2026-08-01T12:00:00.000Z',
+          source: 'FREE_TEXT',
+          note: null,
+          freeText: 'Pizza',
+          mealName: null,
+          mealTimeLabel: null,
+          optionLabel: null,
+          itemsJson: null,
+          mealPlanId: null,
+          mealId: null,
+          mealOptionId: null,
+          createdAt: '2026-08-01T10:00:00.000Z',
+          updatedAt: '2026-08-01T10:00:00.000Z',
+          editableUntil: '2026-08-02T10:00:00.000Z',
+        },
+      ]);
     });
 
     it('includes anamnese: null when the patient has not filled it out yet', async () => {
@@ -828,6 +872,7 @@ describe('PatientsService', () => {
       prisma.silhuetaScan.findMany.mockResolvedValue([]);
       prisma.appointment.findMany.mockResolvedValue([]);
       prisma.patientConsent.findMany.mockResolvedValue([]);
+      prisma.mealLog.findMany.mockResolvedValue([]);
 
       const out = await service.exportMyData(ctxPatient('pp-1', 'nutri-1'));
 
