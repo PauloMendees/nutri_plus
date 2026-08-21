@@ -5,13 +5,21 @@ import type { CreateMealLogRequest, MealLog } from '@nutri-plus/shared-types';
 import { Screen } from '../../../components/ui/screen';
 import { Button } from '../../../components/ui/button';
 import { formatLocalDate, formatLocalTime, MealLogForm } from '../../../components/meal-diary/meal-log-form';
+import { ApiError } from '../../../lib/api';
 import { useDeleteMealLog, useMyMealLogs, useUpdateMealLog } from '../../../lib/queries/meal-logs';
 import { useMyMealPlan, useMyMealPlans } from '../../../lib/queries/meal-plans';
 
 const LOCK_MESSAGE = 'Só é possível editar ou apagar uma refeição nas primeiras 24 horas.';
 
 function logTitle(log: MealLog): string {
-  return log.source === 'PLAN' ? `${log.mealName} · ${log.optionLabel}` : (log.freeText ?? '');
+  return log.source === 'PLAN'
+    ? `${log.mealName ?? 'Refeição'} · ${log.optionLabel ?? 'Opção'}`
+    : (log.freeText ?? '');
+}
+
+function mutationErrorMessage(err: unknown): string {
+  if (err instanceof ApiError && err.status === 403) return LOCK_MESSAGE;
+  return 'Não foi possível salvar. Tente novamente.';
 }
 
 export default function DiarioEdit() {
@@ -75,7 +83,7 @@ export default function DiarioEdit() {
           void remove
             .mutateAsync(log.id)
             .then(() => router.back())
-            .catch(() => setFormError('Não foi possível salvar. Tente novamente.'));
+            .catch((err: unknown) => setFormError(mutationErrorMessage(err)));
         },
       },
     ]);
@@ -86,8 +94,8 @@ export default function DiarioEdit() {
     try {
       await update.mutateAsync({ id: log.id, body });
       router.back();
-    } catch {
-      setFormError('Não foi possível salvar. Tente novamente.');
+    } catch (err) {
+      setFormError(mutationErrorMessage(err));
     }
   }
 

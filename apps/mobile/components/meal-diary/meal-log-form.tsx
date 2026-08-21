@@ -60,6 +60,7 @@ export function MealLogForm({
   );
   const [freeText, setFreeText] = useState(initialValues?.freeText ?? '');
   const [note, setNote] = useState(initialValues?.note ?? '');
+  const [formError, setFormError] = useState<string | null>(null);
 
   const selectableMeals = (plan?.meals ?? [])
     .filter((meal) => meal.options.length > 0)
@@ -69,12 +70,19 @@ export function MealLogForm({
 
   function handleSave() {
     const consumed = new Date(`${consumedAtDate}T${consumedAtTime}:00`);
-    if (Number.isNaN(consumed.getTime())) return;
+    if (Number.isNaN(consumed.getTime())) {
+      setFormError('Preencha a data e a hora.');
+      return;
+    }
     const consumedAt = consumed.toISOString();
     const trimmedNote = note.trim();
 
     if (source === 'PLAN' && !noPlan) {
-      if (!mealOptionId) return;
+      if (!mealOptionId) {
+        setFormError('Selecione uma opção do plano.');
+        return;
+      }
+      setFormError(null);
       onSubmit({
         consumedAt,
         source: 'PLAN',
@@ -85,7 +93,11 @@ export function MealLogForm({
     }
 
     const trimmed = freeText.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      setFormError('Preencha a descrição.');
+      return;
+    }
+    setFormError(null);
     onSubmit({
       consumedAt,
       source: 'FREE_TEXT',
@@ -209,6 +221,7 @@ export function MealLogForm({
 
       <TextField label="Nota" value={note} onChangeText={setNote} multiline placeholder="Opcional" />
 
+      {formError ? <Text className="font-sans text-sm text-destructive">{formError}</Text> : null}
       <Button label="Salvar" onPress={handleSave} loading={submitting} />
     </View>
   );

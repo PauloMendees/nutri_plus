@@ -33,7 +33,7 @@ function groupByDay(logs: MealLog[]): { date: string; logs: MealLog[] }[] {
 }
 
 function planTitle(log: MealLog): string {
-  return `${log.mealName} · ${log.optionLabel}`;
+  return `${log.mealName ?? 'Refeição'} · ${log.optionLabel ?? 'Opção'}`;
 }
 
 function foodLine(item: MealLogItemSnapshot): string {

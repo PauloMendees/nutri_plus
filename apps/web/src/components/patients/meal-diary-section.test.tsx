@@ -73,6 +73,25 @@ describe('MealDiarySection', () => {
     expect(usePatientMealLogs).toHaveBeenCalledWith('p1', 'all');
   });
 
+  it('falls back when PLAN mealName or optionLabel is null', () => {
+    usePatientMealLogs.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: [
+        {
+          id: '1', patientId: 'p1', consumedAt: '2026-08-21T15:00:00.000Z', source: 'PLAN',
+          note: null, freeText: null, mealName: null, mealTimeLabel: null,
+          optionLabel: null, itemsJson: null,
+          mealPlanId: 'pl', mealId: 'm', mealOptionId: 'o', createdAt: '2026-08-21T15:00:00.000Z',
+          updatedAt: '2026-08-21T15:00:00.000Z', editableUntil: '2026-08-22T15:00:00.000Z',
+        },
+      ],
+    });
+    render(<MealDiarySection patientId="p1" />);
+    expect(screen.getByText('Refeição · Opção')).toBeInTheDocument();
+    expect(screen.queryByText(/null/)).not.toBeInTheDocument();
+  });
+
   it('has no edit or delete controls', () => {
     usePatientMealLogs.mockReturnValue({
       isLoading: false,

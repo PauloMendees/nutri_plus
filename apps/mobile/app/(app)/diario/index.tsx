@@ -26,7 +26,9 @@ function groupByDay(logs: MealLog[]): { date: string; logs: MealLog[] }[] {
 }
 
 function logTitle(log: MealLog): string {
-  return log.source === 'PLAN' ? `${log.mealName} · ${log.optionLabel}` : (log.freeText ?? '');
+  return log.source === 'PLAN'
+    ? `${log.mealName ?? 'Refeição'} · ${log.optionLabel ?? 'Opção'}`
+    : (log.freeText ?? '');
 }
 
 export default function DiarioIndex() {

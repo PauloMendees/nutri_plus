@@ -56,6 +56,17 @@ describe('Diário index', () => {
     expect(screen.getByText(/almoço/i)).toBeTruthy();
   });
 
+  it('falls back when PLAN mealName or optionLabel is null', async () => {
+    mockUseMyMealLogs.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: [planLog({ mealName: null, optionLabel: null })],
+    });
+    await render(<DiarioIndex />);
+    expect(screen.getByText('Refeição · Opção')).toBeTruthy();
+    expect(screen.queryByText(/null/)).toBeNull();
+  });
+
   it('shows a loading state', async () => {
     mockUseMyMealLogs.mockReturnValue({ isLoading: true, isError: false, data: undefined });
     await render(<DiarioIndex />);

@@ -60,6 +60,53 @@ describe('MealLogForm', () => {
     );
   });
 
+  it('shows an error when Salvar is pressed with empty descrição', async () => {
+    const onSubmit = jest.fn();
+    await render(<MealLogForm plans={[]} plan={null} submitting={false} onSubmit={onSubmit} />);
+    await fireEvent.press(screen.getByRole('button', { name: /salvar/i }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('Preencha a descrição.')).toBeTruthy();
+  });
+
+  it('shows an error when PLAN has no option selected', async () => {
+    const onSubmit = jest.fn();
+    const plan = {
+      id: 'pl',
+      meals: [
+        {
+          id: 'm1',
+          name: 'Almoço',
+          timeLabel: '12h',
+          order: 0,
+          options: [
+            {
+              id: 'opt-a',
+              label: 'Opção A',
+              order: 0,
+              items: [{ id: 'i', foodName: 'Arroz', quantity: '100g' }],
+            },
+          ],
+        },
+      ],
+    } as any;
+    await render(
+      <MealLogForm plans={[{ id: 'pl' } as any]} plan={plan} submitting={false} onSubmit={onSubmit} />,
+    );
+    await fireEvent.press(screen.getByRole('button', { name: /salvar/i }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('Selecione uma opção do plano.')).toBeTruthy();
+  });
+
+  it('shows an error when date is invalid', async () => {
+    const onSubmit = jest.fn();
+    await render(<MealLogForm plans={[]} plan={null} submitting={false} onSubmit={onSubmit} />);
+    await fireEvent.changeText(screen.getByLabelText(/data/i), 'nao-e-data');
+    await fireEvent.changeText(screen.getByLabelText(/descrição/i), 'Pizza');
+    await fireEvent.press(screen.getByRole('button', { name: /salvar/i }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('Preencha a data e a hora.')).toBeTruthy();
+  });
+
   it('forces FREE_TEXT when a PLAN log is edited with no visible plan', async () => {
     const onSubmit = jest.fn();
     await render(
