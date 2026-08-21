@@ -5,9 +5,11 @@ import type { BodyAssessment, MyNutritionTarget } from '@nutri-plus/shared-types
 import { Screen } from '../../components/ui/screen';
 import { BrandHeader } from '../../components/brand/brand-header';
 import { Button } from '../../components/ui/button';
+import { ChatWithNutritionistButton } from '../../components/nutritionist/chat-button';
 import { LineChart } from '../../components/chart/line-chart';
 import { useMyEvolution, downloadEvolutionPdf } from '../../lib/queries/assessments';
 import { useMyNutritionTarget } from '../../lib/queries/nutrition-target';
+import { useMyNutritionist } from '../../lib/queries/nutritionist';
 
 // pt-BR number with 1 decimal and comma; '—' for null/undefined.
 function fmt(v: number | null | undefined, digits = 1): string {
@@ -136,6 +138,7 @@ function NutritionTargetCard({ target }: { target: MyNutritionTarget }) {
 export default function Home() {
   const query = useMyEvolution();
   const targetQuery = useMyNutritionTarget();
+  const nutritionist = useMyNutritionist();
   const [downloading, setDownloading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [selectedMetric, setSelectedMetric] = useState<ChartMetric>('weight');
@@ -183,6 +186,9 @@ export default function Home() {
               <NutritionTargetCard target={targetQuery.data} />
             </View>
           ) : null}
+          <View className="w-full">
+            <ChatWithNutritionistButton whatsappNumber={nutritionist.data?.whatsappNumber} />
+          </View>
           <Text className="font-sans text-center text-base text-muted-foreground">
             Suas avaliações aparecerão aqui após sua consulta.
           </Text>
@@ -234,6 +240,8 @@ export default function Home() {
           <Text className="font-heading text-2xl text-foreground">Olá, {name}</Text>
           <Text className="font-sans text-base text-muted-foreground">Sua evolução</Text>
         </View>
+
+        <ChatWithNutritionistButton whatsappNumber={nutritionist.data?.whatsappNumber} />
 
         {targetQuery.data ? <NutritionTargetCard target={targetQuery.data} /> : null}
 

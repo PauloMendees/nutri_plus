@@ -61,7 +61,14 @@ beforeEach(() => {
   mockDeleteItemAsync.mockReset().mockResolvedValue(undefined);
   mockNutritionist = {
     isLoading: false,
-    data: { name: 'Beatriz', displayName: 'Dra. Bia', email: 'bia@x.com', crn: 'CRN-123', logoUrl: null },
+    data: {
+      name: 'Beatriz',
+      displayName: 'Dra. Bia',
+      email: 'bia@x.com',
+      crn: 'CRN-123',
+      logoUrl: null,
+      whatsappNumber: null,
+    },
   };
 });
 
@@ -71,6 +78,23 @@ describe('Configurações index', () => {
     expect(screen.getByText('Dra. Bia')).toBeTruthy();
     expect(screen.getByText('bia@x.com')).toBeTruthy();
     expect(screen.getByText('CRN CRN-123')).toBeTruthy();
+    expect(screen.queryByText('Conversar com nutricionista')).toBeNull();
+  });
+
+  it('shows Conversar com nutricionista when the nutritionist has a WhatsApp number', async () => {
+    mockNutritionist = {
+      isLoading: false,
+      data: {
+        name: 'Beatriz',
+        displayName: 'Dra. Bia',
+        email: 'bia@x.com',
+        crn: 'CRN-123',
+        logoUrl: null,
+        whatsappNumber: '5511999998888',
+      },
+    };
+    await render(<ConfiguracoesIndex />);
+    expect(screen.getByText('Conversar com nutricionista')).toBeTruthy();
   });
 
   it('shows an empty state when there is no nutritionist', async () => {
