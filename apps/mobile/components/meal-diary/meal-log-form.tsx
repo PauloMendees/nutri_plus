@@ -50,7 +50,10 @@ export function MealLogForm({
   const [consumedAtTime, setConsumedAtTime] = useState(
     initialValues?.consumedAtTime ?? formatLocalTime(now),
   );
-  const [source, setSource] = useState<'PLAN' | 'FREE_TEXT'>(initialValues?.source ?? 'PLAN');
+  const noPlan = plans.length === 0;
+  const [source, setSource] = useState<'PLAN' | 'FREE_TEXT'>(
+    noPlan ? 'FREE_TEXT' : (initialValues?.source ?? 'PLAN'),
+  );
   const [mealOptionId, setMealOptionId] = useState(initialValues?.mealOptionId ?? '');
   const [selectedMealId, setSelectedMealId] = useState(
     () => mealIdForOption(plan, initialValues?.mealOptionId ?? ''),
@@ -58,7 +61,6 @@ export function MealLogForm({
   const [freeText, setFreeText] = useState(initialValues?.freeText ?? '');
   const [note, setNote] = useState(initialValues?.note ?? '');
 
-  const noPlan = plans.length === 0;
   const selectableMeals = (plan?.meals ?? [])
     .filter((meal) => meal.options.length > 0)
     .slice()
@@ -71,7 +73,7 @@ export function MealLogForm({
     const consumedAt = consumed.toISOString();
     const trimmedNote = note.trim();
 
-    if (source === 'PLAN') {
+    if (source === 'PLAN' && !noPlan) {
       if (!mealOptionId) return;
       onSubmit({
         consumedAt,

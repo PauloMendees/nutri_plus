@@ -7,6 +7,7 @@ describe('MealLogForm', () => {
       <MealLogForm plans={[]} plan={null} submitting={false} onSubmit={jest.fn()} />,
     );
     expect(screen.getByText(/nenhum plano disponível. descreva a refeição/i)).toBeTruthy();
+    expect(screen.getByLabelText(/descrição/i)).toBeTruthy();
   });
 
   it('submits PLAN with selected option and note', async () => {
@@ -49,7 +50,6 @@ describe('MealLogForm', () => {
   it('submits FREE_TEXT', async () => {
     const onSubmit = jest.fn();
     await render(<MealLogForm plans={[]} plan={null} submitting={false} onSubmit={onSubmit} />);
-    await fireEvent.press(screen.getByText(/outra refeição/i));
     await fireEvent.changeText(screen.getByLabelText(/descrição/i), 'Pizza');
     await fireEvent.press(screen.getByRole('button', { name: /salvar/i }));
     expect(onSubmit).toHaveBeenCalledWith(
@@ -58,5 +58,28 @@ describe('MealLogForm', () => {
         freeText: 'Pizza',
       }),
     );
+  });
+
+  it('forces FREE_TEXT when a PLAN log is edited with no visible plan', async () => {
+    const onSubmit = jest.fn();
+    await render(
+      <MealLogForm
+        plans={[]}
+        plan={null}
+        submitting={false}
+        onSubmit={onSubmit}
+        initialValues={{ source: 'PLAN', mealOptionId: 'opt-a', freeText: '' }}
+      />,
+    );
+    expect(screen.getByLabelText(/descrição/i)).toBeTruthy();
+    await fireEvent.changeText(screen.getByLabelText(/descrição/i), 'Pizza');
+    await fireEvent.press(screen.getByRole('button', { name: /salvar/i }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: 'FREE_TEXT',
+        freeText: 'Pizza',
+      }),
+    );
+    expect(onSubmit).not.toHaveBeenCalledWith(expect.objectContaining({ source: 'PLAN' }));
   });
 });
