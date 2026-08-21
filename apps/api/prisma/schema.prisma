@@ -99,6 +99,7 @@ model NutritionistProfile {
   mealPlanAiInstructions String?
   defaultCanLogAssessments      Boolean @default(false)
   defaultShowMealTargetToPatient Boolean @default(false)
+  whatsappNumber String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -161,6 +162,7 @@ model PatientProfile {
   consultationAudios ConsultationAudio[]
   foodRecalls    FoodRecall[]
   pushTokens     PatientPushToken[]
+  mealLogs       MealLog[]
 
   @@index([nutritionistId])
 }
@@ -296,6 +298,7 @@ model MealPlan {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   meals       Meal[]
+  mealLogs    MealLog[]
 
   // Composite to serve `where patientId order by createdAt desc` (the list query)
   // with a single ordered index scan — mirrors BodyAssessment's @@index.
@@ -312,6 +315,7 @@ model Meal {
   order        Int      // sequence within the plan; server-assigned from array index
   createdAt    DateTime @default(now())
   options      MealOption[]
+  mealLogs     MealLog[]
 
   @@index([mealPlanId])
 }
@@ -324,6 +328,7 @@ model MealOption {
   order     Int        // sequence within the meal; server-assigned from array index
   createdAt DateTime   @default(now())
   items     MealItem[]
+  mealLogs  MealLog[]
 
   @@index([mealId])
 }
@@ -346,6 +351,35 @@ model MealItem {
   order        Int        // sequence within the option; server-assigned from array index
 
   @@index([mealOptionId])
+}
+
+enum MealLogSource {
+  PLAN
+  FREE_TEXT
+}
+
+model MealLog {
+  id            String        @id @default(uuid())
+  patientId     String
+  patient       PatientProfile @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  consumedAt    DateTime
+  source        MealLogSource
+  note          String?
+  freeText      String?
+  mealName      String?
+  mealTimeLabel String?
+  optionLabel   String?
+  itemsJson     Json?
+  mealPlanId    String?
+  mealPlan      MealPlan?     @relation(fields: [mealPlanId], references: [id], onDelete: SetNull)
+  mealId        String?
+  meal          Meal?         @relation(fields: [mealId], references: [id], onDelete: SetNull)
+  mealOptionId  String?
+  mealOption    MealOption?   @relation(fields: [mealOptionId], references: [id], onDelete: SetNull)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([patientId, consumedAt])
 }
 
 enum TranscriptStatus {

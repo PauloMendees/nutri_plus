@@ -11,6 +11,7 @@ import { apiFetch } from '../../../lib/api';
 import { registerForPush, unregisterPush } from '../../../lib/push';
 import { Screen } from '../../../components/ui/screen';
 import { BrandHeader } from '../../../components/brand/brand-header';
+import { ChatWithNutritionistButton } from '../../../components/nutritionist/chat-button';
 import type { ModeType } from '../../../components/ui/gluestack-ui-provider';
 
 const THEME_OPTIONS: { label: string; value: ModeType }[] = [
@@ -102,33 +103,41 @@ export default function ConfiguracoesIndex() {
   }
 
   return (
-    <Screen header={<BrandHeader />} contentContainerClassName="grow p-6">
+    <Screen
+      header={<BrandHeader />}
+      contentContainerClassName="grow p-6"
+      onRefresh={() => nutritionist.refetch()}
+      refreshing={Boolean(nutritionist.isRefetching)}
+    >
       <View className="gap-8">
         <Text className="font-heading text-2xl text-foreground">Configurações</Text>
 
         <View className="gap-2">
           <Text className="font-sans-medium text-sm uppercase text-muted-foreground">Meu nutricionista</Text>
-          <View className="flex-row items-center gap-3 rounded-xl border border-border bg-card p-4">
-            {nutritionist.isLoading ? (
-              <ActivityIndicator color={primaryColor} />
-            ) : nutritionist.data ? (
-              <>
-                {nutritionist.data.logoUrl ? (
-                  <Image source={{ uri: nutritionist.data.logoUrl }} className="h-12 w-12 rounded-full" />
-                ) : null}
-                <View className="min-w-0 flex-1">
-                  <Text className="font-sans-medium text-base text-foreground">
-                    {nutritionist.data.displayName ?? nutritionist.data.name}
-                  </Text>
-                  <Text className="font-sans text-sm text-muted-foreground">{nutritionist.data.email}</Text>
-                  {nutritionist.data.crn ? (
-                    <Text className="font-sans text-sm text-muted-foreground">CRN {nutritionist.data.crn}</Text>
+          <View className="gap-3 rounded-xl border border-border bg-card p-4">
+            <View className="flex-row items-center gap-3">
+              {nutritionist.isLoading ? (
+                <ActivityIndicator color={primaryColor} />
+              ) : nutritionist.data ? (
+                <>
+                  {nutritionist.data.logoUrl ? (
+                    <Image source={{ uri: nutritionist.data.logoUrl }} className="h-12 w-12 rounded-full" />
                   ) : null}
-                </View>
-              </>
-            ) : (
-              <Text className="font-sans text-sm text-muted-foreground">Nenhum nutricionista vinculado.</Text>
-            )}
+                  <View className="min-w-0 flex-1">
+                    <Text className="font-sans-medium text-base text-foreground">
+                      {nutritionist.data.displayName ?? nutritionist.data.name}
+                    </Text>
+                    <Text className="font-sans text-sm text-muted-foreground">{nutritionist.data.email}</Text>
+                    {nutritionist.data.crn ? (
+                      <Text className="font-sans text-sm text-muted-foreground">CRN {nutritionist.data.crn}</Text>
+                    ) : null}
+                  </View>
+                </>
+              ) : (
+                <Text className="font-sans text-sm text-muted-foreground">Nenhum nutricionista vinculado.</Text>
+              )}
+            </View>
+            <ChatWithNutritionistButton whatsappNumber={nutritionist.data?.whatsappNumber} />
           </View>
         </View>
 

@@ -34,6 +34,7 @@ describe('useMyNutritionist', () => {
       email: 'bia@x.com',
       crn: 'CRN-123',
       logoUrl: null,
+      whatsappNumber: '5511999998888',
     });
     await renderProbe();
     expect(await screen.findByText('name:Beatriz')).toBeTruthy();

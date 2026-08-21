@@ -14,6 +14,7 @@ import { ConsultationAudioSection } from '@/components/patients/consultation-aud
 import { BioimpedanceSection } from '@/components/patients/bioimpedance-section';
 import { MealPlansSection } from '@/components/patients/meal-plans-section';
 import { RecordatorioSection } from '@/components/patients/recordatorio-section';
+import { MealDiarySection } from '@/components/patients/meal-diary-section';
 import { SilhuetaSection } from '@/components/patients/silhueta-section';
 import { NutritionTargetsSection } from '@/components/patients/nutrition-targets-section';
 import { CreatedBanner } from '@/components/patients/created-banner';
@@ -75,7 +76,7 @@ export function PatientDetail({
   }
 
   if (query.isLoading) {
-    return <Skeleton className="h-64 w-full max-w-3xl" />;
+    return <Skeleton className="h-64 w-full max-w-6xl" />;
   }
 
   if (query.isError || !query.data) {
@@ -90,7 +91,7 @@ export function PatientDetail({
   const patient = query.data;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="mx-auto max-w-6xl space-y-4">
       <Link
         href="/patients"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline"
@@ -181,6 +182,7 @@ export function PatientDetail({
           {canEdit && <TabsTrigger value="metas">Metas</TabsTrigger>}
           <TabsTrigger value="planos">Planos alimentares</TabsTrigger>
           <TabsTrigger value="recordatorio">Recordatório</TabsTrigger>
+          <TabsTrigger value="diario">Diário</TabsTrigger>
           {canEdit && (
             <ProGate feature="silhueta" label="Silhueta (Pro)">
               <TabsTrigger value="silhueta">
@@ -215,6 +217,9 @@ export function PatientDetail({
         </TabsContent>
         <TabsContent value="recordatorio">
           <RecordatorioSection patientId={patient.id} canEdit={canEdit} />
+        </TabsContent>
+        <TabsContent value="diario">
+          <MealDiarySection patientId={patient.id} />
         </TabsContent>
         {canEdit && (
           <TabsContent value="silhueta">

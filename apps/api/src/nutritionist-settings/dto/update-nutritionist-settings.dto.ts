@@ -18,4 +18,9 @@ export class UpdateNutritionistSettingsDto {
   @IsOptional()
   @IsBoolean()
   defaultShowMealTargetToPatient?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  whatsappNumber?: string | null;
 }

@@ -14,6 +14,7 @@
     "@hookform/resolvers": "^5.4.0",
     "@legendapp/motion": "^2.3.0",
     "@nutri-plus/shared-types": "workspace:^",
+    "@react-native-community/datetimepicker": "8.4.4",
     "@supabase/supabase-js": "^2.110.0",
     "@tanstack/react-query": "^5.101.0",
     "expo": "~54.0.35",

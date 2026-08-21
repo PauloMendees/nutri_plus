@@ -5,7 +5,11 @@ import { useForm, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { Info } from 'lucide-react';
-import type { NutritionistSettings } from '@nutri-plus/shared-types';
+import {
+  canonicalizeWhatsappNumber,
+  whatsappMeUrl,
+  type NutritionistSettings,
+} from '@nutri-plus/shared-types';
 import { settingsSchema, type SettingsValues } from '@/lib/validation/settings';
 import {
   useDeleteLogo,
@@ -21,6 +25,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -42,6 +47,7 @@ function defaults(s?: NutritionistSettings): SettingsValues {
     mealPlanAiInstructions: s?.mealPlanAiInstructions ?? '',
     defaultCanLogAssessments: s?.defaultCanLogAssessments ?? false,
     defaultShowMealTargetToPatient: s?.defaultShowMealTargetToPatient ?? false,
+    whatsappNumber: s?.whatsappNumber ?? '',
   };
 }
 
@@ -115,6 +121,14 @@ export function SettingsView() {
 
   const logoUrl = query.data?.logoUrl ?? null;
   const logoPending = uploadLogo.isPending || deleteLogo.isPending;
+
+  let testHref: string | null = null;
+  try {
+    const canonical = canonicalizeWhatsappNumber(form.watch('whatsappNumber'));
+    testHref = canonical ? whatsappMeUrl(canonical) : null;
+  } catch {
+    testHref = null;
+  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -224,6 +238,42 @@ export function SettingsView() {
             <TabsContent value="app">
               <section className="space-y-4 rounded-xl border bg-card p-5">
                 <h2 className="font-heading text-base font-bold">Aplicativo Paciente</h2>
+
+                <FormField
+                  control={form.control}
+                  name="whatsappNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>WhatsApp para pacientes</FormLabel>
+                      <div className="flex items-center gap-2">
+                        <FormControl>
+                          <Input placeholder="11999998888" {...field} />
+                        </FormControl>
+                        <Button variant="outline" asChild className="shrink-0">
+                          {testHref ? (
+                            <a href={testHref} target="_blank" rel="noopener noreferrer">
+                              Testar no WhatsApp
+                            </a>
+                          ) : (
+                            <a
+                              role="link"
+                              aria-disabled="true"
+                              className="opacity-50"
+                              onClick={(e) => e.preventDefault()}
+                            >
+                              Testar no WhatsApp
+                            </a>
+                          )}
+                        </Button>
+                      </div>
+                      <FormDescription>
+                        Com DDD. Os pacientes tocam em Conversar com nutricionista e abrem o WhatsApp neste número. Deixe vazio para esconder o botão.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <p className="text-sm text-muted-foreground">
                   Estas são configurações padrão aplicadas a novos pacientes. Você pode alterá-las
                   individualmente na página de detalhes de cada paciente.

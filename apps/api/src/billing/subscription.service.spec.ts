@@ -4,6 +4,7 @@ function deps(sub: any) {
   const prisma = {
     subscription: {
       findUnique: jest.fn().mockResolvedValue(sub),
+      create: jest.fn().mockResolvedValue({ id: 's-new', nutritionistId: 'n1', asaasCustomerId: null, asaasSubscriptionId: null }),
       update: jest.fn().mockResolvedValue({}),
     },
     subscriptionPayment: { findMany: jest.fn().mockResolvedValue([]), upsert: jest.fn().mockResolvedValue({}) },
@@ -75,6 +76,15 @@ describe('SubscriptionService.checkout', () => {
     expect(data).toMatchObject({ status: 'ACTIVE', paymentMethod: 'CREDIT_CARD', cardLast4: '1234', cardBrand: 'VISA', plan: 'PRO' });
     expect(data.currentPeriodEnd).toBeInstanceOf(Date);
     expect(asaas.createCardSubscription).toHaveBeenCalledWith(expect.objectContaining({ remoteIp: '1.2.3.4', holder: { name: 'A B', email: 'a@x.com', cpfCnpj: '12345678901' } }));
+  });
+
+  it('cria a linha de assinatura se o nutricionista legado não tiver uma', async () => {
+    const { svc, prisma, asaas } = deps(null);
+    await svc.checkout('n1', { plan: 'PRO', period: 'MONTHLY', cpfCnpj: '12345678901', method: 'PIX' }, { name: 'A', email: 'a@x.com' }, '1.2.3.4');
+    expect(prisma.subscription.create).toHaveBeenCalledWith({
+      data: { nutritionistId: 'n1', status: 'TRIALING' },
+    });
+    expect(asaas.createPixSubscription).toHaveBeenCalled();
   });
 });
 

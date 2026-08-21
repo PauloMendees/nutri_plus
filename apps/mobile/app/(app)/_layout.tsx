@@ -61,6 +61,13 @@ export default function AppLayout() {
           }}
         />
         <Tabs.Screen
+          name="diario"
+          options={{
+            title: 'Diário',
+            tabBarIcon: ({ color, size }) => <Ionicons name="journal-outline" color={color} size={size} />,
+          }}
+        />
+        <Tabs.Screen
           name="fora-de-casa"
           options={{
             title: 'Fora de casa',

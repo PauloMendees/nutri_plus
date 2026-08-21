@@ -5,7 +5,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import type { NutritionistContact } from '@nutri-plus/shared-types';
+import type { MealLog, NutritionistContact } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/types/auth-context';
 import { resolveScopeNutritionistId, resolveScopePatientId } from '../auth/auth-scope';
@@ -299,6 +299,7 @@ export class PatientsService {
       email: profile.user.email,
       crn: profile.crn,
       logoUrl: profile.logoUrl,
+      whatsappNumber: profile.whatsappNumber,
     };
   }
 
@@ -383,6 +384,7 @@ export class PatientsService {
       appointments,
       consents,
       consultationTranscripts,
+      logs,
     ] =
       await Promise.all([
         this.prisma.patientAnamnese.findUnique({ where: { patientId } }),
@@ -418,6 +420,7 @@ export class PatientsService {
           orderBy: { recordedAt: 'asc' },
           select: { recordedAt: true, durationSec: true, transcript: true, transcribedAt: true },
         }),
+        this.prisma.mealLog.findMany({ where: { patientId }, orderBy: { consumedAt: 'asc' } }),
       ]);
 
     return {
@@ -450,6 +453,24 @@ export class PatientsService {
       appointments,
       consents,
       consultationTranscripts,
+      mealLogs: logs.map((row) => ({
+        id: row.id,
+        patientId: row.patientId,
+        consumedAt: row.consumedAt.toISOString(),
+        source: row.source,
+        note: row.note,
+        freeText: row.freeText,
+        mealName: row.mealName,
+        mealTimeLabel: row.mealTimeLabel,
+        optionLabel: row.optionLabel,
+        itemsJson: (row.itemsJson as MealLog['itemsJson']) ?? null,
+        mealPlanId: row.mealPlanId,
+        mealId: row.mealId,
+        mealOptionId: row.mealOptionId,
+        createdAt: row.createdAt.toISOString(),
+        updatedAt: row.updatedAt.toISOString(),
+        editableUntil: new Date(row.createdAt.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+      })),
     };
   }
 

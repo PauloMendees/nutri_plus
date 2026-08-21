@@ -24,6 +24,31 @@ describe('Screen header slot', () => {
   });
 });
 
+describe('Screen pull-to-refresh', () => {
+  it('runs onRefresh from the scroll refresh control', async () => {
+    const onRefresh = jest.fn().mockResolvedValue(undefined);
+    await render(
+      <Screen onRefresh={onRefresh}>
+        <Text>body</Text>
+      </Screen>,
+    );
+    const scroll = screen.getByTestId('screen-scroll');
+    await act(async () => {
+      await scroll.props.refreshControl.props.onRefresh();
+    });
+    expect(onRefresh).toHaveBeenCalled();
+  });
+
+  it('has no refresh control when onRefresh is omitted', async () => {
+    await render(
+      <Screen>
+        <Text>body</Text>
+      </Screen>,
+    );
+    expect(screen.getByTestId('screen-scroll').props.refreshControl).toBeUndefined();
+  });
+});
+
 describe('Screen keyboard avoiding on Android', () => {
   const originalOS = Platform.OS;
   const listeners: Partial<Record<string, (e: { endCoordinates: { height: number } }) => void>> = {};

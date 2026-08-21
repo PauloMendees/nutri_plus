@@ -4,6 +4,7 @@ export interface NutritionistSettings {
   mealPlanAiInstructions: string | null;
   defaultCanLogAssessments: boolean;
   defaultShowMealTargetToPatient: boolean;
+  whatsappNumber: string | null;
 }
 
 export interface UpdateNutritionistSettingsRequest {
@@ -11,4 +12,5 @@ export interface UpdateNutritionistSettingsRequest {
   mealPlanAiInstructions?: string;
   defaultCanLogAssessments?: boolean;
   defaultShowMealTargetToPatient?: boolean;
+  whatsappNumber?: string | null;
 }

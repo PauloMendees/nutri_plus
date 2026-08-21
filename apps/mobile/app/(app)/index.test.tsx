@@ -12,6 +12,11 @@ jest.mock('../../lib/queries/nutrition-target', () => ({
   useMyNutritionTarget: () => mockUseMyNutritionTarget(),
 }));
 
+const mockUseMyNutritionist = jest.fn();
+jest.mock('../../lib/queries/nutritionist', () => ({
+  useMyNutritionist: () => mockUseMyNutritionist(),
+}));
+
 // Only BrandHeader (in the render tree) touches the theme, and it reads `scheme`.
 jest.mock('../../lib/theme', () => ({ useTheme: () => ({ scheme: 'dark' }) }));
 
@@ -29,6 +34,7 @@ const two = {
 beforeEach(() => {
   mockUseMyEvolution.mockReset();
   mockUseMyNutritionTarget.mockReset().mockReturnValue({ data: null });
+  mockUseMyNutritionist.mockReset().mockReturnValue({ data: null });
 });
 
 describe('Evolução screen', () => {
@@ -148,5 +154,24 @@ describe('Evolução screen', () => {
     await render(<Home />);
     expect(screen.getByText('Suas avaliações aparecerão aqui após sua consulta.')).toBeTruthy();
     expect(screen.queryByText('Sua meta diária')).toBeNull();
+  });
+
+  it('shows Conversar com nutricionista when the nutritionist has a WhatsApp number', async () => {
+    mockUseMyEvolution.mockReturnValue({ isLoading: false, isError: false, data: two });
+    mockUseMyNutritionist.mockReturnValue({ data: { whatsappNumber: '5511999998888' } });
+    await render(<Home />);
+    expect(screen.getByText('Conversar com nutricionista')).toBeTruthy();
+  });
+
+  it('shows Conversar com nutricionista in the empty assessments state', async () => {
+    mockUseMyEvolution.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { name: 'Ana', height: 170, assessments: [] },
+    });
+    mockUseMyNutritionist.mockReturnValue({ data: { whatsappNumber: '5511999998888' } });
+    await render(<Home />);
+    expect(screen.getByText('Suas avaliações aparecerão aqui após sua consulta.')).toBeTruthy();
+    expect(screen.getByText('Conversar com nutricionista')).toBeTruthy();
   });
 });
