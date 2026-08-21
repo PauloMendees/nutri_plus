@@ -29,6 +29,9 @@ vi.mock('@/lib/queries/meal-plans', () => ({
   useMealPlans: () => ({ data: [], isLoading: false, isError: false }),
   useGenerateMealPlan: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
+vi.mock('@/lib/queries/meal-logs', () => ({
+  usePatientMealLogs: () => ({ data: [], isLoading: false, isError: false }),
+}));
 vi.mock('@/lib/queries/silhueta', () => ({
   useCreateSilhuetaScan: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
@@ -92,6 +95,7 @@ describe('PatientDetail', () => {
     expect(screen.getByRole('tab', { name: /dados/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /bioimpedância/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /planos alimentares/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^diário$/i })).toBeInTheDocument();
   });
 
   it('shows the IMC card with the formatted value and category', () => {
@@ -142,6 +146,7 @@ describe('PatientDetail', () => {
     usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
     render(<PatientDetail id="p1" created={false} canEdit={false} />);
     expect(screen.queryByRole('button', { name: /salvar alterações/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^diário$/i })).toBeInTheDocument();
   });
 
   it('uploads a chosen photo through the mutation when the nutritionist can edit', async () => {
