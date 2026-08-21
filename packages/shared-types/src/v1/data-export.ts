@@ -8,6 +8,7 @@ import type { PatientConsent } from './consent';
 import type { PatientAnamnese } from './anamnese';
 import type { FoodRecall } from './food-recall';
 import type { ConsultationTranscript } from './consultation-audio';
+import type { MealLog } from './meal-log';
 
 export interface MyDataExportProfile {
   name: string;
@@ -44,4 +45,5 @@ export interface MyDataExport {
   appointments: Appointment[];
   consents: PatientConsent[];
   consultationTranscripts: ConsultationTranscript[];
+  mealLogs: MealLog[];
 }

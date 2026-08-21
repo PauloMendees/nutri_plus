@@ -5,4 +5,5 @@ export interface NutritionistContact {
   email: string;
   crn: string | null;
   logoUrl: string | null;
+  whatsappNumber: string | null;
 }

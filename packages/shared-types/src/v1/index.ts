@@ -26,3 +26,5 @@ export * from './food-recall';
 export * from './push';
 export * from './support';
 export * from './feedback';
+export * from './whatsapp';
+export * from './meal-log';
