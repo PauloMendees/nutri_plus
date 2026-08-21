@@ -38,6 +38,7 @@ describe('SettingsView', () => {
       data: {
         displayName: 'Dra. Ana', logoUrl: null, mealPlanAiInstructions: 'Sem lactose',
         defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+        whatsappNumber: null,
       },
     });
     render(<SettingsView />);
@@ -54,6 +55,7 @@ describe('SettingsView', () => {
       data: {
         displayName: '', logoUrl: null, mealPlanAiInstructions: '',
         defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+        whatsappNumber: null,
       },
     });
     render(<SettingsView />);
@@ -69,6 +71,7 @@ describe('SettingsView', () => {
       data: {
         displayName: '', logoUrl: null, mealPlanAiInstructions: '',
         defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+        whatsappNumber: null,
       },
     });
     render(<SettingsView />);
@@ -84,6 +87,7 @@ describe('SettingsView', () => {
       data: {
         displayName: '', logoUrl: 'https://cdn/n.png', mealPlanAiInstructions: '',
         defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+        whatsappNumber: null,
       },
     });
     render(<SettingsView />);
@@ -98,6 +102,7 @@ describe('SettingsView', () => {
         data: {
           displayName: '', logoUrl: null, mealPlanAiInstructions: '',
           defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+          whatsappNumber: null,
           ...over,
         },
       });
@@ -135,6 +140,30 @@ describe('SettingsView', () => {
         defaultCanLogAssessments: true,
         defaultShowMealTargetToPatient: true,
       });
+    });
+
+    it('renders the WhatsApp field and includes it in save', async () => {
+      setData({ whatsappNumber: null });
+      render(<SettingsView />);
+      await userEvent.click(screen.getByRole('tab', { name: /aplicativo paciente/i }));
+      expect(screen.getByLabelText(/whatsapp para pacientes/i)).toBeInTheDocument();
+      await userEvent.type(screen.getByLabelText(/whatsapp para pacientes/i), '11999998888');
+      await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
+      await waitFor(() => expect(updateMut).toHaveBeenCalledTimes(1));
+      expect(updateMut.mock.calls[0][0].whatsappNumber).toBe('11999998888');
+    });
+
+    it('disables Testar when empty and points wa.me at canonical digits when valid', async () => {
+      setData({ whatsappNumber: null });
+      render(<SettingsView />);
+      await userEvent.click(screen.getByRole('tab', { name: /aplicativo paciente/i }));
+      const testLink = screen.getByRole('link', { name: /testar no whatsapp/i });
+      expect(testLink).toHaveAttribute('aria-disabled', 'true');
+      await userEvent.type(screen.getByLabelText(/whatsapp para pacientes/i), '11999998888');
+      expect(screen.getByRole('link', { name: /testar no whatsapp/i })).toHaveAttribute(
+        'href',
+        'https://wa.me/5511999998888',
+      );
     });
   });
 });
