@@ -12,7 +12,8 @@ Recordatório 24h is unchanged (nutritionist-authored consult tool). This diary 
 
 ## Decisions (from brainstorming)
 
-- **WhatsApp** is one number on the nutritionist profile (Configurações → Aplicativo Paciente). It applies to every patient immediately. Empty/null hides the button.
+- **WhatsApp** is one number on the nutritionist profile (Configurações → Aplicativo Paciente). It applies to every patient immediately. Empty/null hides the button. Validation is **format only** (digits, DDD, prepend `55`) — Meta does not offer a public “this number has WhatsApp” check; unofficial lookup APIs stay out of v1.
+- Settings includes **Testar no WhatsApp**: opens `https://wa.me/<canonical>` in a new tab so the nutritionist can confirm the chat themselves.
 - App button **Conversar com nutricionista** on **Evolução (home)** and on the **Config** “Meu nutricionista” card. Opens `https://wa.me/<digits>` with no prefilled text.
 - New app tab **Diário** (5th tab: Evolução · Planos · Diário · Fora de casa · Config).
 - A log is one eaten meal. From the plan: pick **meal + option** + optional note. Off-plan: required free text + optional note.
@@ -21,13 +22,13 @@ Recordatório 24h is unchanged (nutritionist-authored consult tool). This diary 
 - Patient may **edit and delete only in the first 24 hours after `createdAt`** (not `consumedAt`). After that, Edit/Delete still show; tapping explains why. Nutritionist is **read-only**.
 - New patient-detail tab **Diário** (after Recordatório). Nutritionist and employee can view; nobody on web creates or edits logs.
 - Snapshot foods at save time so later plan edits do not rewrite history.
-- v1 out of scope: photos, nutritionist comments, push when the patient logs, in-app chat, per-patient WhatsApp, Recordatório changes, TACO picker in the app.
+- v1 out of scope: photos, nutritionist comments, push when the patient logs, in-app chat, per-patient WhatsApp, Recordatório changes, TACO picker in the app, calling WhatsApp/Meta to check that the number is registered.
 
 ---
 
 ## Goal
 
-Done when: the nutritionist can save a WhatsApp number in Aplicativo Paciente; patients with that number see Conversar com nutricionista on Evolução and Config and land in a WhatsApp chat; patients can register, edit (24h), and delete (24h) meals from the Diário tab (plan option or free text); the nutritionist sees that history on the patient page, grouped by day.
+Done when: the nutritionist can save a WhatsApp number in Aplicativo Paciente and test it via **Testar no WhatsApp**; patients with that number see Conversar com nutricionista on Evolução and Config and land in a WhatsApp chat; patients can register, edit (24h), and delete (24h) meals from the Diário tab (plan option or free text); the nutritionist sees that history on the patient page, grouped by day.
 
 ---
 
@@ -114,6 +115,7 @@ Export from `v1/index.ts`. Rebuild `@nutri-plus/shared-types`.
   - Any other 12–15 digit string → store as-is (non-BR).
   - Else `400`.
   - `wa.me` always uses the stored canonical digits.
+  - Shared canonicalize helper (same rules in API DTO/service and web form) so Testar and save cannot disagree.
 - `GET /v1/me/nutritionist` (`@Roles(PATIENT)`): include `whatsappNumber` (null if unset or no nutritionist). Patients cannot write it.
 
 ### B. Meal logs — module `apps/api/src/meal-logs`
@@ -160,7 +162,8 @@ Own block **above** the “defaults for new patients” copy/toggles (WhatsApp i
 - Label **WhatsApp para pacientes**
 - Input, placeholder `11999998888`
 - Helper: *Com DDD. Os pacientes tocam em Conversar com nutricionista e abrem o WhatsApp neste número. Deixe vazio para esconder o botão.*
-- Saves with the existing tab **Salvar** (same PATCH). Client: digits only; empty clears. Same 10–11 → prepend `55` rule as the API (client may send DDD-only; server canonicalizes).
+- **Testar no WhatsApp** (outline button next to the field): enabled when the current input canonicalizes to a valid number (same 10–11 → prepend `55` rule). Opens `https://wa.me/<canonical>` in a new tab (`target=_blank`, `rel=noopener`). Disabled when empty/invalid. Does not require a successful save first — they can try the number they just typed.
+- Saves with the existing tab **Salvar** (same PATCH). Client: digits only; empty clears. Same canonicalize rule as the API (client may send DDD-only; server canonicalizes).
 
 ### Patient detail → tab **Diário**
 
@@ -219,7 +222,8 @@ All copy pt-BR. Reuse `Screen`, `Button`, `TextField`.
 ## 6. Error handling / states
 
 - Settings: inline zod; API 400 → toast *Não foi possível salvar.* Empty WhatsApp is valid.
-- WhatsApp open: Alert on `Linking` failure.
+- **Testar no WhatsApp:** no extra error path if the number has no WhatsApp account (WhatsApp’s own empty-chat / invalid screen). Button simply disabled when the field does not canonicalize.
+- WhatsApp open (app): Alert on `Linking` failure.
 - Create: app disables PLAN when there is no visible plan; API still 400 if `mealOptionId` is not on that plan.
 - 24h: app uses `editableUntil`; API is source of truth (`403` + the same sentence).
 - Mutations disable while pending. Lists: loading, empty, retry.
@@ -231,7 +235,7 @@ No new npm/Expo dependencies.
 ## 7. Testing
 
 - **API (Jest):** settings GET/PATCH `whatsappNumber` (strip, empty→null, 11-digit DDD prepends `55`, 400 on bad length); `me/nutritionist` includes the canonical number; create PLAN snapshots from latest visible plan only (hidden / older plan option → 400); FREE_TEXT; PATCH/DELETE ok inside 24h, 403 after (freeze `createdAt`); 404 foreign ids; nutritionist list scoped; default 30-day list window; `all=true` returns older rows. No DTO unit tests (global ValidationPipe).
-- **Web (Vitest):** Aplicativo tab renders the WhatsApp field and includes it in save; Diário tab on patient detail; read-only grouped list; empty copy; range control. Update settings/contact fixtures.
+- **Web (Vitest):** Aplicativo tab renders the WhatsApp field and includes it in save; **Testar no WhatsApp** disabled when empty, `href`/`wa.me` uses canonical digits (11-digit DDD prepends `55`) when valid; Diário tab on patient detail; read-only grouped list; empty copy; range control. Update settings/contact fixtures.
 - **Mobile (Jest):** button hidden without a number; present on Evolução and Config when set; `wa.me` URL uses digits; Diário tab in the shell; list grouping; register PLAN vs FREE_TEXT; locked log Alert; no visible plan disables PLAN. `tsc` clean.
 - **shared-types:** `pnpm --filter @nutri-plus/shared-types build` clean.
 
