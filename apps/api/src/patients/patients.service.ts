@@ -299,6 +299,7 @@ export class PatientsService {
       email: profile.user.email,
       crn: profile.crn,
       logoUrl: profile.logoUrl,
+      whatsappNumber: profile.whatsappNumber,
     };
   }
 

@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { canonicalizeWhatsappNumber } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
 import { AuthContext } from '../auth/types/auth-context';
@@ -12,6 +13,7 @@ const SELECT = {
   mealPlanAiInstructions: true,
   defaultCanLogAssessments: true,
   defaultShowMealTargetToPatient: true,
+  whatsappNumber: true,
 } as const;
 const LOGO_BUCKET = 'nutritionist-logos';
 
@@ -31,7 +33,16 @@ export class NutritionistSettingsService {
     });
   }
 
-  updateSettings(ctx: AuthContext, dto: UpdateNutritionistSettingsDto) {
+  async updateSettings(ctx: AuthContext, dto: UpdateNutritionistSettingsDto) {
+    let whatsappNumber: string | null | undefined = undefined;
+    if (dto.whatsappNumber !== undefined) {
+      try {
+        whatsappNumber = canonicalizeWhatsappNumber(dto.whatsappNumber);
+      } catch {
+        throw new BadRequestException('Número de WhatsApp inválido.');
+      }
+    }
+
     return this.prisma.nutritionistProfile.update({
       where: { id: resolveScopeNutritionistId(ctx) },
       data: {
@@ -39,6 +50,7 @@ export class NutritionistSettingsService {
         mealPlanAiInstructions: dto.mealPlanAiInstructions,
         defaultCanLogAssessments: dto.defaultCanLogAssessments,
         defaultShowMealTargetToPatient: dto.defaultShowMealTargetToPatient,
+        whatsappNumber,
       },
       select: SELECT,
     });

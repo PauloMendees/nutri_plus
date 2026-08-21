@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../prisma/prisma.service';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
@@ -25,6 +26,7 @@ const SELECT = {
   mealPlanAiInstructions: true,
   defaultCanLogAssessments: true,
   defaultShowMealTargetToPatient: true,
+  whatsappNumber: true,
 };
 
 describe('NutritionistSettingsService', () => {
@@ -43,6 +45,7 @@ describe('NutritionistSettingsService', () => {
     prisma.nutritionistProfile.findUniqueOrThrow.mockResolvedValue({
       displayName: 'Dra. Ana', logoUrl: null, mealPlanAiInstructions: null,
       defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+      whatsappNumber: null,
     } as any);
     const result = await service.getSettings(ctx);
     expect(prisma.nutritionistProfile.findUniqueOrThrow).toHaveBeenCalledWith({
@@ -52,6 +55,7 @@ describe('NutritionistSettingsService', () => {
     expect(result).toEqual({
       displayName: 'Dra. Ana', logoUrl: null, mealPlanAiInstructions: null,
       defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+      whatsappNumber: null,
     });
   });
 
@@ -59,6 +63,7 @@ describe('NutritionistSettingsService', () => {
     prisma.nutritionistProfile.findUniqueOrThrow.mockResolvedValue({
       displayName: 'Dra. Ana', logoUrl: null, mealPlanAiInstructions: null,
       defaultCanLogAssessments: true, defaultShowMealTargetToPatient: true,
+      whatsappNumber: null,
     } as any);
     const result = await service.getSettings(ctx);
     expect(result.defaultCanLogAssessments).toBe(true);
@@ -69,6 +74,7 @@ describe('NutritionistSettingsService', () => {
     prisma.nutritionistProfile.update.mockResolvedValue({
       displayName: 'Dra. Ana', logoUrl: null, mealPlanAiInstructions: 'Sem lactose',
       defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+      whatsappNumber: null,
     } as any);
     await service.updateSettings(ctx, { displayName: 'Dra. Ana', mealPlanAiInstructions: 'Sem lactose' });
     expect(prisma.nutritionistProfile.update).toHaveBeenCalledWith({
@@ -78,6 +84,7 @@ describe('NutritionistSettingsService', () => {
         mealPlanAiInstructions: 'Sem lactose',
         defaultCanLogAssessments: undefined,
         defaultShowMealTargetToPatient: undefined,
+        whatsappNumber: undefined,
       },
       select: SELECT,
     });
@@ -87,6 +94,7 @@ describe('NutritionistSettingsService', () => {
     prisma.nutritionistProfile.update.mockResolvedValue({
       displayName: null, logoUrl: null, mealPlanAiInstructions: null,
       defaultCanLogAssessments: true, defaultShowMealTargetToPatient: true,
+      whatsappNumber: null,
     } as any);
     await service.updateSettings(ctx, {
       defaultCanLogAssessments: true,
@@ -99,15 +107,52 @@ describe('NutritionistSettingsService', () => {
         mealPlanAiInstructions: undefined,
         defaultCanLogAssessments: true,
         defaultShowMealTargetToPatient: true,
+        whatsappNumber: undefined,
       },
       select: SELECT,
     });
+  });
+
+  it('canonicalizes an 11-digit DDD number and persists it', async () => {
+    prisma.nutritionistProfile.update.mockResolvedValue({
+      displayName: null, logoUrl: null, mealPlanAiInstructions: null,
+      defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+      whatsappNumber: '5511999998888',
+    } as any);
+    await service.updateSettings(ctx, { whatsappNumber: '11999998888' });
+    expect(prisma.nutritionistProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ whatsappNumber: '5511999998888' }),
+      }),
+    );
+  });
+
+  it('stores null when WhatsApp is cleared', async () => {
+    prisma.nutritionistProfile.update.mockResolvedValue({
+      displayName: null, logoUrl: null, mealPlanAiInstructions: null,
+      defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+      whatsappNumber: null,
+    } as any);
+    await service.updateSettings(ctx, { whatsappNumber: '' });
+    expect(prisma.nutritionistProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ whatsappNumber: null }),
+      }),
+    );
+  });
+
+  it('rejects an invalid WhatsApp number', async () => {
+    await expect(service.updateSettings(ctx, { whatsappNumber: '123' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('uploads a logo to {id}.{ext} and persists the URL', async () => {
     supabaseAdmin.uploadPublicObject.mockResolvedValue('https://cdn/nutri-1.png');
     prisma.nutritionistProfile.update.mockResolvedValue({
       displayName: null, logoUrl: 'https://cdn/nutri-1.png', mealPlanAiInstructions: null,
+      defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+      whatsappNumber: null,
     } as any);
     const file = { buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), mimetype: 'image/png' };
     const result = await service.uploadLogo(ctx, file);
@@ -133,6 +178,8 @@ describe('NutritionistSettingsService', () => {
     prisma.nutritionistProfile.findUnique.mockResolvedValue({ logoUrl: 'https://cdn/nutri-1.png' } as any);
     prisma.nutritionistProfile.update.mockResolvedValue({
       displayName: null, logoUrl: null, mealPlanAiInstructions: null,
+      defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+      whatsappNumber: null,
     } as any);
     const result = await service.removeLogo(ctx);
     expect(supabaseAdmin.removeObject).toHaveBeenCalledWith('nutritionist-logos', 'nutri-1.png');

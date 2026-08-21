@@ -585,6 +585,7 @@ describe('PatientsService', () => {
         displayName: 'Dra. Bia',
         crn: 'CRN-123',
         logoUrl: 'https://logo',
+        whatsappNumber: '5511999998888',
         user: { name: 'Beatriz', email: 'bia@x.com' },
       } as any);
 
@@ -600,6 +601,7 @@ describe('PatientsService', () => {
         email: 'bia@x.com',
         crn: 'CRN-123',
         logoUrl: 'https://logo',
+        whatsappNumber: '5511999998888',
       });
     });
 
