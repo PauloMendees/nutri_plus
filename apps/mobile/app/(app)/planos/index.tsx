@@ -36,7 +36,12 @@ export default function PlanosIndex() {
 
   if (plans.length === 0) {
     return (
-      <Screen header={<BrandHeader />} contentContainerClassName="grow justify-center p-6">
+      <Screen
+        header={<BrandHeader />}
+        contentContainerClassName="grow justify-center p-6"
+        onRefresh={() => query.refetch()}
+        refreshing={Boolean(query.isRefetching)}
+      >
         <Text className="font-sans text-center text-base text-muted-foreground">
           Nenhum plano disponível ainda.
         </Text>
@@ -49,7 +54,12 @@ export default function PlanosIndex() {
   }
 
   return (
-    <Screen header={<BrandHeader />} contentContainerClassName="grow p-6">
+    <Screen
+      header={<BrandHeader />}
+      contentContainerClassName="grow p-6"
+      onRefresh={() => query.refetch()}
+      refreshing={Boolean(query.isRefetching)}
+    >
       <View className="gap-3">
         <Text className="font-heading text-2xl text-foreground">Seus planos</Text>
         {plans.map((p: MealPlanSummary) => (

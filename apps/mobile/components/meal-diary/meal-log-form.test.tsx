@@ -100,11 +100,55 @@ describe('MealLogForm', () => {
   it('shows an error when date is invalid', async () => {
     const onSubmit = jest.fn();
     await render(<MealLogForm plans={[]} plan={null} submitting={false} onSubmit={onSubmit} />);
-    await fireEvent.changeText(screen.getByLabelText(/data/i), 'nao-e-data');
+    await fireEvent.changeText(screen.getByLabelText(/hora/i), 'xx');
     await fireEvent.changeText(screen.getByLabelText(/descrição/i), 'Pizza');
     await fireEvent.press(screen.getByRole('button', { name: /salvar/i }));
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByText('Preencha a data e a hora.')).toBeTruthy();
+  });
+
+  it('renders options directly under the selected meal, not after the full list', async () => {
+    const plan = {
+      id: 'pl',
+      meals: [
+        {
+          id: 'm1',
+          name: 'Almoço',
+          timeLabel: '12:00',
+          order: 0,
+          options: [
+            {
+              id: 'opt-a',
+              label: 'Opção 1',
+              order: 0,
+              items: [{ id: 'i', foodName: 'Arroz', quantity: '100g' }],
+            },
+          ],
+        },
+        {
+          id: 'm2',
+          name: 'Jantar',
+          timeLabel: '20:00',
+          order: 1,
+          options: [
+            {
+              id: 'opt-b',
+              label: 'Opção Jantar',
+              order: 0,
+              items: [{ id: 'j', foodName: 'Sopa', quantity: '200g' }],
+            },
+          ],
+        },
+      ],
+    } as any;
+    await render(
+      <MealLogForm plans={[{ id: 'pl' } as any]} plan={plan} submitting={false} onSubmit={jest.fn()} />,
+    );
+    await fireEvent.press(screen.getByText(/almoço/i));
+    expect(screen.getByTestId('meal-m1-options')).toBeTruthy();
+    expect(screen.queryByTestId('meal-m2-options')).toBeNull();
+    expect(screen.getByText(/opção 1/i)).toBeTruthy();
+    expect(screen.queryByText(/opção jantar/i)).toBeNull();
   });
 
   it('forces FREE_TEXT when a PLAN log is edited with no visible plan', async () => {

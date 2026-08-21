@@ -3,12 +3,20 @@ import { browserApiFetch } from '@/lib/api/browser';
 
 export type MealLogRange = '30' | '90' | 'all';
 
-export function listPatientMealLogs(patientId: string, range: MealLogRange): Promise<MealLog[]> {
+export type MealLogFilter =
+  | { kind: 'preset'; range: MealLogRange }
+  | { kind: 'custom'; from: string; to: string };
+
+export function listPatientMealLogs(patientId: string, filter: MealLogFilter): Promise<MealLog[]> {
   const params = new URLSearchParams();
-  if (range === 'all') params.set('all', 'true');
-  else {
+  if (filter.kind === 'custom') {
+    params.set('from', filter.from);
+    params.set('to', filter.to);
+  } else if (filter.range === 'all') {
+    params.set('all', 'true');
+  } else {
     const to = new Date();
-    const from = new Date(to.getTime() - Number(range) * 24 * 60 * 60 * 1000);
+    const from = new Date(to.getTime() - Number(filter.range) * 24 * 60 * 60 * 1000);
     params.set('from', from.toISOString());
     params.set('to', to.toISOString());
   }

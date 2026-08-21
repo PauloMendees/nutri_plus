@@ -31,6 +31,7 @@ const config = {
       'expo-splash-screen',
       { image: './assets/splash-icon.png', imageWidth: 200, backgroundColor: '#FFFFFF' },
     ],
+    '@react-native-community/datetimepicker',
   ],
   experiments: { typedRoutes: true },
   extra: {

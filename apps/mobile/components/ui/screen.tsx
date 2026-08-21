@@ -1,5 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /** Android keyboard height; 0 on iOS (KeyboardAvoidingView handles that). */
@@ -32,6 +39,9 @@ type ScreenProps = {
    * content — or content pushed up by the keyboard — scrolls.
    */
   contentContainerClassName?: string;
+  /** Pull-to-refresh. When omitted, the scroll view has no refresh control. */
+  onRefresh?: () => void | Promise<unknown>;
+  refreshing?: boolean;
 };
 
 /**
@@ -46,12 +56,31 @@ type ScreenProps = {
  *    window, and KeyboardAvoidingView padding is unreliable there. We pad the
  *    screen by the keyboard height from Keyboard events instead.
  */
-export function Screen({ children, header, contentContainerClassName = 'grow' }: ScreenProps) {
+export function Screen({
+  children,
+  header,
+  contentContainerClassName = 'grow',
+  onRefresh,
+  refreshing: refreshingProp,
+}: ScreenProps) {
   // Screens hide their navigation header (headerShown: false), so without this
   // the top content would sit under the status bar / iOS notch / Dynamic
   // Island. Pad the container by the top inset; the tab bar handles the bottom.
   const insets = useSafeAreaInsets();
   const androidKeyboard = useAndroidKeyboardInset();
+  const [internalRefreshing, setInternalRefreshing] = useState(false);
+  const refreshing = refreshingProp ?? internalRefreshing;
+
+  async function handleRefresh() {
+    if (!onRefresh) return;
+    if (refreshingProp === undefined) setInternalRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      if (refreshingProp === undefined) setInternalRefreshing(false);
+    }
+  }
+
   return (
     <KeyboardAvoidingView
       className="flex-1 bg-background"
@@ -61,11 +90,22 @@ export function Screen({ children, header, contentContainerClassName = 'grow' }:
       {header}
       <View testID="screen-keyboard-avoid" style={{ flex: 1, paddingBottom: androidKeyboard }}>
         <ScrollView
+          testID="screen-scroll"
           className="flex-1"
           contentContainerClassName={contentContainerClassName}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => void handleRefresh()}
+                tintColor="#14bfa6"
+                colors={['#14bfa6']}
+              />
+            ) : undefined
+          }
         >
           {children}
         </ScrollView>

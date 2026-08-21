@@ -134,7 +134,11 @@ export default function DiarioEdit() {
   }
 
   return (
-    <Screen contentContainerClassName="grow p-6">
+    <Screen
+      contentContainerClassName="grow p-6"
+      onRefresh={() => logsQuery.refetch()}
+      refreshing={Boolean(logsQuery.isRefetching)}
+    >
       <View className="gap-6">
         <View className="gap-1">
           <Text className="font-heading text-2xl text-foreground">{logTitle(log)}</Text>

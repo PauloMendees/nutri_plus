@@ -57,37 +57,46 @@ export default function DiarioIndex() {
   const groups = groupByDay(logs);
 
   return (
-    <Screen header={<BrandHeader />} contentContainerClassName="grow p-6">
-      <View className="gap-4">
-        <Text className="font-heading text-2xl text-foreground">Diário</Text>
+    <View className="flex-1 bg-background">
+      <Screen
+        header={<BrandHeader />}
+        contentContainerClassName="grow p-6"
+        onRefresh={() => query.refetch()}
+        refreshing={Boolean(query.isRefetching)}
+      >
+        <View className="gap-4">
+          <Text className="font-heading text-2xl text-foreground">Diário</Text>
+          {logs.length === 0 ? (
+            <Text className="font-sans text-center text-base text-muted-foreground">
+              Nenhuma refeição registrada ainda.
+            </Text>
+          ) : (
+            groups.map((group) => (
+              <View key={group.date} className="gap-2">
+                <Text className="font-sans-medium text-sm text-foreground">{group.date}</Text>
+                {group.logs.map((log) => (
+                  <Pressable
+                    key={log.id}
+                    onPress={() => router.push(`/diario/${log.id}`)}
+                    className="gap-1 rounded-xl border border-border bg-card p-4"
+                  >
+                    <View className="flex-row items-baseline justify-between gap-3">
+                      <Text className="flex-1 font-sans-medium text-base text-foreground">{logTitle(log)}</Text>
+                      <Text className="font-sans text-sm text-muted-foreground">{formatTime(log.consumedAt)}</Text>
+                    </View>
+                    {log.note ? (
+                      <Text className="font-sans text-sm text-muted-foreground">{log.note}</Text>
+                    ) : null}
+                  </Pressable>
+                ))}
+              </View>
+            ))
+          )}
+        </View>
+      </Screen>
+      <View testID="meal-diary-register-footer" className="border-t border-border bg-background px-6 py-4">
         <Button label="Registrar refeição" onPress={() => router.push('/diario/nova')} />
-        {logs.length === 0 ? (
-          <Text className="font-sans text-center text-base text-muted-foreground">
-            Nenhuma refeição registrada ainda.
-          </Text>
-        ) : (
-          groups.map((group) => (
-            <View key={group.date} className="gap-2">
-              <Text className="font-sans-medium text-sm text-foreground">{group.date}</Text>
-              {group.logs.map((log) => (
-                <Pressable
-                  key={log.id}
-                  onPress={() => router.push(`/diario/${log.id}`)}
-                  className="gap-1 rounded-xl border border-border bg-card p-4"
-                >
-                  <View className="flex-row items-baseline justify-between gap-3">
-                    <Text className="flex-1 font-sans-medium text-base text-foreground">{logTitle(log)}</Text>
-                    <Text className="font-sans text-sm text-muted-foreground">{formatTime(log.consumedAt)}</Text>
-                  </View>
-                  {log.note ? (
-                    <Text className="font-sans text-sm text-muted-foreground">{log.note}</Text>
-                  ) : null}
-                </Pressable>
-              ))}
-            </View>
-          ))
-        )}
       </View>
-    </Screen>
+    </View>
   );
 }

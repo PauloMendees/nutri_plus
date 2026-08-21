@@ -178,7 +178,12 @@ export default function Home() {
 
   if (assessments.length === 0) {
     return (
-      <Screen header={<BrandHeader />} contentContainerClassName="grow justify-center p-6">
+      <Screen
+        header={<BrandHeader />}
+        contentContainerClassName="grow justify-center p-6"
+        onRefresh={() => Promise.all([query.refetch(), targetQuery.refetch(), nutritionist.refetch()])}
+        refreshing={Boolean(query.isRefetching || targetQuery.isRefetching || nutritionist.isRefetching)}
+      >
         <View className="items-center gap-4">
           <Text className="font-heading text-2xl text-foreground">Olá, {name}</Text>
           {targetQuery.data ? (
@@ -234,7 +239,12 @@ export default function Home() {
   ];
 
   return (
-    <Screen header={<BrandHeader />} contentContainerClassName="grow p-6">
+    <Screen
+      header={<BrandHeader />}
+      contentContainerClassName="grow p-6"
+      onRefresh={() => Promise.all([query.refetch(), targetQuery.refetch(), nutritionist.refetch()])}
+      refreshing={Boolean(query.isRefetching || targetQuery.isRefetching || nutritionist.isRefetching)}
+    >
       <View className="gap-6">
         <View className="gap-1">
           <Text className="font-heading text-2xl text-foreground">Olá, {name}</Text>

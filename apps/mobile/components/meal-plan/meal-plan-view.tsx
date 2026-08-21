@@ -46,7 +46,12 @@ export function MealPlanView({ planId, header }: { planId: string; header?: Reac
   }
 
   return (
-    <Screen header={header} contentContainerClassName="grow p-6">
+    <Screen
+      header={header}
+      contentContainerClassName="grow p-6"
+      onRefresh={() => query.refetch()}
+      refreshing={Boolean(query.isRefetching)}
+    >
       <View className="gap-6">
         <View className="gap-1">
           <Text className="font-heading text-2xl text-foreground">{plan.title ?? 'Plano alimentar'}</Text>

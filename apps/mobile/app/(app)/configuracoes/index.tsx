@@ -103,7 +103,12 @@ export default function ConfiguracoesIndex() {
   }
 
   return (
-    <Screen header={<BrandHeader />} contentContainerClassName="grow p-6">
+    <Screen
+      header={<BrandHeader />}
+      contentContainerClassName="grow p-6"
+      onRefresh={() => nutritionist.refetch()}
+      refreshing={Boolean(nutritionist.isRefetching)}
+    >
       <View className="gap-8">
         <Text className="font-heading text-2xl text-foreground">Configurações</Text>
 

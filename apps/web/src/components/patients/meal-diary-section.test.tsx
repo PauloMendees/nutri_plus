@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const usePatientMealLogs = vi.fn();
@@ -66,11 +66,25 @@ describe('MealDiarySection', () => {
   it('requests the last 30 days by default and switches range', async () => {
     usePatientMealLogs.mockReturnValue({ isLoading: false, isError: false, data: [] });
     render(<MealDiarySection patientId="p1" />);
-    expect(usePatientMealLogs).toHaveBeenCalledWith('p1', '30');
+    expect(usePatientMealLogs).toHaveBeenCalledWith('p1', { kind: 'preset', range: '30' });
     expect(screen.getByRole('button', { name: /^30$/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^90$/ })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /^tudo$/i }));
-    expect(usePatientMealLogs).toHaveBeenCalledWith('p1', 'all');
+    expect(usePatientMealLogs).toHaveBeenCalledWith('p1', { kind: 'preset', range: 'all' });
+  });
+
+  it('filters by a custom date range and returns to a preset', async () => {
+    usePatientMealLogs.mockReturnValue({ isLoading: false, isError: false, data: [] });
+    render(<MealDiarySection patientId="p1" />);
+    fireEvent.change(screen.getByLabelText(/data inicial/i), { target: { value: '2026-08-01' } });
+    fireEvent.change(screen.getByLabelText(/data final/i), { target: { value: '2026-08-15' } });
+    expect(usePatientMealLogs).toHaveBeenCalledWith('p1', {
+      kind: 'custom',
+      from: '2026-08-01',
+      to: '2026-08-15',
+    });
+    await userEvent.click(screen.getByRole('button', { name: /^30$/ }));
+    expect(usePatientMealLogs).toHaveBeenCalledWith('p1', { kind: 'preset', range: '30' });
   });
 
   it('falls back when PLAN mealName or optionLabel is null', () => {

@@ -50,9 +50,18 @@ export class SubscriptionService {
     private readonly config: ConfigService,
   ) {}
 
+  private async requireSub(nutritionistId: string) {
+    const existing = await this.prisma.subscription.findUnique({ where: { nutritionistId } });
+    if (existing) return existing;
+    // Accounts created before billing shipped have a NutritionistProfile
+    // without a Subscription row. Checkout/getView used to 404 them.
+    return this.prisma.subscription.create({
+      data: { nutritionistId, status: 'TRIALING' },
+    });
+  }
+
   async getView(nutritionistId: string): Promise<SubscriptionView> {
-    const sub = await this.prisma.subscription.findUnique({ where: { nutritionistId } });
-    if (!sub) throw new NotFoundException('Assinatura não encontrada');
+    const sub = await this.requireSub(nutritionistId);
     const entitlements = await this.entitlements.getEntitlements(nutritionistId);
     const payments = await this.prisma.subscriptionPayment.findMany({
       where: { subscriptionId: sub.id },
@@ -90,8 +99,7 @@ export class SubscriptionService {
     customer: { name: string; email: string },
     remoteIp: string,
   ): Promise<CheckoutResponse> {
-    const sub = await this.prisma.subscription.findUnique({ where: { nutritionistId } });
-    if (!sub) throw new NotFoundException('Assinatura não encontrada');
+    const sub = await this.requireSub(nutritionistId);
 
     let customerId = sub.asaasCustomerId;
     if (!customerId) {
@@ -136,8 +144,7 @@ export class SubscriptionService {
   }
 
   async startTrial(nutritionistId: string): Promise<void> {
-    const sub = await this.prisma.subscription.findUnique({ where: { nutritionistId } });
-    if (!sub) throw new NotFoundException('Assinatura não encontrada');
+    await this.requireSub(nutritionistId);
     await this.prisma.subscription.update({
       where: { nutritionistId },
       data: { status: 'TRIALING', trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 24 * 3600 * 1000), onboardedAt: new Date() },

@@ -76,7 +76,7 @@ export function PatientDetail({
   }
 
   if (query.isLoading) {
-    return <Skeleton className="h-64 w-full max-w-3xl" />;
+    return <Skeleton className="h-64 w-full max-w-6xl" />;
   }
 
   if (query.isError || !query.data) {
@@ -91,7 +91,7 @@ export function PatientDetail({
   const patient = query.data;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="mx-auto max-w-6xl space-y-4">
       <Link
         href="/patients"
         className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline"

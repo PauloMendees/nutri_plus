@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import type { CreateMealLogRequest, MealPlan, MealPlanSummary } from '@nutri-plus/shared-types';
 import { Button } from '../ui/button';
+import { DatePickerField } from '../ui/date-picker-field';
 import { TextField } from '../ui/text-field';
 
 export type MealLogFormValues = {
@@ -66,7 +67,6 @@ export function MealLogForm({
     .filter((meal) => meal.options.length > 0)
     .slice()
     .sort((a, b) => a.order - b.order);
-  const selectedMeal = selectableMeals.find((meal) => meal.id === selectedMealId);
 
   function handleSave() {
     const consumed = new Date(`${consumedAtDate}T${consumedAtTime}:00`);
@@ -108,12 +108,10 @@ export function MealLogForm({
 
   return (
     <View className="gap-4">
-      <TextField
-        label="Data (AAAA-MM-DD)"
+      <DatePickerField
+        label="Data (DD/MM/AAAA)"
         value={consumedAtDate}
-        onChangeText={setConsumedAtDate}
-        autoCapitalize="none"
-        placeholder="AAAA-MM-DD"
+        onChange={setConsumedAtDate}
       />
       <TextField
         label="Hora (HH:mm)"
@@ -164,48 +162,55 @@ export function MealLogForm({
       ) : null}
 
       {source === 'PLAN' && !noPlan ? (
-        <View className="gap-2">
+        <View className="gap-3">
           {selectableMeals.map((meal) => (
-            <Pressable
-              key={meal.id}
-              accessibilityRole="button"
-              onPress={() => {
-                if (selectedMealId !== meal.id) setMealOptionId('');
-                setSelectedMealId(meal.id);
-              }}
-              className={`rounded-xl border p-4 ${
-                selectedMealId === meal.id ? 'border-primary bg-secondary' : 'border-border bg-card'
-              }`}
-            >
-              <Text className="font-sans-medium text-base text-foreground">
-                {meal.timeLabel ? `${meal.timeLabel} · ` : ''}
-                {meal.name ?? 'Refeição'}
-              </Text>
-            </Pressable>
-          ))}
-          {selectedMeal
-            ? selectedMeal.options
-                .slice()
-                .sort((a, b) => a.order - b.order)
-                .map((opt) => (
-                  <Pressable
-                    key={opt.id}
-                    accessibilityRole="button"
-                    onPress={() => setMealOptionId(opt.id)}
-                    className={`gap-1 rounded-xl border p-4 ${
-                      mealOptionId === opt.id ? 'border-primary bg-secondary' : 'border-border bg-card'
-                    }`}
-                  >
-                    <Text className="font-sans-medium text-sm text-primary">{opt.label}</Text>
-                    {opt.items.map((item) => (
-                      <Text key={item.id} className="font-sans text-sm text-foreground">
-                        {item.foodName ?? '—'}
-                        {item.quantity ? ` · ${item.quantity}` : ''}
-                      </Text>
+            <View key={meal.id} className="gap-2">
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  if (selectedMealId !== meal.id) setMealOptionId('');
+                  setSelectedMealId(meal.id);
+                }}
+                className={`rounded-xl border p-4 ${
+                  selectedMealId === meal.id ? 'border-primary bg-secondary' : 'border-border bg-card'
+                }`}
+              >
+                <Text className="font-sans-medium text-base text-foreground">
+                  {meal.timeLabel ? `${meal.timeLabel} · ` : ''}
+                  {meal.name ?? 'Refeição'}
+                </Text>
+              </Pressable>
+              {selectedMealId === meal.id ? (
+                <View testID={`meal-${meal.id}-options`} className="ml-4 gap-2">
+                  {meal.options
+                    .slice()
+                    .sort((a, b) => a.order - b.order)
+                    .map((opt) => (
+                      <Pressable
+                        key={opt.id}
+                        accessibilityRole="button"
+                        onPress={() => setMealOptionId(opt.id)}
+                        className={`gap-1 rounded-xl border-2 border-dashed p-4 ${
+                          mealOptionId === opt.id
+                            ? 'border-primary bg-secondary'
+                            : 'border-primary/40 bg-card'
+                        }`}
+                      >
+                        <Text className="font-sans-medium text-sm text-primary">
+                          {opt.label ?? 'Opção'}
+                        </Text>
+                        {opt.items.map((item) => (
+                          <Text key={item.id} className="font-sans text-sm text-foreground">
+                            {item.foodName ?? '—'}
+                            {item.quantity ? ` · ${item.quantity}` : ''}
+                          </Text>
+                        ))}
+                      </Pressable>
                     ))}
-                  </Pressable>
-                ))
-            : null}
+                </View>
+              ) : null}
+            </View>
+          ))}
         </View>
       ) : null}
 

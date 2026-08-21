@@ -3,8 +3,9 @@
 import { useMemo, useState } from 'react';
 import type { MealLog, MealLogItemSnapshot } from '@nutri-plus/shared-types';
 import { usePatientMealLogs } from '@/lib/queries/meal-logs';
-import type { MealLogRange } from '@/lib/api/meal-logs';
+import type { MealLogFilter, MealLogRange } from '@/lib/api/meal-logs';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const RANGES: { value: MealLogRange; label: string }[] = [
@@ -42,27 +43,65 @@ function foodLine(item: MealLogItemSnapshot): string {
 
 export function MealDiarySection({ patientId }: { patientId: string }) {
   const [range, setRange] = useState<MealLogRange>('30');
-  const query = usePatientMealLogs(patientId, range);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const custom = Boolean(from && to);
+  const filter: MealLogFilter = useMemo(
+    () => (custom ? { kind: 'custom', from, to } : { kind: 'preset', range }),
+    [custom, from, to, range],
+  );
+  const query = usePatientMealLogs(patientId, filter);
   const logs = query.data ?? [];
   const groups = useMemo(() => groupByDay(logs), [logs]);
 
+  function applyPreset(next: MealLogRange) {
+    setFrom('');
+    setTo('');
+    setRange(next);
+  }
+
   return (
     <section className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-heading text-base font-bold">Diário</h2>
-        <div className="flex w-fit items-center gap-1 rounded-full border p-1 text-sm">
-          {RANGES.map((r) => (
-            <Button
-              key={r.value}
-              type="button"
-              variant={range === r.value ? 'default' : 'ghost'}
-              size="sm"
-              aria-pressed={range === r.value}
-              onClick={() => setRange(r.value)}
-            >
-              {r.label}
-            </Button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex w-fit items-center gap-1 rounded-full border p-1 text-sm">
+            {RANGES.map((r) => (
+              <Button
+                key={r.value}
+                type="button"
+                variant={!custom && range === r.value ? 'default' : 'ghost'}
+                size="sm"
+                aria-pressed={!custom && range === r.value}
+                onClick={() => applyPreset(r.value)}
+              >
+                {r.label}
+              </Button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <label className="flex items-center gap-1.5 text-muted-foreground">
+              De
+              <Input
+                type="date"
+                aria-label="Data inicial"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+                className="h-8 w-auto min-w-[9.5rem] text-sm"
+              />
+            </label>
+            <label className="flex items-center gap-1.5 text-muted-foreground">
+              Até
+              <Input
+                type="date"
+                aria-label="Data final"
+                value={to}
+                min={from || undefined}
+                onChange={(e) => setTo(e.target.value)}
+                className="h-8 w-auto min-w-[9.5rem] text-sm"
+              />
+            </label>
+          </div>
         </div>
       </div>
 

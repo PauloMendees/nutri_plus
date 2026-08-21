@@ -48,6 +48,14 @@ describe('Diário index', () => {
     await render(<DiarioIndex />);
     expect(screen.getByText('Nenhuma refeição registrada ainda.')).toBeTruthy();
     expect(screen.getByRole('button', { name: /registrar refeição/i })).toBeTruthy();
+    expect(screen.getByTestId('meal-diary-register-footer')).toBeTruthy();
+  });
+
+  it('keeps the register button in the footer when logs exist', async () => {
+    mockUseMyMealLogs.mockReturnValue({ isLoading: false, isError: false, data: [planLog()] });
+    await render(<DiarioIndex />);
+    expect(screen.getByTestId('meal-diary-register-footer')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /registrar refeição/i })).toBeTruthy();
   });
 
   it('shows a PLAN log meal name', async () => {
