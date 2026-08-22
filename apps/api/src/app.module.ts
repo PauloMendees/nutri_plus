@@ -32,6 +32,7 @@ import { BillingModule } from './billing/billing.module';
 import { SubscriptionGuard } from './billing/subscription.guard';
 import { SupportModule } from './support/support.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { FeedbackModule } from './feedback/feedback.module';
     BillingModule,
     SupportModule,
     FeedbackModule,
+    OnboardingModule,
   ],
   // Global pipe/filter/guards are registered as providers (not imperatively in
   // main.ts) so any bootstrap of AppModule — including e2e Test modules —
