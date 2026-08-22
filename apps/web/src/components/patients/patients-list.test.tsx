@@ -129,4 +129,22 @@ describe('PatientsList', () => {
     expect(screen.getByText(/nenhum paciente ainda/i)).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /cadastrar primeiro paciente/i })).not.toBeInTheDocument();
   });
+
+  it('marks the novo-paciente CTA and search with tour anchors', () => {
+    usePatients.mockReturnValue({ isLoading: false, isError: false, isFetching: false, data: envelope() });
+    render(<PatientsList />);
+    expect(screen.getByRole('link', { name: /novo paciente/i })).toHaveAttribute('data-tour', 'patients.new');
+    expect(screen.getByLabelText('Buscar paciente')).toHaveAttribute('data-tour', 'patients.search');
+  });
+
+  it('shows a Demo badge on demo patients', () => {
+    usePatients.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isFetching: false,
+      data: envelope({ items: [{ ...patient, isDemo: true }] }),
+    });
+    render(<PatientsList />);
+    expect(screen.getAllByText('Demo').length).toBeGreaterThan(0);
+  });
 });

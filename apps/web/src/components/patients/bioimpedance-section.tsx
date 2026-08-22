@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   CartesianGrid,
   Line,
@@ -24,6 +24,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { AssessmentDialog } from '@/components/patients/assessment-dialog';
+import { parseTourSearch } from '@/lib/onboarding/session';
 
 type MetricKey = Extract<
   keyof BodyAssessment,
@@ -86,6 +87,13 @@ export function BioimpedanceSection({
 
   const data = query.data ?? [];
   const latest = data[0];
+
+  useEffect(() => {
+    if (!canEdit) return;
+    if (parseTourSearch(window.location.search)?.chapterId === 'bioimpedancia') {
+      setCreating(true);
+    }
+  }, [canEdit]);
 
   // Chart series: chronological (oldest→newest), only points where the metric exists.
   const series = useMemo(

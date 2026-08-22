@@ -66,6 +66,12 @@ export class PatientsController {
     return this.patients.updatePatient(ctx, id, dto);
   }
 
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeDemo(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
+    return this.patients.deleteDemoPatient(ctx, id);
+  }
+
   @Post(':id/photo')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 2 * 1024 * 1024 } }))
   uploadPhoto(

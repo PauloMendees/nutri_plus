@@ -5,10 +5,22 @@ import { ApiError } from '@/lib/api/client';
 
 const push = vi.fn();
 const mutateAsync = vi.fn();
+const isPlayCadastroSubmit = vi.fn(() => false);
+const notifyChapterActionSucceeded = vi.fn(() => Promise.resolve());
+const exit = vi.fn();
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh: vi.fn() }) }));
 vi.mock('@/lib/queries/patients', () => ({
   useCreatePatient: () => ({ mutateAsync, isPending: false }),
+}));
+vi.mock('@/components/onboarding/tour-provider', () => ({
+  useTour: () => ({
+    start: vi.fn(),
+    exit,
+    skipChapter: vi.fn(),
+    isPlayCadastroSubmit,
+    notifyChapterActionSucceeded,
+  }),
 }));
 
 import { CreatePatientForm } from './create-patient-form';
@@ -16,6 +28,9 @@ import { CreatePatientForm } from './create-patient-form';
 beforeEach(() => {
   push.mockReset();
   mutateAsync.mockReset();
+  exit.mockReset();
+  notifyChapterActionSucceeded.mockReset().mockResolvedValue(undefined);
+  isPlayCadastroSubmit.mockReset().mockReturnValue(false);
 });
 
 describe('CreatePatientForm', () => {
@@ -37,7 +52,56 @@ describe('CreatePatientForm', () => {
         expect.objectContaining({ name: 'Maria Silva', email: 'maria@x.com' }),
       ),
     );
+    expect(mutateAsync.mock.calls[0][0].demo).toBeUndefined();
+    expect(notifyChapterActionSucceeded).not.toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith('/patients/p-new?created=1');
+  });
+
+  it('hides the fictional-data control outside the cadastro tour', () => {
+    render(<CreatePatientForm />);
+    expect(screen.queryByRole('button', { name: /preencher com dados fictícios/i })).not.toBeInTheDocument();
+  });
+
+  it('fills the form from Preencher com dados fictícios during the cadastro tour', async () => {
+    isPlayCadastroSubmit.mockReturnValue(true);
+    render(<CreatePatientForm />);
+    await userEvent.click(screen.getByRole('button', { name: /preencher com dados fictícios/i }));
+    expect(screen.getByLabelText(/nome/i)).toHaveValue('Maria Demonstração');
+    expect((screen.getByLabelText(/e-mail/i) as HTMLInputElement).value).toMatch(/^demo\.web\.\d+@example\.com$/);
+  });
+
+  it('marks the submit button with the tour anchor', () => {
+    render(<CreatePatientForm />);
+    expect(screen.getByRole('button', { name: /criar paciente/i })).toHaveAttribute(
+      'data-tour',
+      'patients.create.submit',
+    );
+  });
+
+  it('sends demo: true on submit while the cadastro play step is active', async () => {
+    isPlayCadastroSubmit.mockReturnValue(true);
+    mutateAsync.mockResolvedValue({ id: 'p-demo' });
+    render(<CreatePatientForm />);
+    await userEvent.type(screen.getByLabelText(/nome/i), 'Maria Demonstração');
+    await userEvent.type(screen.getByLabelText(/e-mail/i), 'demo.web@example.com');
+    await userEvent.click(screen.getByRole('button', { name: /criar paciente/i }));
+    await waitFor(() =>
+      expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ demo: true })),
+    );
+    expect(notifyChapterActionSucceeded).toHaveBeenCalledWith({ demoPatientId: 'p-demo' });
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('does not notify the tour when creation fails', async () => {
+    isPlayCadastroSubmit.mockReturnValue(true);
+    mutateAsync.mockRejectedValue(new ApiError(409, {}));
+    render(<CreatePatientForm />);
+    await userEvent.type(screen.getByLabelText(/nome/i), 'Maria Silva');
+    await userEvent.type(screen.getByLabelText(/e-mail/i), 'maria@x.com');
+    await userEvent.click(screen.getByRole('button', { name: /criar paciente/i }));
+    expect(await screen.findByText(/já existe/i)).toBeInTheDocument();
+    expect(notifyChapterActionSucceeded).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
   });
 
   it('shows the API message when invite is rejected', async () => {

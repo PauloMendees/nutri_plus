@@ -26,7 +26,9 @@ export function RecordatorioSection({
         <h2 className="font-heading text-base font-bold">Recordatórios 24h</h2>
         {canEdit && (
           <Button variant="outline" size="sm" className="rounded-full" asChild>
-            <Link href={`/patients/${patientId}/recordatorios/novo`}>Novo recordatório</Link>
+            <Link href={`/patients/${patientId}/recordatorios/novo`} data-tour="patients.recall.new">
+              Novo recordatório
+            </Link>
           </Button>
         )}
       </div>

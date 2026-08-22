@@ -6,6 +6,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { anamneseSchema, type AnamneseFormValues } from '@/lib/validation/anamnese';
 import { useAnamnese, useUpsertAnamnese } from '@/lib/queries/anamnese';
+import { ApiError } from '@/lib/api/client';
+import { registerFixture } from '@/lib/onboarding/fixtures';
+import { useTour } from '@/components/onboarding/tour-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,6 +34,7 @@ const GROUPS: { title: string; fields: { key: FieldKey; label: string; num?: boo
 const str = (v: number | string | null | undefined) => (v == null ? '' : String(v));
 
 export function AnamneseSection({ patientId, canEdit }: { patientId: string; canEdit: boolean }) {
+  const tour = useTour();
   const query = useAnamnese(patientId);
   const upsert = useUpsertAnamnese(patientId);
   const form = useForm<AnamneseFormValues>({
@@ -47,13 +51,39 @@ export function AnamneseSection({ patientId, canEdit }: { patientId: string; can
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query.data]);
 
+  useEffect(() => {
+    return registerFixture('anamnese', () => {
+      form.reset({
+        mainComplaint: 'Cansaço e desejo de reeducação alimentar (demo)',
+        medications: 'Nenhum',
+        familyHistory: 'Sem antecedentes relevantes',
+        supplements: 'Nenhum',
+        sleepHoursPerNight: '7',
+        waterIntakeLiters: '2',
+        alcoholUse: 'Social',
+        smoking: 'Não',
+        physicalActivity: 'Caminhada 3x/semana',
+        bowelHabit: 'Regular',
+        mealsPerDay: '4',
+        eatingHabits: '3 refeições + lanche',
+        foodPreferences: 'Aveia, frutas',
+        clinicalNotes: 'Anamnese de demonstração',
+      } as unknown as AnamneseFormValues);
+    });
+  }, [form]);
+
   if (query.isLoading) return <Skeleton className="h-64 w-full max-w-4xl" />;
 
   async function onSubmit(values: AnamneseFormValues) {
     try {
       await upsert.mutateAsync(values);
       toast.success('Anamnese salva.');
-    } catch {
+      await tour.notifyChapterActionSucceeded();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 402) {
+        tour.exit();
+        return;
+      }
       toast.error('Não foi possível salvar a anamnese.');
     }
   }
@@ -81,7 +111,12 @@ export function AnamneseSection({ patientId, canEdit }: { patientId: string; can
       </fieldset>
       {canEdit && (
         <div className="flex justify-end">
-          <Button type="submit" className="rounded-full" disabled={upsert.isPending}>
+          <Button
+            type="submit"
+            className="rounded-full"
+            disabled={upsert.isPending}
+            data-tour="patients.anamnese.save"
+          >
             {upsert.isPending ? 'Salvando…' : 'Salvar'}
           </Button>
         </div>

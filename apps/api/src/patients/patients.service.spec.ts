@@ -107,7 +107,7 @@ describe('PatientsService', () => {
     expect(prisma.patientProfile.findMany).toHaveBeenCalledWith({
       where: { nutritionistId: 'nutri-9' },
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, authProvider: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
       },
       orderBy: { user: { name: 'asc' } },
@@ -118,7 +118,7 @@ describe('PatientsService', () => {
       where: { nutritionistId: 'nutri-9' },
     });
     expect(result).toEqual({
-      items: [{ id: 'p1', height: null, imc: null }],
+      items: [{ id: 'p1', height: null, imc: null, isDemo: false }],
       total: 1,
       page: 1,
       pageSize: 20,
@@ -134,7 +134,7 @@ describe('PatientsService', () => {
     expect(prisma.patientProfile.findMany).toHaveBeenCalledWith({
       where: { nutritionistId: 'nutri-1' },
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, authProvider: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
       },
       orderBy: { user: { name: 'asc' } },
@@ -145,7 +145,7 @@ describe('PatientsService', () => {
       where: { nutritionistId: 'nutri-1' },
     });
     expect(result).toEqual({
-      items: [{ id: 'p1', height: null, imc: null }],
+      items: [{ id: 'p1', height: null, imc: null, isDemo: false }],
       total: 1,
       page: 1,
       pageSize: 20,
@@ -170,7 +170,7 @@ describe('PatientsService', () => {
     expect(prisma.patientProfile.findMany).toHaveBeenCalledWith({
       where,
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, authProvider: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
       },
       orderBy: { user: { name: 'asc' } },
@@ -179,7 +179,7 @@ describe('PatientsService', () => {
     });
     expect(prisma.patientProfile.count).toHaveBeenCalledWith({ where });
     expect(result).toEqual({
-      items: [{ id: 'p1', height: 170, imc: 24.22 }],
+      items: [{ id: 'p1', height: 170, imc: 24.22, isDemo: false }],
       total: 35,
       page: 2,
       pageSize: 10,
@@ -212,7 +212,7 @@ describe('PatientsService', () => {
     const result = await service.listPatients(ctx);
 
     expect(result.items[0]).not.toHaveProperty('consents');
-    expect(result.items[0]).toEqual({ id: 'p1', height: null, imc: null });
+    expect(result.items[0]).toEqual({ id: 'p1', height: null, imc: null, isDemo: false });
   });
 
   it('returns patient detail with the latest assessment, scoped by ownership', async () => {
@@ -228,12 +228,12 @@ describe('PatientsService', () => {
     expect(prisma.patientProfile.findFirst).toHaveBeenCalledWith({
       where: { id: 'p1', nutritionistId: 'nutri-1' },
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, authProvider: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
         consents: { orderBy: { acceptedAt: 'desc' }, take: 1 },
       },
     });
-    expect(result).toEqual({ id: 'p1', height: null, assessments: [], imc: null, latestConsent: null });
+    expect(result).toEqual({ id: 'p1', height: null, assessments: [], imc: null, latestConsent: null, isDemo: false });
   });
 
   it('returns the latest consent when the patient has accepted one', async () => {
@@ -252,6 +252,7 @@ describe('PatientsService', () => {
       assessments: [],
       imc: null,
       latestConsent: { policyVersion: '2026-07-09', acceptedAt: new Date('2026-07-10') },
+      isDemo: false,
     });
   });
 
@@ -287,13 +288,13 @@ describe('PatientsService', () => {
       where: { id: 'p1' },
       data: dto,
       include: {
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, authProvider: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
         consents: { orderBy: { acceptedAt: 'desc' }, take: 1 },
       },
     });
     const { consents: _consents, ...restFull } = full;
-    expect(result).toEqual({ ...restFull, imc: null, latestConsent: null });
+    expect(result).toEqual({ ...restFull, imc: null, latestConsent: null, isDemo: false });
   });
 
   it('does not update when the patient is not owned', async () => {
@@ -518,12 +519,12 @@ describe('PatientsService', () => {
       expect(prisma.patientProfile.findFirst).toHaveBeenCalledWith({
         where: { id: 'pp1', nutritionistId: 'nutri-1' },
         include: {
-          user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, name: true, email: true, authProvider: true } },
           assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
           consents: { orderBy: { acceptedAt: 'desc' }, take: 1 },
         },
       });
-      expect(result).toEqual({ id: 'pp1', height: null, assessments: [], imc: null, latestConsent: null });
+      expect(result).toEqual({ id: 'pp1', height: null, assessments: [], imc: null, latestConsent: null, isDemo: false });
     });
 
     it("seeds the new patient's toggles from the nutritionist's configured defaults", async () => {
@@ -576,6 +577,81 @@ describe('PatientsService', () => {
         service.createPatient(ctx, { name: 'Ann', email: 'qa@example.com' } as any),
       ).rejects.toBeInstanceOf(UnprocessableEntityException);
       expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
+    });
+
+    it('demo: true skips invite, forces app toggles off, upserts progress, returns isDemo', async () => {
+      users.createDemoPatient.mockResolvedValue({
+        patientProfile: { id: 'pp-demo' },
+      } as any);
+      prisma.onboardingProgress.upsert.mockResolvedValue({} as any);
+      prisma.patientProfile.findFirst.mockResolvedValue({
+        id: 'pp-demo',
+        height: null,
+        assessments: [],
+        consents: [],
+        user: { id: 'u-d', name: 'Maria Demonstração', email: 'demo.user-1.1@example.com', authProvider: 'demo' },
+      } as any);
+
+      const result = await service.createPatient(ctx, {
+        name: 'Maria Demonstração',
+        email: 'demo.user-1.1@example.com',
+        demo: true,
+      } as any);
+
+      expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
+      expect(users.createDemoPatient).toHaveBeenCalledWith(expect.objectContaining({
+        email: 'demo.user-1.1@example.com',
+        name: 'Maria Demonstração',
+        nutritionistId: 'nutri-1',
+        clinical: expect.objectContaining({ canLogAssessments: false, showMealTargetToPatient: false }),
+      }));
+      expect(prisma.onboardingProgress.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        where: { userId_tourId: { userId: 'user-1', tourId: 'patients' } },
+        create: expect.objectContaining({ userId: 'user-1', tourId: 'patients', demoPatientId: 'pp-demo' }),
+        update: expect.objectContaining({ demoPatientId: 'pp-demo' }),
+      }));
+      expect(result.isDemo).toBe(true);
+    });
+
+    it('demo: true still creates when email matches UNDELIVERABLE_EMAIL', async () => {
+      users.createDemoPatient.mockResolvedValue({ patientProfile: { id: 'pp-demo' } } as any);
+      prisma.onboardingProgress.upsert.mockResolvedValue({} as any);
+      prisma.patientProfile.findFirst.mockResolvedValue({
+        id: 'pp-demo', height: null, assessments: [], consents: [],
+        user: { id: 'u-d', name: 'Maria Demonstração', email: 'x@example.com', authProvider: 'demo' },
+      } as any);
+      await service.createPatient(ctx, { name: 'Maria Demonstração', email: 'x@example.com', demo: true } as any);
+      expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
+    });
+
+    it('without demo still rejects example.com before inviting', async () => {
+      await expect(
+        service.createPatient(ctx, { name: 'Ann', email: 'qa@example.com' } as any),
+      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+      expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteDemoPatient', () => {
+    it('403 when the patient is not a demo identity', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({
+        id: 'pp1',
+        userId: 'u1',
+        user: { authProvider: 'SUPABASE' },
+      } as any);
+      await expect(service.deleteDemoPatient(ctx, 'pp1')).rejects.toMatchObject({ status: 403 });
+      expect(prisma.user.delete).not.toHaveBeenCalled();
+    });
+
+    it('deletes the demo user (cascades profile) when authProvider is demo', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({
+        id: 'pp-demo',
+        userId: 'u-d',
+        user: { authProvider: 'demo' },
+      } as any);
+      prisma.user.delete.mockResolvedValue({} as any);
+      await service.deleteDemoPatient(ctx, 'pp-demo');
+      expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'u-d' } });
     });
   });
 

@@ -88,6 +88,14 @@ describe('MealPlanEditor (edit mode)', () => {
 
   it('saves the whole tree via updateMealPlan', async () => {
     render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    expect(screen.getByRole('button', { name: /^salvar$/i })).toHaveAttribute(
+      'data-tour',
+      'patients.plan.save',
+    );
+    expect(screen.getByRole('button', { name: /exportar pdf/i })).toHaveAttribute(
+      'data-tour',
+      'patients.plan.pdf',
+    );
     await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
     await waitFor(() => expect(updateMut).toHaveBeenCalledTimes(1));
     const arg = updateMut.mock.calls[0][0];

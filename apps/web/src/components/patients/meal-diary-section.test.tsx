@@ -18,6 +18,7 @@ describe('MealDiarySection', () => {
     usePatientMealLogs.mockReturnValue({ isLoading: false, isError: false, data: [] });
     render(<MealDiarySection patientId="p1" />);
     expect(screen.getByText(/o paciente ainda não registrou refeições no aplicativo/i)).toBeInTheDocument();
+    expect(document.querySelector('[data-tour="patients.diario"]')).toBeTruthy();
   });
 
   it('groups PLAN and FREE_TEXT rows by day', () => {

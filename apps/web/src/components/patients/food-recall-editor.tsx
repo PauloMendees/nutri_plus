@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import type { Food, FoodRecall } from '@nutri-plus/shared-types';
 import { macrosForPortion } from '@nutri-plus/shared-types';
 import { foodRecallSchema, type FoodRecallFormValues } from '@/lib/validation/food-recall';
+import { registerFixture } from '@/lib/onboarding/fixtures';
 import {
   useCreateFoodRecall,
   useDeleteFoodRecall,
@@ -119,6 +120,35 @@ export function FoodRecallEditor({
     if (!isCreate && query.data) form.reset(toDefaults(query.data));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query.data]);
+
+  useEffect(() => {
+    return registerFixture('food-recall', () => {
+      form.reset({
+        recallDate: new Date().toISOString().slice(0, 10),
+        notes: 'Recordatório de demonstração',
+        meals: [
+          {
+            name: 'Café da manhã',
+            timeLabel: '08:00',
+            items: [
+              {
+                foodName: 'Aveia',
+                foodId: '',
+                quantity: '40 g',
+                grams: '40',
+                calories: '',
+                protein: '',
+                carbs: '',
+                fats: '',
+                fiber: '',
+                sodium: '',
+              },
+            ],
+          },
+        ],
+      });
+    });
+  }, [form]);
 
   const watched = form.watch('meals');
   function totalFor(macro: MacroKey): number {
@@ -227,7 +257,12 @@ export function FoodRecallEditor({
                 Excluir
               </Button>
             )}
-            <Button type="submit" className="rounded-full" disabled={pending}>
+            <Button
+              type="submit"
+              className="rounded-full"
+              disabled={pending}
+              data-tour="patients.recall.save"
+            >
               {pending ? 'Salvando…' : 'Salvar'}
             </Button>
           </div>

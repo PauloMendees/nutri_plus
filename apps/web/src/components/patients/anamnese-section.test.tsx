@@ -12,6 +12,17 @@ vi.mock('@/lib/queries/anamnese', () => ({
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+const notifyChapterActionSucceeded = vi.fn(() => Promise.resolve());
+vi.mock('@/components/onboarding/tour-provider', () => ({
+  useTour: () => ({
+    start: vi.fn(),
+    exit: vi.fn(),
+    skipChapter: vi.fn(),
+    isPlayCadastroSubmit: () => false,
+    notifyChapterActionSucceeded,
+  }),
+}));
+
 import { AnamneseSection } from './anamnese-section';
 
 function anamnese(over: Partial<PatientAnamnese> = {}): PatientAnamnese {
@@ -41,6 +52,7 @@ function anamnese(over: Partial<PatientAnamnese> = {}): PatientAnamnese {
 beforeEach(() => {
   useAnamneseMock.mockReset().mockReturnValue({ data: anamnese(), isLoading: false });
   mutateAsync.mockReset().mockResolvedValue(anamnese());
+  notifyChapterActionSucceeded.mockReset().mockResolvedValue(undefined);
 });
 
 describe('AnamneseSection', () => {
@@ -51,8 +63,13 @@ describe('AnamneseSection', () => {
 
   it('saves via "Salvar" calling the upsert mutation', async () => {
     render(<AnamneseSection patientId="p1" canEdit />);
+    expect(screen.getByRole('button', { name: /salvar/i })).toHaveAttribute(
+      'data-tour',
+      'patients.anamnese.save',
+    );
     await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+    expect(notifyChapterActionSucceeded).toHaveBeenCalled();
   });
 
   it('submits null (not omitted/undefined) for a field cleared by the user', async () => {
