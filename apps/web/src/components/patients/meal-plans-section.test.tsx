@@ -50,7 +50,14 @@ describe('MealPlansSection', () => {
     useMealPlans.mockReturnValue({ isLoading: false, isError: false, data: [] });
     render(<MealPlansSection patientId="p1" canEdit />);
     expect(screen.getByText(/nenhum plano ainda/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /gerar com ia/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /gerar com ia/i })).toHaveAttribute(
+      'data-tour',
+      'patients.plan.ai',
+    );
+    expect(screen.getByRole('link', { name: /novo plano/i })).toHaveAttribute(
+      'data-tour',
+      'patients.plan.new',
+    );
   });
 
   it('hides CTAs for employees', () => {

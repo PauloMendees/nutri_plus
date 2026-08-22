@@ -22,6 +22,7 @@ import { ProGate } from '@/components/billing/pro-gate';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PatientAvatar } from '@/components/patients/patient-avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatImc } from '@/lib/health/imc';
 
@@ -102,7 +103,10 @@ export function PatientDetail({
 
       <CreatedBanner show={created} />
 
-      <div className="flex items-center gap-3 rounded-xl border bg-card p-4">
+      <div
+        className="flex items-center gap-3 rounded-xl border bg-card p-4"
+        data-tour="patients.detail.header"
+      >
         <div className="relative">
           <PatientAvatar name={patient.user.name} photoUrl={patient.photoUrl} className="size-16 text-lg" />
           {photoPending && (
@@ -112,7 +116,10 @@ export function PatientDetail({
           )}
         </div>
         <div className="min-w-0">
-          <p className="font-bold">{patient.user.name}</p>
+          <p className="flex items-center gap-2 font-bold">
+            {patient.user.name}
+            {patient.isDemo ? <Badge>Demo</Badge> : null}
+          </p>
           <p className="truncate text-sm text-muted-foreground">{patient.user.email}</p>
           <p className="mt-1 text-xs text-muted-foreground">
             {patient.latestConsent
@@ -163,6 +170,7 @@ export function PatientDetail({
             className="rounded-full"
             onClick={onExport}
             disabled={exporting || (assessments.data?.length ?? 0) === 0}
+            data-tour="patients.export-evolution"
           >
             {exporting ? 'Exportando…' : 'Exportar evolução'}
           </Button>
@@ -176,13 +184,29 @@ export function PatientDetail({
 
       <Tabs defaultValue="dados">
         <TabsList>
-          <TabsTrigger value="dados">Dados</TabsTrigger>
-          <TabsTrigger value="anamnese">Anamnese</TabsTrigger>
-          <TabsTrigger value="bioimpedancia">Bioimpedância</TabsTrigger>
-          {canEdit && <TabsTrigger value="metas">Metas</TabsTrigger>}
-          <TabsTrigger value="planos">Planos alimentares</TabsTrigger>
-          <TabsTrigger value="recordatorio">Recordatório</TabsTrigger>
-          <TabsTrigger value="diario">Diário</TabsTrigger>
+          <TabsTrigger value="dados" data-tour="patients.tab.dados">
+            Dados
+          </TabsTrigger>
+          <TabsTrigger value="anamnese" data-tour="patients.tab.anamnese">
+            Anamnese
+          </TabsTrigger>
+          <TabsTrigger value="bioimpedancia" data-tour="patients.tab.bioimpedancia">
+            Bioimpedância
+          </TabsTrigger>
+          {canEdit && (
+            <TabsTrigger value="metas" data-tour="patients.tab.metas">
+              Metas
+            </TabsTrigger>
+          )}
+          <TabsTrigger value="planos" data-tour="patients.tab.planos">
+            Planos alimentares
+          </TabsTrigger>
+          <TabsTrigger value="recordatorio" data-tour="patients.tab.recordatorio">
+            Recordatório
+          </TabsTrigger>
+          <TabsTrigger value="diario" data-tour="patients.tab.diario">
+            Diário
+          </TabsTrigger>
           {canEdit && (
             <ProGate feature="silhueta" label="Silhueta (Pro)">
               <TabsTrigger value="silhueta">

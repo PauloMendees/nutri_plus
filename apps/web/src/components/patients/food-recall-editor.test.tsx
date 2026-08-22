@@ -113,6 +113,10 @@ describe('FoodRecallEditor (edit mode)', () => {
 
   it('saves the whole tree via updateFoodRecall', async () => {
     render(<FoodRecallEditor patientId="p1" recallId="r1" canEdit />);
+    expect(screen.getByRole('button', { name: /^salvar$/i })).toHaveAttribute(
+      'data-tour',
+      'patients.recall.save',
+    );
     await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
     await waitFor(() => expect(updateMut).toHaveBeenCalledTimes(1));
     const arg = updateMut.mock.calls[0][0];

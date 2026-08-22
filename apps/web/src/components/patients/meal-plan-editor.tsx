@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import type { Food, MealPlan, MealPlanDraft } from '@nutri-plus/shared-types';
 import { macrosForPortion } from '@nutri-plus/shared-types';
 import { mealPlanSchema, type MealPlanFormValues } from '@/lib/validation/meal-plan';
+import { registerFixture } from '@/lib/onboarding/fixtures';
 import {
   useCreateMealPlan,
   useDeleteMealPlan,
@@ -188,6 +189,45 @@ export function MealPlanEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query.data]);
 
+  useEffect(() => {
+    return registerFixture('meal-plan', () => {
+      form.reset({
+        title: 'Plano demonstração',
+        objective: '',
+        targetCalories: '',
+        targetProtein: '',
+        targetCarbs: '',
+        targetFats: '',
+        meals: [
+          {
+            name: 'Café da manhã',
+            timeLabel: '',
+            instructions: '',
+            options: [
+              {
+                label: 'Opção A',
+                items: [
+                  {
+                    foodName: 'Aveia',
+                    foodId: '',
+                    quantity: '40 g',
+                    grams: '',
+                    calories: '',
+                    protein: '',
+                    carbs: '',
+                    fats: '',
+                    fiber: '',
+                    sodium: '',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+    });
+  }, [form]);
+
   const watched = form.watch('meals');
   // Options are interchangeable alternatives — the day total counts only the first
   // (primary) option of each meal.
@@ -267,31 +307,30 @@ export function MealPlanEditor({
     <div className="mx-auto max-w-5xl space-y-4">
       <div className="flex items-center justify-between gap-2">
         <BackToPatient patientId={patientId} />
-        {!isCreate && (
-          <div className="flex gap-2">
-            {canEdit && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="rounded-full"
-                onClick={() => setAdjusting(true)}
-              >
-                Solicitar ajustes à IA
-              </Button>
-            )}
+        <div className="flex gap-2">
+          {!isCreate && canEdit && (
             <Button
               type="button"
               variant="outline"
               size="sm"
               className="rounded-full"
-              onClick={onExport}
-              disabled={exporting}
+              onClick={() => setAdjusting(true)}
             >
-              {exporting ? 'Exportando…' : 'Exportar PDF'}
+              Solicitar ajustes à IA
             </Button>
-          </div>
-        )}
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+            onClick={onExport}
+            disabled={isCreate || exporting}
+            data-tour="patients.plan.pdf"
+          >
+            {exporting ? 'Exportando…' : 'Exportar PDF'}
+          </Button>
+        </div>
       </div>
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="space-y-4">
         <fieldset disabled={!canEdit} className="m-0 min-w-0 space-y-4 border-0 p-0">
@@ -401,7 +440,12 @@ export function MealPlanEditor({
                   Excluir
                 </Button>
               ))}
-            <Button type="submit" className="rounded-full" disabled={pending}>
+            <Button
+              type="submit"
+              className="rounded-full"
+              disabled={pending}
+              data-tour="patients.plan.save"
+            >
               {pending ? 'Salvando…' : 'Salvar'}
             </Button>
           </div>

@@ -5,10 +5,19 @@ import { ApiError } from '@/lib/api/client';
 
 const push = vi.fn();
 const mutateAsync = vi.fn();
+const isPlayCadastroSubmit = vi.fn(() => false);
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, refresh: vi.fn() }) }));
 vi.mock('@/lib/queries/patients', () => ({
   useCreatePatient: () => ({ mutateAsync, isPending: false }),
+}));
+vi.mock('@/components/onboarding/tour-provider', () => ({
+  useTour: () => ({
+    start: vi.fn(),
+    exit: vi.fn(),
+    skipChapter: vi.fn(),
+    isPlayCadastroSubmit,
+  }),
 }));
 
 import { CreatePatientForm } from './create-patient-form';
@@ -16,6 +25,7 @@ import { CreatePatientForm } from './create-patient-form';
 beforeEach(() => {
   push.mockReset();
   mutateAsync.mockReset();
+  isPlayCadastroSubmit.mockReset().mockReturnValue(false);
 });
 
 describe('CreatePatientForm', () => {
@@ -37,7 +47,28 @@ describe('CreatePatientForm', () => {
         expect.objectContaining({ name: 'Maria Silva', email: 'maria@x.com' }),
       ),
     );
+    expect(mutateAsync.mock.calls[0][0].demo).toBeUndefined();
     expect(push).toHaveBeenCalledWith('/patients/p-new?created=1');
+  });
+
+  it('marks the submit button with the tour anchor', () => {
+    render(<CreatePatientForm />);
+    expect(screen.getByRole('button', { name: /criar paciente/i })).toHaveAttribute(
+      'data-tour',
+      'patients.create.submit',
+    );
+  });
+
+  it('sends demo: true on submit while the cadastro play step is active', async () => {
+    isPlayCadastroSubmit.mockReturnValue(true);
+    mutateAsync.mockResolvedValue({ id: 'p-demo' });
+    render(<CreatePatientForm />);
+    await userEvent.type(screen.getByLabelText(/nome/i), 'Maria Demonstração');
+    await userEvent.type(screen.getByLabelText(/e-mail/i), 'demo.web@example.com');
+    await userEvent.click(screen.getByRole('button', { name: /criar paciente/i }));
+    await waitFor(() =>
+      expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ demo: true })),
+    );
   });
 
   it('shows the API message when invite is rejected', async () => {

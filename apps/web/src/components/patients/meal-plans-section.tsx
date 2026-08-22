@@ -44,11 +44,14 @@ export function MealPlansSection({
             <Button
               className="rounded-full shadow-sm shadow-primary/30"
               onClick={() => setGenerating(true)}
+              data-tour="patients.plan.ai"
             >
               ✨ Gerar com IA
             </Button>
             <Button variant="outline" size="sm" className="rounded-full" asChild>
-              <Link href={`/patients/${patientId}/planos/novo`}>Novo plano</Link>
+              <Link href={`/patients/${patientId}/planos/novo`} data-tour="patients.plan.new">
+                Novo plano
+              </Link>
             </Button>
           </div>
         )}

@@ -51,6 +51,10 @@ describe('AnamneseSection', () => {
 
   it('saves via "Salvar" calling the upsert mutation', async () => {
     render(<AnamneseSection patientId="p1" canEdit />);
+    expect(screen.getByRole('button', { name: /salvar/i })).toHaveAttribute(
+      'data-tour',
+      'patients.anamnese.save',
+    );
     await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
   });

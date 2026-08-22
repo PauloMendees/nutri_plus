@@ -25,6 +25,10 @@ beforeEach(() => {
 describe('AiGenerateDialog', () => {
   it('generates with the typed instructions and navigates to the new plan', async () => {
     render(<AiGenerateDialog open onOpenChange={onOpenChange} patientId="p1" />);
+    expect(screen.getByRole('button', { name: /gerar plano/i })).toHaveAttribute(
+      'data-tour',
+      'patients.plan.ai.confirm',
+    );
     await userEvent.type(screen.getByLabelText(/instruções personalizadas/i), 'Apenas 4 refeições');
     await userEvent.click(screen.getByRole('button', { name: /gerar plano/i }));
     await waitFor(() => expect(generateMut).toHaveBeenCalledWith('Apenas 4 refeições'));

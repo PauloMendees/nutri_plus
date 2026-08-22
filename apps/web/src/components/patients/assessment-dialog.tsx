@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import type { BodyAssessment } from '@nutri-plus/shared-types';
 import { assessmentSchema, type AssessmentValues } from '@/lib/validation/assessment';
+import { registerFixture } from '@/lib/onboarding/fixtures';
 import {
   useCreateAssessment,
   useDeleteAssessment,
@@ -105,6 +106,14 @@ export function AssessmentDialog({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, assessment]);
+
+  useEffect(() => {
+    if (!open) return;
+    return registerFixture('assessment', () => {
+      form.setValue('weight', '68' as unknown as AssessmentValues['weight']);
+      form.setValue('notes', 'Avaliação de demonstração');
+    });
+  }, [open, form]);
 
   async function onSubmit(values: AssessmentValues) {
     setFormError(null);
@@ -282,7 +291,12 @@ export function AssessmentDialog({
                 >
                   Cancelar
                 </Button>
-                <Button type='submit' className='rounded-full' disabled={pending}>
+                <Button
+                  type='submit'
+                  className='rounded-full'
+                  disabled={pending}
+                  data-tour='patients.assessment.save'
+                >
                   {pending ? 'Salvando…' : 'Salvar'}
                 </Button>
               </DialogFooter>

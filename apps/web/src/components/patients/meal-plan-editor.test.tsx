@@ -88,6 +88,14 @@ describe('MealPlanEditor (edit mode)', () => {
 
   it('saves the whole tree via updateMealPlan', async () => {
     render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    expect(screen.getByRole('button', { name: /^salvar$/i })).toHaveAttribute(
+      'data-tour',
+      'patients.plan.save',
+    );
+    expect(screen.getByRole('button', { name: /exportar pdf/i })).toHaveAttribute(
+      'data-tour',
+      'patients.plan.pdf',
+    );
     await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
     await waitFor(() => expect(updateMut).toHaveBeenCalledTimes(1));
     const arg = updateMut.mock.calls[0][0];
@@ -219,9 +227,11 @@ describe('MealPlanEditor (create mode)', () => {
     expect(replace).toHaveBeenCalledWith('/patients/p1/planos/new1');
   });
 
-  it('hides "Exportar PDF" while creating a new plan', () => {
+  it('shows a disabled "Exportar PDF" tour anchor while creating a new plan', () => {
     render(<MealPlanEditor patientId="p1" canEdit />);
-    expect(screen.queryByRole('button', { name: /exportar pdf/i })).not.toBeInTheDocument();
+    const pdf = screen.getByRole('button', { name: /exportar pdf/i });
+    expect(pdf).toBeDisabled();
+    expect(pdf).toHaveAttribute('data-tour', 'patients.plan.pdf');
   });
 
   it('picks a food via the picker dialog, then recomputes macros as grams change', async () => {

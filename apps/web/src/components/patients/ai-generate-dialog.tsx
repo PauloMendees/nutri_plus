@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useGenerateMealPlan } from '@/lib/queries/meal-plans';
+import { registerFixture } from '@/lib/onboarding/fixtures';
 import { missingFieldsFromError } from '@/lib/meal-plans/generate-error';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -34,6 +35,13 @@ export function AiGenerateDialog({
       setInstructions('');
       setMissing(null);
     }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    return registerFixture('ai-instructions', () => {
+      setInstructions('Gerar um plano simples de demonstração, 3 refeições.');
+    });
   }, [open]);
 
   async function onGenerate() {
@@ -99,6 +107,7 @@ export function AiGenerateDialog({
             className="rounded-full shadow-sm shadow-primary/30"
             onClick={onGenerate}
             disabled={generate.isPending}
+            data-tour="patients.plan.ai.confirm"
           >
             {generate.isPending ? 'Gerando…' : '✨ Gerar plano'}
           </Button>

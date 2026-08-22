@@ -92,10 +92,32 @@ describe('PatientDetail', () => {
     render(<PatientDetail id="p1" created={false} />);
     expect(screen.getByText('Maria Silva')).toBeInTheDocument();
     expect(screen.getByText('maria@x.com')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /dados/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /bioimpedância/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /planos alimentares/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /^diário$/i })).toBeInTheDocument();
+    expect(document.querySelector('[data-tour="patients.detail.header"]')).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /dados/i })).toHaveAttribute('data-tour', 'patients.tab.dados');
+    expect(screen.getByRole('tab', { name: /anamnese/i })).toHaveAttribute(
+      'data-tour',
+      'patients.tab.anamnese',
+    );
+    expect(screen.getByRole('tab', { name: /bioimpedância/i })).toHaveAttribute(
+      'data-tour',
+      'patients.tab.bioimpedancia',
+    );
+    expect(screen.getByRole('tab', { name: /planos alimentares/i })).toHaveAttribute(
+      'data-tour',
+      'patients.tab.planos',
+    );
+    expect(screen.getByRole('tab', { name: /recordatório/i })).toHaveAttribute(
+      'data-tour',
+      'patients.tab.recordatorio',
+    );
+    expect(screen.getByRole('tab', { name: /^diário$/i })).toHaveAttribute(
+      'data-tour',
+      'patients.tab.diario',
+    );
+    expect(screen.getByRole('button', { name: /exportar evolução/i })).toHaveAttribute(
+      'data-tour',
+      'patients.export-evolution',
+    );
   });
 
   it('shows the IMC card with the formatted value and category', () => {
@@ -191,7 +213,10 @@ describe('PatientDetail', () => {
   it('shows the Metas tab only when canEdit', () => {
     usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
     const { rerender } = render(<PatientDetail id="p1" created={false} canEdit />);
-    expect(screen.getByRole('tab', { name: /metas/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /metas/i })).toHaveAttribute(
+      'data-tour',
+      'patients.tab.metas',
+    );
 
     rerender(<PatientDetail id="p1" created={false} canEdit={false} />);
     expect(screen.queryByRole('tab', { name: /metas/i })).not.toBeInTheDocument();
@@ -221,5 +246,15 @@ describe('PatientDetail', () => {
     usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
     render(<PatientDetail id="p1" created={false} />);
     expect(screen.getByText(/Consentimento LGPD: pendente/)).toBeInTheDocument();
+  });
+
+  it('shows a Demo badge when the patient is a demo', () => {
+    usePatient.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { ...patient, isDemo: true },
+    });
+    render(<PatientDetail id="p1" created={false} />);
+    expect(screen.getByText('Demo')).toBeInTheDocument();
   });
 });
