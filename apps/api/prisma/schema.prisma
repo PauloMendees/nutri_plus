@@ -84,6 +84,8 @@ model User {
   patientProfile      PatientProfile?
   employeeProfile     EmployeeProfile?
   feedback UserFeedback?
+  onboardingPromptDismissedAt DateTime?
+  onboardingProgress          OnboardingProgress[]
 
   @@unique([authProvider, authProviderId])
 }
@@ -163,6 +165,7 @@ model PatientProfile {
   foodRecalls    FoodRecall[]
   pushTokens     PatientPushToken[]
   mealLogs       MealLog[]
+  onboardingDemoFor OnboardingProgress[]
 
   @@index([nutritionistId])
 }
@@ -676,4 +679,44 @@ model UserFeedback {
   resolvedAt   DateTime?
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
+}
+
+enum OnboardingTourStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum OnboardingChapterStatus {
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+model OnboardingProgress {
+  id            String               @id @default(uuid())
+  userId        String
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tourId        String
+  status        OnboardingTourStatus @default(IN_PROGRESS)
+  demoPatientId String?
+  demoPatient   PatientProfile?      @relation(fields: [demoPatientId], references: [id], onDelete: SetNull)
+  completedAt   DateTime?
+  chapters      OnboardingChapterProgress[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@unique([userId, tourId])
+  @@index([userId])
+}
+
+model OnboardingChapterProgress {
+  id             String                   @id @default(uuid())
+  progressId     String
+  progress       OnboardingProgress       @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  chapterId      String
+  status         OnboardingChapterStatus
+  furthestStepId String?
+  completedAt    DateTime?
+
+  @@unique([progressId, chapterId])
 }
