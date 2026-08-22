@@ -145,7 +145,7 @@ describe('HubView', () => {
       ],
     };
     render(<HubView role={UserRole.NUTRITIONIST} />);
-    const row = screen.getByText('Lista').closest('li')!;
+    const row = screen.getByText('Lista').closest('[data-chapter="lista"]')!;
     await userEvent.click(within(row).getByRole('button', { name: /^rever$/i }));
     expect(start).toHaveBeenCalledWith({ tourId: 'patients', chapterId: 'lista', replay: true });
   });
@@ -171,10 +171,10 @@ describe('HubView', () => {
       tours: [tour({ status: 'IN_PROGRESS', demoPatientId: 'p1' })],
     };
     render(<HubView role={UserRole.NUTRITIONIST} />);
-    const row = screen.getByText('Gerar com IA').closest('li')!;
-    expect(row).toHaveTextContent(/cadeado/i);
-    expect(row).toHaveTextContent(/pro|cota|assinatura/i);
-    expect(within(row).getByRole('link')).toHaveAttribute('href', '/assinatura');
+    const row = screen.getByText('Gerar com IA').closest('[data-chapter="gerar-ia"]')!;
+    expect(row).toHaveTextContent(/bloqueado/i);
+    expect(row).not.toHaveTextContent(/cadeado/i);
+    expect(within(row).getByRole('button', { name: /iniciar gerar com ia/i })).toBeDisabled();
   });
 
   it('starts cadastro play to recreate a demo when cadastro is COMPLETED and demoPatientId is null', async () => {
@@ -207,8 +207,25 @@ describe('HubView', () => {
       ],
     };
     render(<HubView role={UserRole.NUTRITIONIST} />);
-    const row = screen.getByText('Ficha').closest('li')!;
+    const row = screen.getByText('Ficha').closest('[data-chapter="ficha"]')!;
     expect(within(row).queryByRole('button', { name: /^rever$/i })).not.toBeInTheDocument();
     expect(start).not.toHaveBeenCalled();
+  });
+
+  it('starts a chapter from its play control', async () => {
+    render(<HubView role={UserRole.NUTRITIONIST} />);
+    await userEvent.click(screen.getByRole('button', { name: /iniciar lista/i }));
+    expect(start).toHaveBeenCalledWith({ tourId: 'patients', chapterId: 'lista', replay: false });
+  });
+
+  it('explains a locked chapter in a tooltip', async () => {
+    subscriptionState.data = { entitlements: exhausted };
+    onboardingState.data = {
+      promptDismissedAt: null,
+      tours: [tour({ status: 'IN_PROGRESS', demoPatientId: 'p1' })],
+    };
+    render(<HubView role={UserRole.NUTRITIONIST} />);
+    await userEvent.hover(screen.getByText('Bloqueado'));
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/cota de ia esgotada/i);
   });
 });

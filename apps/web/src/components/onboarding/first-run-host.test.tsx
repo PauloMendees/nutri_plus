@@ -48,7 +48,7 @@ describe('FirstRunHost', () => {
 
   it('opens the dialog when onboardedAt is set and tours are empty', () => {
     render(<FirstRunHost />);
-    expect(screen.getByRole('heading', { name: 'Conheça o iNutri' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /primeiros passos no inutri/i })).toBeInTheDocument();
   });
 
   it('does not open the dialog when onboarding data is missing', () => {

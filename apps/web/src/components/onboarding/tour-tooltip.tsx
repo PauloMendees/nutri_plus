@@ -3,7 +3,7 @@
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
 
-const TOOLTIP_Z = 1_000_000_001;
+const TOOLTIP_Z = 1_000_000_010;
 
 export function TourTooltip({
   title,
@@ -33,8 +33,10 @@ export function TourTooltip({
     <div
       role="dialog"
       aria-label={title}
-      className="fixed w-80 rounded-xl border bg-background p-4 shadow-lg"
+      className="pointer-events-auto fixed w-80 rounded-xl border bg-background p-4 shadow-lg"
       style={{ top, left, zIndex: TOOLTIP_Z }}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={(event) => event.stopPropagation()}
     >
       <h2 className="font-semibold">{title}</h2>
       <p className="mt-1 text-sm text-muted-foreground">{body}</p>

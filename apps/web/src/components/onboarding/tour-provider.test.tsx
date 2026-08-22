@@ -235,6 +235,13 @@ describe('TourProvider', () => {
     expect(patch).not.toHaveBeenCalled();
   });
 
+  it('disables pointer events on the driver overlay so tooltip buttons stay clickable', async () => {
+    renderTour();
+    fireEvent.click(screen.getByText('start-play'));
+    expect(await screen.findByRole('button', { name: 'Próximo' })).toBeInTheDocument();
+    expect(document.querySelector('style')?.textContent).toMatch(/driver-overlay\{pointer-events:none/i);
+  });
+
   it('renders skip, exit and next on a next-advance step', async () => {
     renderTour();
     fireEvent.click(screen.getByText('start-play'));

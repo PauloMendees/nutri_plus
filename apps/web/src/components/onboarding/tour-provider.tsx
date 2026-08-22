@@ -537,7 +537,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       <Suspense fallback={null}>
         <TourUrlHydrator role={role} ready={onboarding != null} onSearch={hydrateFromSearch} />
       </Suspense>
-      <style>{`.nutri-tour-hidden-popover{display:none!important}`}</style>
+      <style>{`.nutri-tour-hidden-popover{display:none!important}.driver-overlay{pointer-events:none!important}`}</style>
       {anchorMissing ? <TourMissingAnchor onBackToHub={goToHub} /> : null}
       {step && rect && !anchorMissing ? (
         <TourTooltip
