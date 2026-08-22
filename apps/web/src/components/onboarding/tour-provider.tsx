@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -13,10 +14,16 @@ import {
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
-import { UserRole, type Entitlements, type PatchOnboardingTourRequest } from '@nutri-plus/shared-types';
+import {
+  UserRole,
+  type Entitlements,
+  type OnboardingTourProgressView,
+  type PatchOnboardingTourRequest,
+} from '@nutri-plus/shared-types';
+import { ApiError } from '@/lib/api/client';
 import { getTour, type TourChapter, type TourDefinition, type TourStep } from '@/lib/onboarding/catalog';
 import { runFixture } from '@/lib/onboarding/fixtures';
-import { isAiChapterLocked } from '@/lib/onboarding/progress';
+import { chapterView, isAiChapterLocked, isCadastroPlayRecovery } from '@/lib/onboarding/progress';
 import { buildTourSearch, parseTourSearch } from '@/lib/onboarding/session';
 import { useOnboarding, usePatchOnboardingTour } from '@/lib/queries/onboarding';
 import { useSubscription } from '@/lib/queries/subscription';
@@ -36,6 +43,7 @@ export type TourApi = {
   exit(): void;
   skipChapter(): void;
   isPlayCadastroSubmit(): boolean;
+  notifyChapterActionSucceeded(opts?: { demoPatientId?: string }): Promise<void>;
 };
 
 const noopTour: TourApi = {
@@ -44,6 +52,9 @@ const noopTour: TourApi = {
   skipChapter() {},
   isPlayCadastroSubmit() {
     return false;
+  },
+  notifyChapterActionSucceeded() {
+    return Promise.resolve();
   },
 };
 
@@ -93,6 +104,17 @@ function nextStartableChapter(
   return tour.chapters.slice(idx + 1).find((c) => isChapterStartable(c, demoPatientId, entitlements));
 }
 
+function chapterAwaitsAction(chapter: TourChapter | undefined): boolean {
+  return chapter?.steps.some((step) => step.awaitAction) === true;
+}
+
+function persistedChapterStatus(
+  progress: OnboardingTourProgressView | undefined,
+  chapterId: string,
+) {
+  return progress?.chapters?.find((row) => row.chapterId === chapterId)?.status;
+}
+
 function createDriver() {
   return driver({
     allowClose: false,
@@ -104,10 +126,30 @@ function createDriver() {
   });
 }
 
+function TourUrlHydrator({
+  role,
+  ready,
+  onSearch,
+}: {
+  role: UserRole | null;
+  ready: boolean;
+  onSearch: (search: string) => void;
+}) {
+  const searchParams = useSearchParams();
+  const search = `?${searchParams.toString()}`;
+
+  useEffect(() => {
+    if (role === UserRole.EMPLOYEE) return;
+    if (!ready) return;
+    onSearch(search);
+  }, [role, ready, search, onSearch]);
+
+  return null;
+}
+
 export function TourProvider({ children, role }: { children: ReactNode; role: UserRole | null }) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { data: onboarding } = useOnboarding();
   const { data: subscription } = useSubscription();
   const { mutateAsync } = usePatchOnboardingTour();
@@ -118,9 +160,12 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
 
   const sessionRef = useRef<Session | null>(null);
   const driverRef = useRef<ReturnType<typeof driver> | null>(null);
-  const demoPatientId = onboarding?.tours.find((t) => t.tourId === 'patients')?.demoPatientId ?? null;
+  const tourProgress = onboarding?.tours.find((t) => t.tourId === 'patients');
+  const demoPatientId = tourProgress?.demoPatientId ?? null;
   const demoPatientIdRef = useRef(demoPatientId);
   demoPatientIdRef.current = demoPatientId;
+  const tourProgressRef = useRef(tourProgress);
+  tourProgressRef.current = tourProgress;
   const entitlements = subscription?.entitlements;
   const entitlementsRef = useRef(entitlements);
   entitlementsRef.current = entitlements;
@@ -134,11 +179,6 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
   roleRef.current = role;
 
   const step = currentStepOf(session);
-
-  const patchIfPlay = useCallback((mode: Mode, body: PatchOnboardingTourRequest) => {
-    if (mode !== 'play') return;
-    return Promise.resolve(mutateRef.current('patients', body)).catch(() => undefined);
-  }, []);
 
   const teardownDriver = useCallback(() => {
     driverRef.current?.destroy();
@@ -157,6 +197,23 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
     dismissSession();
     routerRef.current.replace(pathnameRef.current);
   }, [dismissSession]);
+
+  const patchIfPlay = useCallback(
+    async (mode: Mode, body: PatchOnboardingTourRequest): Promise<boolean> => {
+      if (mode !== 'play') return true;
+      try {
+        await mutateRef.current('patients', body);
+        return true;
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 402) {
+          dismissSession();
+          routerRef.current.replace(pathnameRef.current);
+        }
+        return false;
+      }
+    },
+    [dismissSession],
+  );
 
   const goToHub = useCallback(() => {
     dismissSession();
@@ -183,6 +240,8 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
         resolveRoute(chapter.steps[0], demoPatientIdRef.current, pathnameRef.current) ??
         pathnameRef.current;
       routerRef.current.replace(`${firstRoute}${search}`);
+      const persisted = persistedChapterStatus(tourProgressRef.current, opts.chapterId);
+      if (persisted === 'COMPLETED' || persisted === 'SKIPPED') return;
       void patchIfPlay(mode, {
         chapterId: opts.chapterId,
         chapterStatus: 'IN_PROGRESS',
@@ -192,12 +251,62 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
     [patchIfPlay],
   );
 
-  const start = useCallback(
-    (opts: { tourId: 'patients'; chapterId: string; replay: boolean }) => {
-      if (roleRef.current === UserRole.EMPLOYEE) return;
-      beginSession(opts);
+  const tryStart = useCallback(
+    (opts: { tourId: 'patients'; chapterId: string; replay: boolean }): boolean => {
+      if (roleRef.current === UserRole.EMPLOYEE) return false;
+      const tour = getTour(opts.tourId);
+      const chapter = tour?.chapters.find((c) => c.id === opts.chapterId);
+      if (!tour || !chapter) return false;
+
+      const progress = tourProgressRef.current;
+      const ents = entitlementsRef.current;
+      const demoId = demoPatientIdRef.current;
+      const view = chapterView(chapter, progress, ents);
+
+      let replay = opts.replay;
+      if (replay && view.status !== 'completed' && view.status !== 'skipped') {
+        replay = false;
+      }
+
+      if (replay) {
+        if (!isChapterStartable(chapter, demoId, ents)) return false;
+        beginSession({ tourId: opts.tourId, chapterId: opts.chapterId, replay: true });
+        return true;
+      }
+
+      if (chapter.id === 'cadastro' && isCadastroPlayRecovery(progress)) {
+        beginSession({ tourId: opts.tourId, chapterId: 'cadastro', replay: false });
+        return true;
+      }
+
+      if (view.status === 'locked' || view.status === 'completed' || view.status === 'skipped') {
+        return false;
+      }
+      if (!isChapterStartable(chapter, demoId, ents)) return false;
+      beginSession({ tourId: opts.tourId, chapterId: opts.chapterId, replay: false });
+      return true;
     },
     [beginSession],
+  );
+
+  const start = useCallback(
+    (opts: { tourId: 'patients'; chapterId: string; replay: boolean }) => {
+      tryStart(opts);
+    },
+    [tryStart],
+  );
+
+  const hydrateFromSearch = useCallback(
+    (search: string) => {
+      if (roleRef.current === UserRole.EMPLOYEE) return;
+      const parsed = parseTourSearch(search);
+      if (!parsed || parsed.tourId !== 'patients') return;
+      if (sessionRef.current) return;
+      if (!tryStart({ tourId: 'patients', chapterId: parsed.chapterId, replay: parsed.replay })) {
+        goToHub();
+      }
+    },
+    [goToHub, tryStart],
   );
 
   const continueAfterChapter = useCallback(
@@ -227,6 +336,41 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
     [beginSession, goToHub, patchIfPlay],
   );
 
+  const finishChapter = useCallback(
+    async (extra?: { demoPatientId?: string }) => {
+      const current = sessionRef.current;
+      if (!current) return;
+      const tour = getTour(current.tourId);
+      const chapter = tour?.chapters.find((c) => c.id === current.chapterId);
+      if (!tour || !chapter) return;
+
+      if (extra?.demoPatientId) {
+        demoPatientIdRef.current = extra.demoPatientId;
+      }
+
+      const persisted = persistedChapterStatus(tourProgressRef.current, current.chapterId);
+      const terminal = persisted === 'COMPLETED' || persisted === 'SKIPPED';
+      const body: PatchOnboardingTourRequest = terminal
+        ? {
+            chapterId: current.chapterId,
+            chapterStatus: persisted,
+            ...(extra?.demoPatientId ? { demoPatientId: extra.demoPatientId } : {}),
+          }
+        : {
+            chapterId: current.chapterId,
+            chapterStatus: 'COMPLETED',
+            furthestStepId: chapter.steps.at(-1)?.id,
+            ...(extra?.demoPatientId ? { demoPatientId: extra.demoPatientId } : {}),
+          };
+
+      const ok = await patchIfPlay(current.mode, body);
+      if (!ok) return;
+      if (!sessionRef.current || sessionRef.current.chapterId !== current.chapterId) return;
+      continueAfterChapter(current, tour);
+    },
+    [continueAfterChapter, patchIfPlay],
+  );
+
   const advance = useCallback(() => {
     const current = sessionRef.current;
     if (!current) return;
@@ -248,13 +392,8 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       return;
     }
 
-    void patchIfPlay(current.mode, {
-      chapterId: current.chapterId,
-      chapterStatus: 'COMPLETED',
-      furthestStepId: chapter.steps.at(-1)?.id,
-    });
-    continueAfterChapter(current, tour);
-  }, [continueAfterChapter, patchIfPlay]);
+    void finishChapter();
+  }, [finishChapter]);
 
   const skipChapter = useCallback(() => {
     const current = sessionRef.current;
@@ -262,23 +401,31 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
     const tour = getTour(current.tourId);
     if (!tour) return;
 
-    void patchIfPlay(current.mode, {
-      chapterId: current.chapterId,
-      chapterStatus: 'SKIPPED',
-    });
-    continueAfterChapter(current, tour);
+    void (async () => {
+      const ok = await patchIfPlay(current.mode, {
+        chapterId: current.chapterId,
+        chapterStatus: 'SKIPPED',
+      });
+      if (!ok) return;
+      if (!sessionRef.current || sessionRef.current.chapterId !== current.chapterId) return;
+      continueAfterChapter(current, tour);
+    })();
   }, [continueAfterChapter, patchIfPlay]);
+
+  const notifyChapterActionSucceeded = useCallback(
+    async (opts?: { demoPatientId?: string }) => {
+      const current = sessionRef.current;
+      if (!current) return;
+      const tour = getTour(current.tourId);
+      const chapter = tour?.chapters.find((c) => c.id === current.chapterId);
+      if (!chapterAwaitsAction(chapter) && current.chapterId !== 'cadastro') return;
+      await finishChapter(opts);
+    },
+    [finishChapter],
+  );
 
   const advanceRef = useRef(advance);
   advanceRef.current = advance;
-
-  useEffect(() => {
-    if (role === UserRole.EMPLOYEE) return;
-    const parsed = parseTourSearch(`?${searchParams.toString()}`);
-    if (!parsed || parsed.tourId !== 'patients') return;
-    if (sessionRef.current) return;
-    start({ tourId: 'patients', chapterId: parsed.chapterId, replay: parsed.replay });
-  }, [role, searchParams, start]);
 
   useEffect(() => {
     if (!session) {
@@ -344,7 +491,13 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
         event.stopPropagation();
         const demoId = demoPatientIdRef.current;
         if (demoId) routerRef.current.push(`/patients/${demoId}`);
+        window.setTimeout(() => {
+          advanceRef.current();
+        }, 0);
+        return;
       }
+
+      if (step.awaitAction) return;
 
       window.setTimeout(() => {
         advanceRef.current();
@@ -369,11 +522,11 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       skipChapter,
       isPlayCadastroSubmit() {
         const current = sessionRef.current;
-        const currentStep = currentStepOf(current);
-        return current?.mode === 'play' && current.chapterId === 'cadastro' && currentStep?.id === 'submit';
+        return current?.mode === 'play' && current.chapterId === 'cadastro';
       },
+      notifyChapterActionSucceeded,
     }),
-    [start, exit, skipChapter],
+    [start, exit, skipChapter, notifyChapterActionSucceeded, session],
   );
 
   const rect = anchorEl?.getBoundingClientRect();
@@ -381,6 +534,9 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
   return (
     <TourContext.Provider value={value}>
       {children}
+      <Suspense fallback={null}>
+        <TourUrlHydrator role={role} ready={onboarding != null} onSearch={hydrateFromSearch} />
+      </Suspense>
       <style>{`.nutri-tour-hidden-popover{display:none!important}`}</style>
       {anchorMissing ? <TourMissingAnchor onBackToHub={goToHub} /> : null}
       {step && rect && !anchorMissing ? (

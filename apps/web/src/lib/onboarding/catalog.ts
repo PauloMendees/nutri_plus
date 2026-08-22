@@ -10,6 +10,8 @@ export type TourStep = {
   body: string;
   advance: Advance;
   fixture?: string;
+  /** Last-step mutating clicks: do not auto-advance; wait for notifyChapterActionSucceeded. */
+  awaitAction?: boolean;
 };
 
 export type TourChapter = {
@@ -98,6 +100,7 @@ export const PATIENTS_TOUR: TourDefinition = {
           title: 'Salvar cadastro',
           body: 'Salve para criar o paciente de demonstração e abrir a ficha.',
           advance: 'click',
+          awaitAction: true,
         },
       ],
     },
@@ -145,6 +148,7 @@ export const PATIENTS_TOUR: TourDefinition = {
           body: 'Preencha e salve a anamnese do paciente de demonstração.',
           advance: 'click',
           fixture: 'anamnese',
+          awaitAction: true,
         },
       ],
     },
@@ -321,6 +325,7 @@ export const PATIENTS_TOUR: TourDefinition = {
           body: 'Confirme para gerar o rascunho. Isso consome 1 ação de IA da cota mensal.',
           advance: 'click',
           fixture: 'ai-instructions',
+          awaitAction: true,
         },
       ],
     },

@@ -1,4 +1,3 @@
-import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { Logo } from '@/components/brand/logo';
 import { AppSidebar } from '@/components/app/app-sidebar';
@@ -27,20 +26,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <SidebarProvider>
         <AppSidebar user={me ? { name: me.name, email: me.email, role: me.role } : null} />
         <SidebarInset>
-          <Suspense>
-            <TourProvider role={me?.role ?? null}>
-              <BillingGate />
-              <OnboardingGate />
-              <FirstRunHost />
-              {me?.role === 'NUTRITIONIST' ? <FeedbackPromptHost enabled /> : null}
-              <header className="flex h-14 items-center justify-between border-b bg-background px-4 md:hidden">
-                <Logo variant="full" className="h-6" />
-                <MobileNavTrigger />
-              </header>
-              <main className="flex-1 p-6 md:p-8 md:pb-32">{children}</main>
-              <TodayAgendaWidget />
-            </TourProvider>
-          </Suspense>
+          <TourProvider role={me?.role ?? null}>
+            <BillingGate />
+            <OnboardingGate />
+            <FirstRunHost />
+            {me?.role === 'NUTRITIONIST' ? <FeedbackPromptHost enabled /> : null}
+            <header className="flex h-14 items-center justify-between border-b bg-background px-4 md:hidden">
+              <Logo variant="full" className="h-6" />
+              <MobileNavTrigger />
+            </header>
+            <main className="flex-1 p-6 md:p-8 md:pb-32">{children}</main>
+            <TodayAgendaWidget />
+          </TourProvider>
         </SidebarInset>
       </SidebarProvider>
       <Toaster position="top-center" richColors />

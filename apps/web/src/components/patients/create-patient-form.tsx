@@ -84,12 +84,18 @@ export function CreatePatientForm() {
 
   async function onSubmit(values: CreatePatientValues) {
     setFormError(null);
+    const playCadastro = tour.isPlayCadastroSubmit();
     try {
-      const created = await create.mutateAsync(
-        tour.isPlayCadastroSubmit() ? { ...values, demo: true } : values,
-      );
+      const created = await create.mutateAsync(playCadastro ? { ...values, demo: true } : values);
+      if (playCadastro) {
+        await tour.notifyChapterActionSucceeded({ demoPatientId: created.id });
+        return;
+      }
       router.push(`/patients/${created.id}?created=1`);
     } catch (err) {
+      if (playCadastro && err instanceof ApiError && err.status === 402) {
+        tour.exit();
+      }
       const message = mapCreateError(err);
       setFormError(message);
       toast.error(message);

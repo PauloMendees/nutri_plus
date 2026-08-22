@@ -20,7 +20,7 @@ export function chapterView(
     return { status: 'locked', lockReason: 'demo' };
   }
 
-  const row = tour?.chapters.find((c) => c.chapterId === chapter.id);
+  const row = tour?.chapters?.find((c) => c.chapterId === chapter.id);
   if (!row) return { status: 'todo', lockReason: null };
   if (row.status === 'COMPLETED') return { status: 'completed', lockReason: null };
   if (row.status === 'SKIPPED') return { status: 'skipped', lockReason: null };
@@ -44,4 +44,19 @@ export function firstIncompleteChapterId(
     return chapter.id;
   }
   return null;
+}
+
+/** Cadastro already terminal but the demo pointer is gone — play cadastro again to recreate. */
+export function isCadastroPlayRecovery(tour: OnboardingTourProgressView | undefined): boolean {
+  if (tour?.demoPatientId) return false;
+  const row = tour?.chapters?.find((chapter) => chapter.chapterId === 'cadastro');
+  return row?.status === 'COMPLETED' || row?.status === 'SKIPPED';
+}
+
+export function continuePlayChapterId(
+  def: TourDefinition,
+  tour: OnboardingTourProgressView | undefined,
+  entitlements: Entitlements | undefined,
+): string | null {
+  return firstIncompleteChapterId(def, tour, entitlements) ?? (isCadastroPlayRecovery(tour) ? 'cadastro' : null);
 }

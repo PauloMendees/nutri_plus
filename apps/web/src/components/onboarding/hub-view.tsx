@@ -5,7 +5,7 @@ import { Lock } from 'lucide-react';
 import { UserRole, type Entitlements } from '@nutri-plus/shared-types';
 import { canManagePatients } from '@/lib/auth/access';
 import { PATIENTS_TOUR } from '@/lib/onboarding/catalog';
-import { chapterView, firstIncompleteChapterId, primaryCta } from '@/lib/onboarding/progress';
+import { chapterView, continuePlayChapterId, isCadastroPlayRecovery, primaryCta } from '@/lib/onboarding/progress';
 import { useOnboarding } from '@/lib/queries/onboarding';
 import { useSubscription } from '@/lib/queries/subscription';
 import { Badge } from '@/components/ui/badge';
@@ -45,7 +45,7 @@ export function HubView({ role }: { role: UserRole | null }) {
   const tour = onboarding?.tours.find((row) => row.tourId === PATIENTS_TOUR.id);
   const cta = primaryCta(tour);
   const canStart = role != null && canManagePatients(role);
-  const playChapterId = firstIncompleteChapterId(PATIENTS_TOUR, tour, entitlements);
+  const playChapterId = continuePlayChapterId(PATIENTS_TOUR, tour, entitlements);
   const replayChapterId = PATIENTS_TOUR.chapters.find((chapter) => {
     const { status } = chapterView(chapter, tour, entitlements);
     return status === 'completed' || status === 'skipped';
@@ -56,7 +56,9 @@ export function HubView({ role }: { role: UserRole | null }) {
     const chapter = PATIENTS_TOUR.chapters.find((item) => item.id === chapterId);
     if (!chapter) return;
     const { status } = chapterView(chapter, tour, entitlements);
-    if (status === 'locked' || status === 'completed' || status === 'skipped') return;
+    const recoveringCadastro = chapterId === 'cadastro' && isCadastroPlayRecovery(tour);
+    if (status === 'locked') return;
+    if ((status === 'completed' || status === 'skipped') && !recoveringCadastro) return;
     start({ tourId: 'patients', chapterId, replay: false });
   }
 

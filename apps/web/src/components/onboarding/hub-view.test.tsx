@@ -15,6 +15,7 @@ vi.mock('./tour-provider', () => ({
     exit: () => {},
     skipChapter: () => {},
     isPlayCadastroSubmit: () => false,
+    notifyChapterActionSucceeded: () => Promise.resolve(),
   }),
 }));
 
@@ -174,6 +175,23 @@ describe('HubView', () => {
     expect(row).toHaveTextContent(/cadeado/i);
     expect(row).toHaveTextContent(/pro|cota|assinatura/i);
     expect(within(row).getByRole('link')).toHaveAttribute('href', '/assinatura');
+  });
+
+  it('starts cadastro play to recreate a demo when cadastro is COMPLETED and demoPatientId is null', async () => {
+    onboardingState.data = {
+      promptDismissedAt: null,
+      tours: [
+        tour({
+          status: 'IN_PROGRESS',
+          demoPatientId: null,
+          chapters: [chapter('lista', 'COMPLETED'), chapter('cadastro', 'COMPLETED')],
+        }),
+      ],
+    };
+    render(<HubView role={UserRole.NUTRITIONIST} />);
+    expect(screen.getByRole('button', { name: /continuar/i })).toBeEnabled();
+    await userEvent.click(screen.getByRole('button', { name: /continuar/i }));
+    expect(start).toHaveBeenCalledWith({ tourId: 'patients', chapterId: 'cadastro', replay: false });
   });
 
   it('does not offer Rever on a demo-locked chapter', () => {

@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import type { Entitlements, OnboardingTourProgressView } from '@nutri-plus/shared-types';
 import { PATIENTS_TOUR, getTour } from './catalog';
-import { chapterView, firstIncompleteChapterId, isAiChapterLocked, primaryCta } from './progress';
+import {
+  chapterView,
+  continuePlayChapterId,
+  firstIncompleteChapterId,
+  isAiChapterLocked,
+  isCadastroPlayRecovery,
+  primaryCta,
+} from './progress';
 
 const CHAPTER_IDS = [
   'lista',
@@ -194,5 +201,32 @@ describe('firstIncompleteChapterId', () => {
 
   it('starts at lista when there is no progress', () => {
     expect(firstIncompleteChapterId(PATIENTS_TOUR, undefined, pro)).toBe('lista');
+  });
+});
+
+describe('cadastro play recovery', () => {
+  it('recreates demo via cadastro play when the pointer is gone and cadastro is terminal', () => {
+    const progress = tour({
+      demoPatientId: null,
+      chapters: [
+        { chapterId: 'lista', status: 'COMPLETED', furthestStepId: 'new', completedAt: 'x' },
+        { chapterId: 'cadastro', status: 'COMPLETED', furthestStepId: 'submit', completedAt: 'x' },
+      ],
+    });
+    expect(isCadastroPlayRecovery(progress)).toBe(true);
+    expect(firstIncompleteChapterId(PATIENTS_TOUR, progress, pro)).toBeNull();
+    expect(continuePlayChapterId(PATIENTS_TOUR, progress, pro)).toBe('cadastro');
+  });
+
+  it('does not recover when a demo patient still exists', () => {
+    const progress = tour({
+      demoPatientId: 'p1',
+      chapters: [
+        { chapterId: 'lista', status: 'COMPLETED', furthestStepId: 'new', completedAt: 'x' },
+        { chapterId: 'cadastro', status: 'COMPLETED', furthestStepId: 'submit', completedAt: 'x' },
+      ],
+    });
+    expect(isCadastroPlayRecovery(progress)).toBe(false);
+    expect(continuePlayChapterId(PATIENTS_TOUR, progress, pro)).toBe('ficha');
   });
 });

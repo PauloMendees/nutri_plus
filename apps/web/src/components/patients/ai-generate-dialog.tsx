@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { ApiError } from '@/lib/api/client';
 import { useGenerateMealPlan } from '@/lib/queries/meal-plans';
 import { registerFixture } from '@/lib/onboarding/fixtures';
 import { missingFieldsFromError } from '@/lib/meal-plans/generate-error';
+import { useTour } from '@/components/onboarding/tour-provider';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -27,6 +29,7 @@ export function AiGenerateDialog({
 }) {
   const generate = useGenerateMealPlan(patientId);
   const router = useRouter();
+  const tour = useTour();
   const [instructions, setInstructions] = useState('');
   const [missing, setMissing] = useState<string[] | null>(null);
 
@@ -49,9 +52,14 @@ export function AiGenerateDialog({
     try {
       const trimmed = instructions.trim();
       const plan = await generate.mutateAsync(trimmed || undefined);
+      await tour.notifyChapterActionSucceeded();
       onOpenChange(false);
       router.push(`/patients/${patientId}/planos/${plan.id}`);
     } catch (err) {
+      if (err instanceof ApiError && err.status === 402) {
+        tour.exit();
+        return;
+      }
       const fields = missingFieldsFromError(err);
       if (fields) {
         setMissing(fields);
