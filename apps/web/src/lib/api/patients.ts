@@ -41,3 +41,7 @@ export function uploadPatientPhoto(id: string, file: File): Promise<PatientDetai
 export function deletePatientPhoto(id: string): Promise<PatientDetail> {
   return browserApiFetch<PatientDetail>(`/patients/${id}/photo`, { method: 'DELETE' });
 }
+
+export function deleteDemoPatient(id: string): Promise<void> {
+  return browserApiFetch<void>(`/patients/${id}`, { method: 'DELETE' });
+}
