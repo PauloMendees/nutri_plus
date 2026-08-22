@@ -47,6 +47,7 @@ export interface PatientSummary {
   canLogAssessments: boolean;
   showMealTargetToPatient: boolean;
   photoUrl: string | null;
+  isDemo: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -75,6 +76,7 @@ export interface CreatePatientRequest {
   allergies?: string;
   medicalConditions?: string;
   notes?: string;
+  demo?: boolean;
 }
 
 export type UpdatePatientRequest = Omit<CreatePatientRequest, 'name' | 'email'> & {
