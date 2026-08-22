@@ -1,8 +1,10 @@
 export type Advance = 'click' | 'next';
 
+export type TourRouteCtx = { demoPatientId: string; pathname?: string };
+
 export type TourStep = {
   id: string;
-  route: string | ((ctx: { demoPatientId: string }) => string);
+  route: string | ((ctx: TourRouteCtx) => string | null);
   anchor: string;
   title: string;
   body: string;
@@ -32,8 +34,21 @@ function patientRoute(ctx: { demoPatientId: string }): string {
   return `/patients/${ctx.demoPatientId}`;
 }
 
-function newPlanRoute(ctx: { demoPatientId: string }): string {
+function newPlanRoute(ctx: TourRouteCtx): string {
   return `/patients/${ctx.demoPatientId}/planos/novo`;
+}
+
+function newRecallRoute(ctx: TourRouteCtx): string {
+  return `/patients/${ctx.demoPatientId}/recordatorios/novo`;
+}
+
+function savedPlanRoute(ctx: TourRouteCtx): string | null {
+  const prefix = `/patients/${ctx.demoPatientId}/planos/`;
+  const path = ctx.pathname ?? '';
+  if (!path.startsWith(prefix)) return null;
+  const rest = path.slice(prefix.length);
+  if (!rest || rest === 'novo' || rest.includes('/')) return null;
+  return path;
 }
 
 export const PATIENTS_TOUR: TourDefinition = {
@@ -202,8 +217,16 @@ export const PATIENTS_TOUR: TourDefinition = {
           advance: 'click',
         },
         {
-          id: 'save',
+          id: 'new',
           route: patientRoute,
+          anchor: '[data-tour="patients.recall.new"]',
+          title: 'Novo recordatório',
+          body: 'Abra um recordatório em branco para registrar as refeições.',
+          advance: 'click',
+        },
+        {
+          id: 'save',
+          route: newRecallRoute,
           anchor: '[data-tour="patients.recall.save"]',
           title: 'Salvar recordatório',
           body: 'Preencha uma refeição e salve o recordatório.',
@@ -260,8 +283,8 @@ export const PATIENTS_TOUR: TourDefinition = {
         },
         {
           id: 'pdf',
-          route: newPlanRoute,
-          anchor: '[data-tour="patients.plan.pdf"]',
+          route: savedPlanRoute,
+          anchor: '[data-tour="patients.plan.pdf"]:not([disabled])',
           title: 'Exportar PDF',
           body: 'Exporte o plano em PDF para enviar ao paciente.',
           advance: 'click',

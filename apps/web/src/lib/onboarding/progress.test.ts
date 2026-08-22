@@ -86,6 +86,32 @@ describe('PATIENTS_TOUR catalog', () => {
     expect(getTour('patients')).toBe(PATIENTS_TOUR);
     expect(getTour('agenda')).toBeUndefined();
   });
+
+  it('routes recall save to the editor and plan PDF to a saved plan, not /novo', () => {
+    const recall = PATIENTS_TOUR.chapters.find((c) => c.id === 'recordatorio-diario')!;
+    const newRecall = recall.steps.find((s) => s.id === 'new');
+    const save = recall.steps.find((s) => s.id === 'save')!;
+    expect(save.anchor).toBe('[data-tour="patients.recall.save"]');
+    expect(typeof save.route).toBe('function');
+    expect((save.route as (ctx: { demoPatientId: string }) => string)({ demoPatientId: 'p1' })).toBe(
+      '/patients/p1/recordatorios/novo',
+    );
+    expect(newRecall?.anchor).toBe('[data-tour="patients.recall.new"]');
+    expect(typeof newRecall?.route).toBe('function');
+    expect((newRecall!.route as (ctx: { demoPatientId: string }) => string)({ demoPatientId: 'p1' })).toBe(
+      '/patients/p1',
+    );
+
+    const plan = PATIENTS_TOUR.chapters.find((c) => c.id === 'plano-manual')!;
+    const pdf = plan.steps.find((s) => s.id === 'pdf')!;
+    expect(typeof pdf.route).toBe('function');
+    const pdfRoute = pdf.route as (ctx: { demoPatientId: string; pathname?: string }) => string | null;
+    expect(pdfRoute({ demoPatientId: 'p1', pathname: '/patients/p1/planos/novo' })).toBeNull();
+    expect(pdfRoute({ demoPatientId: 'p1', pathname: '/patients/p1/planos/plan-99' })).toBe(
+      '/patients/p1/planos/plan-99',
+    );
+    expect(pdf.anchor).toContain('patients.plan.pdf');
+  });
 });
 
 describe('primaryCta', () => {

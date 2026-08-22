@@ -307,30 +307,32 @@ export function MealPlanEditor({
     <div className="mx-auto max-w-5xl space-y-4">
       <div className="flex items-center justify-between gap-2">
         <BackToPatient patientId={patientId} />
-        <div className="flex gap-2">
-          {!isCreate && canEdit && (
+        {!isCreate && (
+          <div className="flex gap-2">
+            {canEdit && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                onClick={() => setAdjusting(true)}
+              >
+                Solicitar ajustes à IA
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"
               size="sm"
               className="rounded-full"
-              onClick={() => setAdjusting(true)}
+              onClick={onExport}
+              disabled={exporting}
+              data-tour="patients.plan.pdf"
             >
-              Solicitar ajustes à IA
+              {exporting ? 'Exportando…' : 'Exportar PDF'}
             </Button>
-          )}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-full"
-            onClick={onExport}
-            disabled={isCreate || exporting}
-            data-tour="patients.plan.pdf"
-          >
-            {exporting ? 'Exportando…' : 'Exportar PDF'}
-          </Button>
-        </div>
+          </div>
+        )}
       </div>
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="space-y-4">
         <fieldset disabled={!canEdit} className="m-0 min-w-0 space-y-4 border-0 p-0">

@@ -56,10 +56,14 @@ export function useTour(): TourApi {
 const ANCHOR_POLL_MS = 100;
 const ANCHOR_TIMEOUT_MS = 5000;
 
-function resolveRoute(step: TourStep, demoPatientId: string | null | undefined): string | null {
+function resolveRoute(
+  step: TourStep,
+  demoPatientId: string | null | undefined,
+  pathname?: string | null,
+): string | null {
   if (typeof step.route === 'string') return step.route;
   if (!demoPatientId) return null;
-  return step.route({ demoPatientId });
+  return step.route({ demoPatientId, pathname: pathname ?? undefined });
 }
 
 function currentStepOf(session: Session | null): TourStep | undefined {
@@ -175,7 +179,9 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
         chapterId: opts.chapterId,
         replay: opts.replay,
       });
-      const firstRoute = resolveRoute(chapter.steps[0], demoPatientIdRef.current) ?? pathnameRef.current;
+      const firstRoute =
+        resolveRoute(chapter.steps[0], demoPatientIdRef.current, pathnameRef.current) ??
+        pathnameRef.current;
       routerRef.current.replace(`${firstRoute}${search}`);
       void patchIfPlay(mode, {
         chapterId: opts.chapterId,
@@ -235,7 +241,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       sessionRef.current = next;
       setSession(next);
       setAnchorEl(null);
-      const route = resolveRoute(nextStep, demoPatientIdRef.current);
+      const route = resolveRoute(nextStep, demoPatientIdRef.current, pathnameRef.current);
       if (route && pathnameRef.current !== route) {
         routerRef.current.push(route);
       }
@@ -284,7 +290,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
     const currentStep = currentStepOf(session);
     if (!currentStep) return;
 
-    const route = resolveRoute(currentStep, demoPatientId);
+    const route = resolveRoute(currentStep, demoPatientId, pathname);
     if (route && pathname !== route) {
       routerRef.current.push(route);
     }

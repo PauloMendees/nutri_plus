@@ -43,10 +43,9 @@ describe('RecordatorioSection', () => {
   it('shows the "Novo recordatório" link when canEdit', () => {
     useFoodRecalls.mockReturnValue({ isLoading: false, isError: false, data: [] });
     render(<RecordatorioSection patientId="p1" canEdit />);
-    expect(screen.getByRole('link', { name: /novo recordatório/i })).toHaveAttribute(
-      'data-tour',
-      'patients.recall.save',
-    );
+    const link = screen.getByRole('link', { name: /novo recordatório/i });
+    expect(link).toHaveAttribute('data-tour', 'patients.recall.new');
+    expect(link).not.toHaveAttribute('data-tour', 'patients.recall.save');
   });
 
   it('hides the "Novo recordatório" link when canEdit is false', () => {
