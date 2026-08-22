@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsOptional, IsString, MaxLength } from 'class-validator';
 import { UpdatePatientDto } from './update-patient.dto';
 
 // Inherits all the optional clinical fields from UpdatePatientDto and adds the
@@ -11,4 +11,8 @@ export class CreatePatientDto extends UpdatePatientDto {
   @IsEmail()
   @MaxLength(320)
   email!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  demo?: boolean;
 }
