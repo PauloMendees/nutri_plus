@@ -57,6 +57,19 @@ describe('CreatePatientForm', () => {
     expect(push).toHaveBeenCalledWith('/patients/p-new?created=1');
   });
 
+  it('hides the fictional-data control outside the cadastro tour', () => {
+    render(<CreatePatientForm />);
+    expect(screen.queryByRole('button', { name: /preencher com dados fictícios/i })).not.toBeInTheDocument();
+  });
+
+  it('fills the form from Preencher com dados fictícios during the cadastro tour', async () => {
+    isPlayCadastroSubmit.mockReturnValue(true);
+    render(<CreatePatientForm />);
+    await userEvent.click(screen.getByRole('button', { name: /preencher com dados fictícios/i }));
+    expect(screen.getByLabelText(/nome/i)).toHaveValue('Maria Demonstração');
+    expect((screen.getByLabelText(/e-mail/i) as HTMLInputElement).value).toMatch(/^demo\.web\.\d+@example\.com$/);
+  });
+
   it('marks the submit button with the tour anchor', () => {
     render(<CreatePatientForm />);
     expect(screen.getByRole('button', { name: /criar paciente/i })).toHaveAttribute(

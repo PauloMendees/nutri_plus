@@ -26,7 +26,10 @@ export function TourTooltip({
   onFillFixture?: () => void;
   onNext?: () => void;
 }) {
-  const top = rect.bottom + 12;
+  const tooltipHeight = 200;
+  const preferBelow = rect.height < window.innerHeight * 0.4;
+  const rawTop = preferBelow ? rect.bottom + 12 : rect.top + 12;
+  const top = Math.max(8, Math.min(rawTop, window.innerHeight - tooltipHeight - 8));
   const left = Math.max(8, Math.min(rect.left, window.innerWidth - 328));
 
   return createPortal(

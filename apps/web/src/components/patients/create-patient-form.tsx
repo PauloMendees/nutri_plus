@@ -63,24 +63,24 @@ export function CreatePatientForm() {
     } as unknown as CreatePatientValues,
   });
 
-  useEffect(() => {
-    return registerFixture('create-patient', () => {
-      form.reset({
-        name: 'Maria Demonstração',
-        email: `demo.web.${Date.now()}@example.com`,
-        birthDate: '1990-05-12',
-        gender: 'FEMALE',
-        height: '165',
-        targetWeight: '',
-        objective: 'WEIGHT_LOSS',
-        activityLevel: 'MODERATE',
-        restrictions: '',
-        allergies: '',
-        medicalConditions: '',
-        notes: '',
-      } as unknown as CreatePatientValues);
-    });
-  }, [form]);
+  function fillDemoPatient() {
+    form.reset({
+      name: 'Maria Demonstração',
+      email: `demo.web.${Date.now()}@example.com`,
+      birthDate: '1990-05-12',
+      gender: 'FEMALE',
+      height: '165',
+      targetWeight: '',
+      objective: 'WEIGHT_LOSS',
+      activityLevel: 'MODERATE',
+      restrictions: '',
+      allergies: '',
+      medicalConditions: '',
+      notes: '',
+    } as unknown as CreatePatientValues);
+  }
+
+  useEffect(() => registerFixture('create-patient', fillDemoPatient), [form]);
 
   async function onSubmit(values: CreatePatientValues) {
     setFormError(null);
@@ -160,7 +160,12 @@ export function CreatePatientForm() {
 
           {formError && <p className="text-sm text-destructive">{formError}</p>}
 
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-wrap justify-end gap-3">
+            {tour.isPlayCadastroSubmit() ? (
+              <Button type="button" variant="secondary" className="rounded-full" onClick={fillDemoPatient}>
+                Preencher com dados fictícios
+              </Button>
+            ) : null}
             <Button type="button" variant="outline" className="rounded-full" asChild>
               <Link href="/patients">Cancelar</Link>
             </Button>
