@@ -499,9 +499,30 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
 
       if (step.awaitAction) return;
 
-      window.setTimeout(() => {
-        advanceRef.current();
-      }, 0);
+      const current = sessionRef.current;
+      const tour = current ? getTour(current.tourId) : undefined;
+      const chapter = tour?.chapters.find((c) => c.id === current?.chapterId);
+      const nextStep = chapter?.steps[(current?.stepIndex ?? 0) + 1];
+      const currentRoute = resolveRoute(step, demoPatientIdRef.current, pathnameRef.current);
+      const nextRoute = nextStep
+        ? resolveRoute(nextStep, demoPatientIdRef.current, pathnameRef.current)
+        : null;
+      const waitForNext = Boolean(nextStep && currentRoute && nextRoute && currentRoute === nextRoute);
+
+      const go = () => advanceRef.current();
+      if (!waitForNext) {
+        window.setTimeout(go, 0);
+        return;
+      }
+      const startedAt = Date.now();
+      const poll = () => {
+        if (document.querySelector(nextStep!.anchor) || Date.now() - startedAt >= ANCHOR_TIMEOUT_MS) {
+          go();
+          return;
+        }
+        window.setTimeout(poll, 50);
+      };
+      window.setTimeout(poll, 0);
     };
 
     document.addEventListener('click', onClick, true);

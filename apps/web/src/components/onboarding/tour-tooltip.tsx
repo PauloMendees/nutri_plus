@@ -2,6 +2,7 @@
 
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
+import { placeTourTooltip } from '@/lib/onboarding/place-tour-tooltip';
 
 const TOOLTIP_Z = 1_000_000_010;
 
@@ -26,11 +27,12 @@ export function TourTooltip({
   onFillFixture?: () => void;
   onNext?: () => void;
 }) {
-  const tooltipHeight = 200;
-  const preferBelow = rect.height < window.innerHeight * 0.4;
-  const rawTop = preferBelow ? rect.bottom + 12 : rect.top + 12;
-  const top = Math.max(8, Math.min(rawTop, window.innerHeight - tooltipHeight - 8));
-  const left = Math.max(8, Math.min(rect.left, window.innerWidth - 328));
+  const { top, left } = placeTourTooltip(rect, {
+    vw: window.innerWidth,
+    vh: window.innerHeight,
+    width: 320,
+    height: 220,
+  });
 
   return createPortal(
     <div

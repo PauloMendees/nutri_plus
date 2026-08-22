@@ -86,7 +86,10 @@ describe('BioimpedanceSection', () => {
     useAssessments.mockReturnValue({ isLoading: false, isError: false, data: [assessment()] });
     render(<BioimpedanceSection patientId="p1" canEdit />);
     expect(screen.getAllByText(/78,2/).length).toBeGreaterThan(0); // weight in summary + table
-    expect(screen.getByRole('button', { name: /nova avaliação/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /nova avaliação/i })).toHaveAttribute(
+      'data-tour',
+      'patients.assessment.new',
+    );
   });
 
   it('switches the charted metric when a chip is clicked', async () => {

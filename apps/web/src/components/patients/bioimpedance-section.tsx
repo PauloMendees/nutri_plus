@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   CartesianGrid,
   Line,
@@ -24,7 +24,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { AssessmentDialog } from '@/components/patients/assessment-dialog';
-import { parseTourSearch } from '@/lib/onboarding/session';
+
 
 type MetricKey = Extract<
   keyof BodyAssessment,
@@ -88,13 +88,6 @@ export function BioimpedanceSection({
   const data = query.data ?? [];
   const latest = data[0];
 
-  useEffect(() => {
-    if (!canEdit) return;
-    if (parseTourSearch(window.location.search)?.chapterId === 'bioimpedancia') {
-      setCreating(true);
-    }
-  }, [canEdit]);
-
   // Chart series: chronological (oldest→newest), only points where the metric exists.
   const series = useMemo(
     () =>
@@ -111,7 +104,12 @@ export function BioimpedanceSection({
         <h2 className="font-heading text-base font-bold">Bioimpedância</h2>
         <div className="flex gap-2">
           {canEdit && (
-            <Button size="sm" className="rounded-full" onClick={() => setCreating(true)}>
+            <Button
+              size="sm"
+              className="rounded-full"
+              onClick={() => setCreating(true)}
+              data-tour="patients.assessment.new"
+            >
               Nova avaliação
             </Button>
           )}
@@ -140,7 +138,7 @@ export function BioimpedanceSection({
             Registre a bioimpedância do paciente para acompanhar a evolução.
           </p>
           {canEdit && (
-            <Button className="rounded-full" onClick={() => setCreating(true)}>
+            <Button className="rounded-full" onClick={() => setCreating(true)} data-tour="patients.assessment.new">
               Registrar avaliação
             </Button>
           )}

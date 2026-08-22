@@ -89,6 +89,14 @@ describe('PATIENTS_TOUR catalog', () => {
     expect(bodies).toContain('Isso consome 1 ação de IA da cota mensal.');
   });
 
+  it('opens bioimpedancia via Nova avaliação before the dialog save', () => {
+    const steps = PATIENTS_TOUR.chapters.find((c) => c.id === 'bioimpedancia')!.steps.map((s) => s.id);
+    expect(steps).toEqual(['tab', 'new', 'save', 'export']);
+    expect(PATIENTS_TOUR.chapters.find((c) => c.id === 'bioimpedancia')!.steps[1]!.anchor).toBe(
+      '[data-tour="patients.assessment.new"]',
+    );
+  });
+
   it('looks up the patients tour by id', () => {
     expect(getTour('patients')).toBe(PATIENTS_TOUR);
     expect(getTour('agenda')).toBeUndefined();

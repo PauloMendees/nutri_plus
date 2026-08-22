@@ -166,6 +166,14 @@ export const PATIENTS_TOUR: TourDefinition = {
           advance: 'click',
         },
         {
+          id: 'new',
+          route: patientRoute,
+          anchor: '[data-tour="patients.assessment.new"]',
+          title: 'Nova avaliação',
+          body: 'Abra o formulário para registrar peso e medidas.',
+          advance: 'click',
+        },
+        {
           id: 'save',
           route: patientRoute,
           anchor: '[data-tour="patients.assessment.save"]',
