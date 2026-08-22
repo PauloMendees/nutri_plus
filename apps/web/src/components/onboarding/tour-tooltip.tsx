@@ -33,7 +33,7 @@ export function TourTooltip({
     <div
       role="dialog"
       aria-label={title}
-      className="pointer-events-auto fixed w-80 rounded-xl border bg-background p-4 shadow-lg"
+      className="nutri-tour-tooltip pointer-events-auto fixed w-80 rounded-xl border bg-background p-4 shadow-lg"
       style={{ top, left, zIndex: TOOLTIP_Z }}
       onPointerDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
@@ -67,7 +67,7 @@ export function TourMissingAnchor({ onBackToHub }: { onBackToHub: () => void }) 
   return createPortal(
     <div
       role="status"
-      className="fixed w-80 rounded-xl border bg-background p-4 shadow-lg"
+      className="nutri-tour-tooltip fixed w-80 rounded-xl border bg-background p-4 shadow-lg"
       style={{ top: 24, left: 24, zIndex: TOOLTIP_Z }}
     >
       <p className="font-semibold">Não encontrei este passo</p>

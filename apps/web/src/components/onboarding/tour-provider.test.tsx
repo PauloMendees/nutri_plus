@@ -239,7 +239,9 @@ describe('TourProvider', () => {
     renderTour();
     fireEvent.click(screen.getByText('start-play'));
     expect(await screen.findByRole('button', { name: 'Próximo' })).toBeInTheDocument();
-    expect(document.querySelector('style')?.textContent).toMatch(/driver-overlay\{pointer-events:none/i);
+    expect(document.querySelector('style')?.textContent).toMatch(
+      /\.driver-active \.nutri-tour-tooltip \*\{pointer-events:auto/i,
+    );
   });
 
   it('renders skip, exit and next on a next-advance step', async () => {
