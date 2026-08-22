@@ -40,6 +40,9 @@ const subscriptionState: { data: { entitlements?: Entitlements } | undefined } =
 vi.mock('@/lib/queries/subscription', () => ({
   useSubscription: () => ({ data: subscriptionState.data }),
 }));
+vi.mock('@/lib/queries/patients', () => ({
+  useDeleteDemoPatient: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
 
 import { HubView } from './hub-view';
 
@@ -116,6 +119,16 @@ describe('HubView', () => {
     render(<HubView role={UserRole.NUTRITIONIST} />);
     expect(screen.getByText('Concluído', { selector: '[data-slot="badge"]' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /^rever$/i }).length).toBeGreaterThan(0);
+  });
+
+  it('shows the delete-demo banner when demoPatientId is set', () => {
+    onboardingState.data = {
+      promptDismissedAt: null,
+      tours: [tour({ status: 'IN_PROGRESS', demoPatientId: 'p1' })],
+    };
+    render(<HubView role={UserRole.NUTRITIONIST} />);
+    expect(screen.getByText('Este é um paciente de demonstração.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Apagar paciente de demonstração' })).toBeInTheDocument();
   });
 
   it('replays a completed chapter from Rever', async () => {

@@ -18,6 +18,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { DeleteDemoBanner } from './delete-demo-banner';
 import { useTour } from './tour-provider';
 
 const CHAPTER_STATUS_LABEL = {
@@ -73,6 +74,8 @@ export function HubView({ role }: { role: UserRole | null }) {
       <div>
         <h1 className="font-heading text-2xl font-bold">Primeiros passos</h1>
       </div>
+
+      {tour?.demoPatientId ? <DeleteDemoBanner patientId={tour.demoPatientId} /> : null}
 
       <Card>
         <CardHeader>
