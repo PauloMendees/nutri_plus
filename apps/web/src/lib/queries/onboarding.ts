@@ -24,9 +24,14 @@ export function useDismissOnboardingPrompt() {
 
 export function usePatchOnboardingTour() {
   const qc = useQueryClient();
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: ({ tourId, body }: { tourId: string; body: PatchOnboardingTourRequest }) =>
       patchOnboardingTour(tourId, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ONBOARDING_KEY }),
   });
+  return {
+    ...mutation,
+    mutateAsync: (tourId: string, body: PatchOnboardingTourRequest) =>
+      mutation.mutateAsync({ tourId, body }),
+  };
 }
