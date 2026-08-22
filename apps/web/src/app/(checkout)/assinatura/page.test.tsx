@@ -5,6 +5,11 @@ const startTrial = vi.fn();
 const checkout = vi.fn();
 const changePlan = vi.fn();
 const previewChangePlan = vi.fn();
+const trackMetaEvent = vi.fn();
+vi.mock('@/lib/analytics/meta-events', () => ({
+  trackMetaEvent: (...a: unknown[]) => trackMetaEvent(...a),
+  checkoutValue: (plan: string, period: string) => (plan === 'PRO' ? (period === 'YEARLY' ? 990 : 99) : period === 'YEARLY' ? 490 : 49),
+}));
 vi.mock('@/lib/api/subscription', () => ({
   startTrial: () => startTrial(),
   checkoutSubscription: (b: any) => checkout(b),
@@ -39,6 +44,7 @@ beforeEach(() => {
   invalidateQueries.mockClear();
   useQuery.mockReturnValue({ data: { onboardedAt: null, status: 'TRIALING', entitlements: { isReadOnly: true } } });
   currentSearchParams = new URLSearchParams();
+  trackMetaEvent.mockReset();
 });
 
 it('no onboarding mostra "Começar teste grátis" e inicia o trial', async () => {
@@ -52,6 +58,16 @@ it('no onboarding mostra "Começar teste grátis" e inicia o trial', async () =>
   const invalidateOrder = invalidateQueries.mock.invocationCallOrder[0];
   const replaceOrder = replace.mock.invocationCallOrder[0];
   expect(invalidateOrder).toBeLessThan(replaceOrder);
+  expect(trackMetaEvent).toHaveBeenCalledWith('StartTrial', { value: 0, currency: 'BRL' });
+});
+
+it('não dispara StartTrial quando o trial falha', async () => {
+  startTrial.mockRejectedValue(new Error('nope'));
+  render(<AssinaturaPage />);
+  fireEvent.click(screen.getByRole('button', { name: /começar teste grátis/i }));
+  await waitFor(() => expect(startTrial).toHaveBeenCalled());
+  expect(replace).not.toHaveBeenCalled();
+  expect(trackMetaEvent).not.toHaveBeenCalledWith('StartTrial', expect.anything());
 });
 
 it('escolher plano + Pix mostra o QR', async () => {
@@ -62,6 +78,10 @@ it('escolher plano + Pix mostra o QR', async () => {
   fireEvent.change(screen.getByLabelText(/cpf\/cnpj/i), { target: { value: '123.456.789-01' } });
   fireEvent.click(screen.getByRole('button', { name: /gerar código pix/i }));
   await waitFor(() => expect(screen.getByAltText(/qr code pix/i)).toBeInTheDocument());
+  expect(trackMetaEvent).toHaveBeenCalledWith(
+    'InitiateCheckout',
+    expect.objectContaining({ content_name: 'ESSENCIAL', currency: 'BRL', value: 49 }),
+  );
 });
 
 it('assinante ativo NÃO é redirecionado e vê o picker com o plano atual', () => {
@@ -126,6 +146,33 @@ it('?plan=pro pulando o picker abre o checkout do Pro', async () => {
   expect(await screen.findByRole('button', { name: /^pix$/i })).toBeInTheDocument();
   expect(screen.getByText(/mensal/i)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /começar teste grátis/i })).not.toBeInTheDocument();
+  expect(trackMetaEvent).toHaveBeenCalledWith(
+    'InitiateCheckout',
+    expect.objectContaining({ content_name: 'PRO', currency: 'BRL', value: 99 }),
+  );
+});
+
+it('cartão confirmado dispara Subscribe com o valor do plano', async () => {
+  checkout.mockResolvedValue({ method: 'CREDIT_CARD', status: 'ACTIVE' });
+  render(<AssinaturaPage />);
+  fireEvent.click(screen.getByRole('button', { name: /assinar essencial/i }));
+  fireEvent.click(screen.getByRole('button', { name: /cartão/i }));
+  fireEvent.change(screen.getByLabelText(/nome no cartão/i), { target: { value: 'ANA' } });
+  fireEvent.change(screen.getByLabelText(/número do cartão/i), { target: { value: '4111111111111111' } });
+  fireEvent.change(screen.getByLabelText(/validade/i), { target: { value: '12/2030' } });
+  fireEvent.change(screen.getByLabelText(/cvv/i), { target: { value: '123' } });
+  fireEvent.change(screen.getByLabelText(/^cpf$/i), { target: { value: '12345678901' } });
+  fireEvent.change(screen.getByLabelText(/cep/i), { target: { value: '01310100' } });
+  fireEvent.change(screen.getByLabelText(/número \(endereço\)/i), { target: { value: '100' } });
+  fireEvent.change(screen.getByLabelText(/telefone/i), { target: { value: '11999999999' } });
+  fireEvent.click(screen.getByRole('button', { name: /pagar/i }));
+  await waitFor(() => expect(checkout).toHaveBeenCalled());
+  await waitFor(() =>
+    expect(trackMetaEvent).toHaveBeenCalledWith(
+      'Subscribe',
+      expect.objectContaining({ content_name: 'ESSENCIAL', currency: 'BRL', value: 49 }),
+    ),
+  );
 });
 
 it('agendado: card mostra "sem cobrança agora" com a data de vigência', async () => {

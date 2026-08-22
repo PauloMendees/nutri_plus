@@ -4,9 +4,13 @@ import userEvent from '@testing-library/user-event';
 
 const signUp = vi.fn();
 const push = vi.fn();
+const trackMetaEvent = vi.fn();
 
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({ auth: { signUp } }),
+}));
+vi.mock('@/lib/analytics/meta-events', () => ({
+  trackMetaEvent: (...a: unknown[]) => trackMetaEvent(...a),
 }));
 let currentSearchParams = new URLSearchParams();
 
@@ -20,6 +24,7 @@ import { SignupForm } from './signup-form';
 beforeEach(() => {
   signUp.mockReset();
   push.mockReset();
+  trackMetaEvent.mockReset();
   currentSearchParams = new URLSearchParams();
 });
 
@@ -54,6 +59,7 @@ describe('SignupForm', () => {
     expect(arg.options.emailRedirectTo).toContain('/auth/callback');
     expect(arg.options.emailRedirectTo).not.toContain('plan=');
     expect(push).toHaveBeenCalledWith('/verify-email?email=ana%40clinica.com');
+    expect(trackMetaEvent).toHaveBeenCalledWith('CompleteRegistration', { status: true });
   });
 
   it('shows the chosen plan and keeps it on the confirmation redirect', async () => {
@@ -74,5 +80,6 @@ describe('SignupForm', () => {
     await userEvent.click(screen.getByRole('button', { name: /criar conta/i }));
     expect(await screen.findByText(/já existe/i)).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
+    expect(trackMetaEvent).not.toHaveBeenCalled();
   });
 });
