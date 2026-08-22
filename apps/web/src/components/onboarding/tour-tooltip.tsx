@@ -61,7 +61,7 @@ export function TourTooltip({
   );
 }
 
-export function TourMissingAnchor() {
+export function TourMissingAnchor({ onBackToHub }: { onBackToHub: () => void }) {
   return createPortal(
     <div
       role="status"
@@ -71,7 +71,15 @@ export function TourMissingAnchor() {
       <p className="font-semibold">Não encontrei este passo</p>
       <div className="mt-3">
         <Button type="button" size="sm" asChild>
-          <a href="/primeiros-passos">Voltar ao hub</a>
+          <a
+            href="/primeiros-passos"
+            onClick={(event) => {
+              event.preventDefault();
+              onBackToHub();
+            }}
+          >
+            Voltar ao hub
+          </a>
         </Button>
       </div>
     </div>,

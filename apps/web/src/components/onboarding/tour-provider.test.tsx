@@ -19,6 +19,12 @@ vi.mock('@/lib/queries/onboarding', () => ({
   usePatchOnboardingTour: () => ({ mutateAsync: patch }),
 }));
 
+const subscriptionState: { data: { entitlements?: { isReadOnly: boolean; aiUsed: number; aiQuota: number } } | undefined } =
+  { data: undefined };
+vi.mock('@/lib/queries/subscription', () => ({
+  useSubscription: () => ({ data: subscriptionState.data }),
+}));
+
 const replace = vi.fn();
 const push = vi.fn();
 let pathname = '/patients';
@@ -61,6 +67,24 @@ function Probe() {
       <button type="button" onClick={() => tour.start({ tourId: 'patients', chapterId: 'ficha', replay: false })}>
         start-ficha
       </button>
+      <button
+        type="button"
+        onClick={() => {
+          tour.start({ tourId: 'patients', chapterId: 'cadastro', replay: false });
+          tour.skipChapter();
+        }}
+      >
+        start-cadastro-play-skip
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          tour.start({ tourId: 'patients', chapterId: 'plano-manual', replay: false });
+          tour.skipChapter();
+        }}
+      >
+        start-plano-manual-skip
+      </button>
       <button type="button" onClick={() => tour.skipChapter()}>
         skip
       </button>
@@ -86,11 +110,18 @@ function Probe() {
 
 function renderTour(role: UserRole | null = UserRole.NUTRITIONIST, children: ReactNode = <Probe />) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const tree = () => (
     <QueryClientProvider client={client}>
       <TourProvider role={role}>{children}</TourProvider>
-    </QueryClientProvider>,
+    </QueryClientProvider>
   );
+  const view = render(tree());
+  return {
+    ...view,
+    rerenderTour() {
+      view.rerender(tree());
+    },
+  };
 }
 
 beforeEach(() => {
@@ -103,6 +134,7 @@ beforeEach(() => {
   pathname = '/patients';
   searchParams = new URLSearchParams();
   onboardingState.data = { promptDismissedAt: null, tours: [] };
+  subscriptionState.data = undefined;
   Element.prototype.getBoundingClientRect = () =>
     ({
       x: 10,
@@ -231,5 +263,53 @@ describe('TourProvider', () => {
     expect(screen.getByText('Não encontrei este passo')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Voltar ao hub' })).toHaveAttribute('href', '/primeiros-passos');
     expect(patch).not.toHaveBeenCalledWith('patients', expect.objectContaining({ chapterStatus: 'COMPLETED' }));
+  });
+
+  it('missing-anchor CTA dismisses the session and does not bounce to the step route', async () => {
+    vi.useFakeTimers();
+    onboardingState.data = {
+      promptDismissedAt: null,
+      tours: [{ tourId: 'patients', demoPatientId: 'demo-1' }],
+    };
+    const view = renderTour();
+    fireEvent.click(screen.getByText('start-ficha'));
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+    fireEvent.click(screen.getByRole('link', { name: 'Voltar ao hub' }));
+    expect(push).toHaveBeenCalledWith('/primeiros-passos');
+    expect(screen.queryByText('Não encontrei este passo')).not.toBeInTheDocument();
+
+    push.mockClear();
+    pathname = '/primeiros-passos';
+    view.rerenderTour();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('skipping cadastro does not start ficha without a demo patient', () => {
+    renderTour();
+    fireEvent.click(screen.getByText('start-cadastro-play-skip'));
+    expect(patch).toHaveBeenCalledWith(
+      'patients',
+      expect.objectContaining({ chapterId: 'cadastro', chapterStatus: 'SKIPPED' }),
+    );
+    expect(patch).not.toHaveBeenCalledWith('patients', expect.objectContaining({ chapterId: 'ficha' }));
+    expect(push).toHaveBeenCalledWith('/primeiros-passos');
+  });
+
+  it('skipping into gerar-ia does not PATCH that chapter when AI is locked', () => {
+    onboardingState.data = {
+      promptDismissedAt: null,
+      tours: [{ tourId: 'patients', demoPatientId: 'demo-1' }],
+    };
+    subscriptionState.data = { entitlements: { isReadOnly: false, aiUsed: 200, aiQuota: 200 } };
+    renderTour();
+    fireEvent.click(screen.getByText('start-plano-manual-skip'));
+    expect(patch).toHaveBeenCalledWith(
+      'patients',
+      expect.objectContaining({ chapterId: 'plano-manual', chapterStatus: 'SKIPPED' }),
+    );
+    expect(patch).not.toHaveBeenCalledWith('patients', expect.objectContaining({ chapterId: 'gerar-ia' }));
+    expect(push).toHaveBeenCalledWith('/primeiros-passos');
   });
 });
