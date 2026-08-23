@@ -1,5 +1,5 @@
 import type { Entitlements, OnboardingTourProgressView } from '@nutri-plus/shared-types';
-import type { TourChapter, TourDefinition } from './catalog';
+import type { DemoKind, TourChapter, TourDefinition } from './catalog';
 
 export function isAiChapterLocked(entitlements: Entitlements | undefined): boolean {
   return !entitlements || entitlements.isReadOnly || entitlements.aiUsed >= entitlements.aiQuota;
@@ -54,11 +54,35 @@ export function firstIncompleteChapterId(
   return null;
 }
 
-/** Cadastro already terminal but the demo pointer is gone — play cadastro again to recreate. */
-export function isCadastroPlayRecovery(tour: OnboardingTourProgressView | undefined): boolean {
-  if (tour?.demoPatientId) return false;
-  const row = tour?.chapters?.find((chapter) => chapter.chapterId === 'cadastro');
+export function demoRefOf(
+  tour: OnboardingTourProgressView | undefined,
+  kind: DemoKind,
+): string | null {
+  if (!tour) return null;
+  if (kind === 'patient') return tour.demoPatientId;
+  if (kind === 'appointment') return tour.demoAppointmentId;
+  return tour.demoTransactionId;
+}
+
+/** A createsDemo chapter is terminal but its entity is gone — and other
+ * chapters of this tour depend on that entity: play it again to recreate. */
+export function isDemoPlayRecovery(
+  def: TourDefinition,
+  chapter: TourChapter,
+  tour: OnboardingTourProgressView | undefined,
+): boolean {
+  if (!chapter.createsDemo) return false;
+  if (!def.chapters.some((c) => c.requiresDemo)) return false;
+  if (demoRefOf(tour, chapter.createsDemo)) return false;
+  const row = tour?.chapters?.find((c) => c.chapterId === chapter.id);
   return row?.status === 'COMPLETED' || row?.status === 'SKIPPED';
+}
+
+export function playRecoveryChapterId(
+  def: TourDefinition,
+  tour: OnboardingTourProgressView | undefined,
+): string | null {
+  return def.chapters.find((chapter) => isDemoPlayRecovery(def, chapter, tour))?.id ?? null;
 }
 
 export function continuePlayChapterId(
@@ -66,5 +90,5 @@ export function continuePlayChapterId(
   tour: OnboardingTourProgressView | undefined,
   entitlements: Entitlements | undefined,
 ): string | null {
-  return firstIncompleteChapterId(def, tour, entitlements) ?? (isCadastroPlayRecovery(tour) ? 'cadastro' : null);
+  return firstIncompleteChapterId(def, tour, entitlements) ?? playRecoveryChapterId(def, tour);
 }
