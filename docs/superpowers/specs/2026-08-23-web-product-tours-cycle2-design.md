@@ -24,7 +24,7 @@ O ciclo 2 generaliza o motor de tours (hoje amarrado a `'patients'`) e entrega 4
 
 ## Goal
 
-Done when: o hub `/primeiros-passos` mostra 5 cards de tour (Pacientes + os 4 novos, na ordem do sidebar), cada um com Começar/Continuar/Concluído+Rever e cadeados próprios; funcionário inicia Agenda e Contabilidade mas vê Pacientes/Alimentos/Configurações com CTA desabilitado; o tour de Agenda cria um agendamento-demo real (vinculado ao paciente-demo quando existe) e o de Contabilidade um lançamento-demo real; replay de qualquer capítulo não faz PATCH nem cria segunda entidade; os banners de limpeza apagam as entidades-demo pelos deletes existentes; apagar o paciente-demo não quebra mais quando há agendamento vinculado; testes de API e web passam.
+Done when: o hub `/primeiros-passos` mostra 5 cards de tour (Pacientes + os 4 novos, na ordem do sidebar), cada um com Começar/Continuar/Concluído+Rever e cadeados próprios; funcionário inicia Agenda e Contabilidade mas vê Pacientes/Alimentos/Configurações com CTA desabilitado; o tour de Agenda cria um agendamento-demo real (vinculado ao paciente-demo quando existe) e o de Contabilidade um lançamento-demo real; replay de qualquer capítulo não faz PATCH nem cria segunda entidade; os banners de limpeza apagam as entidades-demo pelos deletes existentes; testes de API e web passam.
 
 ---
 
@@ -103,9 +103,9 @@ model OnboardingProgress {
 
 Corpo ganha `demoAppointmentId?: string | null` e `demoTransactionId?: string | null` (mesma regra do `demoPatientId`: escrever é permitido; SetNull cuida de deletes). GET expõe os dois no `TourProgressView`. Regras monotônicas de capítulo/tour **inalteradas**. `onboarding.types.spec.ts` atualiza a asserção de `ONBOARDING_TOUR_IDS` para os 5 ids.
 
-### Fix: apagar paciente-demo com agendamento vinculado
+### Apagar paciente-demo com agendamento vinculado — já coberto
 
-`Appointment.patient` tem `onDelete: Restrict` — hoje, `PatientsService.deleteDemoPatient` falharia com FK violation se existir agendamento apontando para o paciente-demo (situação que o tour de Agenda passa a criar de propósito). Correção no mesmo service: antes do `prisma.user.delete`, executar `prisma.appointment.deleteMany({ where: { patientId: profileId } })`. Agendamentos de um paciente-demo são artefatos de demonstração; apagá-los é o comportamento correto. `OnboardingProgress.demoAppointmentId` zera via SetNull.
+`Appointment.patient` tem `onDelete: Restrict`, mas `PatientsService.deleteDemoPatient` (ciclo 1) já executa `prisma.appointment.deleteMany({ where: { patientId: id } })` na transação antes do delete do user — nenhuma mudança necessária. Se o agendamento apagado era o demo, `OnboardingProgress.demoAppointmentId` zera via SetNull.
 
 ### Sem mudanças nos módulos Appointments/Transactions
 
@@ -149,7 +149,7 @@ Hoje não existe nenhum `data-tour` fora de `components/patients/`. Todos os anc
 |---|---|---|---|---|
 | 1 | `busca` | `/alimentos` | `next` `[data-tour="alimentos.search"]` (tabela TACO; mínimo 2 letras) com fixture · `next` `[data-tour="alimentos.table"]` (valores por 100 g: kcal, macros, fibra, sódio) | `foods-search` |
 
-Fixture `foods-search`: preenche o input de busca com `arroz`. O input usa `useState` (não RHF) — a fixture usa o setter nativo (`Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set`) + `dispatchEvent(new Event('input', { bubbles: true }))`, registrada no `FoodsBrowse`. Sem a fixture, o usuário digita; o passo 2 só resolve quando a tabela renderiza (polling de âncora existente cobre).
+Fixture `foods-search`: preenche a busca com `arroz`. O input usa `useState` (não RHF) — a fixture é registrada dentro do próprio `FoodsBrowse` e chama o setter do estado (`setSearch('arroz')`). Sem a fixture, o usuário digita; o passo 2 só resolve quando a tabela renderiza (polling de âncora existente cobre).
 
 ### Tour `configuracoes` — título **Configurações**, resumo **Plano alimentar, aparência, aplicativo do paciente e assinatura.**
 
@@ -192,7 +192,7 @@ Apagar a entidade pela UI normal do módulo (botão Excluir dos dialogs) também
 | Replay de `agendamento`/`lancamento` com entidade viva | Submit interceptado; dialog fecha via Escape; zero PATCH |
 | Rever capítulo `createsDemo` com ponteiro null | Submit real acontece; PATCH só do ponteiro; status do capítulo não muda |
 | Create de agendamento/transação 4xx/5xx | Toast atual do dialog; passo Salvar não avança (`awaitAction`) |
-| Apagar paciente-demo com agendamento-demo vinculado | `deleteMany` de appointments antes do delete do user (fix §2) |
+| Apagar paciente-demo com agendamento-demo vinculado | Já coberto pelo ciclo 1: `deleteDemoPatient` apaga agendamentos vinculados na transação |
 | Funcionário abre tour de Alimentos/Configurações por URL | `canStart` falso → `hydrateFromSearch` ignora, como hoje com EMPLOYEE em patients |
 | Conta read-only (402) | Tratamento existente do motor; PATCHes falham com toast e Sair |
 | Fixture de categoria sem nenhuma categoria cadastrada | Fixture deixa o campo vazio (categoria é opcional no agendamento; na transação o usuário escolhe/cria — o passo `next` do form orienta) |
@@ -207,7 +207,6 @@ Fora deste ciclo: tour Funcionários, Silhueta, Transcrição; cards "em breve";
 
 - `onboarding.types.spec.ts`: `ONBOARDING_TOUR_IDS` = os 5 ids, na ordem.
 - `onboarding.service.spec.ts`: PATCH grava `demoAppointmentId`/`demoTransactionId`; view expõe ambos; regras monotônicas continuam verdes; `tourId: 'agenda'` aceito, desconhecido continua 400.
-- `patients.service.spec.ts`: `deleteDemoPatient` com agendamentos vinculados chama `appointment.deleteMany` antes de `user.delete`.
 
 **Web (Vitest)**
 
@@ -225,7 +224,7 @@ Sem Playwright/E2E neste ciclo.
 
 **shared-types:** `onboarding.ts` (ids + campos novos nas views/patch).
 
-**API:** migração Prisma (2 colunas FK + back-relations); `onboarding.service.ts` (mapeamento dos refs novos); `dto/patch-tour.dto.ts`; `patients.service.ts` (fix do delete com appointments).
+**API:** migração Prisma (2 colunas FK + back-relations); `onboarding.service.ts` (mapeamento dos refs novos); `dto/patch-tour.dto.ts`.
 
 **Web — motor:** `lib/onboarding/catalog.ts` (registry, `canStart`, `createsDemo`, 4 tours novos), `progress.ts` (recovery genérico por `createsDemo`), `components/onboarding/tour-provider.tsx` (generalização), `hub-view.tsx` (N cards + banners), `delete-demo-banner.tsx` (genérico).
 
