@@ -32,13 +32,14 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
   const data = query.data;
   const items = data?.items ?? [];
   const hasSearch = search.trim().length > 0;
-  const showSearch = !!data && (data.total > 0 || hasSearch);
 
   return (
     <div className="space-y-5">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="font-heading text-2xl font-bold">Pacientes</h1>
+          <h1 className="font-heading text-2xl font-bold" data-tour="patients.list">
+            Pacientes
+          </h1>
           {data && (
             <p className="mt-1 text-sm text-muted-foreground">
               {data.total} {data.total === 1 ? 'paciente' : 'pacientes'}
@@ -47,20 +48,21 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
         </div>
         {canCreate && (
           <Button className="rounded-full" asChild>
-            <Link href="/patients/new">+ Novo paciente</Link>
+            <Link href="/patients/new" data-tour="patients.new">
+              + Novo paciente
+            </Link>
           </Button>
         )}
       </div>
 
-      {showSearch && (
-        <Input
-          placeholder="Buscar por nome ou e-mail"
-          aria-label="Buscar paciente"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-      )}
+      <Input
+        placeholder="Buscar por nome ou e-mail"
+        aria-label="Buscar paciente"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="max-w-sm"
+        data-tour="patients.search"
+      />
 
       {query.isLoading && (
         <div data-testid="patients-loading" className="space-y-2 rounded-xl border bg-card p-4">
@@ -111,7 +113,10 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
               >
                 <PatientAvatar name={p.user.name} photoUrl={p.photoUrl} className="size-11 text-sm" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold">{p.user.name}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="block truncate font-semibold">{p.user.name}</span>
+                    {p.isDemo ? <Badge>Demo</Badge> : null}
+                  </span>
                   <span className="block truncate text-sm text-muted-foreground">{p.user.email}</span>
                 </span>
                 {p.objective && <Badge variant="secondary">{OBJECTIVE_LABELS[p.objective]}</Badge>}
@@ -138,7 +143,10 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
                     <td className="px-4 py-3">
                       <Link href={`/patients/${p.id}`} className="flex items-center gap-3 font-semibold">
                         <PatientAvatar name={p.user.name} photoUrl={p.photoUrl} className="size-10 text-sm" />
-                        {p.user.name}
+                        <span className="flex items-center gap-2">
+                          {p.user.name}
+                          {p.isDemo ? <Badge>Demo</Badge> : null}
+                        </span>
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{p.user.email}</td>

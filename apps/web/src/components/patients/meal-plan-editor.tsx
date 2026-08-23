@@ -19,6 +19,8 @@ import { toast } from 'sonner';
 import type { Food, MealPlan, MealPlanDraft } from '@nutri-plus/shared-types';
 import { macrosForPortion } from '@nutri-plus/shared-types';
 import { mealPlanSchema, type MealPlanFormValues } from '@/lib/validation/meal-plan';
+import { registerFixture } from '@/lib/onboarding/fixtures';
+import { useTour } from '@/components/onboarding/tour-provider';
 import {
   useCreateMealPlan,
   useDeleteMealPlan,
@@ -172,6 +174,7 @@ export function MealPlanEditor({
   const update = useUpdateMealPlan(patientId);
   const remove = useDeleteMealPlan(patientId);
   const router = useRouter();
+  const tour = useTour();
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -187,6 +190,50 @@ export function MealPlanEditor({
     if (!isCreate && query.data) form.reset(toDefaults(query.data));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query.data]);
+
+  useEffect(() => {
+    if (isCreate || query.isLoading || !query.data) return;
+    void tour.notifyChapterActionSucceeded();
+  }, [isCreate, query.data, query.isLoading, tour]);
+
+  useEffect(() => {
+    return registerFixture('meal-plan', () => {
+      form.reset({
+        title: 'Plano demonstração',
+        objective: '',
+        targetCalories: '',
+        targetProtein: '',
+        targetCarbs: '',
+        targetFats: '',
+        meals: [
+          {
+            name: 'Café da manhã',
+            timeLabel: '',
+            instructions: '',
+            options: [
+              {
+                label: 'Opção A',
+                items: [
+                  {
+                    foodName: 'Aveia',
+                    foodId: '',
+                    quantity: '40 g',
+                    grams: '',
+                    calories: '',
+                    protein: '',
+                    carbs: '',
+                    fats: '',
+                    fiber: '',
+                    sodium: '',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      });
+    });
+  }, [form]);
 
   const watched = form.watch('meals');
   // Options are interchangeable alternatives — the day total counts only the first
@@ -216,6 +263,7 @@ export function MealPlanEditor({
       } else {
         await update.mutateAsync({ id: planId!, body: values as unknown as MealPlanFormValues });
         toast.success('Plano salvo.');
+        await tour.notifyChapterActionSucceeded();
       }
     } catch (err) {
       setFormError(
@@ -287,6 +335,7 @@ export function MealPlanEditor({
               className="rounded-full"
               onClick={onExport}
               disabled={exporting}
+              data-tour="patients.plan.pdf"
             >
               {exporting ? 'Exportando…' : 'Exportar PDF'}
             </Button>
@@ -401,7 +450,12 @@ export function MealPlanEditor({
                   Excluir
                 </Button>
               ))}
-            <Button type="submit" className="rounded-full" disabled={pending}>
+            <Button
+              type="submit"
+              className="rounded-full"
+              disabled={pending}
+              data-tour="patients.plan.save"
+            >
               {pending ? 'Salvando…' : 'Salvar'}
             </Button>
           </div>

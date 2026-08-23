@@ -244,6 +244,51 @@ describe('UsersService', () => {
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
+  it('creates a demo patient with DEMO_PROVIDER and forced-off app toggles', async () => {
+    prisma.user.create.mockResolvedValue({
+      id: 'u-d',
+      patientProfile: { id: 'pp-demo' },
+    } as any);
+
+    await service.createDemoPatient({
+      email: 'demo.user-1.1@example.com',
+      name: 'Maria Demonstração',
+      nutritionistId: 'nutri-1',
+      clinical: { height: 165, canLogAssessments: true, showMealTargetToPatient: true } as any,
+    });
+
+    const arg = prisma.user.create.mock.calls[0][0] as any;
+    expect(arg.data.role).toBe(UserRole.PATIENT);
+    expect(arg.data.authProvider).toBe('demo');
+    expect(arg.data.authProviderId).toEqual(expect.any(String));
+    expect(arg.data.email).toBe('demo.user-1.1@example.com');
+    expect(arg.data.name).toBe('Maria Demonstração');
+    expect(arg.data.patientProfile.create).toEqual({
+      nutritionistId: 'nutri-1',
+      height: 165,
+      canLogAssessments: false,
+      showMealTargetToPatient: false,
+    });
+  });
+
+  it('maps a duplicate email to ConflictException for demo patients', async () => {
+    const dup = new Prisma.PrismaClientKnownRequestError('Unique constraint', {
+      code: 'P2002',
+      clientVersion: 'test',
+      meta: { target: ['email'] },
+    });
+    prisma.user.create.mockRejectedValue(dup);
+
+    await expect(
+      service.createDemoPatient({
+        email: 'dup@example.com',
+        name: 'Dup',
+        nutritionistId: 'nutri-1',
+        clinical: {} as any,
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
   it('maps a unique-constraint violation to ConflictException for employee', async () => {
     const p2002 = new Prisma.PrismaClientKnownRequestError('dup', {
       code: 'P2002',

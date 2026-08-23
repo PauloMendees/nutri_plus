@@ -8,6 +8,7 @@ import {
 import type { MealLog, NutritionistContact } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthContext } from '../auth/types/auth-context';
+import { DEMO_PROVIDER } from '../auth/auth.constants';
 import { resolveScopeNutritionistId, resolveScopePatientId } from '../auth/auth-scope';
 import { UsersService } from '../users/users.service';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
@@ -20,7 +21,18 @@ import { computeImc } from './imc';
 
 export type { UploadedImage } from '../supabase/image-upload';
 
-const USER_SUMMARY = { select: { id: true, name: true, email: true } } as const;
+const USER_SUMMARY = { select: { id: true, name: true, email: true, authProvider: true } } as const;
+
+type PatientUserRow = {
+  id: string;
+  name: string;
+  email: string;
+  authProvider: string;
+};
+
+function toPublicUser(user: PatientUserRow) {
+  return { id: user.id, name: user.name, email: user.email };
+}
 
 const UNDELIVERABLE_EMAIL = /@(example\.(com|net|org)|test|invalid|localhost)$/i;
 
@@ -52,9 +64,32 @@ export class PatientsService {
   // Registers a patient during the consultation: invite via the Supabase Admin
   // API (creates the auth identity + emails the patient), then create the linked
   // local record. If the local write fails, the invited auth user is rolled back.
+  // Demo identities skip the invite (no mailbox) and the example.com undeliverable
+  // guard; app toggles are forced off regardless of nutritionist defaults.
   async createPatient(ctx: AuthContext, dto: CreatePatientDto) {
     const nutritionistId = resolveScopeNutritionistId(ctx);
-    const { name, email, ...clinical } = dto;
+    const { name, email, demo, ...clinical } = dto;
+
+    if (demo) {
+      const localUser = await this.users.createDemoPatient({
+        email,
+        name,
+        nutritionistId,
+        clinical: {
+          ...clinical,
+          canLogAssessments: false,
+          showMealTargetToPatient: false,
+        },
+      });
+      // A patient is always created with a nested profile, so this is non-null.
+      const profileId = localUser.patientProfile!.id;
+      await this.prisma.onboardingProgress.upsert({
+        where: { userId_tourId: { userId: ctx.user!.id, tourId: 'patients' } },
+        create: { userId: ctx.user!.id, tourId: 'patients', demoPatientId: profileId },
+        update: { demoPatientId: profileId },
+      });
+      return this.getPatient(ctx, profileId);
+    }
 
     if (UNDELIVERABLE_EMAIL.test(email)) {
       throw new UnprocessableEntityException(
@@ -137,10 +172,16 @@ export class PatientsService {
     // just widens the destructure target; it does not affect the real,
     // consents-less Prisma return type.
     const items = rawItems.map((raw) => {
-      const { assessments, consents: _consents, ...rest } = raw as typeof raw & {
+      const { assessments, consents: _consents, user, ...rest } = raw as typeof raw & {
         consents?: unknown;
+        user?: PatientUserRow;
       };
-      return { ...rest, imc: computeImc(rest.height, assessments[0]?.weight ?? null) };
+      return {
+        ...rest,
+        ...(user ? { user: toPublicUser(user) } : {}),
+        isDemo: user?.authProvider === DEMO_PROVIDER,
+        imc: computeImc(rest.height, assessments[0]?.weight ?? null),
+      };
     });
 
     return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
@@ -249,6 +290,35 @@ export class PatientsService {
     await this.requireOwned(ctx, patientId);
     await this.requireAssessment(patientId, assessmentId);
     await this.prisma.bodyAssessment.delete({ where: { id: assessmentId } });
+  }
+
+  // Demo-only hard delete. Real patients have no nutritionist delete path.
+  // Restrict children match deleteMyAccount so the profile can go; the demo
+  // user has no Supabase identity. OnboardingProgress.demoPatientId SetNulls.
+  async deleteDemoPatient(ctx: AuthContext, id: string): Promise<void> {
+    await this.requireOwned(ctx, id);
+    const patient = await this.prisma.patientProfile.findFirst({
+      where: { id, nutritionistId: resolveScopeNutritionistId(ctx) },
+      select: { userId: true, user: { select: { authProvider: true } } },
+    });
+    if (!patient) {
+      throw new NotFoundException('Patient not found');
+    }
+    if (patient.user.authProvider !== DEMO_PROVIDER) {
+      throw new ForbiddenException('Only demo patients can be deleted this way');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.outsideHomeRequest.deleteMany({ where: { patientId: id } }),
+      this.prisma.aIInteraction.deleteMany({ where: { patientId: id } }),
+      this.prisma.appointment.deleteMany({ where: { patientId: id } }),
+      this.prisma.bodyAssessment.deleteMany({ where: { patientId: id } }),
+      this.prisma.nutritionTarget.deleteMany({ where: { patientId: id } }),
+      this.prisma.silhuetaScan.deleteMany({ where: { patientId: id } }),
+      this.prisma.mealPlan.deleteMany({ where: { patientId: id } }),
+      this.prisma.patientProfile.delete({ where: { id } }),
+      this.prisma.user.delete({ where: { id: patient.userId } }),
+    ]);
   }
 
   // Patient-facing: the caller reads their OWN body assessments (evolution).
@@ -483,11 +553,14 @@ export class PatientsService {
       height: number | null;
       assessments: { weight: number | null }[];
       consents: { policyVersion: string; acceptedAt: Date }[];
+      user?: PatientUserRow;
     },
   >(patient: T) {
-    const { consents, ...rest } = patient;
+    const { consents, user, ...rest } = patient;
     return {
       ...rest,
+      ...(user ? { user: toPublicUser(user) } : {}),
+      isDemo: user?.authProvider === DEMO_PROVIDER,
       imc: computeImc(patient.height, patient.assessments[0]?.weight ?? null),
       latestConsent: consents[0]
         ? { policyVersion: consents[0].policyVersion, acceptedAt: consents[0].acceptedAt }

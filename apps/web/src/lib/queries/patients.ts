@@ -2,12 +2,14 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import type { CreatePatientRequest, ListPatientsParams, UpdatePatientRequest } from '@nutri-plus/shared-types';
 import {
   createPatient,
+  deleteDemoPatient,
   deletePatientPhoto,
   getPatient,
   listPatients,
   updatePatient,
   uploadPatientPhoto,
 } from '@/lib/api/patients';
+import { ONBOARDING_KEY } from '@/lib/queries/onboarding';
 
 export function usePatients(params: ListPatientsParams = {}) {
   return useQuery({
@@ -25,7 +27,21 @@ export function useCreatePatient() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: CreatePatientRequest) => createPatient(body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['patients'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['patients'] });
+      qc.invalidateQueries({ queryKey: ONBOARDING_KEY });
+    },
+  });
+}
+
+export function useDeleteDemoPatient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteDemoPatient(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['patients'] });
+      qc.invalidateQueries({ queryKey: ONBOARDING_KEY });
+    },
   });
 }
 

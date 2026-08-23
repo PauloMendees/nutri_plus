@@ -61,7 +61,7 @@ export function MealDiarySection({ patientId }: { patientId: string }) {
   }
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-4" data-tour="patients.diario">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-heading text-base font-bold">Diário</h2>
         <div className="flex flex-wrap items-center gap-3">

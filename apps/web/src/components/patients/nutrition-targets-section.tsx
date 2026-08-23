@@ -159,7 +159,7 @@ export function NutritionTargetsSection({ patient }: { patient: PatientDetail })
     targetCalories > 0;
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-4" data-tour="patients.metas">
       <div>
         <h2 className="font-heading text-base font-bold">Metas nutricionais</h2>
         <p className="text-sm text-muted-foreground">

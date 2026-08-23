@@ -6,6 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import type { BodyAssessment } from '@nutri-plus/shared-types';
 import { assessmentSchema, type AssessmentValues } from '@/lib/validation/assessment';
+import { registerFixture } from '@/lib/onboarding/fixtures';
+import { useTour } from '@/components/onboarding/tour-provider';
 import {
   useCreateAssessment,
   useDeleteAssessment,
@@ -89,6 +91,7 @@ export function AssessmentDialog({
   const create = useCreateAssessment(patientId);
   const update = useUpdateAssessment(patientId);
   const remove = useDeleteAssessment(patientId);
+  const tour = useTour();
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -106,6 +109,14 @@ export function AssessmentDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, assessment]);
 
+  useEffect(() => {
+    if (!open) return;
+    return registerFixture('assessment', () => {
+      form.setValue('weight', '68' as unknown as AssessmentValues['weight']);
+      form.setValue('notes', 'Avaliação de demonstração');
+    });
+  }, [open, form]);
+
   async function onSubmit(values: AssessmentValues) {
     setFormError(null);
     try {
@@ -117,6 +128,7 @@ export function AssessmentDialog({
         toast.success('Avaliação registrada.');
       }
       onOpenChange(false);
+      await tour.notifyChapterActionSucceeded();
     } catch (err) {
       const message =
         err instanceof ApiError
@@ -282,7 +294,12 @@ export function AssessmentDialog({
                 >
                   Cancelar
                 </Button>
-                <Button type='submit' className='rounded-full' disabled={pending}>
+                <Button
+                  type='submit'
+                  className='rounded-full'
+                  disabled={pending}
+                  data-tour='patients.assessment.save'
+                >
                   {pending ? 'Salvando…' : 'Salvar'}
                 </Button>
               </DialogFooter>

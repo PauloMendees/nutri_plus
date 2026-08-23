@@ -81,6 +81,7 @@ beforeEach(() => {
 describe('NutritionTargetsSection', () => {
   it('computes and shows TMB and GET from the prefilled patient data', () => {
     render(<NutritionTargetsSection patient={patient()} />);
+    expect(document.querySelector('[data-tour="patients.metas"]')).toBeTruthy();
     expect(screen.getByTestId('nt-tmb-value')).not.toHaveTextContent('—');
     expect(screen.getByTestId('nt-get-value')).not.toHaveTextContent('—');
     // Both should render a plain number (pt-BR formatted).

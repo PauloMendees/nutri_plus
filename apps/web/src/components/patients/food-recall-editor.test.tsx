@@ -17,6 +17,16 @@ vi.mock('@/lib/queries/food-recalls', () => ({
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, replace }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const notifyChapterActionSucceeded = vi.fn(() => Promise.resolve(false));
+vi.mock('@/components/onboarding/tour-provider', () => ({
+  useTour: () => ({
+    start: vi.fn(),
+    exit: vi.fn(),
+    skipChapter: vi.fn(),
+    isPlayCadastroSubmit: () => false,
+    notifyChapterActionSucceeded,
+  }),
+}));
 vi.mock('@/lib/queries/nutrition-targets', () => ({
   useNutritionTargets: () => ({ data: [{ targetCalories: 2000, proteinGrams: 150, carbGrams: 200, fatGrams: 55 }] }),
 }));
@@ -48,6 +58,7 @@ beforeEach(() => {
   deleteMut.mockReset().mockResolvedValue(undefined);
   push.mockReset();
   replace.mockReset();
+  notifyChapterActionSucceeded.mockReset().mockResolvedValue(false);
 });
 
 describe('FoodRecallEditor (edit mode)', () => {
@@ -113,6 +124,10 @@ describe('FoodRecallEditor (edit mode)', () => {
 
   it('saves the whole tree via updateFoodRecall', async () => {
     render(<FoodRecallEditor patientId="p1" recallId="r1" canEdit />);
+    expect(screen.getByRole('button', { name: /^salvar$/i })).toHaveAttribute(
+      'data-tour',
+      'patients.recall.save',
+    );
     await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
     await waitFor(() => expect(updateMut).toHaveBeenCalledTimes(1));
     const arg = updateMut.mock.calls[0][0];
@@ -208,6 +223,16 @@ describe('FoodRecallEditor (create mode)', () => {
     await waitFor(() => expect(createMut).toHaveBeenCalledTimes(1));
     expect(createMut.mock.calls[0][0].patientId).toBe('p1');
     expect(createMut.mock.calls[0][0].notes).toBe('Primeiro dia');
+    expect(notifyChapterActionSucceeded).toHaveBeenCalled();
     expect(replace).toHaveBeenCalledWith('/patients/p1/recordatorios/new1');
+  });
+
+  it('does not navigate to the created recall when the tour consumed the save', async () => {
+    notifyChapterActionSucceeded.mockResolvedValue(true);
+    render(<FoodRecallEditor patientId="p1" canEdit />);
+    await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
+    await waitFor(() => expect(createMut).toHaveBeenCalledTimes(1));
+    expect(notifyChapterActionSucceeded).toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
   });
 });

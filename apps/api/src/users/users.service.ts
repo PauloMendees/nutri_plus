@@ -1,7 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { Prisma, UserRole } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { SUPABASE_PROVIDER } from '../auth/auth.constants';
+import { DEMO_PROVIDER, SUPABASE_PROVIDER } from '../auth/auth.constants';
 import { LocalUser } from '../auth/types/auth-context';
 import { generateReferralCode } from '../common/referral-code';
 import { UpdatePatientDto } from '../patients/dto/update-patient.dto';
@@ -101,6 +102,45 @@ export class UsersService {
           role: UserRole.PATIENT,
           patientProfile: {
             create: { nutritionistId: input.nutritionistId, ...input.clinical },
+          },
+        },
+        include: INCLUDE_PROFILES,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('A user with this email already exists');
+      }
+      throw error;
+    }
+  }
+
+  // Local-only demo identity for the product tour. No Supabase invite; the
+  // authProviderId is a random UUID so the composite unique still holds.
+  // App toggles stay off regardless of nutritionist defaults or caller input.
+  async createDemoPatient(input: {
+    email: string;
+    name: string;
+    nutritionistId: string;
+    clinical: UpdatePatientDto;
+  }): Promise<LocalUser> {
+    try {
+      return await this.prisma.user.create({
+        data: {
+          authProvider: DEMO_PROVIDER,
+          authProviderId: randomUUID(),
+          email: input.email,
+          name: input.name,
+          role: UserRole.PATIENT,
+          patientProfile: {
+            create: {
+              nutritionistId: input.nutritionistId,
+              ...input.clinical,
+              canLogAssessments: false,
+              showMealTargetToPatient: false,
+            },
           },
         },
         include: INCLUDE_PROFILES,

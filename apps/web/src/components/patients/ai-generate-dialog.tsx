@@ -3,8 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { ApiError } from '@/lib/api/client';
 import { useGenerateMealPlan } from '@/lib/queries/meal-plans';
+import { registerFixture } from '@/lib/onboarding/fixtures';
 import { missingFieldsFromError } from '@/lib/meal-plans/generate-error';
+import { useTour } from '@/components/onboarding/tour-provider';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -26,6 +29,7 @@ export function AiGenerateDialog({
 }) {
   const generate = useGenerateMealPlan(patientId);
   const router = useRouter();
+  const tour = useTour();
   const [instructions, setInstructions] = useState('');
   const [missing, setMissing] = useState<string[] | null>(null);
 
@@ -36,14 +40,28 @@ export function AiGenerateDialog({
     }
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    return registerFixture('ai-instructions', () => {
+      setInstructions('Gerar um plano simples de demonstração, 3 refeições.');
+    });
+  }, [open]);
+
   async function onGenerate() {
     setMissing(null);
     try {
       const trimmed = instructions.trim();
       const plan = await generate.mutateAsync(trimmed || undefined);
+      const consumed = await tour.notifyChapterActionSucceeded();
       onOpenChange(false);
-      router.push(`/patients/${patientId}/planos/${plan.id}`);
+      if (!consumed) {
+        router.push(`/patients/${patientId}/planos/${plan.id}`);
+      }
     } catch (err) {
+      if (err instanceof ApiError && err.status === 402) {
+        tour.exit();
+        return;
+      }
       const fields = missingFieldsFromError(err);
       if (fields) {
         setMissing(fields);
@@ -99,6 +117,7 @@ export function AiGenerateDialog({
             className="rounded-full shadow-sm shadow-primary/30"
             onClick={onGenerate}
             disabled={generate.isPending}
+            data-tour="patients.plan.ai.confirm"
           >
             {generate.isPending ? 'Gerando…' : '✨ Gerar plano'}
           </Button>

@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/tooltip';
 import { AssessmentDialog } from '@/components/patients/assessment-dialog';
 
+
 type MetricKey = Extract<
   keyof BodyAssessment,
   | 'weight'
@@ -103,7 +104,12 @@ export function BioimpedanceSection({
         <h2 className="font-heading text-base font-bold">Bioimpedância</h2>
         <div className="flex gap-2">
           {canEdit && (
-            <Button size="sm" className="rounded-full" onClick={() => setCreating(true)}>
+            <Button
+              size="sm"
+              className="rounded-full"
+              onClick={() => setCreating(true)}
+              data-tour="patients.assessment.new"
+            >
               Nova avaliação
             </Button>
           )}
@@ -132,7 +138,7 @@ export function BioimpedanceSection({
             Registre a bioimpedância do paciente para acompanhar a evolução.
           </p>
           {canEdit && (
-            <Button className="rounded-full" onClick={() => setCreating(true)}>
+            <Button className="rounded-full" onClick={() => setCreating(true)} data-tour="patients.assessment.new">
               Registrar avaliação
             </Button>
           )}
