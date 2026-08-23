@@ -84,7 +84,7 @@ export function CreatePatientForm() {
 
   async function onSubmit(values: CreatePatientValues) {
     setFormError(null);
-    const playCadastro = tour.isPlayCadastroSubmit();
+    const playCadastro = tour.isPlayDemoSubmit('patient');
     try {
       const created = await create.mutateAsync(playCadastro ? { ...values, demo: true } : values);
       if (playCadastro) {
@@ -161,7 +161,7 @@ export function CreatePatientForm() {
           {formError && <p className="text-sm text-destructive">{formError}</p>}
 
           <div className="flex flex-wrap justify-end gap-3">
-            {tour.isPlayCadastroSubmit() ? (
+            {tour.isPlayDemoSubmit('patient') ? (
               <Button type="button" variant="secondary" className="rounded-full" onClick={fillDemoPatient}>
                 Preencher com dados fictícios
               </Button>

@@ -18,6 +18,8 @@ const onboardingState: {
     tours: {
       tourId: string;
       demoPatientId: string | null;
+      demoAppointmentId?: string | null;
+      demoTransactionId?: string | null;
       chapters?: { chapterId: string; status: string; furthestStepId: string | null; completedAt: string | null }[];
     }[];
   };
@@ -118,7 +120,7 @@ function Probe() {
       <button type="button" onClick={() => tour.skipChapter()}>
         skip
       </button>
-      <span data-testid="play-cadastro">{String(tour.isPlayCadastroSubmit())}</span>
+      <span data-testid="play-cadastro">{String(tour.isPlayDemoSubmit('patient'))}</span>
       <input data-tour="patients.search" aria-label="Buscar paciente" />
       <a href="/patients/new" data-tour="patients.new">
         Novo paciente
@@ -147,6 +149,64 @@ function Probe() {
         Diário
       </button>
       <section data-tour="patients.diario">Histórico do diário</section>
+      <button type="button" onClick={() => tour.start({ tourId: 'agenda', chapterId: 'visao-geral', replay: false })}>
+        start-agenda
+      </button>
+      <button type="button" onClick={() => tour.start({ tourId: 'agenda', chapterId: 'agendamento', replay: true })}>
+        start-replay-agendamento
+      </button>
+      <button
+        type="button"
+        onClick={() => tour.start({ tourId: 'contabilidade', chapterId: 'lancamento', replay: false })}
+      >
+        start-lancamento
+      </button>
+      <button
+        type="button"
+        onClick={() => tour.start({ tourId: 'configuracoes', chapterId: 'plano-alimentar', replay: false })}
+      >
+        start-configuracoes
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void tour.notifyChapterActionSucceeded({ demoTransactionId: 'tx-1' });
+        }}
+      >
+        notify-transaction
+      </button>
+      <h2 data-tour="agenda.view">Agenda</h2>
+      <div data-tour="agenda.toggle">toggle</div>
+      <div data-tour="agenda.nav">nav</div>
+      <button type="button" data-tour="agenda.new">
+        Novo agendamento
+      </button>
+      <form
+        data-tour="agenda.form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          nativeSubmit();
+        }}
+      >
+        <button type="submit" data-tour="agenda.save">
+          Salvar agendamento
+        </button>
+      </form>
+      <button type="button" data-tour="contabilidade.new">
+        Nova transação
+      </button>
+      <form
+        data-tour="contabilidade.form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          nativeSubmit();
+        }}
+      >
+        <button type="submit" data-tour="contabilidade.save">
+          Salvar lançamento
+        </button>
+      </form>
+      <div data-tour="contabilidade.table">extrato</div>
     </div>
   );
 }
@@ -247,7 +307,7 @@ describe('TourProvider', () => {
           <button type="button" onClick={() => tour.start({ tourId: 'patients', chapterId: 'lista', replay: false })}>
             outside-start
           </button>
-          <span data-testid="outside-flag">{String(tour.isPlayCadastroSubmit())}</span>
+          <span data-testid="outside-flag">{String(tour.isPlayDemoSubmit('patient'))}</span>
         </div>
       );
     }
@@ -613,5 +673,89 @@ describe('TourProvider', () => {
     expect(push).not.toHaveBeenCalled();
     expect(screen.queryByText('Não encontrei este passo')).not.toBeInTheDocument();
     expect(await screen.findByRole('dialog', { name: 'Salvar recordatório' })).toBeInTheDocument();
+  });
+
+  it('starts the agenda tour and patches the agenda tourId', () => {
+    pathname = '/agenda';
+    renderTour();
+    fireEvent.click(screen.getByText('start-agenda'));
+    expect(patch).toHaveBeenCalledWith(
+      'agenda',
+      expect.objectContaining({ chapterId: 'visao-geral', chapterStatus: 'IN_PROGRESS' }),
+    );
+  });
+
+  it('EMPLOYEE starts agenda but not configuracoes or patients', () => {
+    pathname = '/agenda';
+    renderTour(UserRole.EMPLOYEE);
+    fireEvent.click(screen.getByText('start-configuracoes'));
+    expect(patch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText('start-play'));
+    expect(patch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText('start-agenda'));
+    expect(patch).toHaveBeenCalledWith(
+      'agenda',
+      expect.objectContaining({ chapterId: 'visao-geral', chapterStatus: 'IN_PROGRESS' }),
+    );
+  });
+
+  it('replay of the agendamento save step does not native-submit and does not patch', async () => {
+    pathname = '/agenda';
+    onboardingState.data = {
+      promptDismissedAt: null,
+      tours: [
+        {
+          tourId: 'agenda',
+          demoPatientId: null,
+          demoAppointmentId: 'apt-1',
+          demoTransactionId: null,
+          chapters: [{ chapterId: 'agendamento', status: 'COMPLETED', furthestStepId: 'save', completedAt: 'x' }],
+        },
+      ],
+    };
+    renderTour();
+    fireEvent.click(screen.getByText('start-replay-agendamento'));
+    expect(await screen.findByRole('dialog', { name: 'Novo agendamento' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Novo agendamento' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Próximo' }));
+    expect(await screen.findByRole('dialog', { name: 'Salvar agendamento' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar agendamento' }));
+    expect(nativeSubmit).not.toHaveBeenCalled();
+    expect(patch).not.toHaveBeenCalled();
+  });
+
+  it('lancamento notify patches the transaction ref and advances to the table step', async () => {
+    pathname = '/contabilidade';
+    renderTour();
+    fireEvent.click(screen.getByText('start-lancamento'));
+    expect(await screen.findByRole('dialog', { name: 'Nova transação' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Nova transação' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Próximo' }));
+    expect(await screen.findByRole('dialog', { name: 'Salvar lançamento' })).toBeInTheDocument();
+    fireEvent.click(screen.getByText('notify-transaction'));
+    await waitFor(() => {
+      expect(patch).toHaveBeenCalledWith(
+        'contabilidade',
+        expect.objectContaining({ demoTransactionId: 'tx-1' }),
+      );
+    });
+    expect(await screen.findByRole('dialog', { name: 'No extrato' })).toBeInTheDocument();
+    expect(patch).not.toHaveBeenCalledWith(
+      'contabilidade',
+      expect.objectContaining({ chapterId: 'lancamento', chapterStatus: 'COMPLETED' }),
+    );
+  });
+
+  it('notify with a mismatched demo ref kind is ignored', async () => {
+    renderTour();
+    fireEvent.click(screen.getByText('start-cadastro-play'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Próximo' }));
+    expect(await screen.findByRole('dialog', { name: 'Salvar cadastro' })).toBeInTheDocument();
+    fireEvent.click(screen.getByText('notify-transaction'));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(patch).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ demoTransactionId: 'tx-1' }));
+    expect(screen.getByRole('dialog', { name: 'Salvar cadastro' })).toBeInTheDocument();
   });
 });

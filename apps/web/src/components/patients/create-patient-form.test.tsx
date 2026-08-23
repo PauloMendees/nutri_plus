@@ -5,7 +5,7 @@ import { ApiError } from '@/lib/api/client';
 
 const push = vi.fn();
 const mutateAsync = vi.fn();
-const isPlayCadastroSubmit = vi.fn(() => false);
+const isPlayDemoSubmit = vi.fn(() => false);
 const notifyChapterActionSucceeded = vi.fn(() => Promise.resolve());
 const exit = vi.fn();
 
@@ -18,7 +18,7 @@ vi.mock('@/components/onboarding/tour-provider', () => ({
     start: vi.fn(),
     exit,
     skipChapter: vi.fn(),
-    isPlayCadastroSubmit,
+    isPlayDemoSubmit,
     notifyChapterActionSucceeded,
   }),
 }));
@@ -30,7 +30,7 @@ beforeEach(() => {
   mutateAsync.mockReset();
   exit.mockReset();
   notifyChapterActionSucceeded.mockReset().mockResolvedValue(undefined);
-  isPlayCadastroSubmit.mockReset().mockReturnValue(false);
+  isPlayDemoSubmit.mockReset().mockReturnValue(false);
 });
 
 describe('CreatePatientForm', () => {
@@ -63,7 +63,7 @@ describe('CreatePatientForm', () => {
   });
 
   it('fills the form from Preencher com dados fictícios during the cadastro tour', async () => {
-    isPlayCadastroSubmit.mockReturnValue(true);
+    isPlayDemoSubmit.mockReturnValue(true);
     render(<CreatePatientForm />);
     await userEvent.click(screen.getByRole('button', { name: /preencher com dados fictícios/i }));
     expect(screen.getByLabelText(/nome/i)).toHaveValue('Maria Demonstração');
@@ -79,7 +79,7 @@ describe('CreatePatientForm', () => {
   });
 
   it('sends demo: true on submit while the cadastro play step is active', async () => {
-    isPlayCadastroSubmit.mockReturnValue(true);
+    isPlayDemoSubmit.mockReturnValue(true);
     mutateAsync.mockResolvedValue({ id: 'p-demo' });
     render(<CreatePatientForm />);
     await userEvent.type(screen.getByLabelText(/nome/i), 'Maria Demonstração');
@@ -93,7 +93,7 @@ describe('CreatePatientForm', () => {
   });
 
   it('does not notify the tour when creation fails', async () => {
-    isPlayCadastroSubmit.mockReturnValue(true);
+    isPlayDemoSubmit.mockReturnValue(true);
     mutateAsync.mockRejectedValue(new ApiError(409, {}));
     render(<CreatePatientForm />);
     await userEvent.type(screen.getByLabelText(/nome/i), 'Maria Silva');
