@@ -24,4 +24,16 @@ describe('TransactionCategoriesView', () => {
     expect(screen.getByText('Receita')).toBeInTheDocument();
     expect(screen.getByText('Despesa')).toBeInTheDocument();
   });
+
+  it('exposes the categories anchors', () => {
+    render(<TransactionCategoriesView />);
+    expect(screen.getByRole('heading', { name: 'Categorias' })).toHaveAttribute(
+      'data-tour',
+      'contabilidade.categories',
+    );
+    expect(screen.getByRole('button', { name: 'Nova categoria' })).toHaveAttribute(
+      'data-tour',
+      'contabilidade.category.new',
+    );
+  });
 });
