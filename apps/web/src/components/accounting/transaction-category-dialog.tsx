@@ -160,7 +160,6 @@ export function TransactionCategoryDialog({
                 variant="outline"
                 className="rounded-full"
                 onClick={() => onOpenChange(false)}
-                data-tour="contabilidade.category.cancel"
               >
                 Cancelar
               </Button>

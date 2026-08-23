@@ -55,9 +55,5 @@ describe('CategoryDialog', () => {
   it('exposes the agenda category dialog anchors', () => {
     render(<CategoryDialog open onOpenChange={onOpenChange} />);
     expect(document.querySelector('form[data-tour="agenda.category.form"]')).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Cancelar' })).toHaveAttribute(
-      'data-tour',
-      'agenda.category.cancel',
-    );
   });
 });

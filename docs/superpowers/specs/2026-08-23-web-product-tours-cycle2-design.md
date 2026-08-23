@@ -115,7 +115,7 @@ Creates e deletes existentes atendem tudo. Os creates já devolvem a view da ent
 
 ## 3. Os 4 tours — capítulos, âncoras e fixtures
 
-Hoje não existe nenhum `data-tour` fora de `components/patients/`. Todos os anchors abaixo são novos. Padrão do ciclo 1: passos `click` em botões reais (clique nativo segue), `next` para explicação, fixture preenche mas nunca submete, `awaitAction` nos cliques que gravam.
+Hoje não existe nenhum `data-tour` fora de `components/patients/`. Todos os anchors abaixo são novos. Padrão do ciclo 1: passos `click` em botões reais (clique nativo segue), `next` para explicação, fixture preenche mas nunca submete, `awaitAction` nos cliques que gravam. O botão "Preencher com dados fictícios" avança o passo automaticamente quando `advance: 'next'` (form de explicação); em passos `awaitAction` ele só preenche — o usuário ainda precisa salvar.
 
 ### Tour `agenda` — título **Agenda**, resumo **Agendamentos, visões de mês e lista, e categorias.**
 
@@ -125,7 +125,7 @@ Hoje não existe nenhum `data-tour` fora de `components/patients/`. Todos os anc
 |---|---|---|---|---|
 | 1 | `visao-geral` | `/agenda` | `next` `[data-tour="agenda.view"]` (o que é a agenda) · `next` `[data-tour="agenda.toggle"]` (Mês/Lista) · `next` `[data-tour="agenda.nav"]` (mês anterior/próximo/Hoje) | — |
 | 2 | `agendamento` | `/agenda` | `click` `[data-tour="agenda.new"]` (abre `AppointmentDialog`) · `next` `[data-tour="agenda.form"]` (categoria auto-preenche título; paciente opcional) · `click` `[data-tour="agenda.save"]` `awaitAction` | `appointment` |
-| 3 | `categorias` | `/agenda/categorias` | `next` `[data-tour="agenda.categories"]` (lista, badge Padrão) · `click` `[data-tour="agenda.category.new"]` (abre `CategoryDialog`) · `next` `[data-tour="agenda.category.form"]` (cores, marcar como padrão) · `click` `[data-tour="agenda.category.cancel"]` (fecha **sem salvar**) | — |
+| 3 | `categorias` | `/agenda/categorias` | `next` `[data-tour="agenda.categories"]` (lista, badge Padrão) · `click` `[data-tour="agenda.category.new"]` (abre `CategoryDialog`) · `next` `[data-tour="agenda.category.form"]` (cores, marcar como padrão; corpo orienta fechar com Cancelar) | — |
 
 `agendamento` tem `createsDemo: 'appointment'`. Fixture `appointment` (registrada no `AppointmentDialog` quando aberto): título **Consulta de demonstração**, categoria = a padrão ou a primeira da lista (se houver), paciente = paciente-demo **se** `demoPatientId` do tour `patients` existir (senão sem paciente), data = amanhã, 09:00–10:00 (evita horário no passado, virada de meia-noite e conflito 409), descrição `Criado pelo tour de primeiros passos.`. Ao criar com sucesso, o dialog chama `notifyChapterActionSucceeded({ demoAppointmentId: created.id })`.
 
@@ -137,7 +137,7 @@ Hoje não existe nenhum `data-tour` fora de `components/patients/`. Todos os anc
 |---|---|---|---|---|
 | 1 | `extrato` | `/contabilidade` | `next` `[data-tour="contabilidade.view"]` (extrato do mês) · `next` `[data-tour="contabilidade.chart"]` (Entradas x Saídas, 12 meses) · `next` `[data-tour="contabilidade.cards"]` (Entradas/Saídas/Saldo) · `next` `[data-tour="contabilidade.nav"]` (troca de mês) | — |
 | 2 | `lancamento` | `/contabilidade` | `click` `[data-tour="contabilidade.new"]` (abre `TransactionDialog`) · `next` `[data-tour="contabilidade.form"]` (tipo filtra categorias; valor em R$) · `click` `[data-tour="contabilidade.save"]` `awaitAction` · `next` `[data-tour="contabilidade.table"]` (lançamento no extrato; clicar na linha edita) | `transaction` |
-| 3 | `categorias` | `/contabilidade/categorias` | `next` `[data-tour="contabilidade.categories"]` (Receita vs Despesa) · `click` `[data-tour="contabilidade.category.new"]` (abre dialog) · `next` `[data-tour="contabilidade.category.form"]` (nome e tipo) · `click` `[data-tour="contabilidade.category.cancel"]` (fecha **sem salvar**) | — |
+| 3 | `categorias` | `/contabilidade/categorias` | `next` `[data-tour="contabilidade.categories"]` (Receita vs Despesa) · `click` `[data-tour="contabilidade.category.new"]` (abre dialog) · `next` `[data-tour="contabilidade.category.form"]` (nome e tipo; corpo orienta fechar com Cancelar) | — |
 
 `lancamento` tem `createsDemo: 'transaction'`. Fixture `transaction` (registrada no `TransactionDialog`): tipo Receita, valor `100`, data hoje, categoria = primeira de Receita (se houver), descrição **Lançamento de demonstração**. Sucesso → `notifyChapterActionSucceeded({ demoTransactionId: created.id })`.
 
@@ -196,6 +196,8 @@ Apagar a entidade pela UI normal do módulo (botão Excluir dos dialogs) também
 | Funcionário abre tour de Alimentos/Configurações por URL | `canStart` falso → redireciona ao hub `/primeiros-passos` (onde o card aparece bloqueado com a explicação) |
 | Conta read-only (402) | Tratamento existente do motor; PATCHes falham com toast e Sair |
 | Fixture de categoria sem nenhuma categoria cadastrada | Fixture deixa o campo vazio (categoria é opcional no agendamento; na transação o usuário escolhe/cria — o passo `next` do form orienta) |
+| Usuário salva o form direto num passo de explicação (dialog) | notify com kind do capítulo faz fast-forward ao passo de ação e conclui/avança normalmente |
+| Usuário fecha o dialog de categoria antes do fim | O passo do form é o último do capítulo — Próximo conclui sem depender de âncora no dialog |
 
 Fora deste ciclo: tour Funcionários, Silhueta, Transcrição; cards "em breve"; analytics; reset de progresso; qualquer mudança em RBAC ou no `OnboardingGate` de billing.
 

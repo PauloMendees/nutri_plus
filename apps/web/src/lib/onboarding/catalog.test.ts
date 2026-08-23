@@ -65,4 +65,12 @@ describe('cycle-2 catalog', () => {
       }
     }
   });
+
+  it('the categorias chapters of agenda and contabilidade end on the form step', () => {
+    for (const tour of [AGENDA_TOUR, CONTABILIDADE_TOUR]) {
+      const chapter = tour.chapters.find((c) => c.id === 'categorias');
+      expect(chapter?.steps.map((s) => s.id)).toEqual(['list', 'new', 'form']);
+      expect(chapter?.steps.some((s) => s.anchor.includes('.category.cancel'))).toBe(false);
+    }
+  });
 });

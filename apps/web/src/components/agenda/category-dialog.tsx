@@ -238,7 +238,6 @@ export function CategoryDialog({
                 variant="outline"
                 className="rounded-full"
                 onClick={() => onOpenChange(false)}
-                data-tour="agenda.category.cancel"
               >
                 Cancelar
               </Button>
