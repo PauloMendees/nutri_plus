@@ -43,7 +43,7 @@ export type TourApi = {
   exit(): void;
   skipChapter(): void;
   isPlayCadastroSubmit(): boolean;
-  notifyChapterActionSucceeded(opts?: { demoPatientId?: string }): Promise<void>;
+  notifyChapterActionSucceeded(opts?: { demoPatientId?: string }): Promise<boolean>;
 };
 
 const noopTour: TourApi = {
@@ -54,7 +54,7 @@ const noopTour: TourApi = {
     return false;
   },
   notifyChapterActionSucceeded() {
-    return Promise.resolve();
+    return Promise.resolve(false);
   },
 };
 
@@ -102,10 +102,6 @@ function nextStartableChapter(
 ): TourChapter | undefined {
   const idx = tour.chapters.findIndex((c) => c.id === afterChapterId);
   return tour.chapters.slice(idx + 1).find((c) => isChapterStartable(c, demoPatientId, entitlements));
-}
-
-function chapterAwaitsAction(chapter: TourChapter | undefined): boolean {
-  return chapter?.steps.some((step) => step.awaitAction) === true;
 }
 
 function persistedChapterStatus(
@@ -160,6 +156,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
 
   const sessionRef = useRef<Session | null>(null);
   const driverRef = useRef<ReturnType<typeof driver> | null>(null);
+  const highlightedStepKeyRef = useRef<string | null>(null);
   const tourProgress = onboarding?.tours.find((t) => t.tourId === 'patients');
   const demoPatientId = tourProgress?.demoPatientId ?? null;
   const demoPatientIdRef = useRef(demoPatientId);
@@ -187,6 +184,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
 
   const dismissSession = useCallback(() => {
     sessionRef.current = null;
+    highlightedStepKeyRef.current = null;
     setSession(null);
     setAnchorEl(null);
     setAnchorMissing(false);
@@ -269,7 +267,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       }
 
       if (replay) {
-        if (!isChapterStartable(chapter, demoId, ents)) return false;
+        if (chapter.requiresDemo && !demoId) return false;
         beginSession({ tourId: opts.tourId, chapterId: opts.chapterId, replay: true });
         return true;
       }
@@ -413,15 +411,25 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
   }, [continueAfterChapter, patchIfPlay]);
 
   const notifyChapterActionSucceeded = useCallback(
-    async (opts?: { demoPatientId?: string }) => {
+    async (opts?: { demoPatientId?: string }): Promise<boolean> => {
       const current = sessionRef.current;
-      if (!current) return;
+      if (!current) return false;
       const tour = getTour(current.tourId);
       const chapter = tour?.chapters.find((c) => c.id === current.chapterId);
-      if (!chapterAwaitsAction(chapter) && current.chapterId !== 'cadastro') return;
-      await finishChapter(opts);
+      const step = chapter?.steps[current.stepIndex];
+      if (!step?.awaitAction) return false;
+      if (opts?.demoPatientId) {
+        demoPatientIdRef.current = opts.demoPatientId;
+      }
+      const isLast = current.stepIndex >= (chapter?.steps.length ?? 0) - 1;
+      if (isLast) {
+        await finishChapter(opts);
+      } else {
+        advance();
+      }
+      return true;
     },
-    [finishChapter],
+    [advance, finishChapter],
   );
 
   const advanceRef = useRef(advance);
@@ -437,8 +445,10 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
     const currentStep = currentStepOf(session);
     if (!currentStep) return;
 
+    const stepKey = `${session.chapterId}:${session.stepIndex}`;
+    const alreadyHighlighted = highlightedStepKeyRef.current === stepKey;
     const route = resolveRoute(currentStep, demoPatientId, pathname);
-    if (route && pathname !== route) {
+    if (route && pathname !== route && !(currentStep.awaitAction && alreadyHighlighted)) {
       routerRef.current.push(route);
     }
 
@@ -452,6 +462,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       if (cancelled) return;
       const el = document.querySelector(currentStep.anchor);
       if (el) {
+        highlightedStepKeyRef.current = stepKey;
         setAnchorEl(el);
         setAnchorMissing(false);
         if (!driverRef.current) driverRef.current = createDriver();
@@ -459,6 +470,10 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
           element: el,
           popover: { showButtons: [], title: '', description: '' },
         });
+        return;
+      }
+      if (currentStep.awaitAction && alreadyHighlighted) {
+        timer = window.setTimeout(poll, ANCHOR_POLL_MS);
         return;
       }
       if (Date.now() - startedAt >= ANCHOR_TIMEOUT_MS) {
@@ -558,7 +573,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       <Suspense fallback={null}>
         <TourUrlHydrator role={role} ready={onboarding != null} onSearch={hydrateFromSearch} />
       </Suspense>
-      <style>{`.nutri-tour-hidden-popover{display:none!important}.driver-overlay{pointer-events:none!important}.driver-active .nutri-tour-tooltip,.driver-active .nutri-tour-tooltip *{pointer-events:auto!important}`}</style>
+      <style>{`.nutri-tour-hidden-popover{display:none!important}.driver-active *{pointer-events:auto!important}.driver-overlay,.driver-active .driver-overlay,.driver-active .driver-overlay *{pointer-events:none!important}.driver-active .nutri-tour-tooltip,.driver-active .nutri-tour-tooltip *{pointer-events:auto!important}`}</style>
       {anchorMissing ? <TourMissingAnchor onBackToHub={goToHub} /> : null}
       {step && rect && !anchorMissing ? (
         <TourTooltip

@@ -12,6 +12,16 @@ vi.mock('@/lib/queries/assessments', () => ({
   useUpdateAssessment: () => ({ mutateAsync: updateMut, isPending: false }),
   useDeleteAssessment: () => ({ mutateAsync: deleteMut, isPending: false }),
 }));
+const notifyChapterActionSucceeded = vi.fn(() => Promise.resolve(false));
+vi.mock('@/components/onboarding/tour-provider', () => ({
+  useTour: () => ({
+    start: vi.fn(),
+    exit: vi.fn(),
+    skipChapter: vi.fn(),
+    isPlayCadastroSubmit: () => false,
+    notifyChapterActionSucceeded,
+  }),
+}));
 
 import { AssessmentDialog } from './assessment-dialog';
 
@@ -51,6 +61,7 @@ beforeEach(() => {
   updateMut.mockReset().mockResolvedValue({});
   deleteMut.mockReset().mockResolvedValue(undefined);
   onOpenChange.mockReset();
+  notifyChapterActionSucceeded.mockReset().mockResolvedValue(false);
 });
 
 describe('AssessmentDialog', () => {
@@ -65,6 +76,7 @@ describe('AssessmentDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
     await waitFor(() => expect(createMut).toHaveBeenCalledTimes(1));
     expect(createMut.mock.calls[0][0].weight).toBe(80);
+    expect(notifyChapterActionSucceeded).toHaveBeenCalled();
   });
 
   it('edit: prefills and updates with the assessment id', async () => {

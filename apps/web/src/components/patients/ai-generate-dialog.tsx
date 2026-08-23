@@ -52,9 +52,11 @@ export function AiGenerateDialog({
     try {
       const trimmed = instructions.trim();
       const plan = await generate.mutateAsync(trimmed || undefined);
-      await tour.notifyChapterActionSucceeded();
+      const consumed = await tour.notifyChapterActionSucceeded();
       onOpenChange(false);
-      router.push(`/patients/${patientId}/planos/${plan.id}`);
+      if (!consumed) {
+        router.push(`/patients/${patientId}/planos/${plan.id}`);
+      }
     } catch (err) {
       if (err instanceof ApiError && err.status === 402) {
         tour.exit();

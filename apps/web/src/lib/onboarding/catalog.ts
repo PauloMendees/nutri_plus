@@ -10,7 +10,7 @@ export type TourStep = {
   body: string;
   advance: Advance;
   fixture?: string;
-  /** Last-step mutating clicks: do not auto-advance; wait for notifyChapterActionSucceeded. */
+  /** Mutating clicks: do not auto-advance; wait for notifyChapterActionSucceeded. */
   awaitAction?: boolean;
 };
 
@@ -181,6 +181,7 @@ export const PATIENTS_TOUR: TourDefinition = {
           body: 'Registre uma medida para acompanhar a evolução.',
           advance: 'click',
           fixture: 'assessment',
+          awaitAction: true,
         },
         {
           id: 'export',
@@ -244,6 +245,7 @@ export const PATIENTS_TOUR: TourDefinition = {
           body: 'Preencha uma refeição e salve o recordatório.',
           advance: 'click',
           fixture: 'food-recall',
+          awaitAction: true,
         },
         {
           id: 'tab-diario',
@@ -292,6 +294,7 @@ export const PATIENTS_TOUR: TourDefinition = {
           body: 'Monte refeições com a TACO e salve o plano.',
           advance: 'click',
           fixture: 'meal-plan',
+          awaitAction: true,
         },
         {
           id: 'pdf',

@@ -50,6 +50,15 @@ describe('AiGenerateDialog', () => {
     expect(push).toHaveBeenCalledWith('/patients/p1/planos/m1');
   });
 
+  it('does not navigate to the plan when the tour consumed the generation', async () => {
+    notifyChapterActionSucceeded.mockResolvedValue(true);
+    render(<AiGenerateDialog open onOpenChange={onOpenChange} patientId="p1" />);
+    await userEvent.click(screen.getByRole('button', { name: /gerar plano/i }));
+    await waitFor(() => expect(generateMut).toHaveBeenCalled());
+    expect(notifyChapterActionSucceeded).toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
   it('generates with no instructions (undefined) when the field is empty', async () => {
     render(<AiGenerateDialog open onOpenChange={onOpenChange} patientId="p1" />);
     await userEvent.click(screen.getByRole('button', { name: /gerar plano/i }));

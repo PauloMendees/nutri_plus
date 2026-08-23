@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import type { BodyAssessment } from '@nutri-plus/shared-types';
 import { assessmentSchema, type AssessmentValues } from '@/lib/validation/assessment';
 import { registerFixture } from '@/lib/onboarding/fixtures';
+import { useTour } from '@/components/onboarding/tour-provider';
 import {
   useCreateAssessment,
   useDeleteAssessment,
@@ -90,6 +91,7 @@ export function AssessmentDialog({
   const create = useCreateAssessment(patientId);
   const update = useUpdateAssessment(patientId);
   const remove = useDeleteAssessment(patientId);
+  const tour = useTour();
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -126,6 +128,7 @@ export function AssessmentDialog({
         toast.success('Avaliação registrada.');
       }
       onOpenChange(false);
+      await tour.notifyChapterActionSucceeded();
     } catch (err) {
       const message =
         err instanceof ApiError

@@ -80,6 +80,15 @@ function Probe() {
       <button type="button" onClick={() => tour.start({ tourId: 'patients', chapterId: 'gerar-ia', replay: false })}>
         start-gerar-ia
       </button>
+      <button type="button" onClick={() => tour.start({ tourId: 'patients', chapterId: 'gerar-ia', replay: true })}>
+        start-replay-gerar-ia
+      </button>
+      <button
+        type="button"
+        onClick={() => tour.start({ tourId: 'patients', chapterId: 'recordatorio-diario', replay: false })}
+      >
+        start-recordatorio
+      </button>
       <button
         type="button"
         onClick={() => {
@@ -125,6 +134,19 @@ function Probe() {
           Salvar cadastro
         </button>
       </form>
+      <button type="button" data-tour="patients.tab.recordatorio">
+        Recordatório
+      </button>
+      <a href="/patients/demo-1/recordatorios/novo" data-tour="patients.recall.new">
+        Novo recordatório
+      </a>
+      <button type="submit" data-tour="patients.recall.save">
+        Salvar recordatório
+      </button>
+      <button type="button" data-tour="patients.tab.diario">
+        Diário
+      </button>
+      <section data-tour="patients.diario">Histórico do diário</section>
     </div>
   );
 }
@@ -242,6 +264,15 @@ describe('TourProvider', () => {
     expect(document.querySelector('style')?.textContent).toMatch(
       /\.driver-active \.nutri-tour-tooltip \*\{pointer-events:auto/i,
     );
+  });
+
+  it('allows typing in form fields that are not the highlighted save button', async () => {
+    renderTour();
+    fireEvent.click(screen.getByText('start-play'));
+    expect(await screen.findByRole('button', { name: 'Próximo' })).toBeInTheDocument();
+    const css = document.querySelector('style')?.textContent ?? '';
+    expect(css).toMatch(/\.driver-active \*\{pointer-events:auto!important\}/i);
+    expect(css).toMatch(/\.driver-active \.driver-overlay \*\{pointer-events:none!important\}/i);
   });
 
   it('renders skip, exit and next on a next-advance step', async () => {
@@ -403,6 +434,8 @@ describe('TourProvider', () => {
   it('notify after cadastro success PATCHes COMPLETED and starts ficha', async () => {
     renderTour();
     fireEvent.click(screen.getByText('start-cadastro-play'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Próximo' }));
+    expect(await screen.findByRole('dialog', { name: 'Salvar cadastro' })).toBeInTheDocument();
     fireEvent.click(screen.getByText('notify-cadastro'));
     await waitFor(() => {
       expect(patch).toHaveBeenCalledWith(
@@ -432,6 +465,26 @@ describe('TourProvider', () => {
     fireEvent.click(screen.getByText('start-gerar-ia'));
     expect(patch).not.toHaveBeenCalled();
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('replays a completed IA chapter even when quota is exhausted', () => {
+    onboardingState.data = {
+      promptDismissedAt: null,
+      tours: [
+        {
+          tourId: 'patients',
+          demoPatientId: 'demo-1',
+          chapters: [
+            { chapterId: 'gerar-ia', status: 'COMPLETED', furthestStepId: 'confirm', completedAt: 'x' },
+          ],
+        },
+      ],
+    };
+    subscriptionState.data = { entitlements: { isReadOnly: false, aiUsed: 200, aiQuota: 200 } };
+    renderTour();
+    fireEvent.click(screen.getByText('start-replay-gerar-ia'));
+    expect(patch).not.toHaveBeenCalled();
+    expect(replace).toHaveBeenCalled();
   });
 
   it('replay=1 on an unfinished chapter is treated as play', async () => {
@@ -495,5 +548,70 @@ describe('TourProvider', () => {
     await waitFor(() => {
       expect(screen.getByTestId('play-cadastro')).toHaveTextContent('true');
     });
+  });
+
+  it('recall save waits for notify then advances to diário without completing the chapter', async () => {
+    onboardingState.data = {
+      promptDismissedAt: null,
+      tours: [{ tourId: 'patients', demoPatientId: 'demo-1', chapters: [] }],
+    };
+    renderTour();
+    fireEvent.click(screen.getByText('start-recordatorio'));
+    expect(await screen.findByRole('dialog', { name: 'Aba Recordatório' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Recordatório' }));
+    expect(await screen.findByRole('dialog', { name: 'Novo recordatório' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('link', { name: 'Novo recordatório' }));
+    expect(await screen.findByRole('dialog', { name: 'Salvar recordatório' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar recordatório' }));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(screen.getByRole('dialog', { name: 'Salvar recordatório' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Aba Diário' })).not.toBeInTheDocument();
+    expect(patch).not.toHaveBeenCalledWith(
+      'patients',
+      expect.objectContaining({ chapterId: 'recordatorio-diario', chapterStatus: 'COMPLETED' }),
+    );
+
+    fireEvent.click(screen.getByText('notify-cadastro'));
+    expect(await screen.findByRole('dialog', { name: 'Aba Diário' })).toBeInTheDocument();
+    expect(patch).not.toHaveBeenCalledWith(
+      'patients',
+      expect.objectContaining({ chapterId: 'recordatorio-diario', chapterStatus: 'COMPLETED' }),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Diário' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Próximo' }));
+    await waitFor(() => {
+      expect(patch).toHaveBeenCalledWith(
+        'patients',
+        expect.objectContaining({
+          chapterId: 'recordatorio-diario',
+          chapterStatus: 'COMPLETED',
+          furthestStepId: 'diario',
+        }),
+      );
+    });
+  });
+
+  it('does not yank an awaitAction step back to its catalog route after the anchor was shown', async () => {
+    onboardingState.data = {
+      promptDismissedAt: null,
+      tours: [{ tourId: 'patients', demoPatientId: 'demo-1', chapters: [] }],
+    };
+    const view = renderTour();
+    fireEvent.click(screen.getByText('start-recordatorio'));
+    expect(await screen.findByRole('dialog', { name: 'Aba Recordatório' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Recordatório' }));
+    expect(await screen.findByRole('dialog', { name: 'Novo recordatório' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('link', { name: 'Novo recordatório' }));
+    expect(await screen.findByRole('dialog', { name: 'Salvar recordatório' })).toBeInTheDocument();
+
+    push.mockClear();
+    pathname = '/patients/demo-1/recordatorios/saved-1';
+    view.rerenderTour();
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.queryByText('Não encontrei este passo')).not.toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Salvar recordatório' })).toBeInTheDocument();
   });
 });

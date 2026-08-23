@@ -120,6 +120,10 @@ describe('HubView', () => {
     render(<HubView role={UserRole.NUTRITIONIST} />);
     expect(screen.getByText('Concluído', { selector: '[data-slot="badge"]' })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /^rever$/i }).length).toBeGreaterThan(0);
+    const footer = screen.getByText('Concluído', { selector: '[data-slot="badge"]' }).closest(
+      '[data-slot="card-footer"]',
+    )!;
+    expect(within(footer).getByRole('button', { name: /^rever$/i })).toHaveClass('ml-auto');
   });
 
   it('shows the delete-demo banner when demoPatientId is set', () => {

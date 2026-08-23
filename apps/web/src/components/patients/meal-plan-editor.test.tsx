@@ -19,6 +19,16 @@ vi.mock('@/lib/queries/meal-plans', () => ({
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, replace }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const notifyChapterActionSucceeded = vi.fn(() => Promise.resolve(false));
+vi.mock('@/components/onboarding/tour-provider', () => ({
+  useTour: () => ({
+    start: vi.fn(),
+    exit: vi.fn(),
+    skipChapter: vi.fn(),
+    isPlayCadastroSubmit: () => false,
+    notifyChapterActionSucceeded,
+  }),
+}));
 vi.mock('@/lib/api/meal-plans', () => ({
   downloadMealPlanPdf: (...args: unknown[]) => downloadMealPlanPdf(...args),
 }));
@@ -58,6 +68,7 @@ beforeEach(() => {
   push.mockReset();
   replace.mockReset();
   downloadMealPlanPdf.mockReset().mockResolvedValue(undefined);
+  notifyChapterActionSucceeded.mockReset().mockResolvedValue(false);
 });
 
 describe('MealPlanEditor (edit mode)', () => {
@@ -185,6 +196,12 @@ describe('MealPlanEditor (edit mode)', () => {
     expect(screen.getByRole('button', { name: /exportar pdf/i })).toBeInTheDocument();
   });
 
+  it('notifies the tour only after the saved plan (and PDF control) has loaded', () => {
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    expect(screen.getByRole('button', { name: /exportar pdf/i })).toBeInTheDocument();
+    expect(notifyChapterActionSucceeded).toHaveBeenCalled();
+  });
+
   it('shows "Exportar PDF" for an existing plan (employee, read-only)', () => {
     render(<MealPlanEditor patientId="p1" planId="m1" canEdit={false} />);
     expect(screen.getByRole('button', { name: /exportar pdf/i })).toBeInTheDocument();
@@ -224,6 +241,7 @@ describe('MealPlanEditor (create mode)', () => {
     await waitFor(() => expect(createMut).toHaveBeenCalledTimes(1));
     expect(createMut.mock.calls[0][0].patientId).toBe('p1');
     expect(createMut.mock.calls[0][0].title).toBe('Novo plano');
+    expect(notifyChapterActionSucceeded).not.toHaveBeenCalled();
     expect(replace).toHaveBeenCalledWith('/patients/p1/planos/new1');
   });
 

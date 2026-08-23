@@ -20,6 +20,7 @@ import type { Food, FoodRecall } from '@nutri-plus/shared-types';
 import { macrosForPortion } from '@nutri-plus/shared-types';
 import { foodRecallSchema, type FoodRecallFormValues } from '@/lib/validation/food-recall';
 import { registerFixture } from '@/lib/onboarding/fixtures';
+import { useTour } from '@/components/onboarding/tour-provider';
 import {
   useCreateFoodRecall,
   useDeleteFoodRecall,
@@ -108,6 +109,7 @@ export function FoodRecallEditor({
   const targets = useNutritionTargets(patientId);
   const latest = targets.data?.[0];
   const router = useRouter();
+  const tour = useTour();
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
@@ -170,10 +172,14 @@ export function FoodRecallEditor({
           ...(values as unknown as FoodRecallFormValues),
         });
         toast.success('Recordatório criado.');
-        router.replace(`/patients/${patientId}/recordatorios/${created.id}`);
+        const consumed = await tour.notifyChapterActionSucceeded();
+        if (!consumed) {
+          router.replace(`/patients/${patientId}/recordatorios/${created.id}`);
+        }
       } else {
         await update.mutateAsync({ id: recallId!, body: values as unknown as FoodRecallFormValues });
         toast.success('Recordatório salvo.');
+        await tour.notifyChapterActionSucceeded();
       }
     } catch (err) {
       setFormError(err instanceof ApiError ? 'Não foi possível salvar.' : 'Erro inesperado.');

@@ -13,6 +13,17 @@ export function chapterView(
   status: 'todo' | 'in_progress' | 'completed' | 'skipped' | 'locked';
   lockReason: 'ai' | 'demo' | null;
 } {
+  const row = tour?.chapters?.find((c) => c.chapterId === chapter.id);
+  if (row?.status === 'COMPLETED' || row?.status === 'SKIPPED') {
+    if (chapter.requiresDemo && !tour?.demoPatientId) {
+      return { status: 'locked', lockReason: 'demo' };
+    }
+    return {
+      status: row.status === 'COMPLETED' ? 'completed' : 'skipped',
+      lockReason: null,
+    };
+  }
+
   if (chapter.requires === 'ai' && isAiChapterLocked(entitlements)) {
     return { status: 'locked', lockReason: 'ai' };
   }
@@ -20,10 +31,7 @@ export function chapterView(
     return { status: 'locked', lockReason: 'demo' };
   }
 
-  const row = tour?.chapters?.find((c) => c.chapterId === chapter.id);
   if (!row) return { status: 'todo', lockReason: null };
-  if (row.status === 'COMPLETED') return { status: 'completed', lockReason: null };
-  if (row.status === 'SKIPPED') return { status: 'skipped', lockReason: null };
   return { status: 'in_progress', lockReason: null };
 }
 

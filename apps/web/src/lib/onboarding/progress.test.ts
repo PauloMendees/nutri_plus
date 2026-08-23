@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Entitlements, OnboardingTourProgressView } from '@nutri-plus/shared-types';
-import { PATIENTS_TOUR, getTour } from './catalog';
+import { PATIENTS_TOUR, getTour, type TourStep } from './catalog';
 import {
   chapterView,
   continuePlayChapterId,
@@ -90,11 +90,10 @@ describe('PATIENTS_TOUR catalog', () => {
   });
 
   it('opens bioimpedancia via Nova avaliação before the dialog save', () => {
-    const steps = PATIENTS_TOUR.chapters.find((c) => c.id === 'bioimpedancia')!.steps.map((s) => s.id);
-    expect(steps).toEqual(['tab', 'new', 'save', 'export']);
-    expect(PATIENTS_TOUR.chapters.find((c) => c.id === 'bioimpedancia')!.steps[1]!.anchor).toBe(
-      '[data-tour="patients.assessment.new"]',
-    );
+    const bio = PATIENTS_TOUR.chapters.find((c) => c.id === 'bioimpedancia')!;
+    expect(bio.steps.map((s) => s.id)).toEqual(['tab', 'new', 'save', 'export']);
+    expect(bio.steps[1]!.anchor).toBe('[data-tour="patients.assessment.new"]');
+    expect(bio.steps.find((s) => s.id === 'save')!.awaitAction).toBe(true);
   });
 
   it('looks up the patients tour by id', () => {
@@ -127,6 +126,26 @@ describe('PATIENTS_TOUR catalog', () => {
     );
     expect(pdf.anchor).toContain('patients.plan.pdf');
   });
+
+  it('mutating click steps that leave the page wait for success before advancing', () => {
+    function resolved(step: TourStep, pathname = '/patients/p1'): string | null {
+      if (typeof step.route === 'string') return step.route;
+      return step.route({ demoPatientId: 'p1', pathname });
+    }
+
+    const flagged: string[] = [];
+    for (const chapter of PATIENTS_TOUR.chapters) {
+      for (let i = 0; i < chapter.steps.length - 1; i++) {
+        const step = chapter.steps[i]!;
+        const next = chapter.steps[i + 1]!;
+        if (step.advance !== 'click' || !step.fixture) continue;
+        const from = resolved(step);
+        const to = resolved(next, from ?? '/patients/p1');
+        if (from !== to && !step.awaitAction) flagged.push(`${chapter.id}/${step.id}`);
+      }
+    }
+    expect(flagged).toEqual([]);
+  });
 });
 
 describe('primaryCta', () => {
@@ -146,6 +165,36 @@ describe('isAiChapterLocked / chapterView', () => {
     const ch = PATIENTS_TOUR.chapters.find((c) => c.id === 'gerar-ia')!;
     expect(chapterView(ch, undefined, exhausted).status).toBe('locked');
     expect(chapterView(ch, tour({ demoPatientId: 'p1' }), exhausted).lockReason).toBe('ai');
+  });
+
+  it('keeps a completed IA chapter completed even if quota is later exhausted', () => {
+    const ch = PATIENTS_TOUR.chapters.find((c) => c.id === 'gerar-ia')!;
+    expect(
+      chapterView(
+        ch,
+        tour({
+          demoPatientId: 'p1',
+          chapters: [
+            { chapterId: 'gerar-ia', status: 'COMPLETED', furthestStepId: 'confirm', completedAt: 'x' },
+          ],
+        }),
+        exhausted,
+      ),
+    ).toEqual({ status: 'completed', lockReason: null });
+  });
+
+  it('locks a completed demo chapter when the demo patient is gone', () => {
+    const ch = PATIENTS_TOUR.chapters.find((c) => c.id === 'ficha')!;
+    expect(
+      chapterView(
+        ch,
+        tour({
+          demoPatientId: null,
+          chapters: [{ chapterId: 'ficha', status: 'COMPLETED', furthestStepId: 'dados', completedAt: 'x' }],
+        }),
+        pro,
+      ),
+    ).toEqual({ status: 'locked', lockReason: 'demo' });
   });
 
   it('locks IA without entitlements or when the account is read-only', () => {
