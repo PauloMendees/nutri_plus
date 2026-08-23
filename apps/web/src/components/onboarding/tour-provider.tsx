@@ -435,6 +435,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       const step = chapter?.steps[current.stepIndex];
       if (!step?.awaitAction) return false;
       const kind = payloadKind(opts);
+      if (kind && !tour?.chapters.some((c) => c.createsDemo === kind)) return false;
       if (kind && chapter?.createsDemo && chapter.createsDemo !== kind) return false;
       if (opts?.demoPatientId) {
         demoPatientIdRef.current = opts.demoPatientId;

@@ -654,6 +654,27 @@ describe('TourProvider', () => {
     });
   });
 
+  it('notify with a demo ref kind foreign to the tour is rejected even on a chapter without createsDemo', async () => {
+    onboardingState.data = {
+      promptDismissedAt: null,
+      tours: [{ tourId: 'patients', demoPatientId: 'demo-1', chapters: [] }],
+    };
+    renderTour();
+    fireEvent.click(screen.getByText('start-recordatorio'));
+    expect(await screen.findByRole('dialog', { name: 'Aba Recordatório' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Recordatório' }));
+    expect(await screen.findByRole('dialog', { name: 'Novo recordatório' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('link', { name: 'Novo recordatório' }));
+    expect(await screen.findByRole('dialog', { name: 'Salvar recordatório' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('notify-transaction'));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(patch).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ demoTransactionId: 'tx-1' }));
+    expect(screen.getByRole('dialog', { name: 'Salvar recordatório' })).toBeInTheDocument();
+  });
+
   it('does not yank an awaitAction step back to its catalog route after the anchor was shown', async () => {
     onboardingState.data = {
       promptDismissedAt: null,
