@@ -442,7 +442,7 @@ describe('TourProvider', () => {
     expect(push).toHaveBeenCalledWith('/primeiros-passos');
   });
 
-  it('isPlayCadastroSubmit is true on the cadastro form step in play', async () => {
+  it('isPlayDemoSubmit is true on the cadastro form step in play', async () => {
     renderTour();
     fireEvent.click(screen.getByText('start-cadastro-play'));
     await waitFor(() => {
@@ -450,7 +450,7 @@ describe('TourProvider', () => {
     });
   });
 
-  it('isPlayCadastroSubmit is false during cadastro replay', () => {
+  it('isPlayDemoSubmit is false during cadastro replay', () => {
     onboardingState.data = {
       promptDismissedAt: null,
       tours: [
