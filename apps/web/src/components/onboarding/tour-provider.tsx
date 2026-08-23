@@ -432,15 +432,30 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       if (!current) return false;
       const tour = getTour(current.tourId);
       const chapter = tour?.chapters.find((c) => c.id === current.chapterId);
-      const step = chapter?.steps[current.stepIndex];
-      if (!step?.awaitAction) return false;
+      if (!tour || !chapter) return false;
       const kind = payloadKind(opts);
-      if (kind && !tour?.chapters.some((c) => c.createsDemo === kind)) return false;
-      if (kind && chapter?.createsDemo && chapter.createsDemo !== kind) return false;
+      if (kind && !tour.chapters.some((c) => c.createsDemo === kind)) return false;
+      if (kind && chapter.createsDemo && chapter.createsDemo !== kind) return false;
+
+      const step = chapter.steps[current.stepIndex];
+      let effectiveIndex = current.stepIndex;
+      if (!step?.awaitAction) {
+        // Ação real aconteceu antes do passo de ação (ex.: usuário salvou direto
+        // do passo de explicação do form). Só um payload do kind deste capítulo
+        // pode adiantar a sessão até o passo de ação.
+        if (!kind || chapter.createsDemo !== kind) return false;
+        const actionIndex = chapter.steps.findIndex((s) => s.awaitAction);
+        if (actionIndex < 0 || current.stepIndex > actionIndex) return false;
+        effectiveIndex = actionIndex;
+        const fastForward: Session = { ...current, stepIndex: actionIndex };
+        sessionRef.current = fastForward;
+        setSession(fastForward);
+      }
+
       if (opts?.demoPatientId) {
         demoPatientIdRef.current = opts.demoPatientId;
       }
-      const isLast = current.stepIndex >= (chapter?.steps.length ?? 0) - 1;
+      const isLast = effectiveIndex >= chapter.steps.length - 1;
       if (isLast) {
         await finishChapter(opts);
       } else {
@@ -609,7 +624,14 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
           advance={step.advance}
           onSkipChapter={skipChapter}
           onExit={exit}
-          onFillFixture={step.fixture ? () => runFixture(step.fixture as string) : undefined}
+          onFillFixture={
+            step.fixture
+              ? () => {
+                  runFixture(step.fixture as string);
+                  if (step.advance === 'next') advance();
+                }
+              : undefined
+          }
           onNext={step.advance === 'next' ? () => advance() : undefined}
         />
       ) : null}
