@@ -51,4 +51,13 @@ describe('CategoryDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: /excluir/i }));
     await waitFor(() => expect(deleteMut).toHaveBeenCalledWith('c1'));
   });
+
+  it('exposes the agenda category dialog anchors', () => {
+    render(<CategoryDialog open onOpenChange={onOpenChange} />);
+    expect(document.querySelector('form[data-tour="agenda.category.form"]')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toHaveAttribute(
+      'data-tour',
+      'agenda.category.cancel',
+    );
+  });
 });

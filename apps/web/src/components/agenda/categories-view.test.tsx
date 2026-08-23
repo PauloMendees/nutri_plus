@@ -34,4 +34,14 @@ describe('CategoriesView', () => {
     expect(screen.getByText('Consulta')).toBeInTheDocument();
     expect(screen.getByText(/padrão/i)).toBeInTheDocument();
   });
+
+  it('exposes the agenda categories tour anchors', () => {
+    useAppointmentCategories.mockReturnValue({ data: [], isLoading: false, isError: false });
+    render(<CategoriesView />);
+    expect(screen.getByRole('heading', { name: 'Categorias' })).toHaveAttribute('data-tour', 'agenda.categories');
+    expect(screen.getByRole('button', { name: 'Nova categoria' })).toHaveAttribute(
+      'data-tour',
+      'agenda.category.new',
+    );
+  });
 });

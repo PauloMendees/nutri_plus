@@ -17,6 +17,9 @@ import {
 } from "@/lib/queries/appointments";
 import { usePatients } from "@/lib/queries/patients";
 import { useAppointmentCategories } from "@/lib/queries/appointment-categories";
+import { useOnboarding } from "@/lib/queries/onboarding";
+import { registerFixture } from "@/lib/onboarding/fixtures";
+import { useTour } from "@/components/onboarding/tour-provider";
 import { ApiError } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,6 +105,10 @@ export function AppointmentDialog({
   const update = useUpdateAppointment();
   const remove = useDeleteAppointment();
   const [formError, setFormError] = useState<string | null>(null);
+  const tour = useTour();
+  const { data: onboarding } = useOnboarding();
+  const demoPatientId =
+    onboarding?.tours.find((t) => t.tourId === "patients")?.demoPatientId ?? null;
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(
@@ -130,6 +137,30 @@ export function AppointmentDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mode, categories.data]);
 
+  // Fills the form with demo data for the "agenda" tour. Never submits.
+  useEffect(() => {
+    if (!open || mode !== "create") return;
+    return registerFixture("appointment", () => {
+      const category =
+        categories.data?.find((c) => c.isDefault) ?? categories.data?.[0];
+      const hasDemoPatient =
+        demoPatientId != null &&
+        (patients.data?.items ?? []).some((p) => p.id === demoPatientId);
+      const day = new Date();
+      day.setDate(day.getDate() + 1);
+      form.reset({
+        title: "Consulta de demonstração",
+        patientId: hasDemoPatient ? demoPatientId : undefined,
+        categoryId: category?.id,
+        date: toDateInput(day),
+        startTime: "09:00",
+        endTime: "10:00",
+        description: "Criado pelo tour de primeiros passos.",
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, mode, categories.data, patients.data, demoPatientId]);
+
   async function onSubmit(values: AppointmentFormValues) {
     setFormError(null);
     const startsAt = combineDateTime(
@@ -152,7 +183,7 @@ export function AppointmentDialog({
         });
         toast.success("Agendamento atualizado.");
       } else {
-        await create.mutateAsync({
+        const created = await create.mutateAsync({
           title: values.title,
           startsAt,
           endsAt,
@@ -161,6 +192,9 @@ export function AppointmentDialog({
           ...(values.categoryId ? { categoryId: values.categoryId } : {}),
         });
         toast.success("Agendamento criado.");
+        if (created?.id) {
+          await tour.notifyChapterActionSucceeded({ demoAppointmentId: created.id });
+        }
       }
       onOpenChange(false);
     } catch (err) {
@@ -201,6 +235,7 @@ export function AppointmentDialog({
             onSubmit={form.handleSubmit(onSubmit)}
             className="space-y-4"
             noValidate
+            data-tour="agenda.form"
           >
             <FormField
               control={form.control}
@@ -366,7 +401,12 @@ export function AppointmentDialog({
               >
                 Cancelar
               </Button>
-              <Button type="submit" className="rounded-full" disabled={pending}>
+              <Button
+                type="submit"
+                className="rounded-full"
+                disabled={pending}
+                data-tour="agenda.save"
+              >
                 {pending ? "Salvando…" : "Salvar"}
               </Button>
             </DialogFooter>
