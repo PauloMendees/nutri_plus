@@ -137,15 +137,15 @@ export function SettingsView() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
           <Tabs defaultValue="plano">
-            <TabsList>
+            <TabsList data-tour="config.tabs">
               <TabsTrigger value="plano">Plano alimentar</TabsTrigger>
-              <TabsTrigger value="aparencia">Aparência</TabsTrigger>
-              <TabsTrigger value="app">Aplicativo Paciente</TabsTrigger>
-              <TabsTrigger value="assinatura">Assinatura</TabsTrigger>
+              <TabsTrigger value="aparencia" data-tour="config.tab.aparencia">Aparência</TabsTrigger>
+              <TabsTrigger value="app" data-tour="config.tab.app">Aplicativo Paciente</TabsTrigger>
+              <TabsTrigger value="assinatura" data-tour="config.tab.assinatura">Assinatura</TabsTrigger>
             </TabsList>
 
             <TabsContent value="plano">
-              <section className="space-y-4 rounded-xl border bg-card p-5">
+              <section className="space-y-4 rounded-xl border bg-card p-5" data-tour="config.plano">
                 <h2 className="font-heading text-base font-bold">Plano alimentar</h2>
 
                 {/* Logo */}
@@ -229,14 +229,14 @@ export function SettingsView() {
             </TabsContent>
 
             <TabsContent value="aparencia">
-              <section className="space-y-3 rounded-xl border bg-card p-5">
+              <section className="space-y-3 rounded-xl border bg-card p-5" data-tour="config.aparencia">
                 <h2 className="font-heading text-base font-bold">Aparência</h2>
                 <ThemeToggleSwitch />
               </section>
             </TabsContent>
 
             <TabsContent value="app">
-              <section className="space-y-4 rounded-xl border bg-card p-5">
+              <section className="space-y-4 rounded-xl border bg-card p-5" data-tour="config.app">
                 <h2 className="font-heading text-base font-bold">Aplicativo Paciente</h2>
 
                 <FormField
@@ -354,7 +354,7 @@ export function SettingsView() {
             </TabsContent>
 
             <TabsContent value="assinatura">
-              <section className="space-y-4 rounded-xl border bg-card p-5">
+              <section className="space-y-4 rounded-xl border bg-card p-5" data-tour="config.assinatura">
                 <h2 className="font-heading text-base font-bold">Assinatura</h2>
                 <SubscriptionTab />
               </section>

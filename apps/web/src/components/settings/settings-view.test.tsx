@@ -15,6 +15,9 @@ vi.mock('@/lib/queries/settings', () => ({
 }));
 vi.mock('next-themes', () => ({ useTheme: () => ({ resolvedTheme: 'light', setTheme: vi.fn() }) }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('@/lib/queries/subscription', () => ({
+  useSubscription: () => ({ data: undefined, refetch: vi.fn() }),
+}));
 
 import { SettingsView } from './settings-view';
 
@@ -93,6 +96,32 @@ describe('SettingsView', () => {
     render(<SettingsView />);
     await userEvent.click(screen.getByRole('button', { name: /remover logo/i }));
     await waitFor(() => expect(deleteMut).toHaveBeenCalledTimes(1));
+  });
+
+  it('exposes the configurações tour anchors', async () => {
+    useNutritionistSettings.mockReturnValue({
+      isLoading: false, isError: false,
+      data: {
+        displayName: 'Dra. Ana', logoUrl: null, mealPlanAiInstructions: 'Sem lactose',
+        defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+        whatsappNumber: null,
+      },
+    });
+    render(<SettingsView />);
+    expect(document.querySelector('[data-tour="config.tabs"]')).not.toBeNull();
+    expect(document.querySelector('[data-tour="config.plano"]')).not.toBeNull();
+    expect(screen.getByRole('tab', { name: 'Aparência' })).toHaveAttribute('data-tour', 'config.tab.aparencia');
+    expect(screen.getByRole('tab', { name: 'Aplicativo Paciente' })).toHaveAttribute('data-tour', 'config.tab.app');
+    expect(screen.getByRole('tab', { name: 'Assinatura' })).toHaveAttribute('data-tour', 'config.tab.assinatura');
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Aparência' }));
+    expect(document.querySelector('[data-tour="config.aparencia"]')).not.toBeNull();
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Aplicativo Paciente' }));
+    expect(document.querySelector('[data-tour="config.app"]')).not.toBeNull();
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Assinatura' }));
+    expect(document.querySelector('[data-tour="config.assinatura"]')).not.toBeNull();
   });
 
   describe('Aplicativo Paciente tab', () => {
