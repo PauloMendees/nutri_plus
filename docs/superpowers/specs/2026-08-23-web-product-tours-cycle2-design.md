@@ -52,7 +52,7 @@ export const ONBOARDING_TOUR_IDS = [
 - Novos campos em `TourDefinition`:
   - `canStart: (role: UserRole) => boolean`
   - `startLockedText: string` — texto do CTA desabilitado para quem não pode iniciar.
-- Registry: `export const ALL_TOURS: TourDefinition[]` na ordem do sidebar (`patients`, `agenda`, `contabilidade`, `alimentos`, `configuracoes`). `getTour(id)` consulta o registry.
+- Registry: `export const ALL_TOURS: TourDefinition[]` na ordem: Pacientes, Agenda, Contabilidade, Alimentos, Configurações (`patients`, `agenda`, `contabilidade`, `alimentos`, `configuracoes`). `getTour(id)` consulta o registry.
 - `TourChapter.createsDemo?: 'patient' | 'appointment' | 'transaction'` — substitui os `if (chapterId === 'cadastro')` espalhados. Um capítulo com `createsDemo` tem exatamente um passo de submit (o único passo `click` com `awaitAction` do capítulo — não necessariamente o último passo), e o motor aplica a ele as regras de replay/recovery abaixo.
 - `TourRouteCtx` vira `{ demoPatientId?: string; pathname?: string }` — as rotas-função dos novos tours não usam refs (rotas fixas). `resolveRoute` só devolve `null` quando a rota-função exige um ref ausente (comportamento atual, agora restrito ao tour Pacientes).
 - `requiresDemo` continua existindo e continua significando "requer paciente-demo" — só o tour Pacientes usa. Nenhum capítulo novo exige entidade-demo.
@@ -66,7 +66,7 @@ export const ONBOARDING_TOUR_IDS = [
 - **Replay de capítulo `createsDemo`** (generaliza `replayCadastroSubmit`):
   - `patient`: comportamento atual — `preventDefault` no submit e `router.push('/patients/' + demoPatientId)`.
   - `appointment` / `transaction`: `preventDefault` + `stopPropagation` no clique de Salvar, fecha o dialog (dispara `Escape` — Radix Dialog fecha), e avança para o passo seguinte da sessão (ou encerra o capítulo, se o submit era o último passo). Zero PATCH, como todo replay.
-- **Recovery de capítulo `createsDemo`** (generaliza `isCadastroPlayRecovery`): se o capítulo está terminal mas o ref correspondente é `null` (entidade apagada), Rever daquele capítulo roda o submit de verdade e o cliente faz PATCH **apenas** do ponteiro (`demoAppointmentId`/`demoTransactionId`/`demoPatientId`) — status/`completedAt` do capítulo não mudam.
+- **Recovery de capítulo `createsDemo`** (generaliza `isCadastroPlayRecovery`): só se aplica a tours com pelo menos um capítulo `requiresDemo` (hoje, só Pacientes) — se o capítulo está terminal mas o ref correspondente é `null` (entidade apagada), Rever daquele capítulo roda o submit de verdade e o cliente faz PATCH **apenas** do ponteiro (`demoPatientId`) — status/`completedAt` do capítulo não mudam. Em Agenda/Contabilidade, rever o capítulo `createsDemo` com ponteiro `null` **não** recria a entidade (o intercept de replay se aplica normalmente) — apagar a entidade-demo é decisão do usuário e nada no motor depende dela.
 - `isPlayCadastroSubmit()` (API pública do contexto) é renomeado/generalizado para `isPlayDemoSubmit(kind)` mantendo o comportamento para `create-patient-form` (que envia `demo: true`). Agenda/Contabilidade **não** precisam de flag no body — só do id criado.
 - `notifyChapterActionSucceeded(payload)` já é genérico; passa a aceitar `{ demoPatientId?, demoAppointmentId?, demoTransactionId? }` e o provider faz o PATCH do ponteiro junto com a conclusão do capítulo (modo play).
 
@@ -127,7 +127,7 @@ Hoje não existe nenhum `data-tour` fora de `components/patients/`. Todos os anc
 | 2 | `agendamento` | `/agenda` | `click` `[data-tour="agenda.new"]` (abre `AppointmentDialog`) · `next` `[data-tour="agenda.form"]` (categoria auto-preenche título; paciente opcional) · `click` `[data-tour="agenda.save"]` `awaitAction` | `appointment` |
 | 3 | `categorias` | `/agenda/categorias` | `next` `[data-tour="agenda.categories"]` (lista, badge Padrão) · `click` `[data-tour="agenda.category.new"]` (abre `CategoryDialog`) · `next` `[data-tour="agenda.category.form"]` (cores, marcar como padrão) · `click` `[data-tour="agenda.category.cancel"]` (fecha **sem salvar**) | — |
 
-`agendamento` tem `createsDemo: 'appointment'`. Fixture `appointment` (registrada no `AppointmentDialog` quando aberto): título **Consulta de demonstração**, categoria = a padrão ou a primeira da lista (se houver), paciente = paciente-demo **se** `demoPatientId` do tour `patients` existir (senão sem paciente), data = hoje, próximo horário cheio, duração 1h, descrição `Criado pelo tour de primeiros passos.`. Ao criar com sucesso, o dialog chama `notifyChapterActionSucceeded({ demoAppointmentId: created.id })`.
+`agendamento` tem `createsDemo: 'appointment'`. Fixture `appointment` (registrada no `AppointmentDialog` quando aberto): título **Consulta de demonstração**, categoria = a padrão ou a primeira da lista (se houver), paciente = paciente-demo **se** `demoPatientId` do tour `patients` existir (senão sem paciente), data = amanhã, 09:00–10:00 (evita horário no passado, virada de meia-noite e conflito 409), descrição `Criado pelo tour de primeiros passos.`. Ao criar com sucesso, o dialog chama `notifyChapterActionSucceeded({ demoAppointmentId: created.id })`.
 
 ### Tour `contabilidade` — título **Contabilidade**, resumo **Extrato mensal, lançamentos e categorias financeiras.**
 
@@ -190,10 +190,10 @@ Apagar a entidade pela UI normal do módulo (botão Excluir dos dialogs) também
 |---|---|
 | Âncora ausente 5s | Igual ciclo 1: tooltip "Não encontrei este passo" + hub; capítulo não completa |
 | Replay de `agendamento`/`lancamento` com entidade viva | Submit interceptado; dialog fecha via Escape; zero PATCH |
-| Rever capítulo `createsDemo` com ponteiro null | Submit real acontece; PATCH só do ponteiro; status do capítulo não muda |
+| Rever capítulo `createsDemo` com ponteiro null | Pacientes (cadastro): submit real acontece; PATCH só do ponteiro; status do capítulo não muda. Agenda/Contabilidade: não recria — replay intercepta o submit normalmente |
 | Create de agendamento/transação 4xx/5xx | Toast atual do dialog; passo Salvar não avança (`awaitAction`) |
 | Apagar paciente-demo com agendamento-demo vinculado | Já coberto pelo ciclo 1: `deleteDemoPatient` apaga agendamentos vinculados na transação |
-| Funcionário abre tour de Alimentos/Configurações por URL | `canStart` falso → `hydrateFromSearch` ignora, como hoje com EMPLOYEE em patients |
+| Funcionário abre tour de Alimentos/Configurações por URL | `canStart` falso → redireciona ao hub `/primeiros-passos` (onde o card aparece bloqueado com a explicação) |
 | Conta read-only (402) | Tratamento existente do motor; PATCHes falham com toast e Sair |
 | Fixture de categoria sem nenhuma categoria cadastrada | Fixture deixa o campo vazio (categoria é opcional no agendamento; na transação o usuário escolhe/cria — o passo `next` do form orienta) |
 
