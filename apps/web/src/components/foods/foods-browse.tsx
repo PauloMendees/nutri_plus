@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useFoodSearch } from '@/lib/queries/foods';
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { registerFixture } from '@/lib/onboarding/fixtures';
 
 // TACO values carry long fractions (per-100g conversions); show at most 2 decimals.
 function macro(value: number | null): string {
@@ -17,6 +18,8 @@ export function FoodsBrowse() {
   const query = useFoodSearch(debounced);
   const foods = query.data ?? [];
   const hasTerm = debounced.trim().length >= 2;
+
+  useEffect(() => registerFixture('foods-search', () => setSearch('arroz')), []);
 
   return (
     <div className="space-y-5">
@@ -33,6 +36,7 @@ export function FoodsBrowse() {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         className="max-w-sm"
+        data-tour="alimentos.search"
       />
 
       {!hasTerm && (
@@ -73,6 +77,7 @@ export function FoodsBrowse() {
             'overflow-hidden rounded-xl border bg-card' +
             (query.isFetching ? ' opacity-60 transition-opacity' : ' transition-opacity')
           }
+          data-tour="alimentos.table"
         >
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
