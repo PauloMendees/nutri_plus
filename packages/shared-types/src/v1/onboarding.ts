@@ -1,4 +1,10 @@
-export const ONBOARDING_TOUR_IDS = ['patients'] as const;
+export const ONBOARDING_TOUR_IDS = [
+  'patients',
+  'agenda',
+  'contabilidade',
+  'alimentos',
+  'configuracoes',
+] as const;
 export type OnboardingTourId = (typeof ONBOARDING_TOUR_IDS)[number];
 
 export type OnboardingTourStatus = 'IN_PROGRESS' | 'COMPLETED';
@@ -15,6 +21,8 @@ export interface OnboardingTourProgressView {
   tourId: string;
   status: OnboardingTourStatus;
   demoPatientId: string | null;
+  demoAppointmentId: string | null;
+  demoTransactionId: string | null;
   completedAt: string | null;
   chapters: OnboardingChapterProgressView[];
 }
@@ -33,6 +41,8 @@ export interface PatchOnboardingTourRequest {
   chapterStatus?: OnboardingChapterStatus;
   furthestStepId?: string;
   demoPatientId?: string | null;
+  demoAppointmentId?: string | null;
+  demoTransactionId?: string | null;
   tourStatus?: 'COMPLETED';
 }
 
