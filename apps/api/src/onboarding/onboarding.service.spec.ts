@@ -36,7 +36,7 @@ describe('OnboardingService', () => {
   });
 
   it('rejects unknown tourId', async () => {
-    await expect(svc.patchTour('u1', 'agenda', { chapterId: 'x' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(svc.patchTour('u1', 'unknown-tour', { chapterId: 'x' })).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('upserts first chapter write as IN_PROGRESS', async () => {
@@ -81,5 +81,68 @@ describe('OnboardingService', () => {
     await expect(
       svc.patchTour('u1', 'patients', { chapterId: 'lista', chapterStatus: 'IN_PROGRESS' }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('accepts the agenda tour and upserts demoAppointmentId on first write', async () => {
+    prisma.onboardingProgress.findUnique.mockResolvedValue(null);
+    prisma.onboardingProgress.upsert.mockResolvedValue({
+      id: 'pr2', status: 'IN_PROGRESS', tourId: 'agenda',
+      demoPatientId: null, demoAppointmentId: 'apt-1', demoTransactionId: null,
+      completedAt: null, chapters: [],
+    } as any);
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ onboardingPromptDismissedAt: null } as any);
+    prisma.onboardingProgress.findMany.mockResolvedValue([]);
+
+    await svc.patchTour('u1', 'agenda', { demoAppointmentId: 'apt-1' });
+
+    expect(prisma.onboardingProgress.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId_tourId: { userId: 'u1', tourId: 'agenda' } },
+        create: expect.objectContaining({ tourId: 'agenda', demoAppointmentId: 'apt-1' }),
+      }),
+    );
+  });
+
+  it('updates demoTransactionId on an existing contabilidade row', async () => {
+    prisma.onboardingProgress.findUnique.mockResolvedValue({
+      id: 'pr3', status: 'IN_PROGRESS', tourId: 'contabilidade',
+      demoPatientId: null, demoAppointmentId: null, demoTransactionId: null,
+      completedAt: null, chapters: [],
+    } as any);
+    prisma.onboardingProgress.update.mockResolvedValue({} as any);
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ onboardingPromptDismissedAt: null } as any);
+    prisma.onboardingProgress.findMany.mockResolvedValue([]);
+
+    await svc.patchTour('u1', 'contabilidade', { demoTransactionId: 'tx-1' });
+
+    expect(prisma.onboardingProgress.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'pr3' },
+        data: expect.objectContaining({ demoTransactionId: 'tx-1' }),
+      }),
+    );
+  });
+
+  it('exposes demoAppointmentId and demoTransactionId in the view', async () => {
+    prisma.user.findUniqueOrThrow.mockResolvedValue({ onboardingPromptDismissedAt: null } as any);
+    prisma.onboardingProgress.findMany.mockResolvedValue([
+      {
+        id: 'pr2', tourId: 'agenda', status: 'IN_PROGRESS',
+        demoPatientId: null, demoAppointmentId: 'apt-1', demoTransactionId: null,
+        completedAt: null, chapters: [],
+      },
+    ] as any);
+    const out = await svc.getMine('u1');
+    expect(out.tours[0]).toMatchObject({
+      tourId: 'agenda',
+      demoAppointmentId: 'apt-1',
+      demoTransactionId: null,
+    });
+  });
+
+  it('still rejects an unknown tourId', async () => {
+    await expect(svc.patchTour('u1', 'funcionarios', { chapterId: 'x' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 });

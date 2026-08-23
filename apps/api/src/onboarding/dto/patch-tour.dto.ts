@@ -21,6 +21,14 @@ export class PatchTourDto implements PatchOnboardingTourRequest {
   demoPatientId?: string | null;
 
   @IsOptional()
+  @IsString()
+  demoAppointmentId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  demoTransactionId?: string | null;
+
+  @IsOptional()
   @IsIn(['COMPLETED'])
   tourStatus?: 'COMPLETED';
 }
