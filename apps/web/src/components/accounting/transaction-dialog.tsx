@@ -95,10 +95,12 @@ export function TransactionDialog({
     if (!open || transaction) return;
     return registerFixture('transaction', () => {
       const income = (categories.data ?? []).filter((c) => c.type === 'INCOME');
+      const now = new Date();
+      const occurredOn = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       form.reset({
         type: 'INCOME',
         amount: '100,00',
-        occurredOn: new Date().toISOString().slice(0, 10),
+        occurredOn,
         categoryId: income[0]?.id ?? null,
         description: 'Lançamento de demonstração',
       });

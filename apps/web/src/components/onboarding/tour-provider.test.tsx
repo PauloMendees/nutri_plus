@@ -779,4 +779,13 @@ describe('TourProvider', () => {
     expect(patch).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ demoTransactionId: 'tx-1' }));
     expect(screen.getByRole('dialog', { name: 'Salvar cadastro' })).toBeInTheDocument();
   });
+
+  it('EMPLOYEE deep link to a gated tour redirects to the hub without patching', async () => {
+    searchParams = new URLSearchParams('tour=configuracoes&chapter=plano-alimentar');
+    renderTour(UserRole.EMPLOYEE);
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith('/primeiros-passos');
+    });
+    expect(patch).not.toHaveBeenCalled();
+  });
 });
