@@ -169,7 +169,12 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
     (tourId: string) => toursRef.current?.find((t) => t.tourId === tourId),
     [],
   );
-  const demoPatientId = onboarding?.tours.find((t) => t.tourId === 'patients')?.demoPatientId ?? null;
+  const demoFromQuery = onboarding?.tours.find((t) => t.tourId === 'patients')?.demoPatientId ?? null;
+  const demoPatientOverrideRef = useRef<string | null>(null);
+  if (demoFromQuery != null) {
+    demoPatientOverrideRef.current = null; // query alcançou (ou trocou) o valor
+  }
+  const demoPatientId = demoFromQuery ?? demoPatientOverrideRef.current;
   const demoPatientIdRef = useRef(demoPatientId);
   demoPatientIdRef.current = demoPatientId;
   const entitlements = subscription?.entitlements;
@@ -354,6 +359,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       if (!tour || !chapter) return;
 
       if (extra?.demoPatientId) {
+        demoPatientOverrideRef.current = extra.demoPatientId; // sobrevive a re-renders
         demoPatientIdRef.current = extra.demoPatientId;
       }
 
@@ -453,6 +459,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       }
 
       if (opts?.demoPatientId) {
+        demoPatientOverrideRef.current = opts.demoPatientId; // sobrevive a re-renders
         demoPatientIdRef.current = opts.demoPatientId;
       }
       const isLast = effectiveIndex >= chapter.steps.length - 1;
