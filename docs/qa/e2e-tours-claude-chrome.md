@@ -225,7 +225,7 @@ Crie a N2 agora (seção 4). Dispense o modal de 1º acesso com "Agora não".
 | 8.2 | Rever Agendamento (Agenda) | O clique em Salvar **não** submete — dialog fecha sozinho e o replay segue; nenhum agendamento novo |
 | 8.3 | Rever Lançamento (Contabilidade) | Idem; extrato continua com um só lançamento-demo |
 | 8.4 | Depois de todos os replays | Progresso idêntico ao de antes (capítulos Concluído continuam Concluído; nada "voltou") |
-| 8.5 | Rever com cota de IA esgotada (se aplicável) | Capítulo IA concluído continua revisível; capítulo IA não-feito fica Bloqueado com tooltip |
+| 8.5 | Rever com cota de IA esgotada (se aplicável) | Capítulo IA concluído continua revisível; capítulo IA não-feito fica Bloqueado com a razão visível no próprio card |
 
 ### T09 — Pausar, sair, F5, deep links (N2)
 

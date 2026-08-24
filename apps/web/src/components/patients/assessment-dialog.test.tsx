@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { BodyAssessment } from '@nutri-plus/shared-types';
+import { localDateInput } from '@/lib/format/local-date';
 
 const createMut = vi.fn();
 const updateMut = vi.fn();
@@ -71,7 +72,7 @@ describe('AssessmentDialog', () => {
       'data-tour',
       'patients.assessment.save',
     );
-    expect(screen.getByLabelText(/data da avaliação/i)).toHaveValue(new Date().toISOString().slice(0, 10));
+    expect(screen.getByLabelText(/data da avaliação/i)).toHaveValue(localDateInput());
     await userEvent.type(screen.getByLabelText(/peso/i), '80');
     await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
     await waitFor(() => expect(createMut).toHaveBeenCalledTimes(1));
