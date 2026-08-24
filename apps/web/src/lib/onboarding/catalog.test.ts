@@ -73,4 +73,11 @@ describe('cycle-2 catalog', () => {
       expect(chapter?.steps.some((s) => s.anchor.includes('.category.cancel'))).toBe(false);
     }
   });
+
+  it('plano-manual pdf step is read-only', () => {
+    const pdf = PATIENTS_TOUR.chapters
+      .find((c) => c.id === 'plano-manual')!
+      .steps.find((s) => s.id === 'pdf')!;
+    expect(pdf.advance).toBe('next');
+  });
 });

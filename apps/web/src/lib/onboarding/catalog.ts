@@ -314,7 +314,7 @@ export const PATIENTS_TOUR: TourDefinition = {
           anchor: '[data-tour="patients.plan.pdf"]:not([disabled])',
           title: 'Exportar PDF',
           body: 'Exporte o plano em PDF para enviar ao paciente.',
-          advance: 'click',
+          advance: 'next',
         },
       ],
     },
