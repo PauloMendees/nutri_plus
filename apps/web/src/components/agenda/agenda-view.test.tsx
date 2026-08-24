@@ -13,6 +13,9 @@ vi.mock('@/lib/queries/patients', () => ({ usePatients: () => ({ data: [] }) }))
 vi.mock('@/lib/queries/appointment-categories', () => ({
   useAppointmentCategories: () => ({ data: [], isLoading: false }),
 }));
+vi.mock('@/lib/queries/onboarding', () => ({
+  useOnboarding: () => ({ data: undefined }),
+}));
 
 import { AgendaView } from './agenda-view';
 
@@ -46,5 +49,13 @@ describe('AgendaView', () => {
     expect(screen.getByText('Julho 2026')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /hoje/i }));
     expect(screen.getByText('Junho 2026')).toBeInTheDocument();
+  });
+
+  it('exposes the agenda tour anchors', () => {
+    render(<AgendaView today={new Date(2026, 5, 23)} />);
+    expect(screen.getByRole('heading', { name: 'Agenda' })).toHaveAttribute('data-tour', 'agenda.view');
+    expect(screen.getByRole('button', { name: 'Novo agendamento' })).toHaveAttribute('data-tour', 'agenda.new');
+    expect(document.querySelector('[data-tour="agenda.toggle"]')).not.toBeNull();
+    expect(document.querySelector('[data-tour="agenda.nav"]')).not.toBeNull();
   });
 });

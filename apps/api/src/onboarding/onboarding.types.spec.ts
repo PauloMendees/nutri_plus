@@ -6,8 +6,14 @@ import {
 } from '@nutri-plus/shared-types';
 
 describe('onboarding shared-types', () => {
-  it('exposes only the patients tour in cycle 1', () => {
-    expect(ONBOARDING_TOUR_IDS).toEqual(['patients']);
+  it('exposes the five cycle-2 tours in sidebar order', () => {
+    expect(ONBOARDING_TOUR_IDS).toEqual([
+      'patients',
+      'agenda',
+      'contabilidade',
+      'alimentos',
+      'configuracoes',
+    ]);
   });
 
   it('shapes Me view and demo flag', () => {
@@ -18,6 +24,8 @@ describe('onboarding shared-types', () => {
           tourId: 'patients',
           status: 'IN_PROGRESS',
           demoPatientId: 'p1',
+          demoAppointmentId: null,
+          demoTransactionId: null,
           completedAt: null,
           chapters: [
             {

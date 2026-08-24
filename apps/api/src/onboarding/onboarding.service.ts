@@ -68,11 +68,28 @@ export class OnboardingService {
         const existing = progress.chapters.find((c) => c.chapterId === dto.chapterId);
         this.assertTerminalChapterUnchanged(existing, dto, 'tour');
       }
+      const refData: {
+        demoPatientId?: string | null;
+        demoAppointmentId?: string | null;
+        demoTransactionId?: string | null;
+      } = {};
       if (dto.demoPatientId !== undefined && progress.demoPatientId !== dto.demoPatientId) {
-        await this.prisma.onboardingProgress.update({
-          where: { id: progress.id },
-          data: { demoPatientId: dto.demoPatientId },
-        });
+        refData.demoPatientId = dto.demoPatientId;
+      }
+      if (
+        dto.demoAppointmentId !== undefined &&
+        progress.demoAppointmentId !== dto.demoAppointmentId
+      ) {
+        refData.demoAppointmentId = dto.demoAppointmentId;
+      }
+      if (
+        dto.demoTransactionId !== undefined &&
+        progress.demoTransactionId !== dto.demoTransactionId
+      ) {
+        refData.demoTransactionId = dto.demoTransactionId;
+      }
+      if (Object.keys(refData).length > 0) {
+        await this.prisma.onboardingProgress.update({ where: { id: progress.id }, data: refData });
       }
       return this.getMine(userId);
     }
@@ -80,7 +97,11 @@ export class OnboardingService {
     const existed = progress != null;
     if (!progress) {
       const hasWrite =
-        !!dto.chapterId || dto.demoPatientId !== undefined || dto.tourStatus === 'COMPLETED';
+        !!dto.chapterId ||
+        dto.demoPatientId !== undefined ||
+        dto.demoAppointmentId !== undefined ||
+        dto.demoTransactionId !== undefined ||
+        dto.tourStatus === 'COMPLETED';
       if (!hasWrite) return this.getMine(userId);
 
       progress = await this.prisma.onboardingProgress.upsert({
@@ -91,6 +112,8 @@ export class OnboardingService {
           status: dto.tourStatus === 'COMPLETED' ? 'COMPLETED' : 'IN_PROGRESS',
           completedAt: dto.tourStatus === 'COMPLETED' ? new Date() : null,
           demoPatientId: dto.demoPatientId ?? undefined,
+          demoAppointmentId: dto.demoAppointmentId ?? undefined,
+          demoTransactionId: dto.demoTransactionId ?? undefined,
         },
         update: {},
         include: { chapters: true },
@@ -102,8 +125,16 @@ export class OnboardingService {
     }
 
     if (existed) {
-      const data: { demoPatientId?: string | null; status?: 'COMPLETED'; completedAt?: Date } = {};
+      const data: {
+        demoPatientId?: string | null;
+        demoAppointmentId?: string | null;
+        demoTransactionId?: string | null;
+        status?: 'COMPLETED';
+        completedAt?: Date;
+      } = {};
       if (dto.demoPatientId !== undefined) data.demoPatientId = dto.demoPatientId;
+      if (dto.demoAppointmentId !== undefined) data.demoAppointmentId = dto.demoAppointmentId;
+      if (dto.demoTransactionId !== undefined) data.demoTransactionId = dto.demoTransactionId;
       if (dto.tourStatus === 'COMPLETED' && progress.status !== 'COMPLETED') {
         data.status = 'COMPLETED';
         data.completedAt = new Date();
@@ -187,6 +218,8 @@ export class OnboardingService {
         tourId: tour.tourId,
         status: tour.status,
         demoPatientId: tour.demoPatientId,
+        demoAppointmentId: tour.demoAppointmentId,
+        demoTransactionId: tour.demoTransactionId,
         completedAt: iso(tour.completedAt),
         chapters: tour.chapters.map((chapter) => ({
           chapterId: chapter.chapterId,

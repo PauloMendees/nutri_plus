@@ -14,6 +14,9 @@ vi.mock("@/lib/queries/patients", () => ({ usePatients: () => ({ data: [] }) }))
 vi.mock("@/lib/queries/appointment-categories", () => ({
   useAppointmentCategories: () => ({ data: [], isLoading: false }),
 }));
+vi.mock("@/lib/queries/onboarding", () => ({
+  useOnboarding: () => ({ data: undefined }),
+}));
 const pathname = vi.fn();
 vi.mock("next/navigation", () => ({ usePathname: () => pathname() }));
 

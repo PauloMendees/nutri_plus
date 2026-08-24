@@ -13,6 +13,8 @@ import {
   useUpdateTransaction,
 } from '@/lib/queries/transactions';
 import { useTransactionCategories } from '@/lib/queries/transaction-categories';
+import { registerFixture } from '@/lib/onboarding/fixtures';
+import { useTour } from '@/components/onboarding/tour-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -65,6 +67,7 @@ export function TransactionDialog({
   const update = useUpdateTransaction();
   const remove = useDeleteTransaction();
   const [formError, setFormError] = useState<string | null>(null);
+  const tour = useTour();
 
   const form = useForm<TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),
@@ -87,6 +90,24 @@ export function TransactionDialog({
     [categories.data, type],
   );
 
+  // Fills the form with demo data for the "contabilidade" tour. Never submits.
+  useEffect(() => {
+    if (!open || transaction) return;
+    return registerFixture('transaction', () => {
+      const income = (categories.data ?? []).filter((c) => c.type === 'INCOME');
+      const now = new Date();
+      const occurredOn = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      form.reset({
+        type: 'INCOME',
+        amount: '100,00',
+        occurredOn,
+        categoryId: income[0]?.id ?? null,
+        description: 'Lançamento de demonstração',
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, transaction, categories.data]);
+
   async function onSubmit(values: TransactionFormValues) {
     setFormError(null);
     const body = {
@@ -101,8 +122,11 @@ export function TransactionDialog({
         await update.mutateAsync({ id: transaction.id, body });
         toast.success('Transação atualizada.');
       } else {
-        await create.mutateAsync(body);
+        const created = await create.mutateAsync(body);
         toast.success('Transação registrada.');
+        if (created?.id) {
+          await tour.notifyChapterActionSucceeded({ demoTransactionId: created.id });
+        }
       }
       onOpenChange(false);
     } catch {
@@ -133,7 +157,12 @@ export function TransactionDialog({
           <DialogTitle>{transaction ? 'Editar transação' : 'Nova transação'}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4"
+            noValidate
+            data-tour="contabilidade.form"
+          >
             <FormField
               control={form.control}
               name="type"
@@ -249,7 +278,12 @@ export function TransactionDialog({
               >
                 Cancelar
               </Button>
-              <Button type="submit" className="rounded-full" disabled={pending}>
+              <Button
+                type="submit"
+                className="rounded-full"
+                disabled={pending}
+                data-tour="contabilidade.save"
+              >
                 {pending ? 'Salvando…' : 'Salvar'}
               </Button>
             </DialogFooter>

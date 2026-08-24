@@ -42,9 +42,11 @@ export function AccountingView() {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="font-heading text-2xl font-bold">Contabilidade</h1>
+        <h1 className="font-heading text-2xl font-bold" data-tour="contabilidade.view">
+          Contabilidade
+        </h1>
         <div className="flex-1" />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" data-tour="contabilidade.nav">
           <Button variant="outline" size="sm" className="rounded-full" onClick={() => shift(-1)}>
             ‹
           </Button>
@@ -55,12 +57,14 @@ export function AccountingView() {
             ›
           </Button>
         </div>
-        <Button className="rounded-full" onClick={() => setCreating(true)}>
+        <Button className="rounded-full" onClick={() => setCreating(true)} data-tour="contabilidade.new">
           Nova transação
         </Button>
       </div>
 
-      <MonthlyChart />
+      <div data-tour="contabilidade.chart">
+        <MonthlyChart />
+      </div>
 
       {statement.isLoading ? (
         <Skeleton className="h-64 w-full" />
@@ -70,8 +74,12 @@ export function AccountingView() {
         </div>
       ) : (
         <>
-          <SummaryCards totals={statement.data.totals} />
-          <StatementTable statement={statement.data} onEdit={(item) => setEditing(item)} />
+          <div data-tour="contabilidade.cards">
+            <SummaryCards totals={statement.data.totals} />
+          </div>
+          <div data-tour="contabilidade.table">
+            <StatementTable statement={statement.data} onEdit={(item) => setEditing(item)} />
+          </div>
         </>
       )}
 

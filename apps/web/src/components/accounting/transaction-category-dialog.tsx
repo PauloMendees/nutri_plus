@@ -102,7 +102,12 @@ export function TransactionCategoryDialog({
           <DialogTitle>{category ? 'Editar categoria' : 'Nova categoria'}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4"
+            noValidate
+            data-tour="contabilidade.category.form"
+          >
             <FormField
               control={form.control}
               name="name"

@@ -1,12 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import type { Entitlements, OnboardingTourProgressView } from '@nutri-plus/shared-types';
-import { PATIENTS_TOUR, getTour, type TourStep } from './catalog';
+import { AGENDA_TOUR, PATIENTS_TOUR, getTour, type TourStep } from './catalog';
 import {
   chapterView,
   continuePlayChapterId,
+  demoRefOf,
   firstIncompleteChapterId,
   isAiChapterLocked,
-  isCadastroPlayRecovery,
+  isDemoPlayRecovery,
+  playRecoveryChapterId,
   primaryCta,
 } from './progress';
 
@@ -36,6 +38,8 @@ function tour(partial: Partial<OnboardingTourProgressView> = {}): OnboardingTour
     tourId: 'patients',
     status: 'IN_PROGRESS',
     demoPatientId: null,
+    demoAppointmentId: null,
+    demoTransactionId: null,
     completedAt: null,
     chapters: [],
     ...partial,
@@ -98,7 +102,7 @@ describe('PATIENTS_TOUR catalog', () => {
 
   it('looks up the patients tour by id', () => {
     expect(getTour('patients')).toBe(PATIENTS_TOUR);
-    expect(getTour('agenda')).toBeUndefined();
+    expect(getTour('desconhecido')).toBeUndefined();
   });
 
   it('routes recall save to the editor and plan PDF to a saved plan, not /novo', () => {
@@ -261,29 +265,52 @@ describe('firstIncompleteChapterId', () => {
   });
 });
 
-describe('cadastro play recovery', () => {
-  it('recreates demo via cadastro play when the pointer is gone and cadastro is terminal', () => {
-    const progress = tour({
+describe('demo play recovery', () => {
+  it('recovers cadastro when the demo patient is gone', () => {
+    const t = {
+      tourId: 'patients' as const,
+      status: 'IN_PROGRESS' as const,
       demoPatientId: null,
+      demoAppointmentId: null,
+      demoTransactionId: null,
+      completedAt: null,
       chapters: [
-        { chapterId: 'lista', status: 'COMPLETED', furthestStepId: 'new', completedAt: 'x' },
-        { chapterId: 'cadastro', status: 'COMPLETED', furthestStepId: 'submit', completedAt: 'x' },
+        { chapterId: 'cadastro', status: 'COMPLETED' as const, furthestStepId: 'submit', completedAt: 'x' },
       ],
-    });
-    expect(isCadastroPlayRecovery(progress)).toBe(true);
-    expect(firstIncompleteChapterId(PATIENTS_TOUR, progress, pro)).toBeNull();
-    expect(continuePlayChapterId(PATIENTS_TOUR, progress, pro)).toBe('cadastro');
+    };
+    const cadastro = PATIENTS_TOUR.chapters.find((c) => c.id === 'cadastro')!;
+    expect(isDemoPlayRecovery(PATIENTS_TOUR, cadastro, t)).toBe(true);
+    expect(playRecoveryChapterId(PATIENTS_TOUR, t)).toBe('cadastro');
   });
 
-  it('does not recover when a demo patient still exists', () => {
-    const progress = tour({
-      demoPatientId: 'p1',
+  it('does not recover agenda when the demo appointment is gone (nothing depends on it)', () => {
+    const t = {
+      tourId: 'agenda' as const,
+      status: 'COMPLETED' as const,
+      demoPatientId: null,
+      demoAppointmentId: null,
+      demoTransactionId: null,
+      completedAt: 'x',
       chapters: [
-        { chapterId: 'lista', status: 'COMPLETED', furthestStepId: 'new', completedAt: 'x' },
-        { chapterId: 'cadastro', status: 'COMPLETED', furthestStepId: 'submit', completedAt: 'x' },
+        { chapterId: 'agendamento', status: 'COMPLETED' as const, furthestStepId: 'save', completedAt: 'x' },
       ],
-    });
-    expect(isCadastroPlayRecovery(progress)).toBe(false);
-    expect(continuePlayChapterId(PATIENTS_TOUR, progress, pro)).toBe('ficha');
+    };
+    expect(playRecoveryChapterId(AGENDA_TOUR, t)).toBeNull();
+  });
+
+  it('demoRefOf maps kinds to the right pointer', () => {
+    const t = {
+      tourId: 'agenda' as const,
+      status: 'IN_PROGRESS' as const,
+      demoPatientId: 'p1',
+      demoAppointmentId: 'apt-1',
+      demoTransactionId: 'tx-1',
+      completedAt: null,
+      chapters: [],
+    };
+    expect(demoRefOf(t, 'patient')).toBe('p1');
+    expect(demoRefOf(t, 'appointment')).toBe('apt-1');
+    expect(demoRefOf(t, 'transaction')).toBe('tx-1');
+    expect(demoRefOf(undefined, 'appointment')).toBeNull();
   });
 });

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApiError } from '@/lib/api/client';
+import { runFixture } from '@/lib/onboarding/fixtures';
 
 const createMut = vi.fn();
 const updateMut = vi.fn();
@@ -19,6 +20,10 @@ vi.mock('@/lib/queries/patients', () => ({
 const categoriesQuery = vi.fn();
 vi.mock("@/lib/queries/appointment-categories", () => ({
   useAppointmentCategories: () => categoriesQuery(),
+}));
+
+vi.mock('@/lib/queries/onboarding', () => ({
+  useOnboarding: () => ({ data: undefined }),
 }));
 
 import { AppointmentDialog } from './appointment-dialog';
@@ -62,6 +67,22 @@ describe('AppointmentDialog (create)', () => {
     await userEvent.type(screen.getByLabelText(/título/i), 'Consulta');
     await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
     expect(await screen.findByText(/já existe um agendamento nesse horário/i)).toBeInTheDocument();
+  });
+
+  it('exposes the agenda dialog anchors', () => {
+    render(
+      <AppointmentDialog open onOpenChange={onOpenChange} mode="create" initialDate={new Date(2026, 5, 23)} />,
+    );
+    expect(document.querySelector('form[data-tour="agenda.form"]')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Salvar' })).toHaveAttribute('data-tour', 'agenda.save');
+  });
+
+  it('fills the appointment fixture without submitting', () => {
+    render(
+      <AppointmentDialog open onOpenChange={onOpenChange} mode="create" initialDate={new Date(2026, 5, 23)} />,
+    );
+    act(() => runFixture('appointment'));
+    expect(screen.getByLabelText('Título *')).toHaveValue('Consulta de demonstração');
   });
 });
 

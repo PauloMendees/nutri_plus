@@ -129,7 +129,12 @@ export function CategoryDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4"
+            noValidate
+            data-tour="agenda.category.form"
+          >
             <FormField
               control={form.control}
               name="name"

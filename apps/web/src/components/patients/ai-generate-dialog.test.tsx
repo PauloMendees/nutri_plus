@@ -19,7 +19,7 @@ vi.mock('@/components/onboarding/tour-provider', () => ({
     start: vi.fn(),
     exit,
     skipChapter: vi.fn(),
-    isPlayCadastroSubmit: () => false,
+    isPlayDemoSubmit: () => false,
     notifyChapterActionSucceeded,
   }),
 }));

@@ -16,9 +16,15 @@ export function TransactionCategoriesView() {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-4 flex items-center gap-3">
-        <h1 className="font-heading text-2xl font-bold">Categorias</h1>
+        <h1 className="font-heading text-2xl font-bold" data-tour="contabilidade.categories">
+          Categorias
+        </h1>
         <div className="flex-1" />
-        <Button className="rounded-full" onClick={() => setCreating(true)}>
+        <Button
+          className="rounded-full"
+          onClick={() => setCreating(true)}
+          data-tour="contabilidade.category.new"
+        >
           Nova categoria
         </Button>
       </div>

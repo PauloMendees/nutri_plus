@@ -222,6 +222,7 @@ model Appointment {
   startsAt       DateTime
   endsAt         DateTime
   appointmentReminderSentAt DateTime?
+  onboardingDemoFor OnboardingProgress[]
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -493,6 +494,7 @@ model Transaction {
   amountCents    Int
   occurredOn     DateTime
   description    String?
+  onboardingDemoFor OnboardingProgress[]
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
 
@@ -700,6 +702,10 @@ model OnboardingProgress {
   status        OnboardingTourStatus @default(IN_PROGRESS)
   demoPatientId String?
   demoPatient   PatientProfile?      @relation(fields: [demoPatientId], references: [id], onDelete: SetNull)
+  demoAppointmentId String?
+  demoAppointment   Appointment? @relation(fields: [demoAppointmentId], references: [id], onDelete: SetNull)
+  demoTransactionId String?
+  demoTransaction   Transaction? @relation(fields: [demoTransactionId], references: [id], onDelete: SetNull)
   completedAt   DateTime?
   chapters      OnboardingChapterProgress[]
   createdAt     DateTime             @default(now())

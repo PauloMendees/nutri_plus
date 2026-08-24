@@ -70,9 +70,11 @@ export function AgendaView({ today = new Date() }: { today?: Date }) {
   return (
     <div className="mx-auto max-w-5xl">
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="font-heading text-2xl font-bold">Agenda</h1>
+        <h1 className="font-heading text-2xl font-bold" data-tour="agenda.view">
+          Agenda
+        </h1>
         <div className="flex-1" />
-        <div className="flex rounded-full border bg-card p-0.5">
+        <div className="flex rounded-full border bg-card p-0.5" data-tour="agenda.toggle">
           <button
             type="button"
             onClick={() => setView("month")}
@@ -96,12 +98,16 @@ export function AgendaView({ today = new Date() }: { today?: Date }) {
             Lista
           </button>
         </div>
-        <Button className="rounded-full" onClick={() => openCreate()}>
+        <Button
+          className="rounded-full"
+          onClick={() => openCreate()}
+          data-tour="agenda.new"
+        >
           Novo agendamento
         </Button>
       </div>
 
-      <div className="mb-3 flex items-center gap-2">
+      <div className="mb-3 flex items-center gap-2" data-tour="agenda.nav">
         <Button
           variant="outline"
           size="icon"
