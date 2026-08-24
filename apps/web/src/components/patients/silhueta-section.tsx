@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import type { SilhuetaScan } from '@nutri-plus/shared-types';
 import { silhuetaSchema, type SilhuetaValues } from '@/lib/validation/silhueta';
+import { localDateInput } from '@/lib/format/local-date';
 import { useCreateSilhuetaScan } from '@/lib/queries/silhueta';
 import { ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/button';
@@ -32,7 +33,7 @@ const NUMBER_FIELDS: NumField[] = [
 
 function defaults(): SilhuetaValues {
   return {
-    scanDate: new Date().toISOString().slice(0, 10),
+    scanDate: localDateInput(),
     heightCm: '' as unknown as number | undefined,
     weightKg: '' as unknown as number | undefined,
     waistInput: '' as unknown as number | undefined,

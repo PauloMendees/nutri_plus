@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import type { Transaction } from '@nutri-plus/shared-types';
 import { transactionFormSchema, type TransactionFormValues } from '@/lib/validation/transaction';
 import { parseBRLToCents } from '@/lib/format/currency';
+import { localDateInput } from '@/lib/format/local-date';
 import {
   useCreateTransaction,
   useDeleteTransaction,
@@ -37,7 +38,7 @@ import {
 const NO_CATEGORY = '__none__';
 
 function toDateInput(iso?: string): string {
-  return iso ? iso.slice(0, 10) : new Date().toISOString().slice(0, 10);
+  return iso ? iso.slice(0, 10) : localDateInput();
 }
 
 function centsToInput(cents?: number): string {
@@ -95,8 +96,7 @@ export function TransactionDialog({
     if (!open || transaction) return;
     return registerFixture('transaction', () => {
       const income = (categories.data ?? []).filter((c) => c.type === 'INCOME');
-      const now = new Date();
-      const occurredOn = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const occurredOn = localDateInput();
       form.reset({
         type: 'INCOME',
         amount: '100,00',
