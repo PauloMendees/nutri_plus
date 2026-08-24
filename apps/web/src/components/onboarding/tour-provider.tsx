@@ -75,6 +75,7 @@ export function useTour(): TourApi {
 
 const ANCHOR_POLL_MS = 100;
 const ANCHOR_TIMEOUT_MS = 5000;
+const AWAIT_ACTION_GRACE_MS = 15000;
 
 function resolveRoute(
   step: TourStep,
@@ -508,6 +509,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
     setAnchorEl(null);
     setAnchorMissing(false);
     const startedAt = Date.now();
+    let lostAt: number | null = null;
     let timer = 0;
 
     const poll = () => {
@@ -522,9 +524,29 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
           element: el,
           popover: { showButtons: [], title: '', description: '' },
         });
+        const watch = () => {
+          if (cancelled) return;
+          if (el.isConnected) {
+            timer = window.setTimeout(watch, 500);
+            return;
+          }
+          // Âncora saiu do DOM (dialog fechado etc.) sem que a sessão avançasse:
+          // derruba o highlight órfão e volta ao modo de busca.
+          teardownDriver();
+          setAnchorEl(null);
+          lostAt = Date.now();
+          timer = window.setTimeout(poll, ANCHOR_POLL_MS);
+        };
+        timer = window.setTimeout(watch, 500);
         return;
       }
       if (currentStep.awaitAction && alreadyHighlighted) {
+        if (Date.now() - (lostAt ?? startedAt) >= AWAIT_ACTION_GRACE_MS) {
+          teardownDriver();
+          setAnchorEl(null);
+          setAnchorMissing(true);
+          return;
+        }
         timer = window.setTimeout(poll, ANCHOR_POLL_MS);
         return;
       }
