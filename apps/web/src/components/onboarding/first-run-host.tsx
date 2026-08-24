@@ -40,7 +40,10 @@ export function FirstRunHost() {
   }
 
   function onStart() {
-    skipDismissRef.current = true;
+    if (!skipDismissRef.current) {
+      skipDismissRef.current = true;
+      void dismiss.mutateAsync().catch(() => undefined);
+    }
     setStarted(true);
     router.push('/primeiros-passos');
   }

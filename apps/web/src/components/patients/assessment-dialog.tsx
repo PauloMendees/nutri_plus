@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import type { BodyAssessment } from '@nutri-plus/shared-types';
 import { assessmentSchema, type AssessmentValues } from '@/lib/validation/assessment';
+import { localDateInput } from '@/lib/format/local-date';
 import { registerFixture } from '@/lib/onboarding/fixtures';
 import { useTour } from '@/components/onboarding/tour-provider';
 import {
@@ -68,7 +69,7 @@ function defaults(assessment?: BodyAssessment): AssessmentValues {
   const base: Record<string, string> = {
     assessmentDate: assessment?.assessmentDate
       ? assessment.assessmentDate.slice(0, 10)
-      : new Date().toISOString().slice(0, 10),
+      : localDateInput(),
     notes: assessment?.notes ?? '',
   };
   for (const name of NUM_NAMES) {

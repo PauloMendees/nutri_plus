@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import type { Food, FoodRecall } from '@nutri-plus/shared-types';
 import { macrosForPortion } from '@nutri-plus/shared-types';
 import { foodRecallSchema, type FoodRecallFormValues } from '@/lib/validation/food-recall';
+import { localDateInput } from '@/lib/format/local-date';
 import { registerFixture } from '@/lib/onboarding/fixtures';
 import { useTour } from '@/components/onboarding/tour-provider';
 import {
@@ -51,7 +52,7 @@ const formatTimeLabel = (value: string): string => {
 };
 
 function blankDefaults(): FormValues {
-  return { recallDate: new Date().toISOString().slice(0, 10), notes: '', meals: [blankMeal()] };
+  return { recallDate: localDateInput(), notes: '', meals: [blankMeal()] };
 }
 
 function toDefaults(r: FoodRecall): FormValues {
@@ -126,7 +127,7 @@ export function FoodRecallEditor({
   useEffect(() => {
     return registerFixture('food-recall', () => {
       form.reset({
-        recallDate: new Date().toISOString().slice(0, 10),
+        recallDate: localDateInput(),
         notes: 'Recordatório de demonstração',
         meals: [
           {

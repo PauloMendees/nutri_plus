@@ -75,6 +75,7 @@ export function useTour(): TourApi {
 
 const ANCHOR_POLL_MS = 100;
 const ANCHOR_TIMEOUT_MS = 5000;
+const AWAIT_ACTION_GRACE_MS = 15000;
 
 function resolveRoute(
   step: TourStep,
@@ -169,7 +170,12 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
     (tourId: string) => toursRef.current?.find((t) => t.tourId === tourId),
     [],
   );
-  const demoPatientId = onboarding?.tours.find((t) => t.tourId === 'patients')?.demoPatientId ?? null;
+  const demoFromQuery = onboarding?.tours.find((t) => t.tourId === 'patients')?.demoPatientId ?? null;
+  const demoPatientOverrideRef = useRef<string | null>(null);
+  if (demoFromQuery != null) {
+    demoPatientOverrideRef.current = null; // query alcançou (ou trocou) o valor
+  }
+  const demoPatientId = demoFromQuery ?? demoPatientOverrideRef.current;
   const demoPatientIdRef = useRef(demoPatientId);
   demoPatientIdRef.current = demoPatientId;
   const entitlements = subscription?.entitlements;
@@ -271,6 +277,11 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       const demoId = demoPatientIdRef.current;
       const view = chapterView(chapter, progress, ents);
 
+      if (demoId == null && isDemoPlayRecovery(tour, chapter, progress)) {
+        beginSession({ tourId: opts.tourId, chapterId: chapter.id, replay: false });
+        return true;
+      }
+
       let replay = opts.replay;
       if (replay && view.status !== 'completed' && view.status !== 'skipped') {
         replay = false;
@@ -279,11 +290,6 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       if (replay) {
         if (chapter.requiresDemo && !demoId) return false;
         beginSession({ tourId: opts.tourId, chapterId: opts.chapterId, replay: true });
-        return true;
-      }
-
-      if (isDemoPlayRecovery(tour, chapter, progress)) {
-        beginSession({ tourId: opts.tourId, chapterId: chapter.id, replay: false });
         return true;
       }
 
@@ -354,6 +360,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       if (!tour || !chapter) return;
 
       if (extra?.demoPatientId) {
+        demoPatientOverrideRef.current = extra.demoPatientId; // sobrevive a re-renders
         demoPatientIdRef.current = extra.demoPatientId;
       }
 
@@ -401,7 +408,12 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       setAnchorEl(null);
       const route = resolveRoute(nextStep, demoPatientIdRef.current, pathnameRef.current);
       if (route && pathnameRef.current !== route) {
-        routerRef.current.push(route);
+        const search = buildTourSearch({
+          tourId: current.tourId,
+          chapterId: current.chapterId,
+          replay: current.mode === 'replay',
+        });
+        routerRef.current.push(`${route}${search}`);
       }
       return;
     }
@@ -453,6 +465,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       }
 
       if (opts?.demoPatientId) {
+        demoPatientOverrideRef.current = opts.demoPatientId; // sobrevive a re-renders
         demoPatientIdRef.current = opts.demoPatientId;
       }
       const isLast = effectiveIndex >= chapter.steps.length - 1;
@@ -484,13 +497,19 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
     const alreadyHighlighted = highlightedStepKeyRef.current === stepKey;
     const route = resolveRoute(currentStep, demoPatientId, pathname);
     if (route && pathname !== route && !(currentStep.awaitAction && alreadyHighlighted)) {
-      routerRef.current.push(route);
+      const search = buildTourSearch({
+        tourId: session.tourId,
+        chapterId: session.chapterId,
+        replay: session.mode === 'replay',
+      });
+      routerRef.current.push(`${route}${search}`);
     }
 
     let cancelled = false;
     setAnchorEl(null);
     setAnchorMissing(false);
     const startedAt = Date.now();
+    let lostAt: number | null = null;
     let timer = 0;
 
     const poll = () => {
@@ -505,13 +524,33 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
           element: el,
           popover: { showButtons: [], title: '', description: '' },
         });
+        const watch = () => {
+          if (cancelled) return;
+          if (el.isConnected) {
+            timer = window.setTimeout(watch, 500);
+            return;
+          }
+          // Âncora saiu do DOM (dialog fechado etc.) sem que a sessão avançasse:
+          // derruba o highlight órfão e volta ao modo de busca.
+          teardownDriver();
+          setAnchorEl(null);
+          lostAt = Date.now();
+          timer = window.setTimeout(poll, ANCHOR_POLL_MS);
+        };
+        timer = window.setTimeout(watch, 500);
         return;
       }
-      if (currentStep.awaitAction && alreadyHighlighted) {
+      if (currentStep.awaitAction && (alreadyHighlighted || lostAt != null)) {
+        if (Date.now() - (lostAt ?? startedAt) >= AWAIT_ACTION_GRACE_MS) {
+          teardownDriver();
+          setAnchorEl(null);
+          setAnchorMissing(true);
+          return;
+        }
         timer = window.setTimeout(poll, ANCHOR_POLL_MS);
         return;
       }
-      if (Date.now() - startedAt >= ANCHOR_TIMEOUT_MS) {
+      if (Date.now() - (lostAt ?? startedAt) >= ANCHOR_TIMEOUT_MS) {
         teardownDriver();
         setAnchorEl(null);
         setAnchorMissing(true);

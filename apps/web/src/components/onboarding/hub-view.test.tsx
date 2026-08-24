@@ -249,15 +249,26 @@ describe('HubView', () => {
     expect(start).toHaveBeenCalledWith({ tourId: 'patients', chapterId: 'lista', replay: false });
   });
 
-  it('explains a locked chapter in a tooltip', async () => {
+  it('shows the lock reason on the chapter card', () => {
     subscriptionState.data = { entitlements: exhausted };
     onboardingState.data = {
       promptDismissedAt: null,
       tours: [tour({ status: 'IN_PROGRESS', demoPatientId: 'p1' })],
     };
     renderHub(UserRole.NUTRITIONIST);
-    await userEvent.hover(screen.getByText('Bloqueado'));
-    expect(await screen.findByRole('tooltip')).toHaveTextContent(/cota de ia esgotada/i);
+    expect(card('patients').getByText(/cota de ia esgotada/i)).toBeInTheDocument();
+  });
+
+  it('shows the demo lock reason on a chapter that requires a demo patient', () => {
+    onboardingState.data = {
+      promptDismissedAt: null,
+      tours: [tour({ status: 'IN_PROGRESS', demoPatientId: null })],
+    };
+    renderHub(UserRole.NUTRITIONIST);
+    const row = screen.getByText('Ficha').closest('[data-chapter="ficha"]')!;
+    expect(
+      within(row).getByText('Cadastre o paciente de demonstração primeiro.'),
+    ).toBeInTheDocument();
   });
 
   it('renders the five tour cards in sidebar order', () => {

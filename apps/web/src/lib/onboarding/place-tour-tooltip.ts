@@ -8,25 +8,36 @@ export function placeTourTooltip(
   const { vw, vh } = view;
   const min = 8;
 
-  const targetOnRight = target.left > vw * 0.4;
-  let left: number;
-  let top: number;
-
-  if (targetOnRight) {
-    left = Math.max(min, target.left - width - gap);
-    top = Math.min(Math.max(min, target.top), vh - height - min);
-  } else {
-    left = Math.max(min, Math.min(target.left, vw - width - min));
-    if (target.bottom + gap + height <= vh - min) top = target.bottom + gap;
-    else if (target.top - gap - height >= min) top = target.top - gap - height;
-    else top = Math.max(min, vh - height - min);
+  function clampAxis(value: number, size: number, viewportSize: number): number {
+    const max = Math.max(min, viewportSize - size - min);
+    return Math.min(Math.max(value, min), max);
   }
 
-  const overlaps =
-    left < target.right && left + width > target.left && top < target.bottom && top + height > target.top;
-  if (overlaps && target.left > width + gap) {
-    left = Math.max(min, target.left - width - gap);
+  function clamp(pos: { top: number; left: number }): { top: number; left: number } {
+    return {
+      top: clampAxis(pos.top, height, vh),
+      left: clampAxis(pos.left, width, vw),
+    };
   }
 
-  return { top, left };
+  function overlapsTarget(pos: { top: number; left: number }): boolean {
+    return (
+      pos.left < target.right &&
+      pos.left + width > target.left &&
+      pos.top < target.bottom &&
+      pos.top + height > target.top
+    );
+  }
+
+  // Preference order: below, above, left, right of the target — each
+  // candidate clamped to the viewport before the overlap test.
+  const candidates = [
+    clamp({ top: target.bottom + gap, left: target.left }),
+    clamp({ top: target.top - gap - height, left: target.left }),
+    clamp({ top: target.top, left: target.left - gap - width }),
+    clamp({ top: target.top, left: target.right + gap }),
+  ];
+
+  // Fallback (giant target): "below", clamped.
+  return candidates.find((pos) => !overlapsTarget(pos)) ?? candidates[0];
 }

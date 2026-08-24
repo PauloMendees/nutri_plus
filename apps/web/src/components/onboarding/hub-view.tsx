@@ -26,12 +26,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   DeleteDemoAppointmentBanner,
   DeleteDemoBanner,
   DeleteDemoTransactionBanner,
@@ -171,15 +165,13 @@ function TourCard({
                   <CardTitle className="text-sm">{chapter.title}</CardTitle>
                   <CardDescription>
                     {view.status === "locked" && reason ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="inline-flex cursor-help items-center gap-1">
-                            <Lock className="h-3.5 w-3.5" aria-hidden />
-                            {CHAPTER_STATUS_LABEL[view.status]}
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>{reason}</TooltipContent>
-                      </Tooltip>
+                      <>
+                        <span className="inline-flex items-center gap-1">
+                          <Lock className="h-3.5 w-3.5" aria-hidden />
+                          {CHAPTER_STATUS_LABEL[view.status]}
+                        </span>
+                        <span className="mt-0.5 block text-xs">{reason}</span>
+                      </>
                     ) : (
                       CHAPTER_STATUS_LABEL[view.status]
                     )}
@@ -263,26 +255,24 @@ export function HubView({ role }: { role: UserRole | null }) {
   const entitlements = subscription?.entitlements;
 
   return (
-    <TooltipProvider>
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <h1 className="font-heading text-2xl font-bold">Primeiros passos</h1>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Tutoriais guiados pelos módulos do iNutri. Cada capítulo destaca a
-            tela certa: clique no que está iluminado ou em Próximo. Você pode
-            pular, sair e rever quando quiser.
-          </p>
-        </div>
-        {ALL_TOURS.map((def) => (
-          <TourCard
-            key={def.id}
-            def={def}
-            tour={onboarding?.tours.find((row) => row.tourId === def.id)}
-            role={role}
-            entitlements={entitlements}
-          />
-        ))}
+    <div className="space-y-5">
+      <div className="space-y-2">
+        <h1 className="font-heading text-2xl font-bold">Primeiros passos</h1>
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Tutoriais guiados pelos módulos do iNutri. Cada capítulo destaca a
+          tela certa: clique no que está iluminado ou em Próximo. Você pode
+          pular, sair e rever quando quiser.
+        </p>
       </div>
-    </TooltipProvider>
+      {ALL_TOURS.map((def) => (
+        <TourCard
+          key={def.id}
+          def={def}
+          tour={onboarding?.tours.find((row) => row.tourId === def.id)}
+          role={role}
+          entitlements={entitlements}
+        />
+      ))}
+    </div>
   );
 }
