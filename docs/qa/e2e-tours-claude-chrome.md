@@ -143,18 +143,18 @@ Relatório
 |---|---|---|
 | 0.1 | Sidebar → Primeiros passos | `/primeiros-passos`, heading "Primeiros passos" |
 | 0.2 | Contar cards | 5, na ordem Pacientes → Configurações |
-| 0.3 | Cada card | Resumo em pt-BR; capítulos todos "A fazer"; CTA **Começar** habilitado (N1 é nutricionista em trial) |
-| 0.4 | Capítulo "Gerar com IA" (card Pacientes) | Em trial (Pro): NÃO bloqueado |
+| 0.3 | Cada card | Resumo em pt-BR; CTA **Começar** habilitado (N1 é nutricionista em trial). Nos 4 tours sem capítulo dependente de demo, capítulos todos "A fazer". No card **Pacientes**, só Lista e Cadastro ficam "A fazer" — os capítulos 3–9 (Ficha até Gerar com IA) aparecem **"Bloqueado"**, com a razão visível no próprio card: "Cadastre o paciente de demonstração primeiro." |
+| 0.4 | Capítulo "Gerar com IA" (card Pacientes) | Bloqueado nesta conta virgem — mas pela falta do paciente-demo, não por cota de IA/plano (trial = Pro, sem bloqueio de plano) |
 | 0.5 | Nenhum banner de "apagar demonstração" ainda | Correto (nada foi criado) |
 
 ### T01 — Modal de 1º acesso (N1 recém-criada)
 
 | # | Passo | Esperado |
 |---|---|---|
-| 1.1 | Primeira tela do app após o trial | Modal "Conheça o iNutri" com **Ver primeiros passos** e **Agora não** |
-| 1.2 | "Ver primeiros passos" | Navega ao hub; modal não volta ao trocar de página |
-| 1.3 | F5 no hub | Modal NÃO reaparece (já navegou = tour ainda não começou? veja 1.4) |
-| 1.4 | Se o modal reaparecer em outra tela antes de começar um tour | Clique **Agora não** → nunca mais aparece (nem após logout/login) |
+| 1.1 | Primeira tela do app após o trial | Modal **"Primeiros passos no iNutri"** com **Ver primeiros passos**, **Agora não** e um **X** de fechar no canto |
+| 1.2 | "Ver primeiros passos" | Navega ao hub **e também dispensa o modal** (mesmo efeito de "Agora não"); não volta em F5 nem ao trocar de página |
+| 1.3 | F5 no hub (depois de 1.2) | Modal NÃO reaparece |
+| 1.4 | Em vez de 1.2, clicar **Agora não** (ou o **X**) | Dispensa da mesma forma → nunca mais aparece (nem após logout/login) |
 
 ### T02 — Tour Pacientes completo, canônico (N1)
 
@@ -231,10 +231,10 @@ Crie a N2 agora (seção 4). Dispense o modal de 1º acesso com "Agora não".
 
 | # | Cenário | Esperado |
 |---|---|---|
-| 9.1 | Comece o tour Pacientes, conclua Lista, e no meio do Cadastro clique **Sair** | Tour fecha; query string some; hub mostra Lista=Concluído, Cadastro=Em andamento; CTA **Continuar** |
-| 9.2 | **Continuar** | Retoma no Cadastro (primeiro capítulo não-terminal), não do zero |
+| 9.1 | Comece o tour Pacientes; no passo "Novo paciente" (último passo de Lista), clique **Sair** SEM clicar em "+ Novo paciente" | Tour fecha; query string some; hub mostra Lista **Em andamento** (não "Concluído" — um capítulo só vira "Concluído" quando o clique do ÚLTIMO passo acontece; Sair antes disso é o comportamento correto); CTA **Continuar** |
+| 9.2 | **Continuar** | Retoma em Lista (primeiro capítulo não-terminal), não do zero |
 | 9.3 | **Pular capítulo** num capítulo qualquer | Vira "Pulado"; tour segue ao próximo; Pulado nunca vira "A fazer" de novo |
-| 9.4 | **F5 no meio de um passo** (URL tem `?tour=...&chapter=...`) | Tour re-hidrata no mesmo capítulo; sem erro |
+| 9.4 | **F5 em qualquer passo do tour** (toda navegação do motor agora carrega `?tour=...&chapter=...` na URL) | Tour sempre re-hidrata no mesmo capítulo; sem erro |
 | 9.5 | Deep link `?tour=patients&chapter=ficha` sem paciente-demo | Não trava: vai ao hub (ou pede o cadastro) |
 | 9.6 | Deep link `?tour=inexistente&chapter=x` | Ignorado sem crash |
 | 9.7 | Navegar pelo sidebar no MEIO de um passo (ex.: ir para Contabilidade durante o tour Agenda) | Comportamento aceitável: aviso "Não encontrei este passo" + **Voltar ao hub** funcional. Progresso preservado |
@@ -257,8 +257,8 @@ Crie a N2 agora (seção 4). Dispense o modal de 1º acesso com "Agora não".
 | 11.2 | Depois de 11.1, card Agenda | Se o agendamento-demo foi apagado junto, o banner de agendamento também some (ponteiro zera) |
 | 11.3 | "Apagar lançamento de demonstração" | Lançamento some do extrato; banner some |
 | 11.4 | Apagar a entidade-demo **pela UI normal** (N2: excluir o agendamento pelo dialog da agenda) | Banner do hub some sozinho no próximo carregamento |
-| 11.5 | Após apagar o paciente-demo, hub → card Pacientes | Continuar/Rever oferece refazer o **Cadastro** (recovery); capítulos 3–9 ficam bloqueados com "Cadastre o paciente de demonstração primeiro." |
-| 11.6 | Refazer o Cadastro via recovery | Cria novo demo; capítulos voltam a ficar acessíveis; status dos capítulos concluídos NÃO regrediu |
+| 11.5 | Após apagar o paciente-demo, hub → card Pacientes (tour IN_PROGRESS **ou COMPLETED**) | O botão do capítulo Cadastro oferece refazer o cadastro (recovery) **mesmo com o tour Concluído** — roda em modo *play* (não replay) e recria o demo; capítulos 3–9 ficam bloqueados com "Cadastre o paciente de demonstração primeiro." |
+| 11.6 | Refazer o Cadastro via recovery | Cria novo demo; capítulos voltam a ficar acessíveis; status dos capítulos concluídos NÃO regrediu (se o tour já estava Concluído, continua Concluído) |
 | 11.7 | Apagar agendamento-demo e rever o capítulo Agendamento | **Não recria** (decisão de produto): replay intercepta o salvar normalmente |
 
 ### T12 — Robustez geral
@@ -266,7 +266,7 @@ Crie a N2 agora (seção 4). Dispense o modal de 1º acesso com "Agora não".
 | # | Cenário | Esperado |
 |---|---|---|
 | 12.1 | Overlay do tour | Não bloqueia digitação nos campos do formulário iluminado; botões do tooltip sempre clicáveis |
-| 12.2 | Esc/X fechando o dialog **no passo Salvar** (awaitAction) | Limitação conhecida (seção 7): tour fica parado sem erro. Anote SÓ se acontecer algo pior (crash, avanço indevido, dados errados) |
+| 12.2 | Esc/X fechando o dialog **no passo Salvar** (awaitAction) | Comportamento esperado (seção 7): após ~15s sem a âncora, aparece "Não encontrei este passo" + **Voltar ao hub** — não fica mais em silêncio. Anote SÓ se acontecer algo pior (crash, avanço indevido, dados errados, ou o fallback não aparecer) |
 | 12.3 | Tema escuro durante um tour | Tooltip e holofote legíveis |
 | 12.4 | Console durante cada tour | Sem erro vermelho de React/hydration |
 | 12.5 | Dois tours "ao mesmo tempo": no meio do tour Agenda, abrir o hub e clicar Começar em Contabilidade | Sessão anterior é substituída de forma limpa (sem dois holofotes, sem PATCH cruzado) |
@@ -279,12 +279,11 @@ Crie a N2 agora (seção 4). Dispense o modal de 1º acesso com "Agora não".
 
 | Comportamento | Status |
 |---|---|
-| Fechar o dialog (Esc/X/Cancelar) no passo **Salvar** deixa o tour parado sem mensagem | Conhecido; melhoria futura. Reporte só se causar crash/avanço indevido |
+| Fechar o dialog no passo **Salvar** mostra "Não encontrei este passo" + **Voltar ao hub** após ~15s | Esperado (fallback do motor). Reporte só se aparecer antes dos ~15s, ou se o botão Voltar ao hub não funcionar |
 | Submeter com **Enter** durante um **replay** de capítulo que cria dados pode criar entidade real órfã (sem banner) | Conhecido (intercept é de clique) |
 | Rever Agendamento/Lançamento com a entidade-demo apagada **não recria** | Decisão de produto (recovery só existe no Cadastro de Pacientes) |
 | "Não encontrei este passo" ao navegar manualmente para outra página no meio de um passo | Esperado; o botão Voltar ao hub deve funcionar |
 | Busca de Alimentos com API lenta pode estourar o timeout de 5s do passo da tabela | Conhecido (margem estreita); anote o tempo se ocorrer |
-| Data padrão de transação REAL (fora do tour) após ~21h pode cair no dia seguinte (UTC) | Bug pré-existente já registrado, fora do escopo dos tours |
 
 ---
 
