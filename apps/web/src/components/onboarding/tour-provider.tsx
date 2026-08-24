@@ -271,6 +271,11 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       const demoId = demoPatientIdRef.current;
       const view = chapterView(chapter, progress, ents);
 
+      if (isDemoPlayRecovery(tour, chapter, progress)) {
+        beginSession({ tourId: opts.tourId, chapterId: chapter.id, replay: false });
+        return true;
+      }
+
       let replay = opts.replay;
       if (replay && view.status !== 'completed' && view.status !== 'skipped') {
         replay = false;
@@ -279,11 +284,6 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       if (replay) {
         if (chapter.requiresDemo && !demoId) return false;
         beginSession({ tourId: opts.tourId, chapterId: opts.chapterId, replay: true });
-        return true;
-      }
-
-      if (isDemoPlayRecovery(tour, chapter, progress)) {
-        beginSession({ tourId: opts.tourId, chapterId: chapter.id, replay: false });
         return true;
       }
 
