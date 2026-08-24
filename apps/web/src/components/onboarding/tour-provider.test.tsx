@@ -1015,14 +1015,127 @@ describe('TourProvider', () => {
     });
 
     document.querySelector('[data-tour="patients.new"]')!.remove();
+    // ANCHOR_TIMEOUT_MS now counts from the moment the watcher notices the
+    // loss (lostAt), not from when the step first appeared (startedAt) — use
+    // a generous margin on both sides of that 5s window instead of an exact
+    // boundary, since lostAt itself lands up to ~500ms after the removal.
     await act(async () => {
-      vi.advanceTimersByTime(700);
+      vi.advanceTimersByTime(3000);
     });
     expect(screen.queryByText('Não encontrei este passo')).not.toBeInTheDocument();
 
     await act(async () => {
-      vi.advanceTimersByTime(4600);
+      vi.advanceTimersByTime(3000);
     });
     expect(screen.getByText('Não encontrei este passo')).toBeInTheDocument();
+  });
+
+  it('recovers without a fallback when a long-lived anchor blinks and reappears quickly', async () => {
+    vi.useFakeTimers();
+    renderTour();
+    fireEvent.click(screen.getByText('start-play'));
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(screen.getByRole('button', { name: 'Próximo' })).toBeInTheDocument();
+
+    // The user lingers on this step well past the 5s anchor timeout (e.g. the
+    // "contabilidade.table during month switch" / "alimentos.table while
+    // retyping the search" cases from the review) before the anchor blinks.
+    await act(async () => {
+      vi.advanceTimersByTime(6000);
+    });
+    expect(screen.getByRole('button', { name: 'Próximo' })).toBeInTheDocument();
+
+    const input = document.querySelector('[data-tour="patients.search"]')!;
+    const parent = input.parentElement!;
+    const nextSibling = input.nextSibling;
+    parent.removeChild(input);
+
+    await act(async () => {
+      vi.advanceTimersByTime(600); // the watcher notices the disconnect
+    });
+    expect(screen.queryByText('Não encontrei este passo')).not.toBeInTheDocument();
+
+    parent.insertBefore(input, nextSibling); // anchor comes back shortly after
+    await act(async () => {
+      vi.advanceTimersByTime(200); // well within the fresh 5s window from lostAt
+    });
+
+    expect(screen.queryByText('Não encontrei este passo')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Próximo' })).toBeInTheDocument();
+  });
+
+  it('holds the awaitAction grace on the very first highlight of a step, not just after a re-render', async () => {
+    vi.useFakeTimers();
+    renderTour();
+    fireEvent.click(screen.getByText('start-cadastro-play'));
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Próximo' }));
+    await act(async () => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(screen.getByRole('dialog', { name: 'Salvar cadastro' })).toBeInTheDocument();
+
+    // No pathname/session change happens here: this is the SAME effect
+    // invocation that first highlighted the step, matching the real QA
+    // scenario (Esc/X/Cancelar right after the submit step lights up).
+    document.querySelector('[data-tour="patients.create.submit"]')!.remove();
+    await act(async () => {
+      vi.advanceTimersByTime(9000);
+    });
+    expect(screen.queryByText('Não encontrei este passo')).not.toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(7000);
+    });
+    expect(screen.getByText('Não encontrei este passo')).toBeInTheDocument();
+  });
+
+  it('does not re-trigger demo recovery while the override still holds a fresh id and the query is stale', async () => {
+    onboardingState.data = {
+      promptDismissedAt: null,
+      tours: [
+        {
+          tourId: 'patients',
+          demoPatientId: null,
+          demoAppointmentId: null,
+          demoTransactionId: null,
+          chapters: [
+            { chapterId: 'lista', status: 'COMPLETED', furthestStepId: 'new', completedAt: 'x' },
+            { chapterId: 'cadastro', status: 'COMPLETED', furthestStepId: 'submit', completedAt: 'x' },
+          ],
+        },
+      ],
+    };
+    renderTour();
+    fireEvent.click(screen.getByText('start-replay-cadastro'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Próximo' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Salvar cadastro' }));
+    expect(nativeSubmit).toHaveBeenCalled(); // first recovery: real create, as in the mandated test
+
+    // The override now holds 'demo-1'; onboardingState (the query) is left
+    // untouched — still demoPatientId: null — simulating the window before
+    // the refetch lands.
+    fireEvent.click(screen.getByText('notify-cadastro'));
+    await waitFor(() => {
+      expect(patch).toHaveBeenCalledWith(
+        'patients',
+        expect.objectContaining({
+          chapterId: 'cadastro',
+          chapterStatus: 'COMPLETED',
+          demoPatientId: 'demo-1',
+        }),
+      );
+    });
+
+    nativeSubmit.mockClear();
+    fireEvent.click(screen.getByText('start-replay-cadastro')); // clicked again before the refetch lands
+    fireEvent.click(await screen.findByRole('button', { name: 'Próximo' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Salvar cadastro' }));
+    expect(nativeSubmit).not.toHaveBeenCalled(); // must be a real replay, not another play-mode recovery
+    expect(push).toHaveBeenCalledWith('/patients/demo-1');
   });
 });

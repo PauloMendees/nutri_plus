@@ -277,7 +277,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       const demoId = demoPatientIdRef.current;
       const view = chapterView(chapter, progress, ents);
 
-      if (isDemoPlayRecovery(tour, chapter, progress)) {
+      if (demoId == null && isDemoPlayRecovery(tour, chapter, progress)) {
         beginSession({ tourId: opts.tourId, chapterId: chapter.id, replay: false });
         return true;
       }
@@ -540,7 +540,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
         timer = window.setTimeout(watch, 500);
         return;
       }
-      if (currentStep.awaitAction && alreadyHighlighted) {
+      if (currentStep.awaitAction && (alreadyHighlighted || lostAt != null)) {
         if (Date.now() - (lostAt ?? startedAt) >= AWAIT_ACTION_GRACE_MS) {
           teardownDriver();
           setAnchorEl(null);
@@ -550,7 +550,7 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
         timer = window.setTimeout(poll, ANCHOR_POLL_MS);
         return;
       }
-      if (Date.now() - startedAt >= ANCHOR_TIMEOUT_MS) {
+      if (Date.now() - (lostAt ?? startedAt) >= ANCHOR_TIMEOUT_MS) {
         teardownDriver();
         setAnchorEl(null);
         setAnchorMissing(true);
