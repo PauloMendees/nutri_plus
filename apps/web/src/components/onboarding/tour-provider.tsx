@@ -407,7 +407,12 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
       setAnchorEl(null);
       const route = resolveRoute(nextStep, demoPatientIdRef.current, pathnameRef.current);
       if (route && pathnameRef.current !== route) {
-        routerRef.current.push(route);
+        const search = buildTourSearch({
+          tourId: current.tourId,
+          chapterId: current.chapterId,
+          replay: current.mode === 'replay',
+        });
+        routerRef.current.push(`${route}${search}`);
       }
       return;
     }
@@ -491,7 +496,12 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
     const alreadyHighlighted = highlightedStepKeyRef.current === stepKey;
     const route = resolveRoute(currentStep, demoPatientId, pathname);
     if (route && pathname !== route && !(currentStep.awaitAction && alreadyHighlighted)) {
-      routerRef.current.push(route);
+      const search = buildTourSearch({
+        tourId: session.tourId,
+        chapterId: session.chapterId,
+        replay: session.mode === 'replay',
+      });
+      routerRef.current.push(`${route}${search}`);
     }
 
     let cancelled = false;
