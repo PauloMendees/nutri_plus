@@ -44,8 +44,9 @@ export function TodayAgendaWidget() {
     a.startsAt.localeCompare(b.startsAt),
   );
 
-  // Don't render until mounted (localStorage read) or on the agenda page itself.
-  if (!mounted || pathname === "/agenda") return null;
+  // Don't render until mounted (localStorage read), on the agenda page itself,
+  // or on the tours hub — where it can cover a chapter card's "Começar" CTA.
+  if (!mounted || pathname === "/agenda" || pathname === "/primeiros-passos") return null;
 
   const today = new Date();
 

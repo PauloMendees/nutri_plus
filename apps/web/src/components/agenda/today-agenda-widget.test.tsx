@@ -107,4 +107,10 @@ describe("TodayAgendaWidget", () => {
     const { container } = render(<TodayAgendaWidget />);
     expect(container).toBeEmptyDOMElement();
   });
+
+  it("renders nothing on the /primeiros-passos route", () => {
+    pathname.mockReturnValue("/primeiros-passos");
+    const { container } = render(<TodayAgendaWidget />);
+    expect(container).toBeEmptyDOMElement();
+  });
 });
