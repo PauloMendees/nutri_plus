@@ -12,3 +12,6 @@ apps/api/src/generated/
 
 # Superpowers brainstorm/SDD scratch
 .superpowers/
+
+# Dumps do banco (contem dados de saude de pacientes — nunca versionar)
+/backups/
