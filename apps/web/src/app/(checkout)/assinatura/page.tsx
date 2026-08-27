@@ -129,6 +129,15 @@ export default function AssinaturaPage() {
     setError(null);
   }
 
+  // Desiste do upgrade e volta ao picker. A cobrança da diferença segue existindo
+  // no Asaas; se a pessoa refizer o upgrade, o backend gera outra e o webhook só
+  // aplica a que for paga (identificada por pendingChargeAsaasId).
+  function cancelChangePix() {
+    setChangePix(null);
+    setChangePlanTarget(null);
+    setError(null);
+  }
+
   async function handleStartTrial() {
     setTrialLoading(true);
     try {
@@ -237,6 +246,11 @@ export default function AssinaturaPage() {
             <div className="mx-auto max-w-sm space-y-4 rounded-lg border p-6 text-center">
               <p className="text-sm text-muted-foreground">Pague a diferença para concluir o upgrade.</p>
               <PixPayment pixQrCode={changePix} />
+              {/* Mesma armadilha do checkout inicial: sem isto, quem desiste do
+                  upgrade fica sem saída na tela do QR. */}
+              <Button variant="ghost" size="sm" onClick={cancelChangePix}>
+                Voltar
+              </Button>
             </div>
           ) : (
             <div className="space-y-4">
@@ -323,11 +337,13 @@ export default function AssinaturaPage() {
           ) : (
             <CardForm onSubmit={handleCardSubmit} loading={loading} error={error} />
           )}
-          {!pix && (
-            <Button variant="ghost" size="sm" onClick={backToPlans}>
-              Voltar
-            </Button>
-          )}
+          {/* Sempre visível, inclusive com o QR na tela: antes o botão saía
+              justamente aí e a pessoa ficava sem saída se desistisse do
+              pagamento. Voltar não cancela a cobrança no Asaas, mas um novo
+              checkout cancela a anterior antes de criar a próxima. */}
+          <Button variant="ghost" size="sm" onClick={backToPlans}>
+            Voltar
+          </Button>
         </div>
       )}
     </div>

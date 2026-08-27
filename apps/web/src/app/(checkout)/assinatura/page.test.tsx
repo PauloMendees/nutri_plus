@@ -246,3 +246,45 @@ it('esconde o botão de trial quando canStartTrial é false', () => {
   render(<AssinaturaPage />);
   expect(screen.queryByRole('button', { name: /teste grátis/i })).not.toBeInTheDocument();
 });
+
+it('com o QR do Pix na tela ainda dá para voltar (o usuário não fica preso)', async () => {
+  checkout.mockResolvedValue({ method: 'PIX', pixQrCode: { encodedImage: 'B64', payload: 'p' } });
+  render(<AssinaturaPage />);
+  fireEvent.click(screen.getAllByRole('button', { name: /assinar/i })[0]);
+  fireEvent.click(screen.getByRole('button', { name: /^pix$/i }));
+  fireEvent.change(screen.getByLabelText(/cpf\/cnpj/i), { target: { value: '70791944158' } });
+  fireEvent.click(screen.getByRole('button', { name: /gerar código pix/i }));
+  await waitFor(() => expect(screen.getByAltText(/qr code pix/i)).toBeInTheDocument());
+
+  // O botão precisa existir JUNTO com o QR — era aqui que ele desaparecia.
+  const voltar = screen.getByRole('button', { name: /voltar/i });
+  fireEvent.click(voltar);
+
+  // Volta para o seletor de planos, sem QR.
+  expect(screen.queryByAltText(/qr code pix/i)).not.toBeInTheDocument();
+  expect(screen.getAllByRole('button', { name: /assinar/i }).length).toBeGreaterThan(0);
+});
+
+it('upgrade por Pix: com o QR na tela ainda dá para voltar', async () => {
+  previewChangePlan.mockResolvedValue({ kind: 'UPGRADE', amountNow: 25, recurringValue: 99, recurringPeriod: 'MONTHLY', effectiveDate: '2026-08-20T00:00:00Z' });
+  changePlan.mockResolvedValue({ kind: 'UPGRADE', method: 'PIX', pixQrCode: { encodedImage: 'B64', payload: 'p' }, amount: 25 });
+  useQuery.mockReturnValue({
+    data: {
+      status: 'ACTIVE',
+      plan: 'ESSENCIAL',
+      billingPeriod: 'MONTHLY',
+      paymentMethod: 'PIX',
+      onboardedAt: '2026-08-01T00:00:00Z',
+      entitlements: { isReadOnly: false },
+    },
+  });
+  render(<AssinaturaPage />);
+  fireEvent.click(await screen.findByRole('button', { name: /trocar para pro/i }));
+  await waitFor(() => expect(screen.getByAltText(/qr code pix/i)).toBeInTheDocument());
+
+  fireEvent.click(screen.getByRole('button', { name: /voltar/i }));
+
+  // Volta para o picker de troca de plano, sem QR.
+  expect(screen.queryByAltText(/qr code pix/i)).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /trocar para pro/i })).toBeInTheDocument();
+});
