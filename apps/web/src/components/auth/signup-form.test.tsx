@@ -6,8 +6,10 @@ const signUp = vi.fn();
 const push = vi.fn();
 const trackMetaEvent = vi.fn();
 
+// O cadastro DEVE usar createSignupClient (flowType implicit). Se alguém voltar
+// para createClient, o mock não cobre e o teste quebra — de propósito.
 vi.mock('@/lib/supabase/client', () => ({
-  createClient: () => ({ auth: { signUp } }),
+  createSignupClient: () => ({ auth: { signUp } }),
 }));
 vi.mock('@/lib/analytics/meta-events', () => ({
   trackMetaEvent: (...a: unknown[]) => trackMetaEvent(...a),

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createClient } from '@/lib/supabase/client';
+import { createSignupClient } from '@/lib/supabase/client';
 import { signupSchema, type SignupValues } from '@/lib/validation/auth';
 import { mapAuthError } from '@/lib/auth/errors';
 import { parseSignupPlan } from '@/lib/billing/signup-plan';
@@ -35,7 +35,9 @@ export function SignupForm() {
 
   async function onSubmit(values: SignupValues) {
     setFormError(null);
-    const supabase = createClient();
+    // Client de cadastro (flowType implicit): faz o token do e-mail sair sem
+    // prefixo pkce_, para a confirmação funcionar em qualquer navegador.
+    const supabase = createSignupClient();
     const { error } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
