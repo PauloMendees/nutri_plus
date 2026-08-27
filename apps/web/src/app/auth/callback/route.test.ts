@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const exchangeCodeForSession = vi.fn();
+const verifyOtp = vi.fn();
 const getSession = vi.fn();
 const syncUser = vi.fn();
 
 vi.mock('@/lib/supabase/server', () => ({
-  createClient: async () => ({ auth: { exchangeCodeForSession, getSession } }),
+  createClient: async () => ({ auth: { exchangeCodeForSession, verifyOtp, getSession } }),
 }));
 vi.mock('@/lib/api/auth', () => ({ syncUser: (...a: unknown[]) => syncUser(...a) }));
 
@@ -17,6 +18,7 @@ function req(url: string) {
 
 beforeEach(() => {
   exchangeCodeForSession.mockReset();
+  verifyOtp.mockReset();
   getSession.mockReset();
   syncUser.mockReset();
 });
@@ -93,5 +95,67 @@ describe('GET /auth/callback', () => {
 
     expect(syncUser).toHaveBeenCalledWith('tok', 'NUTRITIONIST');
     expect(res.headers.get('location')).toBe('http://localhost:3001/assinatura');
+  });
+
+  // Fluxo stateless (token_hash): o link do e-mail e' aberto em aparelho/browser
+  // imprevisivel, onde o code_verifier do PKCE nao existe.
+  it('aceita token_hash, sincroniza o perfil e vai para /assinatura', async () => {
+    verifyOtp.mockResolvedValue({ error: null });
+    getSession.mockResolvedValue({ data: { session: { access_token: 'tok' } } });
+    syncUser.mockResolvedValue({});
+
+    const res = await GET(
+      req('http://localhost:3001/auth/callback?token_hash=hh&type=signup'),
+    );
+
+    expect(verifyOtp).toHaveBeenCalledWith({ type: 'signup', token_hash: 'hh' });
+    expect(exchangeCodeForSession).not.toHaveBeenCalled();
+    expect(syncUser).toHaveBeenCalledWith('tok', 'NUTRITIONIST');
+    expect(res.headers.get('location')).toBe('http://localhost:3001/assinatura');
+  });
+
+  it('token_hash preserva o plano escolhido', async () => {
+    verifyOtp.mockResolvedValue({ error: null });
+    getSession.mockResolvedValue({ data: { session: { access_token: 'tok' } } });
+    syncUser.mockResolvedValue({});
+
+    const res = await GET(
+      req('http://localhost:3001/auth/callback?token_hash=hh&type=signup&plan=pro'),
+    );
+
+    expect(res.headers.get('location')).toBe('http://localhost:3001/assinatura?plan=pro');
+  });
+
+  it('token_hash invalido volta para /login com erro', async () => {
+    verifyOtp.mockResolvedValue({ error: { message: 'expired' } });
+
+    const res = await GET(
+      req('http://localhost:3001/auth/callback?token_hash=hh&type=signup'),
+    );
+
+    expect(res.headers.get('location')).toContain('/login?error=');
+    expect(syncUser).not.toHaveBeenCalled();
+  });
+
+  it('token_hash sem type assume signup', async () => {
+    verifyOtp.mockResolvedValue({ error: null });
+    getSession.mockResolvedValue({ data: { session: { access_token: 'tok' } } });
+    syncUser.mockResolvedValue({});
+
+    await GET(req('http://localhost:3001/auth/callback?token_hash=hh'));
+
+    expect(verifyOtp).toHaveBeenCalledWith({ type: 'signup', token_hash: 'hh' });
+  });
+
+  it('recovery via token_hash respeita o next sem sincronizar', async () => {
+    verifyOtp.mockResolvedValue({ error: null });
+
+    const res = await GET(
+      req('http://localhost:3001/auth/callback?token_hash=hh&type=recovery&next=/reset-password'),
+    );
+
+    expect(verifyOtp).toHaveBeenCalledWith({ type: 'recovery', token_hash: 'hh' });
+    expect(syncUser).not.toHaveBeenCalled();
+    expect(res.headers.get('location')).toBe('http://localhost:3001/reset-password');
   });
 });

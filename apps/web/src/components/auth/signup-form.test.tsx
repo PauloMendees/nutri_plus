@@ -57,7 +57,10 @@ describe('SignupForm', () => {
     expect(arg.email).toBe('ana@clinica.com');
     expect(arg.options.data.name).toBe('Dra. Ana');
     expect(arg.options.emailRedirectTo).toContain('/auth/callback');
-    expect(arg.options.emailRedirectTo).not.toContain('plan=');
+    // Sem plano escolhido o `plan` vai vazio, mas o `?` tem de existir sempre:
+    // o template de e-mail do Supabase concatena `&token_hash=…` nesta URL, e
+    // sem query string a concatenação viraria parte do path.
+    expect(arg.options.emailRedirectTo).toMatch(/\/auth\/callback\?plan=$/);
     expect(push).toHaveBeenCalledWith('/verify-email?email=ana%40clinica.com');
     expect(trackMetaEvent).toHaveBeenCalledWith('CompleteRegistration', { status: true });
   });

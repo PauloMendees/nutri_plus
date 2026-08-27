@@ -41,9 +41,13 @@ export function SignupForm() {
       password: values.password,
       options: {
         data: { name: values.name },
-        emailRedirectTo: chosenPlan
-          ? `${window.location.origin}/auth/callback?plan=${chosenPlan === 'PRO' ? 'pro' : 'essencial'}`
-          : `${window.location.origin}/auth/callback`,
+        // `?plan=` sempre presente (vazio quando não houve escolha): o template
+        // de e-mail do Supabase concatena `&token_hash=…&type=signup` nesta
+        // URL, e sem query string a concatenação viraria parte do path.
+        // parseSignupPlan('') devolve null, então o vazio é inofensivo.
+        emailRedirectTo: `${window.location.origin}/auth/callback?plan=${
+          chosenPlan === 'PRO' ? 'pro' : chosenPlan === 'ESSENCIAL' ? 'essencial' : ''
+        }`,
       },
     });
     if (error) {

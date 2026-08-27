@@ -24,6 +24,10 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const justReset = searchParams.get('reset') === '1';
+  // O /auth/callback redireciona para cá com ?error= quando a confirmação de
+  // e-mail falha. Sem renderizar isso, toda falha do callback fica invisível e
+  // o usuário só vê a tela de login sem explicação.
+  const redirectError = searchParams.get('error');
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<LoginValues>({
@@ -56,6 +60,15 @@ export function LoginForm() {
       {justReset && (
         <p className="rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground">
           Senha alterada. Entre com a nova senha.
+        </p>
+      )}
+
+      {redirectError && (
+        <p
+          role="alert"
+          className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"
+        >
+          {redirectError}
         </p>
       )}
 

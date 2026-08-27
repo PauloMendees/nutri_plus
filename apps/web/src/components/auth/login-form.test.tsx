@@ -34,6 +34,21 @@ describe('LoginForm', () => {
     expect(signInWithPassword).not.toHaveBeenCalled();
   });
 
+  it('mostra a mensagem de erro vinda do ?error= (ex.: falha na confirmação de e-mail)', () => {
+    currentSearchParams = new URLSearchParams({
+      error: 'Não foi possível confirmar seu e-mail. Tente entrar.',
+    });
+    render(<LoginForm />);
+    expect(
+      screen.getByText(/não foi possível confirmar seu e-mail/i),
+    ).toBeInTheDocument();
+  });
+
+  it('não mostra caixa de erro quando não há ?error=', () => {
+    render(<LoginForm />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('signs in and redirects on success', async () => {
     signInWithPassword.mockResolvedValue({ error: null });
     render(<LoginForm />);
