@@ -260,7 +260,10 @@ export default function AssinaturaPage() {
         </div>
       ) : !choice ? (
         <div className="space-y-6">
-          {data?.onboardedAt === null && (
+          {/* Elegibilidade vem do servidor. Antes isto era `onboardedAt === null`,
+              mas o checkout marca onboardedAt ANTES do pagamento — gerar um Pix
+              e desistir escondia o botão para sempre e trancava a conta. */}
+          {data?.canStartTrial && (
             <div className="mx-auto max-w-sm space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-4 text-center">
               <p className="text-sm text-muted-foreground">Ainda não decidiu? Experimente grátis por 7 dias, sem cartão.</p>
               <Button className="w-full" disabled={trialLoading} onClick={handleStartTrial}>

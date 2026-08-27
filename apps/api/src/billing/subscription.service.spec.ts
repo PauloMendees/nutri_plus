@@ -7,7 +7,7 @@ function deps(sub: any) {
       create: jest.fn().mockResolvedValue({ id: 's-new', nutritionistId: 'n1', asaasCustomerId: null, asaasSubscriptionId: null }),
       update: jest.fn().mockResolvedValue({}),
     },
-    subscriptionPayment: { findMany: jest.fn().mockResolvedValue([]), upsert: jest.fn().mockResolvedValue({}) },
+    subscriptionPayment: { findMany: jest.fn().mockResolvedValue([]), upsert: jest.fn().mockResolvedValue({}), count: jest.fn().mockResolvedValue(0) },
   } as any;
   const entitlements = { getEntitlements: jest.fn().mockResolvedValue({ tier: 'PRO', isReadOnly: false, features: {}, aiQuota: 200, aiUsed: 1 }) } as any;
   const asaas = {
@@ -253,5 +253,52 @@ describe('SubscriptionService.previewChangePlan', () => {
   it('preview rejeita quando não está ACTIVE', async () => {
     const { svc } = deps({ id: 's1', nutritionistId: 'n1', status: 'TRIALING' });
     await expect(svc.previewChangePlan('n1', { plan: 'PRO', period: 'MONTHLY' })).rejects.toBeDefined();
+  });
+});
+
+describe('SubscriptionService.startTrial — elegibilidade', () => {
+  const novo = { id: 's1', nutritionistId: 'n1', isComp: false, trialEndsAt: null, currentPeriodEnd: null };
+
+  it('inicia o trial para quem nunca usou, mesmo com onboardedAt marcado', async () => {
+    // Checkout abandonado (Pix gerado e não pago) marca onboardedAt; isso NÃO
+    // pode impedir o trial.
+    const { svc, prisma } = deps({ ...novo, onboardedAt: new Date('2026-08-27') });
+    await svc.startTrial('n1');
+    expect(prisma.subscription.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: 'TRIALING', trialEndsAt: expect.any(Date) }),
+    }));
+  });
+
+  it('recusa quando o trial já foi usado', async () => {
+    const { svc, prisma } = deps({ ...novo, trialEndsAt: new Date('2020-01-01') });
+    await expect(svc.startTrial('n1')).rejects.toMatchObject({ status: 422 });
+    expect(prisma.subscription.update).not.toHaveBeenCalled();
+  });
+
+  it('recusa quem é ou foi assinante', async () => {
+    const { svc, prisma } = deps({ ...novo, currentPeriodEnd: new Date('2026-09-26') });
+    await expect(svc.startTrial('n1')).rejects.toMatchObject({ status: 422 });
+    expect(prisma.subscription.update).not.toHaveBeenCalled();
+  });
+
+  it('recusa quem já teve pagamento (não renova trial via POST repetido)', async () => {
+    const { svc, prisma } = deps(novo);
+    prisma.subscriptionPayment.count.mockResolvedValue(1);
+    await expect(svc.startTrial('n1')).rejects.toMatchObject({ status: 422 });
+    expect(prisma.subscription.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('SubscriptionService.getView — canStartTrial', () => {
+  it('true para conta nova com onboardedAt marcado (checkout abandonado)', async () => {
+    const { svc } = deps({ id: 's1', nutritionistId: 'n1', isComp: false, trialEndsAt: null, currentPeriodEnd: null, onboardedAt: new Date('2026-08-27'), status: 'TRIALING', cancelAtPeriodEnd: false });
+    const view = await svc.getView('n1');
+    expect(view.canStartTrial).toBe(true);
+    expect(view.onboardedAt).not.toBeNull();
+  });
+
+  it('false depois de o trial ter sido usado', async () => {
+    const { svc } = deps({ id: 's1', nutritionistId: 'n1', isComp: false, trialEndsAt: new Date('2026-09-02'), currentPeriodEnd: null, onboardedAt: new Date(), status: 'TRIALING', cancelAtPeriodEnd: false });
+    expect((await svc.getView('n1')).canStartTrial).toBe(false);
   });
 });

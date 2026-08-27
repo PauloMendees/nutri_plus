@@ -117,6 +117,10 @@ export interface SubscriptionView {
   entitlements: Entitlements;
   recentPayments: SubscriptionPaymentView[];
   onboardedAt: string | null;
+  // Elegibilidade a trial calculada no servidor (nunca usou trial E não é nem
+  // foi assinante). Não derive isso de `onboardedAt`: o checkout marca aquele
+  // campo antes do pagamento, então um Pix abandonado queimaria o trial.
+  canStartTrial: boolean;
   paymentMethod: PaymentMethod | null;
   cardLast4: string | null;
   cardBrand: string | null;

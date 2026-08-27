@@ -17,7 +17,7 @@ import { ResendService } from '../support/resend.service';
 import { EntitlementsService } from './entitlements.service';
 import { AsaasService } from './asaas.service';
 import { buildPaymentReceiptEmail } from './payment-receipt-email';
-import { TRIAL_DAYS } from './plan-policy';
+import { TRIAL_DAYS, isTrialEligible } from './plan-policy';
 
 export interface AsaasWebhookEvent {
   event: string;
@@ -85,6 +85,12 @@ export class SubscriptionService {
         dueDate: p.dueDate?.toISOString() ?? null, paidAt: p.paidAt?.toISOString() ?? null,
       })),
       onboardedAt: sub.onboardedAt?.toISOString() ?? null,
+      canStartTrial: isTrialEligible({
+        isComp: sub.isComp,
+        trialEndsAt: sub.trialEndsAt,
+        currentPeriodEnd: sub.currentPeriodEnd,
+        paymentCount: payments.length,
+      }),
       paymentMethod: sub.paymentMethod as PaymentMethod | null,
       cardLast4: sub.cardLast4,
       cardBrand: sub.cardBrand,
@@ -144,7 +150,22 @@ export class SubscriptionService {
   }
 
   async startTrial(nutritionistId: string): Promise<void> {
-    await this.requireSub(nutritionistId);
+    const sub = await this.requireSub(nutritionistId);
+    // Sem esta guarda o endpoint renovava o trial indefinidamente a cada POST.
+    const paymentCount = await this.prisma.subscriptionPayment.count({
+      where: { subscriptionId: sub.id },
+    });
+    if (!isTrialEligible({
+      isComp: sub.isComp,
+      trialEndsAt: sub.trialEndsAt,
+      currentPeriodEnd: sub.currentPeriodEnd,
+      paymentCount,
+    })) {
+      throw new UnprocessableEntityException({
+        code: 'TRIAL_NOT_ELIGIBLE',
+        message: 'Este teste grátis já foi usado nesta conta.',
+      });
+    }
     await this.prisma.subscription.update({
       where: { nutritionistId },
       data: { status: 'TRIALING', trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 24 * 3600 * 1000), onboardedAt: new Date() },

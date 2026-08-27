@@ -42,7 +42,8 @@ beforeEach(() => {
   replace.mockClear();
   back.mockClear();
   invalidateQueries.mockClear();
-  useQuery.mockReturnValue({ data: { onboardedAt: null, status: 'TRIALING', entitlements: { isReadOnly: true } } });
+  // Conta nova: nunca fez trial, nunca pagou -> elegível.
+  useQuery.mockReturnValue({ data: { onboardedAt: null, canStartTrial: true, status: 'TRIALING', entitlements: { isReadOnly: true } } });
   currentSearchParams = new URLSearchParams();
   trackMetaEvent.mockReset();
 });
@@ -216,4 +217,32 @@ it('agendado: card mostra "sem cobrança agora" com a data de vigência', async 
   });
   render(<AssinaturaPage />);
   await waitFor(() => expect(screen.getByText(/sem cobrança agora/i)).toBeInTheDocument());
+});
+
+it('mostra o botão de trial quando canStartTrial, mesmo com onboardedAt marcado', () => {
+  // Cenário do bug: checkout abandonado (Pix gerado, não pago) marca
+  // onboardedAt. O botão precisa continuar disponível.
+  useQuery.mockReturnValue({
+    data: {
+      onboardedAt: '2026-08-27T00:33:39Z',
+      canStartTrial: true,
+      status: 'TRIALING',
+      entitlements: { isReadOnly: true },
+    },
+  });
+  render(<AssinaturaPage />);
+  expect(screen.getByRole('button', { name: /teste grátis/i })).toBeInTheDocument();
+});
+
+it('esconde o botão de trial quando canStartTrial é false', () => {
+  useQuery.mockReturnValue({
+    data: {
+      onboardedAt: null,
+      canStartTrial: false,
+      status: 'TRIALING',
+      entitlements: { isReadOnly: true },
+    },
+  });
+  render(<AssinaturaPage />);
+  expect(screen.queryByRole('button', { name: /teste grátis/i })).not.toBeInTheDocument();
 });
