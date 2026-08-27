@@ -84,6 +84,33 @@ it('escolher plano + Pix mostra o QR', async () => {
   );
 });
 
+it('input de CPF/CNPJ formata enquanto se digita e envia só os dígitos', async () => {
+  checkout.mockResolvedValue({ method: 'PIX', pixQrCode: { encodedImage: 'B64', payload: 'p' } });
+  render(<AssinaturaPage />);
+  fireEvent.click(screen.getAllByRole('button', { name: /assinar/i })[0]);
+  fireEvent.click(screen.getByRole('button', { name: /^pix$/i }));
+
+  const input = screen.getByLabelText(/cpf\/cnpj/i) as HTMLInputElement;
+  // Digitação crua, sem separadores — o que o usuário realmente faz.
+  fireEvent.change(input, { target: { value: '70791944158' } });
+  expect(input.value).toBe('707.919.441-58');
+
+  fireEvent.click(screen.getByRole('button', { name: /gerar código pix/i }));
+  await waitFor(() => expect(checkout).toHaveBeenCalled());
+  // A API exige ^\d{11}$: a máscara não pode vazar no payload.
+  expect(checkout).toHaveBeenCalledWith(expect.objectContaining({ cpfCnpj: '70791944158' }));
+});
+
+it('input de CPF/CNPJ não trunca CNPJ em 11 dígitos', () => {
+  render(<AssinaturaPage />);
+  fireEvent.click(screen.getAllByRole('button', { name: /assinar/i })[0]);
+  fireEvent.click(screen.getByRole('button', { name: /^pix$/i }));
+
+  const input = screen.getByLabelText(/cpf\/cnpj/i) as HTMLInputElement;
+  fireEvent.change(input, { target: { value: '12345678901234' } });
+  expect(input.value).toBe('12.345.678/9012-34');
+});
+
 it('assinante ativo NÃO é redirecionado e vê o picker com o plano atual', () => {
   useQuery.mockReturnValue({
     data: {

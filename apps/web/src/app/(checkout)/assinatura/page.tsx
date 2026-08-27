@@ -6,6 +6,7 @@ import type { BillingPeriod, CardHolderInfo, CardInput, ChangePlanPreview, PixQr
 import { ApiError } from '@/lib/api/client';
 import { changePlan, checkoutSubscription, getSubscription, previewChangePlan, startTrial } from '@/lib/api/subscription';
 import { SUBSCRIPTION_KEY } from '@/lib/queries/subscription';
+import { maskCpfCnpj } from '@/lib/format/cpf-cnpj';
 import { Button } from '@/components/ui/button';
 import { CardForm } from '@/components/billing/card-form';
 import { PixPayment } from '@/components/billing/pix-payment';
@@ -304,8 +305,10 @@ export default function AssinaturaPage() {
                     aria-label="CPF/CNPJ"
                     className="mt-1 w-full rounded border px-3 py-2"
                     value={pixCpfCnpj}
-                    onChange={(e) => setPixCpfCnpj(e.target.value)}
-                    placeholder="Somente números"
+                    onChange={(e) => setPixCpfCnpj(maskCpfCnpj(e.target.value))}
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="000.000.000-00"
                   />
                 </label>
                 {error && <p className="text-sm text-destructive">{error}</p>}
