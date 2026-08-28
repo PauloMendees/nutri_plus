@@ -43,7 +43,7 @@ vi.mock('@/lib/queries/foods', () => ({
   }),
 }));
 
-import { MealPlanEditor } from './meal-plan-editor';
+import { MealPlanEditor, fmtMacro, parseGrams } from './meal-plan-editor';
 
 const plan = {
   id: 'm1', patientId: 'p1', title: 'Plano A', objective: 'Hipertrofia', aiGenerated: false,
@@ -160,11 +160,20 @@ describe('MealPlanEditor (edit mode)', () => {
     expect(within(firstOption).getByTestId('option-subtotal-calories')).toHaveTextContent('Kcal 230');
   });
 
-  it('shows fiber/sodium totals for a single item', () => {
+  it('hides fiber/sodium totals until "Ver outros macros" is pressed', async () => {
     render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    expect(screen.queryByTestId('total-fiber')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('total-sodium')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /ver outros macros/i }));
     expect(screen.getByTestId('total-fiber')).toHaveTextContent('3');
     expect(screen.getByTestId('total-sodium')).toHaveTextContent('5');
+
+    await userEvent.click(screen.getByRole('button', { name: /ocultar outros macros/i }));
+    expect(screen.queryByTestId('total-fiber')).not.toBeInTheDocument();
   });
+
+
 
   it('applies the latest nutrition target via "Usar Meta atual"', async () => {
     render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
@@ -250,7 +259,7 @@ describe('MealPlanEditor (create mode)', () => {
     expect(screen.queryByRole('button', { name: /exportar pdf/i })).not.toBeInTheDocument();
   });
 
-  it('picks a food via the picker dialog, then recomputes macros as grams change', async () => {
+  it('picks a food via the picker dialog, then recomputes macros as the quantity changes', async () => {
     render(<MealPlanEditor patientId="p1" canEdit />);
     const optionCard = screen.getAllByTestId('option-card')[0];
 
@@ -258,16 +267,92 @@ describe('MealPlanEditor (create mode)', () => {
     await userEvent.type(screen.getByRole('textbox', { name: /buscar alimento/i }), 'arroz');
     await userEvent.click(await screen.findByRole('button', { name: /arroz integral cozido/i }));
 
-    const grams = within(optionCard).getByLabelText('Gramas');
-    await userEvent.clear(grams);
-    await userEvent.type(grams, '150');
+    // Sem porção declarada, escolher o alimento assume 100 g e escreve no campo.
+    const quantity = within(optionCard).getByLabelText('Quantidade');
+    expect(quantity).toHaveValue('100 g');
+
+    await userEvent.clear(quantity);
+    await userEvent.type(quantity, '150 g');
 
     expect(within(optionCard).getByLabelText('Kcal')).toHaveValue(186);
     expect(within(optionCard).getByLabelText('P')).toHaveValue(4);
     expect(within(optionCard).getByLabelText('C')).toHaveValue(39);
     expect(within(optionCard).getByLabelText('G')).toHaveValue(2);
+    expect(within(optionCard).getByDisplayValue('Arroz integral cozido')).toBeInTheDocument();
+
+    // Fibra e sódio só existem na tela depois do toggle.
+    expect(within(optionCard).queryByLabelText('Fib')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /ver outros macros/i }));
     expect(within(optionCard).getByLabelText('Fib')).toHaveValue(4);
     expect(within(optionCard).getByLabelText('Na')).toHaveValue(2);
-    expect(within(optionCard).getByDisplayValue('Arroz integral cozido')).toBeInTheDocument();
+  });
+
+  it('keeps a household measure and leaves macros alone when no grams are written', async () => {
+    render(<MealPlanEditor patientId="p1" canEdit />);
+    const optionCard = screen.getAllByTestId('option-card')[0];
+
+    await userEvent.click(within(optionCard).getByRole('button', { name: /buscar alimento/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /buscar alimento/i }), 'arroz');
+    await userEvent.click(await screen.findByRole('button', { name: /arroz integral cozido/i }));
+
+    const quantity = within(optionCard).getByLabelText('Quantidade');
+    await userEvent.clear(quantity);
+    await userEvent.type(quantity, '1 xícara (120 g)');
+
+    // O número entre parênteses vence a medida caseira que vem antes.
+    expect(within(optionCard).getByLabelText('Kcal')).toHaveValue(149);
+    expect(quantity).toHaveValue('1 xícara (120 g)');
+
+    await userEvent.clear(quantity);
+    await userEvent.type(quantity, '2 fatias');
+
+    // Sem gramas no texto, os macros ficam como estavam — não zeram.
+    expect(within(optionCard).getByLabelText('Kcal')).toHaveValue(149);
+  });
+});
+
+describe('fmtMacro', () => {
+  it('corta o ruído de ponto flutuante da soma', () => {
+    // 87.6 + 87.6 em float dá 175.20000000000002 — foi o que apareceu na tela.
+    expect(fmtMacro('protein', 87.6 + 87.6)).toBe('175.2');
+    expect(fmtMacro('carbs', 526.1500000000001)).toBe('526.2');
+    expect(fmtMacro('fats', 102.99999999999999)).toBe('103');
+  });
+
+  it('usa inteiro para kcal e sódio, uma casa para os demais', () => {
+    expect(fmtMacro('calories', 3713.4)).toBe('3713');
+    expect(fmtMacro('sodium', 5.6)).toBe('6');
+    expect(fmtMacro('fiber', 3.25)).toBe('3.3');
+  });
+
+  it('não escreve casa decimal inútil', () => {
+    expect(fmtMacro('protein', 180)).toBe('180');
+  });
+});
+
+describe('parseGrams', () => {
+  it('lê as formas usuais', () => {
+    expect(parseGrams('120 g')).toBe(120);
+    expect(parseGrams('120g')).toBe(120);
+    expect(parseGrams('200 ml')).toBe(200);
+    expect(parseGrams('80 gramas')).toBe(80);
+  });
+
+  it('converte kg e litro', () => {
+    expect(parseGrams('0,5 kg')).toBe(500);
+    expect(parseGrams('1.2 kg')).toBe(1200);
+    expect(parseGrams('1 l')).toBe(1000);
+  });
+
+  it('prefere o número da última unidade, não o da medida caseira', () => {
+    expect(parseGrams('1 xícara (120 g)')).toBe(120);
+    expect(parseGrams('2 colheres de sopa (30 g)')).toBe(30);
+  });
+
+  it('devolve null quando não há gramas declaradas', () => {
+    expect(parseGrams('2 fatias')).toBeNull();
+    expect(parseGrams('a gosto')).toBeNull();
+    expect(parseGrams('')).toBeNull();
+    expect(parseGrams('0 g')).toBeNull();
   });
 });

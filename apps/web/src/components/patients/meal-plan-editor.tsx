@@ -79,7 +79,7 @@ function toDefaults(plan: MealPlan): FormValues {
         items: o.items.map((it) => ({
           foodName: it.foodName ?? '',
           foodId: it.foodId ?? '',
-          quantity: it.quantity ?? '',
+          quantity: quantityText(it.quantity ?? null, it.grams ?? null),
           grams: numToStr(it.grams),
           calories: numToStr(it.calories),
           protein: numToStr(it.protein),
@@ -91,6 +91,15 @@ function toDefaults(plan: MealPlan): FormValues {
       })),
     })),
   };
+}
+
+// A IA preenche ora `quantity` ("1 xícara"), ora só `grams`, ora nenhum dos dois.
+// O editor mostra um campo só, então a leitura normaliza: sem texto e com gramas,
+// o texto passa a ser "120 g".
+function quantityText(quantity: string | null, grams: number | null): string {
+  const q = (quantity ?? '').trim();
+  if (q) return q;
+  return grams != null && grams > 0 ? `${grams} g` : '';
 }
 
 function draftToDefaults(d: MealPlanDraft): FormValues {
@@ -110,7 +119,7 @@ function draftToDefaults(d: MealPlanDraft): FormValues {
         items: (o.items ?? []).map((it) => ({
           foodName: it.foodName ?? '',
           foodId: it.foodId ?? '',
-          quantity: it.quantity ?? '',
+          quantity: quantityText(it.quantity ?? null, it.grams ?? null),
           grams: numToStr(it.grams ?? null),
           calories: numToStr(it.calories ?? null),
           protein: numToStr(it.protein ?? null),
@@ -131,24 +140,60 @@ const TARGETS = [
   { key: 'targetFats', total: 'fats', label: 'Gordura' },
 ] as const;
 
-const ITEM_MACROS = [
+type MacroKey = 'calories' | 'protein' | 'carbs' | 'fats' | 'fiber' | 'sodium';
+type MacroDef = { key: MacroKey; label: string };
+
+// Os quatro com meta ficam sempre à vista; fibra e sódio só com "Ver outros
+// macros", devolvendo largura aos inputs usados em toda consulta.
+const PRIMARY_MACROS: readonly MacroDef[] = [
   { key: 'calories', label: 'Kcal' },
   { key: 'protein', label: 'P' },
   { key: 'carbs', label: 'C' },
   { key: 'fats', label: 'G' },
+];
+
+const SECONDARY_MACROS: readonly MacroDef[] = [
   { key: 'fiber', label: 'Fib' },
   { key: 'sodium', label: 'Na' },
-] as const;
+];
+
+const ITEM_MACROS: readonly MacroDef[] = [...PRIMARY_MACROS, ...SECONDARY_MACROS];
+
+const macrosToShow = (showAll: boolean): readonly MacroDef[] =>
+  showAll ? ITEM_MACROS : PRIMARY_MACROS;
 
 // macro -> chave de meta (só os 4 têm meta; fibra/sódio não).
-const MACRO_TARGET: Partial<Record<(typeof ITEM_MACROS)[number]['key'], (typeof TARGETS)[number]['key']>> = {
+const MACRO_TARGET: Partial<Record<MacroKey, (typeof TARGETS)[number]['key']>> = {
   calories: 'targetCalories',
   protein: 'targetProtein',
   carbs: 'targetCarbs',
   fats: 'targetFats',
 };
 
-type MacroKey = 'calories' | 'protein' | 'carbs' | 'fats' | 'fiber' | 'sodium';
+// Somar floats gera 175.20000000000002. Arredondamos na exibição e na gravação
+// automática de macros; o que já está no banco não é tocado.
+const MACRO_DECIMALS: Record<MacroKey, number> = {
+  calories: 0, protein: 1, carbs: 1, fats: 1, fiber: 1, sodium: 0,
+};
+
+export function fmtMacro(macro: MacroKey, value: number): string {
+  const fixed = value.toFixed(MACRO_DECIMALS[macro]);
+  return fixed.endsWith('.0') ? fixed.slice(0, -2) : fixed;
+}
+
+// Extrai gramas de uma quantidade escrita à mão: "120 g", "1 xícara (120 g)",
+// "0,5 kg", "200 ml". Usa a ÚLTIMA ocorrência, para que a medida caseira que vem
+// antes ("1 xícara") não roube o número. Vírgula decimal aceita (pt-BR).
+// ml e l entram como 1 g/ml — aproximação usual, exata só para água.
+export function parseGrams(text: string): number | null {
+  const matches = [...text.matchAll(/(\d+(?:[.,]\d+)?)\s*(kg|gramas|grama|g|ml|l)\b/gi)];
+  const last = matches[matches.length - 1];
+  if (!last) return null;
+  const n = Number(last[1].replace(',', '.'));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const unit = last[2].toLowerCase();
+  return unit === 'kg' || unit === 'l' ? n * 1000 : n;
+}
 
 // Auto-grow single-line text fields: sized like the Inputs they replace, but the
 // shadcn Textarea's `field-sizing-content` lets them grow vertically with content.
@@ -179,6 +224,30 @@ export function MealPlanEditor({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
+  // Preferência por nutricionista: o editor é reaberto dezenas de vezes por dia,
+  // e perder a escolha a cada abertura irrita. Lida no mount para não divergir do SSR.
+  const [showAllMacros, setShowAllMacros] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('mealPlan.showAllMacros') === '1') setShowAllMacros(true);
+    } catch {
+      // navegador sem storage: segue com o padrão (só os primários)
+    }
+  }, []);
+
+  function toggleAllMacros() {
+    setShowAllMacros((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('mealPlan.showAllMacros', next ? '1' : '0');
+      } catch {
+        // preferência não persiste, mas a sessão atual continua respeitando a escolha
+      }
+      return next;
+    });
+  }
+
 
   const form = useForm<FormValues>({
     resolver: zodResolver(mealPlanSchema) as unknown as Resolver<FormValues>,
@@ -379,21 +448,29 @@ export function MealPlanEditor({
           </div>
 
           {/* Totals bar (first option per meal) */}
-          <div className="sticky top-0 z-10 flex flex-wrap gap-4 rounded-xl border bg-card p-3">
-            {ITEM_MACROS.map((m) => {
+          <div className="sticky top-0 z-10 flex flex-wrap items-center gap-4 rounded-xl border bg-card p-3">
+            {macrosToShow(showAllMacros).map((m) => {
               const total = totalFor(m.key);
               const targetKey = MACRO_TARGET[m.key];
               const target = targetKey ? Number(form.watch(targetKey)) || 0 : 0;
               return (
                 <div key={m.key} className="text-center">
                   <b data-testid={`total-${m.key}`} className="block text-sm">
-                    {total}
+                    {fmtMacro(m.key, total)}
                     {target > 0 && <span className="text-muted-foreground">/{target}</span>}
                   </b>
                   <span className="text-[10px] text-muted-foreground">{m.label}</span>
                 </div>
               );
             })}
+            <button
+              type="button"
+              className="ml-auto text-xs font-semibold text-primary"
+              onClick={toggleAllMacros}
+              aria-expanded={showAllMacros}
+            >
+              {showAllMacros ? 'Ocultar outros macros' : 'Ver outros macros'}
+            </button>
           </div>
 
           {/* Meal cards */}
@@ -405,6 +482,7 @@ export function MealPlanEditor({
               setValue={form.setValue}
               mealIndex={mealIndex}
               canEdit={canEdit}
+              showAllMacros={showAllMacros}
               isFirst={mealIndex === 0}
               isLast={mealIndex === meals.fields.length - 1}
               onRemove={() => meals.remove(mealIndex)}
@@ -483,6 +561,7 @@ function MealCard({
   setValue,
   mealIndex,
   canEdit,
+  showAllMacros,
   isFirst,
   isLast,
   onRemove,
@@ -494,6 +573,7 @@ function MealCard({
   setValue: UseFormSetValue<FormValues>;
   mealIndex: number;
   canEdit: boolean;
+  showAllMacros: boolean;
   isFirst: boolean;
   isLast: boolean;
   onRemove: () => void;
@@ -528,6 +608,7 @@ function MealCard({
             mealIndex={mealIndex}
             optionIndex={optionIndex}
             canEdit={canEdit}
+            showAllMacros={showAllMacros}
             isFirst={optionIndex === 0}
             isLast={optionIndex === options.fields.length - 1}
             onRemove={() => options.remove(optionIndex)}
@@ -553,6 +634,7 @@ function OptionCard({
   mealIndex,
   optionIndex,
   canEdit,
+  showAllMacros,
   isFirst,
   isLast,
   onRemove,
@@ -565,6 +647,7 @@ function OptionCard({
   mealIndex: number;
   optionIndex: number;
   canEdit: boolean;
+  showAllMacros: boolean;
   isFirst: boolean;
   isLast: boolean;
   onRemove: () => void;
@@ -587,30 +670,32 @@ function OptionCard({
 
   function fillMacros(itemIndex: number, food: Food, grams: number) {
     const m = macrosForPortion(food, grams);
-    setField(itemIndex, 'calories', String(m.calories));
-    setField(itemIndex, 'protein', String(m.protein));
-    setField(itemIndex, 'carbs', String(m.carbs));
-    setField(itemIndex, 'fats', String(m.fats));
-    setField(itemIndex, 'fiber', String(m.fiber));
-    setField(itemIndex, 'sodium', String(m.sodium));
+    for (const { key } of ITEM_MACROS) setField(itemIndex, key, fmtMacro(key, m[key]));
   }
 
   function onPickFood(itemIndex: number, food: Food) {
     foodCache.current[food.id] = food;
     setField(itemIndex, 'foodId', food.id);
     setField(itemIndex, 'foodName', food.name);
-    const gramsStr = (watchedItems?.[itemIndex]?.grams ?? '').trim();
-    const grams = Number(gramsStr) || 100;
-    if (!gramsStr) setField(itemIndex, 'grams', '100');
+    let grams = parseGrams(watchedItems?.[itemIndex]?.quantity ?? '');
+    // Sem porção declarada, 100 g é o padrão da TACO — deixamos explícito no
+    // campo em vez de assumir em silêncio.
+    if (grams == null) {
+      grams = 100;
+      setField(itemIndex, 'quantity', '100 g');
+    }
+    setField(itemIndex, 'grams', String(grams));
     fillMacros(itemIndex, food, grams);
   }
 
-  function onGramsChange(itemIndex: number, value: string) {
-    setField(itemIndex, 'grams', value);
+  // `grams` continua existindo no formulário e no banco — some só da tela. É ele
+  // que alimenta o recálculo pela TACO, então segue sincronizado com o texto.
+  function onQuantityChange(itemIndex: number, text: string) {
+    const grams = parseGrams(text);
+    setField(itemIndex, 'grams', grams == null ? '' : String(grams));
     const foodId = watchedItems?.[itemIndex]?.foodId;
     const food = foodId ? foodCache.current[foodId] : undefined;
-    const grams = Number(value);
-    if (food && grams > 0) fillMacros(itemIndex, food, grams);
+    if (food && grams != null) fillMacros(itemIndex, food, grams);
   }
 
   return (
@@ -638,9 +723,8 @@ function OptionCard({
             <tr className="text-left text-[10px] uppercase text-muted-foreground">
               {canEdit && <th />}
               <th className="py-1">Alimento</th>
-              <th className="py-1">Qtd</th>
-              <th className="py-1">Gramas</th>
-              {ITEM_MACROS.map((m) => (
+              <th className="py-1">Quantidade</th>
+              {macrosToShow(showAllMacros).map((m) => (
                 <th key={m.key} className="py-1">{m.label}</th>
               ))}
               {canEdit && <th />}
@@ -664,19 +748,25 @@ function OptionCard({
                   </td>
                 )}
                 <td className="py-1 pr-1 align-top"><Textarea rows={1} className={`w-48 ${GROW_SM}`} aria-label="Alimento" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.foodName`)} /></td>
-                <td className="py-1 pr-1 align-top"><Textarea rows={1} className={`w-24 ${GROW_SM}`} aria-label="Quantidade" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`)} /></td>
                 <td className="py-1 pr-1 align-top">
-                  <Input
-                    className="h-7 w-16"
-                    type="number"
-                    inputMode="decimal"
-                    step="any"
-                    aria-label="Gramas"
-                    value={watchedItems?.[itemIndex]?.grams ?? ''}
-                    onChange={(e) => onGramsChange(itemIndex, e.target.value)}
-                  />
+                  {(() => {
+                    const field = register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`);
+                    return (
+                      <Textarea
+                        rows={1}
+                        className={`w-40 ${GROW_SM}`}
+                        placeholder="120 g"
+                        aria-label="Quantidade"
+                        {...field}
+                        onChange={(e) => {
+                          void field.onChange(e);
+                          onQuantityChange(itemIndex, e.target.value);
+                        }}
+                      />
+                    );
+                  })()}
                 </td>
-                {ITEM_MACROS.map((m) => (
+                {macrosToShow(showAllMacros).map((m) => (
                   <td key={m.key} className="py-1 pr-1 align-top">
                     <Input className="h-7 w-16" type="number" inputMode="decimal" step="any" aria-label={m.label}
                       {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.${m.key}` as const)} />
@@ -698,9 +788,9 @@ function OptionCard({
       </div>
 
       <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-muted-foreground">
-        {ITEM_MACROS.map((m) => (
+        {macrosToShow(showAllMacros).map((m) => (
           <span key={m.key} data-testid={`option-subtotal-${m.key}`}>
-            {m.label} {subtotal(m.key)}
+            {m.label} {fmtMacro(m.key, subtotal(m.key))}
           </span>
         ))}
       </div>
