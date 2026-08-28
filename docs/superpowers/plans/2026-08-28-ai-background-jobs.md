@@ -188,21 +188,72 @@ No modelo `MealPlan`:
   aiJobs AiJob[]
 ```
 
-- [ ] **Step 3: Gerar a migration**
+- [ ] **Step 3: Escrever a migration à mão**
 
-Run: `pnpm --filter @nutri-plus/api exec prisma migrate dev --name ai_jobs`
-Expected: cria `apps/api/prisma/migrations/<timestamp>_ai_jobs/migration.sql` e regenera o client.
+**NÃO rodar `prisma migrate dev`.** O `DATABASE_URL` de `apps/api/.env` aponta para o
+Supabase de produção; `migrate dev` aplica no banco e pode oferecer reset. O SQL é escrito
+à mão e aplicado no deploy pelo `preDeployCommand: prisma migrate deploy` que o
+`render.yaml` já executa.
 
-- [ ] **Step 4: Conferir que o client tipou**
+Criar `apps/api/prisma/migrations/20260828200000_ai_jobs/migration.sql` com exatamente:
 
-Run: `pnpm --filter @nutri-plus/api exec tsc -p tsconfig.json --noEmit`
-Expected: sem erros.
+```sql
+-- CreateEnum
+CREATE TYPE "AiJobType" AS ENUM ('MEAL_PLAN_GENERATION', 'MEAL_PLAN_ADJUSTMENT');
+
+-- CreateEnum
+CREATE TYPE "AiJobStatus" AS ENUM ('PENDING', 'RUNNING', 'DONE', 'FAILED');
+
+-- CreateTable
+CREATE TABLE "AiJob" (
+    "id" TEXT NOT NULL,
+    "nutritionistId" TEXT NOT NULL,
+    "patientId" TEXT NOT NULL,
+    "type" "AiJobType" NOT NULL,
+    "status" "AiJobStatus" NOT NULL DEFAULT 'PENDING',
+    "input" JSONB NOT NULL,
+    "result" JSONB,
+    "error" TEXT,
+    "mealPlanId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "startedAt" TIMESTAMP(3),
+    "finishedAt" TIMESTAMP(3),
+    "consumedAt" TIMESTAMP(3),
+
+    CONSTRAINT "AiJob_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "AiJob_patientId_createdAt_idx" ON "AiJob"("patientId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AiJob_nutritionistId_status_idx" ON "AiJob"("nutritionistId", "status");
+
+-- AddForeignKey
+ALTER TABLE "AiJob" ADD CONSTRAINT "AiJob_nutritionistId_fkey" FOREIGN KEY ("nutritionistId") REFERENCES "NutritionistProfile"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AiJob" ADD CONSTRAINT "AiJob_patientId_fkey" FOREIGN KEY ("patientId") REFERENCES "PatientProfile"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AiJob" ADD CONSTRAINT "AiJob_mealPlanId_fkey" FOREIGN KEY ("mealPlanId") REFERENCES "MealPlan"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+```
+
+- [ ] **Step 4: Regenerar o client e conferir os tipos**
+
+`prisma generate` lê só o schema — não toca em banco.
+
+Run: `pnpm --filter @nutri-plus/api exec prisma generate && pnpm --filter @nutri-plus/api exec tsc -p tsconfig.json --noEmit`
+Expected: client regenerado com `prisma.aiJob` tipado, e typecheck sem erros.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add apps/api/prisma/schema.prisma apps/api/prisma/migrations
-git commit -m "feat(db): tabela AiJob para trabalhos de IA em segundo plano"
+git commit -m "feat(db): tabela AiJob para trabalhos de IA em segundo plano
+
+Migration escrita à mão: o DATABASE_URL local aponta para produção, e
+migrate dev aplicaria no banco. O deploy já roda migrate deploy."
 ```
 
 ---
