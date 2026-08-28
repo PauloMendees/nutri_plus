@@ -9,5 +9,6 @@ import { MealGenerationService } from './meal-generation.service';
   imports: [AiModule, MealPlansModule, BillingModule],
   controllers: [MealGenerationController],
   providers: [MealGenerationService],
+  exports: [MealGenerationService],
 })
 export class MealGenerationModule {}
