@@ -1,6 +1,8 @@
 // USD per 1M tokens. Update alongside model/price changes; an unknown model
-// yields a null estimate rather than a wrong one.
+// yields a null estimate rather than a wrong one. Superseded models stay listed:
+// historical AIInteraction rows must keep pricing correctly.
 const PRICING_PER_MTOKEN_USD: Record<string, { input: number; output: number }> = {
+  'gpt-5-mini': { input: 0.25, output: 2 },
   'gpt-4o': { input: 2.5, output: 10 },
   'gpt-4o-mini': { input: 0.15, output: 0.6 },
 };
@@ -20,8 +22,9 @@ export function estimateCostUsd(
   );
 }
 
-// Whisper é cobrado por minuto de áudio, não por token.
+// Transcrição é cobrada por minuto de áudio, não por token.
 const TRANSCRIPTION_PER_MINUTE_USD: Record<string, number> = {
+  'gpt-4o-mini-transcribe': 0.003,
   'whisper-1': 0.006,
 };
 

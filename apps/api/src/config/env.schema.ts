@@ -10,9 +10,9 @@ export const envSchema = z.object({
   // which would yield a broken invite redirectTo.
   WEB_ORIGIN: z.string().url().regex(/^https?:\/\//, 'must be an http(s) URL'),
   OPENAI_API_KEY: z.string().min(1),
-  OPENAI_MODEL_SMART: z.string().min(1).default('gpt-4o'),
+  OPENAI_MODEL_SMART: z.string().min(1).default('gpt-5-mini'),
   OPENAI_MODEL_FAST: z.string().min(1).default('gpt-4o-mini'),
-  OPENAI_MODEL_TRANSCRIBE: z.string().min(1).default('whisper-1'),
+  OPENAI_MODEL_TRANSCRIBE: z.string().min(1).default('gpt-4o-mini-transcribe'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   REMINDER_DISPATCH_KEY: z.string().min(1).optional(),
   ASAAS_API_KEY: z.string().min(1).optional(),

@@ -32,8 +32,9 @@ describe('validateEnv', () => {
 
   it('applies model-tier defaults when the vars are omitted', () => {
     const result = validateEnv(valid);
-    expect(result.OPENAI_MODEL_SMART).toBe('gpt-4o');
+    expect(result.OPENAI_MODEL_SMART).toBe('gpt-5-mini');
     expect(result.OPENAI_MODEL_FAST).toBe('gpt-4o-mini');
+    expect(result.OPENAI_MODEL_TRANSCRIBE).toBe('gpt-4o-mini-transcribe');
   });
 
   it('uses explicit model-tier values when provided', () => {
