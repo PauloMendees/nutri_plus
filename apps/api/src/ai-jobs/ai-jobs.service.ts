@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { isAiJobStuck, type AiJobDetail, type AiJobType, type AiJobView } from '@nutri-plus/shared-types';
+import { AI_JOB_STUCK_AFTER_MS, isAiJobStuck, type AiJobDetail, type AiJobType, type AiJobView } from '@nutri-plus/shared-types';
 import type { MealPlanDraft } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { EntitlementsService } from '../billing/entitlements.service';
@@ -68,45 +68,60 @@ export class AiJobsService {
     return { jobId: job.id };
   }
 
-  // Fire-and-forget: nunca lança. Todo erro vira status FAILED no banco, que é
-  // o que o painel do paciente lê.
+  // Fire-and-forget: NUNCA lança. É chamado com `void`, sem catch no chamador —
+  // um throw aqui vira unhandled rejection e derruba o processo.
   async runJob(jobId: string): Promise<void> {
-    const job = await this.prisma.aiJob.findFirst({ where: { id: jobId } });
-    if (!job || job.status === 'RUNNING' || job.status === 'DONE') return;
-
-    await this.prisma.aiJob.update({
-      where: { id: jobId },
-      data: { status: 'RUNNING', startedAt: new Date(), error: null },
-    });
-
-    const input = (job.input ?? {}) as JobInput;
-
     try {
-      // Reconstruímos um AuthContext de verdade a partir do dono gravado no job,
-      // para reusar as checagens de posse dos serviços em vez de duplicá-las.
-      // Dentro do try: se o dono sumiu, o job vira FAILED em vez de lançar.
-      const ctx = await this.contextForJob(job.nutritionistId);
-
-      if (job.type === 'MEAL_PLAN_GENERATION') {
-        const plan = await this.generation.generate(ctx, job.patientId, input.instructions);
-        await this.prisma.aiJob.update({
-          where: { id: jobId },
-          data: { status: 'DONE', mealPlanId: plan.id, finishedAt: new Date() },
-        });
-      } else {
-        const draft = await this.generation.adjust(ctx, input.planId!, input.instructions ?? '');
-        await this.prisma.aiJob.update({
-          where: { id: jobId },
-          data: { status: 'DONE', result: draft as object, finishedAt: new Date() },
-        });
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Falha inesperada';
-      await this.prisma.aiJob.update({
-        where: { id: jobId },
-        data: { status: 'FAILED', error: message.slice(0, 500), finishedAt: new Date() },
+      // Claim atômico PENDING -> RUNNING: só quem vence a corrida executa. Sem
+      // isto, um retry de job "travado" cujo runJob original ainda está vivo
+      // dispara uma segunda geração — dois planos e custo de IA dobrado.
+      const claim = await this.prisma.aiJob.updateMany({
+        where: { id: jobId, status: 'PENDING' },
+        data: { status: 'RUNNING', startedAt: new Date(), error: null },
       });
-      this.logger.warn(`AiJob ${jobId} falhou (type=${job.type})`);
+      if (claim.count === 0) return;
+
+      const job = await this.prisma.aiJob.findFirst({ where: { id: jobId } });
+      if (!job) return;
+
+      const input = (job.input ?? {}) as JobInput;
+
+      try {
+        // Reconstruímos um AuthContext de verdade a partir do dono gravado no job,
+        // para reusar as checagens de posse dos serviços em vez de duplicá-las.
+        // Dentro do try: se o dono sumiu, o job vira FAILED em vez de lançar.
+        const ctx = await this.contextForJob(job.nutritionistId);
+
+        if (job.type === 'MEAL_PLAN_GENERATION') {
+          const plan = await this.generation.generate(ctx, job.patientId, input.instructions);
+          await this.prisma.aiJob.update({
+            where: { id: jobId },
+            data: { status: 'DONE', mealPlanId: plan.id, finishedAt: new Date() },
+          });
+        } else {
+          // Mensagem útil em vez de um erro interno do Prisma sobre id undefined.
+          if (!input.planId) throw new Error('Job de ajuste sem planId');
+          const draft = await this.generation.adjust(ctx, input.planId, input.instructions ?? '');
+          await this.prisma.aiJob.update({
+            where: { id: jobId },
+            data: { status: 'DONE', result: draft as object, finishedAt: new Date() },
+          });
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Falha inesperada';
+        await this.prisma.aiJob.update({
+          where: { id: jobId },
+          data: { status: 'FAILED', error: message.slice(0, 500), finishedAt: new Date() },
+        });
+        this.logger.warn(`AiJob ${jobId} falhou (type=${job.type})`);
+      }
+    } catch (outer) {
+      // Última linha de defesa: banco indisponível no claim, na leitura ou na
+      // própria gravação de FAILED. Loga e engole — o job aparece travado no
+      // painel e a nutricionista repete.
+      this.logger.error(
+        `AiJob ${jobId}: falha ao gerenciar o próprio estado — ${outer instanceof Error ? outer.message : String(outer)}`,
+      );
     }
   }
 
@@ -136,10 +151,12 @@ export class AiJobsService {
 
   async retry(ctx: AuthContext, jobId: string): Promise<{ jobId: string }> {
     const job = await this.requireOwned(ctx, jobId);
-    const stuck = isAiJobStuck(
-      { status: job.status, startedAt: job.startedAt?.toISOString() ?? null },
-      new Date(),
-    );
+    const startedAt = job.startedAt?.toISOString() ?? null;
+    // PENDING órfão (processo morreu antes de executar) também precisa de saída:
+    // ele conta contra a cota do mês e isAiJobStuck só enxerga RUNNING.
+    const orphanPending =
+      job.status === 'PENDING' && Date.now() - job.createdAt.getTime() > AI_JOB_STUCK_AFTER_MS;
+    const stuck = isAiJobStuck({ status: job.status, startedAt }, new Date()) || orphanPending;
     if (job.status !== 'FAILED' && !stuck) {
       throw new ConflictException('Este trabalho não pode ser repetido agora.');
     }

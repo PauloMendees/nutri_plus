@@ -30,6 +30,9 @@ function deps(job?: Record<string, unknown>) {
       findFirst: jest.fn().mockResolvedValue(job ?? null),
       findMany: jest.fn().mockResolvedValue([]),
       update: jest.fn().mockResolvedValue({}),
+      // Claim atômico do runJob: por padrão vence a corrida (count: 1); os
+      // testes de reentrância sobrescrevem para { count: 0 }.
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     patientProfile: { findFirst: jest.fn().mockResolvedValue({ id: 'p1' }) },
     mealPlan: { findFirst: jest.fn().mockResolvedValue({ id: 'm1', patientId: 'p1' }) },
@@ -94,6 +97,17 @@ describe('AiJobsService.runJob', () => {
     expect(last.data.status).toBe('FAILED');
     expect(last.data.error).toContain('AI provider unavailable');
   });
+
+  it('não executa quando o claim atômico perde a corrida (reentrância)', async () => {
+    const { svc, prisma, generation } = deps({
+      id: 'j1', type: 'MEAL_PLAN_GENERATION', status: 'PENDING',
+      nutritionistId: 'n1', patientId: 'p1', input: {},
+    });
+    prisma.aiJob.updateMany.mockResolvedValue({ count: 0 });
+    await svc.runJob('j1');
+    expect(generation.generate).not.toHaveBeenCalled();
+    expect(prisma.aiJob.findFirst).not.toHaveBeenCalled();
+  });
 });
 
 describe('AiJobsService.retry', () => {
@@ -131,8 +145,65 @@ describe('AiJobsService.retry', () => {
     await expect(stuck.svc.retry(ctx, 'j1')).resolves.toEqual({ jobId: 'j1' });
   });
 
+  it('recusa PENDING recente e aceita PENDING órfão (processo morreu antes de rodar)', async () => {
+    const recent = deps({
+      id: 'j1', type: 'MEAL_PLAN_GENERATION', status: 'PENDING',
+      nutritionistId: 'n1', patientId: 'p1', input: {}, createdAt: new Date(),
+    });
+    await expect(recent.svc.retry(ctx, 'j1')).rejects.toThrow(ConflictException);
+
+    const orphan = deps({
+      id: 'j1', type: 'MEAL_PLAN_GENERATION', status: 'PENDING',
+      nutritionistId: 'n1', patientId: 'p1', input: {},
+      createdAt: new Date(Date.now() - 11 * 60_000),
+    });
+    await expect(orphan.svc.retry(ctx, 'j1')).resolves.toEqual({ jobId: 'j1' });
+  });
+
   it('job de outro nutricionista responde 404', async () => {
     const { svc } = deps();
     await expect(svc.retry(ctx, 'j1')).rejects.toThrow(NotFoundException);
+  });
+});
+
+describe('AiJobsService.listForPatient (toView)', () => {
+  it('deriva isStuck por job e serializa datas como ISO string', async () => {
+    const now = new Date();
+    const stuckStartedAt = new Date(now.getTime() - 11 * 60_000);
+    const okStartedAt = new Date(now.getTime() - 2 * 60_000);
+    const { svc, prisma } = deps();
+    prisma.aiJob.findMany.mockResolvedValue([
+      {
+        id: 'j-stuck', type: 'MEAL_PLAN_GENERATION', status: 'RUNNING', patientId: 'p1',
+        mealPlanId: null, error: null, createdAt: now, startedAt: stuckStartedAt, finishedAt: null,
+      },
+      {
+        id: 'j-ok', type: 'MEAL_PLAN_GENERATION', status: 'RUNNING', patientId: 'p1',
+        mealPlanId: null, error: null, createdAt: now, startedAt: okStartedAt, finishedAt: null,
+      },
+    ]);
+
+    const views = await svc.listForPatient(ctx, 'p1');
+
+    expect(views[0]).toMatchObject({ id: 'j-stuck', isStuck: true });
+    expect(views[1]).toMatchObject({ id: 'j-ok', isStuck: false });
+    expect(typeof views[0].createdAt).toBe('string');
+    expect(views[0].createdAt).toBe(now.toISOString());
+    expect(views[0].startedAt).toBe(stuckStartedAt.toISOString());
+    expect(views[1].startedAt).toBe(okStartedAt.toISOString());
+  });
+});
+
+describe('AiJobsService.get', () => {
+  it('job de outro nutricionista responde 404', async () => {
+    const { svc } = deps();
+    await expect(svc.get(ctx, 'j1')).rejects.toThrow(NotFoundException);
+  });
+});
+
+describe('AiJobsService.markConsumed', () => {
+  it('job de outro nutricionista responde 404', async () => {
+    const { svc } = deps();
+    await expect(svc.markConsumed(ctx, 'j1')).rejects.toThrow(NotFoundException);
   });
 });
