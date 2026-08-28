@@ -1,7 +1,7 @@
 import type {
+  CreateAiJobResponse,
   CreateMealPlanRequest,
   MealPlan,
-  MealPlanDraft,
   MealPlanSummary,
   UpdateMealPlanRequest,
 } from '@nutri-plus/shared-types';
@@ -34,15 +34,21 @@ export function setMealPlanVisibility(id: string, visibleToPatient: boolean): Pr
   });
 }
 
-export function generateMealPlan(patientId: string, instructions?: string): Promise<MealPlan> {
-  return browserApiFetch<MealPlan>('/ai/generate-meal-plan', {
+export function generateMealPlan(
+  patientId: string,
+  instructions?: string,
+): Promise<CreateAiJobResponse> {
+  return browserApiFetch<CreateAiJobResponse>('/ai/generate-meal-plan', {
     method: 'POST',
     body: { patientId, instructions },
   });
 }
 
-export function adjustMealPlan(planId: string, instructions: string): Promise<MealPlanDraft> {
-  return browserApiFetch<MealPlanDraft>('/ai/adjust-meal-plan', {
+export function adjustMealPlan(
+  planId: string,
+  instructions: string,
+): Promise<CreateAiJobResponse> {
+  return browserApiFetch<CreateAiJobResponse>('/ai/adjust-meal-plan', {
     method: 'POST',
     body: { planId, instructions },
   });
