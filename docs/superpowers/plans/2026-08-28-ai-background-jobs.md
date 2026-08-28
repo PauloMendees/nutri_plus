@@ -263,7 +263,13 @@ migrate dev aplicaria no banco. O deploy já roda migrate deploy."
 **Files:**
 - Create: `packages/shared-types/src/v1/ai-job.ts`
 - Modify: `packages/shared-types/src/v1/index.ts`
-- Test: `packages/shared-types/src/v1/ai-job.spec.ts`
+- Test: `apps/api/src/ai-jobs/ai-job-stuck.spec.ts`
+
+O teste mora na API, não no pacote: `packages/shared-types` não tem runner
+(`test` é um `echo`), e o Jest da API usa `rootDir: 'src'` — um spec dentro do
+pacote nunca rodaria. É o mesmo arranjo já usado por
+`apps/api/src/meal-plans/food-portion.spec.ts`, que testa `macrosForPortion`
+morando em shared-types.
 
 **Interfaces:**
 - Consumes: `MealPlanDraft` de `./meal-plan`.
@@ -271,10 +277,10 @@ migrate dev aplicaria no banco. O deploy já roda migrate deploy."
 
 - [ ] **Step 1: Escrever o teste que falha**
 
-Criar `packages/shared-types/src/v1/ai-job.spec.ts`:
+Criar `apps/api/src/ai-jobs/ai-job-stuck.spec.ts`:
 
 ```ts
-import { isAiJobStuck, AI_JOB_STUCK_AFTER_MS } from './ai-job';
+import { isAiJobStuck, AI_JOB_STUCK_AFTER_MS } from '@nutri-plus/shared-types';
 
 const now = new Date('2026-08-28T12:00:00.000Z');
 const minutesAgo = (n: number) => new Date(now.getTime() - n * 60_000).toISOString();
@@ -306,8 +312,8 @@ describe('isAiJobStuck', () => {
 
 - [ ] **Step 2: Rodar e confirmar que falha**
 
-Run: `pnpm --filter @nutri-plus/shared-types test -- ai-job`
-Expected: FAIL — módulo não existe. (Se o pacote não tiver script `test`, rodar via api: `pnpm --filter @nutri-plus/api test -- --testPathPattern ai-job`.)
+Run: `pnpm --filter @nutri-plus/api test -- --testPathPattern ai-job-stuck`
+Expected: FAIL — `isAiJobStuck` ainda não existe em shared-types.
 
 - [ ] **Step 3: Criar o módulo de tipos**
 
@@ -364,15 +370,17 @@ Em `packages/shared-types/src/v1/index.ts`, acrescentar na ordem alfabética:
 export * from './ai-job';
 ```
 
-- [ ] **Step 5: Rodar teste e build**
+- [ ] **Step 5: Buildar o pacote e rodar o teste**
 
-Run: `pnpm --filter @nutri-plus/shared-types test -- ai-job && pnpm --filter @nutri-plus/shared-types build`
-Expected: PASS e build limpo.
+A API consome shared-types pelo `dist`, então o build vem antes do teste.
+
+Run: `pnpm --filter @nutri-plus/shared-types build && pnpm --filter @nutri-plus/api test -- --testPathPattern ai-job-stuck`
+Expected: build limpo e PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add packages/shared-types/src/v1/ai-job.ts packages/shared-types/src/v1/ai-job.spec.ts packages/shared-types/src/v1/index.ts
+git add packages/shared-types/src/v1/ai-job.ts packages/shared-types/src/v1/index.ts apps/api/src/ai-jobs/ai-job-stuck.spec.ts
 git commit -m "feat(types): tipos e regra de job travado do AiJob"
 ```
 
