@@ -22,13 +22,13 @@ export class EntitlementsService {
 
   async getEntitlements(nutritionistId: string): Promise<Entitlements> {
     const access = await this.resolveAccess(nutritionistId);
-    const aiUsed = await this.countUsage(nutritionistId, AI_ACTION_TYPES);
+    const aiUsed = await this.countAiActions(nutritionistId);
     return { ...entitlementsForTier(access.tier, aiUsed), isReadOnly: access.isReadOnly };
   }
 
   async assertAiActionQuota(nutritionistId: string): Promise<void> {
     const { tier } = await this.resolveAccess(nutritionistId);
-    const used = await this.countUsage(nutritionistId, AI_ACTION_TYPES);
+    const used = await this.countAiActions(nutritionistId);
     if (used >= PLAN_CATALOG[tier].aiActionsPerMonth) {
       throw new PaymentRequiredException('AI_QUOTA_EXCEEDED');
     }
@@ -78,5 +78,26 @@ export class EntitlementsService {
         createdAt: { gte: saoPauloMonthStart(new Date()) },
       },
     });
+  }
+
+  // Jobs de IA ainda em voo contam contra a cota. Sem isto, enfileirar dezenas
+  // de gerações passaria pela checagem e só estouraria uma a uma, já que a cota
+  // é derivada de AIInteraction bem-sucedidas — não há contador a debitar.
+  private countActiveJobs(nutritionistId: string): Promise<number> {
+    return this.prisma.aiJob.count({
+      where: {
+        nutritionistId,
+        status: { in: ['PENDING', 'RUNNING'] },
+        createdAt: { gte: saoPauloMonthStart(new Date()) },
+      },
+    });
+  }
+
+  private async countAiActions(nutritionistId: string): Promise<number> {
+    const [done, active] = await Promise.all([
+      this.countUsage(nutritionistId, AI_ACTION_TYPES),
+      this.countActiveJobs(nutritionistId),
+    ]);
+    return done + active;
   }
 }

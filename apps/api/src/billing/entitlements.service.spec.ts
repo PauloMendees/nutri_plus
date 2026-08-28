@@ -5,11 +5,12 @@ const HOUR = 3600_000;
 function futureDate(days: number) { return new Date(Date.now() + days * 24 * HOUR); }
 function pastDate(days: number) { return new Date(Date.now() - days * 24 * HOUR); }
 
-// Prisma mockado: subscription.findUnique, aIInteraction.count, employeeProfile.count
-function makePrisma(overrides: Partial<{ sub: any; aiCount: number; empCount: number }> = {}) {
+// Prisma mockado: subscription.findUnique, aIInteraction.count, aiJob.count, employeeProfile.count
+function makePrisma(overrides: Partial<{ sub: any; aiCount: number; empCount: number; activeJobCount: number }> = {}) {
   return {
     subscription: { findUnique: jest.fn().mockResolvedValue(overrides.sub ?? null) },
     aIInteraction: { count: jest.fn().mockResolvedValue(overrides.aiCount ?? 0) },
+    aiJob: { count: jest.fn().mockResolvedValue(overrides.activeJobCount ?? 0) },
     employeeProfile: { count: jest.fn().mockResolvedValue(overrides.empCount ?? 0) },
   } as any;
 }
@@ -83,5 +84,41 @@ describe('EntitlementsService asserts', () => {
   it('assertSeatAvailable estoura SEAT_LIMIT quando cheio', async () => {
     const svc = new EntitlementsService(makePrisma({ sub: { isComp: true }, empCount: 2 }));
     await expect(svc.assertSeatAvailable('n1')).rejects.toBeInstanceOf(PaymentRequiredException);
+  });
+});
+
+function svc(interactionCount: number, activeJobCount: number) {
+  const prisma = {
+    subscription: {
+      findUnique: jest.fn().mockResolvedValue({
+        status: 'ACTIVE', plan: 'ESSENCIAL', isComp: false, trialEndsAt: null,
+      }),
+    },
+    aIInteraction: { count: jest.fn().mockResolvedValue(interactionCount) },
+    aiJob: { count: jest.fn().mockResolvedValue(activeJobCount) },
+    employeeProfile: { count: jest.fn().mockResolvedValue(0) },
+  };
+  return { service: new EntitlementsService(prisma as never), prisma };
+}
+
+describe('EntitlementsService.assertAiActionQuota', () => {
+  // ESSENCIAL = 30 ações/mês.
+  it('soma jobs ativos às interações bem-sucedidas', async () => {
+    const { service } = svc(28, 2);
+    await expect(service.assertAiActionQuota('n1')).rejects.toThrow(PaymentRequiredException);
+  });
+
+  it('passa quando a soma ainda cabe na cota', async () => {
+    const { service } = svc(28, 1);
+    await expect(service.assertAiActionQuota('n1')).resolves.toBeUndefined();
+  });
+
+  it('conta só PENDING e RUNNING, dentro do mês', async () => {
+    const { service, prisma } = svc(0, 0);
+    await service.assertAiActionQuota('n1');
+    const where = prisma.aiJob.count.mock.calls[0][0].where;
+    expect(where.nutritionistId).toBe('n1');
+    expect(where.status).toEqual({ in: ['PENDING', 'RUNNING'] });
+    expect(where.createdAt.gte).toBeInstanceOf(Date);
   });
 });
