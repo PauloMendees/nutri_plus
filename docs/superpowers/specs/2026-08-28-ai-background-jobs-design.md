@@ -150,6 +150,7 @@ POST /v1/ai/adjust-meal-plan     → 202 { jobId }
 GET  /v1/ai/jobs/:id             → { id, type, status, mealPlanId?, result?, error? }
 GET  /v1/ai/jobs?patientId=<id>  → PENDING, RUNNING e FAILED das últimas 24 h
 POST /v1/ai/jobs/:id/retry       → 202 { jobId }
+POST /v1/ai/jobs/:id/consume     → 204 (marca consumedAt do ajuste)
 ```
 
 Todos restritos a `NUTRITIONIST`, com a mesma checagem de posse do paciente que os
