@@ -70,6 +70,18 @@ enum FeedbackSource {
   MOBILE
 }
 
+enum AiJobType {
+  MEAL_PLAN_GENERATION
+  MEAL_PLAN_ADJUSTMENT
+}
+
+enum AiJobStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
 model User {
   id             String   @id @default(uuid())
   authProvider   String
@@ -113,6 +125,7 @@ model NutritionistProfile {
   transactionCategories TransactionCategory[]
   subscription          Subscription?
   aiInteractions        AIInteraction[]
+  aiJobs                AiJob[]
 }
 
 model EmployeeProfile {
@@ -166,6 +179,7 @@ model PatientProfile {
   pushTokens     PatientPushToken[]
   mealLogs       MealLog[]
   onboardingDemoFor OnboardingProgress[]
+  aiJobs         AiJob[]
 
   @@index([nutritionistId])
 }
@@ -303,6 +317,7 @@ model MealPlan {
   updatedAt   DateTime @updatedAt
   meals       Meal[]
   mealLogs    MealLog[]
+  aiJobs      AiJob[]
 
   // Composite to serve `where patientId order by createdAt desc` (the list query)
   // with a single ordered index scan — mirrors BodyAssessment's @@index.
@@ -425,6 +440,37 @@ model AIInteraction {
   @@index([patientId, createdAt])
   @@index([type, createdAt])
   @@index([nutritionistId, createdAt])
+}
+
+// Estado dos trabalhos de IA disparados em segundo plano. `result` guarda o
+// rascunho do ajuste, que não persiste sozinho; `mealPlanId` guarda o plano que
+// a geração criou. Cada tipo usa só o campo que corresponde ao seu destino.
+model AiJob {
+  id             String              @id @default(uuid())
+  nutritionistId String
+  nutritionist   NutritionistProfile @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  patientId      String
+  patient        PatientProfile      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  type   AiJobType
+  status AiJobStatus @default(PENDING)
+
+  input  Json
+  result Json?
+  error  String?
+
+  mealPlanId String?
+  mealPlan   MealPlan? @relation(fields: [mealPlanId], references: [id], onDelete: SetNull)
+
+  createdAt  DateTime  @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+  // Só no ajuste: o rascunho já foi carregado (ou descartado) no editor, então a
+  // faixa "Ajuste pronto" não reaparece a cada abertura do plano.
+  consumedAt DateTime?
+
+  @@index([patientId, createdAt])
+  @@index([nutritionistId, status])
 }
 
 // A patient's "fora de casa" (outside-home) request: they describe where they
