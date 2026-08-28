@@ -520,7 +520,9 @@ falha sai do conjunto ativo sozinho."
 - Modify: `apps/api/src/meal-generation/meal-generation.service.ts` (remover o assert de cota de `generate` e `adjust`)
 
 **Interfaces:**
-- Consumes: `EntitlementsService.assertAiActionQuota` (Task 4); `MealGenerationService.generate(ctx, patientId, instructions?)` e `.adjust(ctx, planId, instructions)`; `isAiJobStuck` (Task 3).
+- Consumes: `EntitlementsService.assertAiActionQuota` (Task 4); `MealGenerationService.generate(ctx, patientId, instructions?)` e `.adjust(ctx, planId, instructions)`; `isAiJobStuck` (Task 3); `resolveScopeNutritionistId(ctx)` de `apps/api/src/auth/auth-scope.ts`.
+
+**AuthContext é `{ authProviderId, email, name, user }`** — não tem `nutritionistId`. O id do nutricionista sai sempre de `resolveScopeNutritionistId(ctx)`, que também resolve o caso EMPLOYEE para o nutricionista dono.
 - Produces:
   - `AiJobsService.create(ctx, args: { type: AiJobType; patientId: string; planId?: string; instructions?: string }): Promise<{ jobId: string }>`
   - `AiJobsService.createForPlan(ctx, planId: string, instructions: string): Promise<{ jobId: string }>`
@@ -538,10 +540,30 @@ Criar `apps/api/src/ai-jobs/ai-jobs.service.spec.ts`:
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { AiJobsService } from './ai-jobs.service';
 
-const ctx = { userId: 'u1', nutritionistId: 'n1', role: 'NUTRITIONIST' } as never;
+// AuthContext real: { authProviderId, email, name, user }. O id do nutricionista
+// sai de user.nutritionistProfile.id via resolveScopeNutritionistId.
+const ctx = {
+  authProviderId: 'auth-1',
+  email: 'nutri@x.com',
+  name: 'Nutri',
+  user: {
+    id: 'u1',
+    role: 'NUTRITIONIST',
+    nutritionistProfile: { id: 'n1' },
+    patientProfile: null,
+    employeeProfile: null,
+  },
+} as never;
 
 function deps(job?: Record<string, unknown>) {
   const prisma = {
+    user: {
+      findFirst: jest.fn().mockResolvedValue({
+        id: 'u1', authProviderId: 'auth-1', email: 'nutri@x.com', name: 'Nutri',
+        role: 'NUTRITIONIST',
+        nutritionistProfile: { id: 'n1' }, patientProfile: null, employeeProfile: null,
+      }),
+    },
     aiJob: {
       create: jest.fn().mockResolvedValue({ id: 'j1' }),
       findFirst: jest.fn().mockResolvedValue(job ?? null),
@@ -671,18 +693,12 @@ import type { MealPlanDraft } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { EntitlementsService } from '../billing/entitlements.service';
 import { MealGenerationService } from '../meal-generation/meal-generation.service';
+import { resolveScopeNutritionistId } from '../auth/auth-scope';
 import type { AuthContext } from '../auth/types/auth-context';
 
 interface JobInput {
   planId?: string;
   instructions?: string;
-}
-
-// O runner precisa de um AuthContext para reusar as checagens de posse dos
-// serviços existentes. O job guarda o nutricionista dono; reconstruímos a partir
-// dele em vez de serializar o contexto inteiro no banco.
-function contextFor(nutritionistId: string): AuthContext {
-  return { userId: nutritionistId, nutritionistId, role: 'NUTRITIONIST' } as AuthContext;
 }
 
 @Injectable()
@@ -703,7 +719,7 @@ export class AiJobsService {
     instructions: string,
   ): Promise<{ jobId: string }> {
     const plan = await this.prisma.mealPlan.findFirst({
-      where: { id: planId, patient: { nutritionistId: ctx.nutritionistId! } },
+      where: { id: planId, patient: { nutritionistId: resolveScopeNutritionistId(ctx) } },
       select: { patientId: true },
     });
     if (!plan) throw new NotFoundException('Plano não encontrado.');
@@ -719,7 +735,9 @@ export class AiJobsService {
     ctx: AuthContext,
     args: { type: AiJobType; patientId: string; planId?: string; instructions?: string },
   ): Promise<{ jobId: string }> {
-    const nutritionistId = ctx.nutritionistId!;
+    // NUTRITIONIST usa o próprio perfil; EMPLOYEE age no escopo do nutricionista
+    // dono. O resolver é a única fonte disso no projeto.
+    const nutritionistId = resolveScopeNutritionistId(ctx);
     // Antes de gravar: um job PENDING já conta contra a cota (Task 4), então
     // verificar aqui é o que impede enfileirar acima do teto.
     await this.entitlements.assertAiActionQuota(nutritionistId);
@@ -751,9 +769,13 @@ export class AiJobsService {
     });
 
     const input = (job.input ?? {}) as JobInput;
-    const ctx = contextFor(job.nutritionistId);
 
     try {
+      // Reconstruímos um AuthContext de verdade a partir do dono gravado no job,
+      // para reusar as checagens de posse dos serviços em vez de duplicá-las.
+      // Dentro do try: se o dono sumiu, o job vira FAILED em vez de lançar.
+      const ctx = await this.contextForJob(job.nutritionistId);
+
       if (job.type === 'MEAL_PLAN_GENERATION') {
         const plan = await this.generation.generate(ctx, job.patientId, input.instructions);
         await this.prisma.aiJob.update({
@@ -786,7 +808,7 @@ export class AiJobsService {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const jobs = await this.prisma.aiJob.findMany({
       where: {
-        nutritionistId: ctx.nutritionistId!,
+        nutritionistId: resolveScopeNutritionistId(ctx),
         patientId,
         OR: [
           { status: { in: ['PENDING', 'RUNNING'] } },
@@ -824,9 +846,18 @@ export class AiJobsService {
     await this.prisma.aiJob.update({ where: { id: jobId }, data: { consumedAt: new Date() } });
   }
 
+  private async contextForJob(nutritionistId: string): Promise<AuthContext> {
+    const user = await this.prisma.user.findFirst({
+      where: { nutritionistProfile: { id: nutritionistId } },
+      include: { nutritionistProfile: true, patientProfile: true, employeeProfile: true },
+    });
+    if (!user) throw new Error(`Nutricionista ${nutritionistId} não encontrado`);
+    return { authProviderId: user.authProviderId, email: user.email, name: user.name, user };
+  }
+
   private async requireOwned(ctx: AuthContext, jobId: string) {
     const job = await this.prisma.aiJob.findFirst({
-      where: { id: jobId, nutritionistId: ctx.nutritionistId! },
+      where: { id: jobId, nutritionistId: resolveScopeNutritionistId(ctx) },
     });
     // 404 e não 403: não revelamos a existência de job de outro nutricionista.
     if (!job) throw new NotFoundException('Trabalho não encontrado.');
@@ -937,7 +968,10 @@ Criar `apps/api/src/ai-jobs/ai-jobs.controller.spec.ts`:
 ```ts
 import { AiJobsController } from './ai-jobs.controller';
 
-const ctx = { userId: 'u1', nutritionistId: 'n1', role: 'NUTRITIONIST' } as never;
+const ctx = {
+  authProviderId: 'auth-1', email: 'nutri@x.com', name: 'Nutri',
+  user: { id: 'u1', role: 'NUTRITIONIST', nutritionistProfile: { id: 'n1' }, patientProfile: null, employeeProfile: null },
+} as never;
 
 function deps() {
   const jobs = {
