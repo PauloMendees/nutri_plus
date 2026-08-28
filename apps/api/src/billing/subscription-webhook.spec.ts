@@ -1,4 +1,5 @@
 import { SubscriptionService } from './subscription.service';
+import { planValue } from './prorata';
 
 function svcWith(
   sub: any,
@@ -110,7 +111,8 @@ describe('SubscriptionService.handleWebhook', () => {
       { asaas: { updateSubscriptionValue: jest.fn().mockResolvedValue(undefined) } },
     );
     await svc.handleWebhook({ event: 'PAYMENT_CONFIRMED', payment: { id: 'pay_2', value: 25, status: 'CONFIRMED' } });
-    expect(asaas.updateSubscriptionValue).toHaveBeenCalledWith('sub_1', { value: 99 });
+    // Derivado do catálogo: o teste é sobre o webhook promover o plano, não sobre o preço.
+    expect(asaas.updateSubscriptionValue).toHaveBeenCalledWith('sub_1', { value: planValue('PRO', 'MONTHLY') });
     expect(prisma.subscription.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ plan: 'PRO', pendingChargeAsaasId: null }) }));
   });
 

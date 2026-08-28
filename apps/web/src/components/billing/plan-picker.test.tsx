@@ -9,7 +9,7 @@ it('mostra os dois planos, destaca o Pro e troca preço no toggle anual', () => 
   expect(screen.getByText('Pro')).toBeInTheDocument();
   expect(screen.getByText(/mais popular/i)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /anual/i }));
-  expect(screen.getByText(/R\$\s?990/)).toBeInTheDocument(); // Pro anual
+  expect(screen.getByText(/R\$\s?790/)).toBeInTheDocument(); // Pro anual
   fireEvent.click(screen.getAllByRole('button', { name: /assinar/i })[1]);
   expect(onChoose).toHaveBeenCalledWith('PRO', 'YEARLY');
 });

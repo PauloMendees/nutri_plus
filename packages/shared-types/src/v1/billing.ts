@@ -69,8 +69,8 @@ export interface PlanConfig {
 export const PLAN_CATALOG: Record<PlanTier, PlanConfig> = {
   ESSENCIAL: {
     tier: 'ESSENCIAL',
-    monthlyBrl: 49,
-    yearlyBrl: 490,
+    monthlyBrl: 39,
+    yearlyBrl: 390,
     aiActionsPerMonth: 30,
     silhuetaPerMonth: 0,
     transcriptionPerMonth: 0,
@@ -79,8 +79,8 @@ export const PLAN_CATALOG: Record<PlanTier, PlanConfig> = {
   },
   PRO: {
     tier: 'PRO',
-    monthlyBrl: 99,
-    yearlyBrl: 990,
+    monthlyBrl: 79,
+    yearlyBrl: 790,
     aiActionsPerMonth: 200,
     silhuetaPerMonth: 40,
     transcriptionPerMonth: 30,

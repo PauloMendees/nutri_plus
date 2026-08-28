@@ -1,5 +1,10 @@
 # iNutri — Copy da Landing Page (v1.2)
 
+> **Preços:** `PLAN_CATALOG` (`packages/shared-types/src/v1/billing.ts`) é a fonte de
+> verdade. Atualizado em 2026-08-28 para Essencial R$39/R$390 e Pro R$79/R$790.
+> A âncora competitiva "~R$90+ nos líderes" NÃO foi verificada — ver ressalva na
+> análise de margem antes de reutilizar esse número.
+
 **Status:** vigente na LP  
 **Data:** 2026-08-12 · **Rev.:** 1.2 (fluidez + tom de voz do manifesto)  
 **CTA principal (único, em toda a página):** **Começar 7 dias grátis**  
@@ -32,7 +37,7 @@ Fonte de tom: `docs/brand/manifesto.md`.
 |---|---|---|
 | 1 | CTAs diferentes (“Criar conta”, “Quero testar…”) diluem o hábito de clicar | **Um CTA primário** em todo o funil: *Começar 7 dias grátis* |
 | 2 | Dor citava “sem lembrete” e o produto pode não ter push no go-live | Dor/solução **sem prometer lembrete/push** (fast-follow) |
-| 3 | “Cota mensal de IA” sem número gerava ansiedade | Essencial: **até ~30 gerações/mês** (alinhado ao doc de pricing); Pro ilimitada |
+| 3 | “Cota mensal de IA” sem número gerava ansiedade | Essencial: **até ~30 gerações/mês** (alinhado ao doc de pricing); Pro: **até 200 gerações/mês** |
 | 4 | Prova social fraca no lançamento | Bloco honesto **“Em lançamento”** + o que o trial entrega em 7 dias |
 | 5 | Faltava reduzir fricção pós-clique | Seção curta **“O que acontece depois do clique”** |
 | 6 | Preço sem âncora cotidiana | **Menos de R$2/dia** (Essencial) + economia no anual em R$ |
@@ -71,7 +76,7 @@ Depoimento inventado (nome, CRN, foto) = risco legal + quebra de confiança. **N
 1. Prova de produto — screenshots / GIF do fluxo real  
 2. Prova de processo — solo, LGPD, consentimento Silhueta  
 3. Risco zero — trial + cancelamento  
-4. Âncora de preço — a partir de R$59 vs líderes ~R$90+  
+4. Âncora de preço — a partir de R$39 vs líderes ~R$90+  
 5. Badge **Em lançamento** (verdade)  
 6. Depois: 3–5 depoimentos reais com autorização por escrito  
 
@@ -89,7 +94,7 @@ Depoimento inventado (nome, CRN, foto) = risco legal + quebra de confiança. **N
 
 | Player | Empurram | Abertura iNutri |
 |---|---|---|
-| **Dietbox** | Ecossistema + app (~R$92/mês) | Enxuto, solo, **R$59** no Essencial |
+| **Dietbox** | Ecossistema + app (~R$92/mês) | Enxuto, solo, **R$39** no Essencial |
 | **WebDiet** | Clara IA + Body3D em planos altos | Silhueta no Pro + preço competitivo |
 | **Nutrium** | Global / flexível | BR-first, fluxo simples |
 | **Legados** | Desktop / tabelas | Moderno + IA + app |
@@ -163,7 +168,7 @@ Monte planos com **IA**, compartilhe no **app do paciente** e acompanhe o atendi
 7 dias grátis · Cancele quando quiser · A IA acelera — **você decide** o plano
 
 ### Proof strip (sem depoimento falso)
-- A partir de **R$59/mês** (menos de **R$2/dia**)  
+- A partir de **R$39/mês** (menos de **R$2/dia**)  
 - App do paciente **incluso e gratuito**  
 - Planos com **IA + banco de alimentos**  
 - **Silhueta** (estimativa por foto) no **Pro**
@@ -245,7 +250,7 @@ Três pilares. Um caminho contínuo. Sem improvisar entre planilha, PDF e vária
 
 **Em uma frase:** energia no raciocínio clínico — não na digitação.
 
-**Badge:** Essencial (até ~**30 gerações de IA/mês**) · Pro (**IA ilimitada**)
+**Badge:** Essencial (até ~**30 gerações de IA/mês**) · Pro (**até 200 gerações de IA/mês**)
 
 ---
 
@@ -335,7 +340,7 @@ Se ao fim da semana o iNutri **não devolver tempo**, cancele. Sem complicação
 | Tempo no plano | Alto | Médio (se dominar a ferramenta) | **Baixo — IA + editor** |
 | App do paciente | Não | Sim (em geral) | **Sim · grátis pro paciente** |
 | Avaliação por foto | Não | Em planos caros | **Silhueta no Pro** |
-| Preço solo | “Grátis” que custa noites | ~R$90+/mês nos líderes | **A partir de R$59/mês** |
+| Preço solo | “Grátis” que custa noites | ~R$90+/mês nos líderes | **A partir de R$39/mês** |
 | Curva de aprendizado | Caótica | Pesada | **Enxuta, do atendimento** |
 
 ### Fecho
@@ -362,8 +367,8 @@ Precisa do que **devolve o seu tempo**.
 ---
 
 ### Card — Essencial  
-**R$59/mês**  
-*ou **R$590/ano** (~R$49/mês) · **economize R$118/ano***  
+**R$39/mês**  
+*ou **R$390/ano** (~R$32,50/mês) · **economize R$78/ano***  
 *Menos de **R$2 por dia**.*
 
 **Para organizar o consultório e acelerar planos.**
@@ -377,7 +382,7 @@ Inclui:
 - Bioimpedância e evolução  
 - Exportação em PDF  
 
-Não inclui: Silhueta · contabilidade · IA ilimitada  
+Não inclui: Silhueta · contabilidade · cota ampliada de IA  
 
 **[CTA]** Começar 7 dias grátis  
 `[nota UI: pode ir para signup?plan=essencial]`
@@ -385,13 +390,13 @@ Não inclui: Silhueta · contabilidade · IA ilimitada
 ---
 
 ### Card — Pro · **Recomendado**  
-**R$97/mês**  
-*ou **R$970/ano** (~R$81/mês) · **economize R$194/ano***
+**R$79/mês**  
+*ou **R$790/ano** (~R$66/mês) · **economize R$158/ano***
 
 **Para velocidade máxima e atendimento diferenciado.**
 
 Tudo do Essencial, mais:
-- **IA de planos ilimitada**  
+- **IA de planos: até 200 gerações/mês**  
 - **Silhueta** (estimativa por foto)  
 - **Contabilidade** do consultório  
 
@@ -403,7 +408,7 @@ Tudo do Essencial, mais:
 ### Risk reversal (sob os cards)
 **Nos sete dias, você percorre o fluxo completo.**  
 Não gostou? Cancele antes do fim do período de teste e **não será cobrado**.  
-No Pro, Silhueta e IA ilimitada entram no plano — **sem custo extra escondido**.
+No Pro, Silhueta e a cota ampliada de IA entram no plano — **sem custo extra escondido**.
 
 ### Âncora de mercado (discreta)
 *Líderes do mercado costumam ficar na casa dos R$90+/mês no plano completo — nem sempre com a simplicidade que o consultório solo precisa.*
@@ -502,7 +507,7 @@ Privacidade e transparência no uso de IA.
 5. O software do nutri solo — sem preço de clínica grande.
 
 **Subheadline A/B (preço na dobra):**  
-A partir de R$59/mês — IA de planos e app do paciente incluso. 7 dias grátis.
+A partir de R$39/mês — IA de planos e app do paciente incluso. 7 dias grátis.
 
 ---
 
@@ -540,7 +545,7 @@ Mesmo destino (`/signup`), **labels variam por seção** para não ficar monóto
 3. Decisão **cartão no trial** → travar a FAQ correspondente.  
 4. Links Privacidade + Termos.  
 5. Não publicar depoimento sem autorização e pessoa real.  
-6. Confirmar números: R$59 / R$97 / R$590 / R$970 / ~30 gerações Essencial.  
+6. Confirmar números contra `PLAN_CATALOG`: R$39 / R$79 / R$390 / R$790 / 30 gerações Essencial / 200 Pro.  
 7. Mobile: tabela do comparativo vira cards; CTA sticky.  
 8. Tracking: clique do CTA, scroll até preços, início do signup.
 
@@ -552,8 +557,8 @@ Mesmo destino (`/signup`), **labels variam por seção** para não ficar monóto
 2. **Prometer tempo de volta** (headline curta e escaneável)  
 3. **Mostrar o sistema** (3 passos + 3 pilares)  
 4. **Reduzir risco** (7 dias + cancelar fácil + “teste de rotina”)  
-5. **Âncora de preço** (R$59 · &lt;R$2/dia · vs ~R$90+)  
-6. **Upsell natural** (Pro = IA ilimitada + Silhueta + contabilidade)  
+5. **Âncora de preço** (R$39 · &lt;R$2/dia · vs ~R$90+)  
+6. **Upsell natural** (Pro = 200 gerações/mês + Silhueta + contabilidade)  
 7. **Um CTA** em toda a página  
 8. **Honestidade clínica** (IA não substitui; Silhueta não diagnostica)  
 9. **Sem promessas de features futuras** na LP pública  

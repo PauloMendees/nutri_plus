@@ -19,7 +19,7 @@ describe('trackMetaEvent', () => {
 
 describe('checkoutValue', () => {
   it('returns the catalog price for plan and period', () => {
-    expect(checkoutValue('ESSENCIAL', 'MONTHLY')).toBe(49);
-    expect(checkoutValue('PRO', 'YEARLY')).toBe(990);
+    expect(checkoutValue('ESSENCIAL', 'MONTHLY')).toBe(39);
+    expect(checkoutValue('PRO', 'YEARLY')).toBe(790);
   });
 });

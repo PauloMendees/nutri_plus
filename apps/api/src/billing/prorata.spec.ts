@@ -1,4 +1,9 @@
-import { computePlanChange } from './prorata';
+import { computePlanChange, planValue } from './prorata';
+
+// Derivados do catálogo: estes testes são sobre o rateio, não sobre o preço.
+const PRO_MONTHLY = planValue('PRO', 'MONTHLY');
+const ESSENCIAL_MONTHLY = planValue('ESSENCIAL', 'MONTHLY');
+const FULL_DIFF = PRO_MONTHLY - ESSENCIAL_MONTHLY;
 
 describe('computePlanChange', () => {
   const now = new Date('2026-08-19T21:00:00.000Z');
@@ -19,9 +24,9 @@ describe('computePlanChange', () => {
 
     expect(out.kind).toBe('UPGRADE');
     if (out.kind !== 'UPGRADE') return;
-    expect(out.amountNow).toBeLessThanOrEqual(50);
-    expect(out.amountNow).toBe(50);
-    expect(out.recurringValue).toBe(99);
+    expect(out.amountNow).toBeLessThanOrEqual(FULL_DIFF);
+    expect(out.amountNow).toBe(FULL_DIFF);
+    expect(out.recurringValue).toBe(PRO_MONTHLY);
   });
 
   it('prorates by remaining / actual cycle length, not a hardcoded 30 days', () => {
@@ -30,7 +35,7 @@ describe('computePlanChange', () => {
     cycleStart.setUTCMonth(cycleStart.getUTCMonth() - 1);
     const remainingMs = currentPeriodEnd.getTime() - now.getTime();
     const cycleMs = currentPeriodEnd.getTime() - cycleStart.getTime();
-    const expected = Math.round(50 * (remainingMs / cycleMs) * 100) / 100;
+    const expected = Math.round(FULL_DIFF * (remainingMs / cycleMs) * 100) / 100;
 
     const out = computePlanChange({
       currentPlan: 'ESSENCIAL',
@@ -44,7 +49,7 @@ describe('computePlanChange', () => {
     expect(out.kind).toBe('UPGRADE');
     if (out.kind !== 'UPGRADE') return;
     expect(out.amountNow).toBe(expected);
-    expect(out.amountNow).toBeLessThan(50);
+    expect(out.amountNow).toBeLessThan(FULL_DIFF);
   });
 
   it('schedules downgrade without charging now', () => {
@@ -56,6 +61,6 @@ describe('computePlanChange', () => {
       newPeriod: 'MONTHLY',
       now,
     });
-    expect(out).toMatchObject({ kind: 'SCHEDULED', amountNow: 0, recurringValue: 49 });
+    expect(out).toMatchObject({ kind: 'SCHEDULED', amountNow: 0, recurringValue: ESSENCIAL_MONTHLY });
   });
 });
