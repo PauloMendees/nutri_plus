@@ -6,31 +6,28 @@ const adjustMut = vi.fn();
 vi.mock('@/lib/queries/meal-plans', () => ({
   useAdjustMealPlan: () => ({ mutateAsync: adjustMut, isPending: false }),
 }));
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
+vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 import { AiAdjustDialog } from './ai-adjust-dialog';
 
 beforeEach(() => adjustMut.mockReset());
 
 describe('AiAdjustDialog', () => {
-  it('sends the instructions and calls onApplied with the returned draft', async () => {
-    const draft = { title: 'Plano', meals: [] };
-    adjustMut.mockResolvedValue(draft);
-    const onApplied = vi.fn();
+  it('sends the instructions, closes the dialog and does not wait for the plan', async () => {
+    adjustMut.mockResolvedValue({ jobId: 'j1' });
     const onOpenChange = vi.fn();
     const user = userEvent.setup();
-    render(<AiAdjustDialog open onOpenChange={onOpenChange} planId="m1" onApplied={onApplied} />);
+    render(<AiAdjustDialog open onOpenChange={onOpenChange} planId="m1" patientId="p1" />);
 
     await user.type(screen.getByLabelText(/o que ajustar/i), 'menos carboidrato no jantar');
     await user.click(screen.getByRole('button', { name: /ajustar plano/i }));
 
     expect(adjustMut).toHaveBeenCalledWith('menos carboidrato no jantar');
-    expect(onApplied).toHaveBeenCalledWith(draft);
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it('disables submit until instructions are entered', () => {
-    render(<AiAdjustDialog open onOpenChange={vi.fn()} planId="m1" onApplied={vi.fn()} />);
+    render(<AiAdjustDialog open onOpenChange={vi.fn()} planId="m1" patientId="p1" />);
     expect(screen.getByRole('button', { name: /ajustar plano/i })).toBeDisabled();
   });
 });

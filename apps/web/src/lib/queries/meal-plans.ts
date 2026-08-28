@@ -68,12 +68,15 @@ export function useGenerateMealPlan(patientId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (instructions?: string) => generateMealPlan(patientId, instructions),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['meal-plans', patientId] }),
+    // O plano ainda não existe: o que muda de imediato é a lista de jobs.
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-jobs', patientId] }),
   });
 }
 
-export function useAdjustMealPlan(planId: string) {
+export function useAdjustMealPlan(planId: string, patientId: string) {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (instructions: string) => adjustMealPlan(planId, instructions),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-jobs', patientId] }),
   });
 }

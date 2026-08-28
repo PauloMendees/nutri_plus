@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import type { MealPlanDraft } from '@nutri-plus/shared-types';
 import { useAdjustMealPlan } from '@/lib/queries/meal-plans';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,14 +17,14 @@ export function AiAdjustDialog({
   open,
   onOpenChange,
   planId,
-  onApplied,
+  patientId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   planId: string;
-  onApplied: (draft: MealPlanDraft) => void;
+  patientId: string;
 }) {
-  const adjust = useAdjustMealPlan(planId);
+  const adjust = useAdjustMealPlan(planId, patientId);
   const [instructions, setInstructions] = useState('');
 
   useEffect(() => {
@@ -36,9 +35,9 @@ export function AiAdjustDialog({
     const trimmed = instructions.trim();
     if (!trimmed) return;
     try {
-      const draft = await adjust.mutateAsync(trimmed);
+      await adjust.mutateAsync(trimmed);
       onOpenChange(false);
-      onApplied(draft);
+      toast.success('Ajustando o plano em segundo plano. Avisamos quando ficar pronto.');
     } catch {
       toast.error('Não foi possível ajustar o plano. Tente novamente.');
     }

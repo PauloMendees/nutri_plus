@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ApiError } from '@/lib/api/client';
 import { useGenerateMealPlan } from '@/lib/queries/meal-plans';
@@ -28,7 +27,6 @@ export function AiGenerateDialog({
   patientId: string;
 }) {
   const generate = useGenerateMealPlan(patientId);
-  const router = useRouter();
   const tour = useTour();
   const [instructions, setInstructions] = useState('');
   const [missing, setMissing] = useState<string[] | null>(null);
@@ -51,12 +49,10 @@ export function AiGenerateDialog({
     setMissing(null);
     try {
       const trimmed = instructions.trim();
-      const plan = await generate.mutateAsync(trimmed || undefined);
-      const consumed = await tour.notifyChapterActionSucceeded();
+      await generate.mutateAsync(trimmed || undefined);
+      await tour.notifyChapterActionSucceeded();
       onOpenChange(false);
-      if (!consumed) {
-        router.push(`/patients/${patientId}/planos/${plan.id}`);
-      }
+      toast.success('Gerando o plano em segundo plano. Avisamos quando ficar pronto.');
     } catch (err) {
       if (err instanceof ApiError && err.status === 402) {
         tour.exit();

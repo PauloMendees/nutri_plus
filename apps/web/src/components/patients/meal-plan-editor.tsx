@@ -545,10 +545,7 @@ export function MealPlanEditor({
           open={adjusting}
           onOpenChange={setAdjusting}
           planId={planId!}
-          onApplied={(draft) => {
-            form.reset(draftToDefaults(draft));
-            toast.success('Plano ajustado — revise e salve.');
-          }}
+          patientId={patientId}
         />
       )}
     </div>
