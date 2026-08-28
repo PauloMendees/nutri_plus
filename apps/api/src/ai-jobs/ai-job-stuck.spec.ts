@@ -25,4 +25,14 @@ describe('isAiJobStuck', () => {
   it('o limiar é de 10 minutos', () => {
     expect(AI_JOB_STUCK_AFTER_MS).toBe(10 * 60 * 1000);
   });
+
+  it('exatamente no limiar ainda não é travado', () => {
+    const exactly = new Date(now.getTime() - AI_JOB_STUCK_AFTER_MS).toISOString();
+    expect(isAiJobStuck({ status: 'RUNNING', startedAt: exactly }, now)).toBe(false);
+  });
+
+  it('um milissegundo além do limiar já é travado', () => {
+    const justPast = new Date(now.getTime() - AI_JOB_STUCK_AFTER_MS - 1).toISOString();
+    expect(isAiJobStuck({ status: 'RUNNING', startedAt: justPast }, now)).toBe(true);
+  });
 });
