@@ -1122,12 +1122,54 @@ Em `apps/api/src/meal-generation/meal-generation.module.ts`, importar `AiJobsMod
 
 Em `apps/api/src/app.module.ts`, acrescentar `AiJobsModule` à lista de `imports`.
 
-- [ ] **Step 7: Rodar tudo**
+- [ ] **Step 7: Travar a cota nos dois endpoints**
+
+Entre a Task 5 e esta, os dois POST ficaram sem checagem de cota: o assert saiu de
+`generate`/`adjust` e o controller ainda os chamava direto. Esta tarefa fecha o buraco,
+e o teste abaixo garante que ele não reabra — é cobertura durável, não andaime.
+
+Acrescentar a `apps/api/src/ai-jobs/ai-jobs.controller.spec.ts`:
+
+```ts
+import { MealGenerationController } from '../meal-generation/meal-generation.controller';
+
+describe('MealGenerationController — os dois POST criam job (e portanto passam pela cota)', () => {
+  function ctrl() {
+    const jobs = {
+      create: jest.fn().mockResolvedValue({ jobId: 'j1' }),
+      createForPlan: jest.fn().mockResolvedValue({ jobId: 'j2' }),
+    };
+    return { c: new MealGenerationController(jobs as never), jobs };
+  }
+
+  it('generate-meal-plan delega ao AiJobsService, nunca ao MealGenerationService', async () => {
+    const { c, jobs } = ctrl();
+    expect(await c.generateMealPlan(ctx, { patientId: 'p1', instructions: 'x' } as never))
+      .toEqual({ jobId: 'j1' });
+    expect(jobs.create).toHaveBeenCalledWith(ctx, expect.objectContaining({
+      type: 'MEAL_PLAN_GENERATION', patientId: 'p1',
+    }));
+  });
+
+  it('adjust-meal-plan delega ao AiJobsService', async () => {
+    const { c, jobs } = ctrl();
+    expect(await c.adjustMealPlan(ctx, { planId: 'm1', instructions: 'y' } as never))
+      .toEqual({ jobId: 'j2' });
+    expect(jobs.createForPlan).toHaveBeenCalledWith(ctx, 'm1', 'y');
+  });
+});
+```
+
+O valor do teste é estrutural: o `MealGenerationController` só compila com um
+`AiJobsService` no construtor, então voltar a injetar `MealGenerationService`
+(e com ele o bypass de cota) quebra a suíte.
+
+- [ ] **Step 8: Rodar tudo**
 
 Run: `pnpm --filter @nutri-plus/api test && pnpm --filter @nutri-plus/api exec tsc -p tsconfig.json --noEmit`
 Expected: PASS e typecheck limpo.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add apps/api/src
