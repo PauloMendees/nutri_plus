@@ -78,4 +78,19 @@ describe('meal-plan prompt', () => {
     expect(parsed.patientNotes).toBe('não gosta de nozes nem brócolis; almoça às 12:30');
     expect(parsed.medicalConditions).toBe('hipertensão');
   });
+
+  describe('MEAL_PLAN_SYSTEM_PROMPT — padrão de refeições', () => {
+    it('nomeia as quatro refeições padrão', () => {
+      expect(MEAL_PLAN_SYSTEM_PROMPT).toContain('Café da manhã');
+      expect(MEAL_PLAN_SYSTEM_PROMPT).toContain('Almoço');
+      expect(MEAL_PLAN_SYSTEM_PROMPT).toContain('Lanche');
+      expect(MEAL_PLAN_SYSTEM_PROMPT).toContain('Jantar');
+    });
+
+    it('trata o padrão como fallback, não como regra rígida', () => {
+      expect(MEAL_PLAN_SYSTEM_PROMPT).toMatch(/default/i);
+      // O padrão precisa ceder quando o contexto pedir outra coisa.
+      expect(MEAL_PLAN_SYSTEM_PROMPT).toMatch(/depart from this default/i);
+    });
+  });
 });
