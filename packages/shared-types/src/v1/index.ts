@@ -1,4 +1,5 @@
 export * from './user-role';
+export * from './ai-job';
 export * from './auth';
 export * from './billing';
 export * from './patient';
