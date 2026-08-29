@@ -1725,20 +1725,39 @@ E, logo acima da barra de totais:
 
 Imports a acrescentar: `useAiJobs`, `useConsumeAiJob` de `@/lib/queries/ai-jobs` e `getAiJob` de `@/lib/api/ai-jobs`.
 
-- [ ] **Step 4: Rodar e confirmar que passa**
+- [ ] **Step 4: Sincronizar a copy do diálogo de ajuste**
+
+O `AiAdjustDialog` ainda descreve o fluxo antigo, em que o rascunho voltava na
+mesma janela. Agora ele fecha na hora e a revisão acontece aqui, na faixa. Em
+`apps/web/src/components/patients/ai-adjust-dialog.tsx`, trocar o texto fixo:
+
+```
+A IA gera uma nova versão para você revisar. Nada é salvo até você clicar em Salvar.
+```
+
+por:
+
+```
+A IA monta uma nova versão em segundo plano. Quando ficar pronta, ela aparece
+aqui no plano para você revisar — nada é salvo sem a sua confirmação.
+```
+
+Se o teste do diálogo assertar esse texto, atualizar a expectativa junto.
+
+- [ ] **Step 5: Rodar e confirmar que passa**
 
 Run: `pnpm --filter @nutri-plus/web test -- meal-plan-editor && pnpm --filter @nutri-plus/api test -- --testPathPattern ai-jobs`
 Expected: PASS nos dois.
 
-- [ ] **Step 5: Rodar as suítes completas**
+- [ ] **Step 6: Rodar as suítes completas**
 
 Run: `pnpm --filter @nutri-plus/api test && pnpm --filter @nutri-plus/web test`
 Expected: tudo verde.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add apps/web/src/components/patients/meal-plan-editor.tsx apps/web/src/components/patients/meal-plan-editor.test.tsx
+git add apps/web/src/components/patients/meal-plan-editor.tsx apps/web/src/components/patients/ai-adjust-dialog.tsx apps/web/src/components/patients/meal-plan-editor.test.tsx
 git commit -m "feat(web): faixa de ajuste pronto no editor, marcada como consumida ao carregar
 
 Preserva a revisão antes de aplicar: o rascunho do ajuste chega pela faixa e só
