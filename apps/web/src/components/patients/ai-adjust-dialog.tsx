@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { ApiError } from '@/lib/api/client';
 import { useAdjustMealPlan } from '@/lib/queries/meal-plans';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -38,7 +39,12 @@ export function AiAdjustDialog({
       await adjust.mutateAsync(trimmed);
       onOpenChange(false);
       toast.success('Ajustando o plano em segundo plano. Acompanhe em Processos de IA.');
-    } catch {
+    } catch (err) {
+      // Cota estourada já abre o modal global de billing (MutationCache.onError
+      // em app/providers). Somar um toast "tente novamente" contradiria ele e
+      // mandaria repetir uma ação que vai falhar igual. Mesmo tratamento do
+      // AiGenerateDialog.
+      if (err instanceof ApiError && err.status === 402) return;
       toast.error('Não foi possível ajustar o plano. Tente novamente.');
     }
   }

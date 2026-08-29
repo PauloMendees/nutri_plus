@@ -217,10 +217,13 @@ describe('AiJobsService.list (toView)', () => {
     const views = await svc.list(ctx, 'p1');
 
     expect(views[0].patientName).toBe('Maria Silva');
-    // O include precisa existir, senão o nome chega vazio em produção.
-    expect(prisma.aiJob.findMany.mock.calls[0][0].include).toEqual({
-      patient: { select: { user: { select: { name: true } } } },
-    });
+    const select = prisma.aiJob.findMany.mock.calls[0][0].select;
+    // O join do nome precisa existir, senão chega vazio em produção.
+    expect(select.patient).toEqual({ select: { user: { select: { name: true } } } });
+    // E `result` NÃO pode ser trazido: é o rascunho inteiro do plano, relido a
+    // cada tick de 2s do polling enquanto um ajuste espera revisão.
+    expect(select.result).toBeUndefined();
+    expect(select.input).toBeUndefined();
   });
 
   it('sem patientId, não filtra por paciente — é o que o widget global consome', async () => {

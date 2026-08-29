@@ -459,6 +459,9 @@ model AiJob {
   result Json?
   error  String?
 
+  // Semântica dupla, por tipo: na GERAÇÃO é o plano produzido (gravado ao
+  // concluir); no AJUSTE é o plano sendo ajustado (gravado já na criação, é o
+  // que permite a faixa do editor saber a qual plano o ajuste pertence).
   mealPlanId String?
   mealPlan   MealPlan? @relation(fields: [mealPlanId], references: [id], onDelete: SetNull)
 

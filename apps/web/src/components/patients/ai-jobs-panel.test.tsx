@@ -5,7 +5,8 @@ import type { AiJobView } from '@nutri-plus/shared-types';
 
 const useAiJobsMock = vi.fn();
 const retryMut = vi.fn();
-vi.mock('@/lib/queries/ai-jobs', () => ({
+vi.mock('@/lib/queries/ai-jobs', async (orig) => ({
+  ...(await orig<typeof import('@/lib/queries/ai-jobs')>()),
   useAiJobs: (...a: unknown[]) => useAiJobsMock(...a),
   useRetryAiJob: () => ({ mutateAsync: retryMut, isPending: false }),
 }));

@@ -1,51 +1,28 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Loader2, Minus, Sparkles } from 'lucide-react';
-import type { AiJobView } from '@nutri-plus/shared-types';
+import { AI_JOB_LABELS, isAiJobActive } from '@nutri-plus/shared-types';
 import { useAllAiJobs } from '@/lib/queries/ai-jobs';
+import { useMinimizedPreference } from '@/lib/ui/use-minimized-preference';
 
 const STORAGE_KEY = 'ai-jobs-widget:minimized';
-
-const LABEL: Record<AiJobView['type'], { running: string; failed: string }> = {
-  MEAL_PLAN_GENERATION: { running: 'Gerando plano', failed: 'Falha ao gerar o plano' },
-  MEAL_PLAN_ADJUSTMENT: { running: 'Ajustando plano', failed: 'Falha ao ajustar o plano' },
-};
 
 // O painel da página do paciente mostra o mesmo estado, mas vive dentro da aba
 // "Planos". Este widget existe para o caso de a nutricionista estar em qualquer
 // outra tela enquanto a IA trabalha.
 export function AiJobsWidget() {
-  const [mounted, setMounted] = useState(false);
-  const [minimized, setMinimized] = useState(false);
+  const { mounted, minimized, setMinimized } = useMinimizedPreference(STORAGE_KEY);
   const query = useAllAiJobs();
 
-  // Preferência lida depois da montagem, para não divergir do SSR.
-  useEffect(() => {
-    setMounted(true);
-    try {
-      setMinimized(window.localStorage.getItem(STORAGE_KEY) === 'true');
-    } catch {
-      // navegador sem storage: começa expandido
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, String(minimized));
-    } catch {
-      // preferência não persiste, mas a sessão respeita a escolha
-    }
-  }, [mounted, minimized]);
-
-  // Jobs concluídos alimentam a faixa do editor, não são "em andamento" aqui.
-  const jobs = (query.data ?? []).filter((job) => job.status !== 'DONE');
+  // Concluídos alimentam a faixa do editor, não são trabalho em andamento aqui.
+  const jobs = (query.data ?? []).filter(
+    (job) => isAiJobActive(job.status) || job.status === 'FAILED',
+  );
 
   if (!mounted || jobs.length === 0) return null;
 
-  const running = jobs.filter((job) => job.status !== 'FAILED').length;
+  const running = jobs.filter((job) => isAiJobActive(job.status)).length;
 
   if (minimized) {
     return (
@@ -93,7 +70,7 @@ export function AiJobsWidget() {
                 )}
                 <span className="min-w-0">
                   <span className={failed ? 'block text-destructive' : 'block'}>
-                    {failed ? LABEL[job.type].failed : LABEL[job.type].running}
+                    {failed ? AI_JOB_LABELS[job.type].failed : AI_JOB_LABELS[job.type].running}
                   </span>
                   <span className="block truncate text-xs text-muted-foreground">
                     {job.patientName}

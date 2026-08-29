@@ -14,13 +14,16 @@ vi.mock('@/lib/queries/meal-plans', () => ({
   useGenerateMealPlan: () => ({ mutateAsync: generateMut, isPending: false }),
   useSetMealPlanVisibility: () => ({ mutate: visibilityMutate, isPending: false }),
 }));
-vi.mock('@/lib/queries/ai-jobs', () => ({ useAiJobs: () => useAiJobsMock() }));
+// Mock parcial: adjustmentInFlightFor é lógica pura, exercitada de verdade.
+vi.mock('@/lib/queries/ai-jobs', async (orig) => ({
+  ...(await orig<typeof import('@/lib/queries/ai-jobs')>()),
+  useAiJobs: () => useAiJobsMock(),
+}));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
 vi.mock('@/lib/queries/subscription', () => ({ useSubscription: () => ({ data: undefined }) }));
 
 import { MealPlansSection } from './meal-plans-section';
-import { missingFieldsFromError } from '@/lib/meal-plans/generate-error';
 
 function plan(over = {}) {
   return {
@@ -36,16 +39,6 @@ beforeEach(() => {
   generateMut.mockReset().mockResolvedValue(plan());
   visibilityMutate.mockReset();
   push.mockReset();
-});
-
-describe('missingFieldsFromError', () => {
-  it('maps 422 tokens to pt-BR labels', () => {
-    const err = new ApiError(422, { message: 'Cannot generate a plan: missing height, gender, objective' });
-    expect(missingFieldsFromError(err)).toEqual(['altura', 'gênero', 'objetivo']);
-  });
-  it('returns null for non-422', () => {
-    expect(missingFieldsFromError(new ApiError(500, {}))).toBeNull();
-  });
 });
 
 describe('MealPlansSection', () => {

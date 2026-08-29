@@ -7,6 +7,14 @@ import { MealGenerationService } from '../meal-generation/meal-generation.servic
 import { resolveScopeNutritionistId } from '../auth/auth-scope';
 import type { AuthContext } from '../auth/types/auth-context';
 
+// Exatamente o que o toView consome. Fora daqui mora `result` (rascunho inteiro)
+// e `input`, que nenhuma listagem precisa.
+const VIEW_FIELDS = {
+  id: true, type: true, status: true, patientId: true,
+  mealPlanId: true, error: true,
+  createdAt: true, startedAt: true, finishedAt: true,
+} as const;
+
 interface JobInput {
   planId?: string;
   instructions?: string;
@@ -34,29 +42,33 @@ export class AiJobsService {
       select: { patientId: true },
     });
     if (!plan) throw new NotFoundException('Plano não encontrado.');
-    return this.create(ctx, {
-      type: 'MEAL_PLAN_ADJUSTMENT',
-      patientId: plan.patientId,
-      planId,
-      instructions,
-    });
+    return this.create(
+      ctx,
+      { type: 'MEAL_PLAN_ADJUSTMENT', patientId: plan.patientId, planId, instructions },
+      // O findFirst acima já restringiu o plano ao escopo do nutricionista, o
+      // que prova a posse do paciente. Repetir custaria uma query por ajuste.
+      { patientAlreadyOwned: true },
+    );
   }
 
   async create(
     ctx: AuthContext,
     args: { type: AiJobType; patientId: string; planId?: string; instructions?: string },
+    opts: { patientAlreadyOwned?: boolean } = {},
   ): Promise<{ jobId: string }> {
     // NUTRITIONIST usa o próprio perfil; EMPLOYEE age no escopo do nutricionista
     // dono. O resolver é a única fonte disso no projeto.
     const nutritionistId = resolveScopeNutritionistId(ctx);
     // Espelha a checagem de posse de createForPlan: sem isto, um patientId
     // inexistente ou de outro nutricionista estoura a FK do Prisma (P2003) e
-    // vira 500 em vez de 404.
-    const patient = await this.prisma.patientProfile.findFirst({
-      where: { id: args.patientId, nutritionistId },
-      select: { id: true },
-    });
-    if (!patient) throw new NotFoundException('Paciente não encontrado.');
+    // vira 500 em vez de 404. Dispensada quando o chamador já provou a posse.
+    if (!opts.patientAlreadyOwned) {
+      const patient = await this.prisma.patientProfile.findFirst({
+        where: { id: args.patientId, nutritionistId },
+        select: { id: true },
+      });
+      if (!patient) throw new NotFoundException('Paciente não encontrado.');
+    }
     // Antes de gravar: um job PENDING já conta contra a cota (Task 4), então
     // verificar aqui é o que impede enfileirar acima do teto.
     await this.entitlements.assertAiActionQuota(nutritionistId);
@@ -159,7 +171,11 @@ export class AiJobsService {
         ],
       },
       orderBy: { createdAt: 'desc' },
-      include: { patient: { select: { user: { select: { name: true } } } } },
+      // `select` explícito: sem ele o Prisma traz também `result`, que guarda o
+      // rascunho completo do plano. Como um ajuste DONE não consumido fica na
+      // lista até a nutricionista abrir o editor, esse JSON seria lido, trafegado
+      // e descartado a cada tick de 2s do polling.
+      select: { ...VIEW_FIELDS, patient: { select: { user: { select: { name: true } } } } },
     });
     return jobs.map((j) => this.toView(j));
   }
@@ -198,10 +214,17 @@ export class AiJobsService {
   private async contextForJob(nutritionistId: string): Promise<AuthContext> {
     const user = await this.prisma.user.findFirst({
       where: { nutritionistProfile: { id: nutritionistId } },
-      include: { nutritionistProfile: true, patientProfile: true, employeeProfile: true },
+      // patientProfile/employeeProfile são sempre null aqui — o dono do job é
+      // sempre um nutricionista — mas o AuthContext os exige na forma.
+      include: { nutritionistProfile: true },
     });
     if (!user) throw new Error(`Nutricionista ${nutritionistId} não encontrado`);
-    return { authProviderId: user.authProviderId, email: user.email, name: user.name, user };
+    return {
+      authProviderId: user.authProviderId,
+      email: user.email,
+      name: user.name,
+      user: { ...user, patientProfile: null, employeeProfile: null },
+    };
   }
 
   private async requireOwned(ctx: AuthContext, jobId: string) {

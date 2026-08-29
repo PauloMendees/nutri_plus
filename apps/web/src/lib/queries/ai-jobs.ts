@@ -1,8 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AiJobView } from '@nutri-plus/shared-types';
+import { isAiJobActive, type AiJobView } from '@nutri-plus/shared-types';
 import { consumeAiJob, getAiJob, listAiJobs, listAllAiJobs, retryAiJob } from '@/lib/api/ai-jobs';
 
-const ACTIVE: AiJobView['status'][] = ['PENDING', 'RUNNING'];
+// Ajustes ainda em voo para um plano. A regra vivia duplicada no card da lista
+// e no editor; mudar o critério exigia lembrar dos dois.
+export function adjustmentInFlightFor(
+  jobs: AiJobView[] | undefined,
+  planId: string | undefined,
+): AiJobView | undefined {
+  if (!planId) return undefined;
+  return (jobs ?? []).find(
+    (job) =>
+      job.type === 'MEAL_PLAN_ADJUSTMENT' && job.mealPlanId === planId && isAiJobActive(job.status),
+  );
+}
 
 // Invalidação usa o prefixo ['ai-jobs'] de propósito: existem duas chaves vivas,
 // ['ai-jobs', patientId] (painel do paciente) e ['ai-jobs', 'all'] (widget
@@ -16,7 +27,7 @@ export function useAiJobs(patientId: string) {
     // Só faz polling enquanto houver trabalho em voo: parado, a página não fica
     // batendo na API de graça.
     refetchInterval: (query) =>
-      (query.state.data ?? []).some((j) => ACTIVE.includes(j.status)) ? 2000 : false,
+      (query.state.data ?? []).some((j) => isAiJobActive(j.status)) ? 2000 : false,
   });
 }
 
@@ -26,7 +37,7 @@ export function useAllAiJobs() {
     queryFn: listAllAiJobs,
     // Mesma regra do hook por paciente: parado, não fica batendo na API.
     refetchInterval: (query) =>
-      (query.state.data ?? []).some((j) => ACTIVE.includes(j.status)) ? 2000 : false,
+      (query.state.data ?? []).some((j) => isAiJobActive(j.status)) ? 2000 : false,
   });
 }
 

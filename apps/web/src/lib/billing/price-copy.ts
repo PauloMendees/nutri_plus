@@ -7,6 +7,9 @@ export const entryMonthlyBrl = PLAN_CATALOG.ESSENCIAL.monthlyBrl;
 
 export const entryPriceLabel = `A partir de R$${entryMonthlyBrl}/mês`;
 
-export const entryPriceWithDaily = `${entryPriceLabel} · menos de R$${Math.ceil(
-  entryMonthlyBrl / 30,
-)}/dia`;
+// Arredonda para cima: a frase promete um teto, então nunca pode subestimar.
+export const entryDailyCeilBrl = Math.ceil(entryMonthlyBrl / 30);
+
+export const entryDailyLabel = `Menos de R$${entryDailyCeilBrl} por dia`;
+
+export const entryPriceWithDaily = `${entryPriceLabel} · menos de R$${entryDailyCeilBrl}/dia`;

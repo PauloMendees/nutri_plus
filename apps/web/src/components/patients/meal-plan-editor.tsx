@@ -30,7 +30,7 @@ import {
 import { ApiError } from '@/lib/api/client';
 import { downloadMealPlanPdf } from '@/lib/api/meal-plans';
 import { getAiJob } from '@/lib/api/ai-jobs';
-import { useAiJobs, useConsumeAiJob } from '@/lib/queries/ai-jobs';
+import { adjustmentInFlightFor, useAiJobs, useConsumeAiJob } from '@/lib/queries/ai-jobs';
 import { useNutritionTargets } from '@/lib/queries/nutrition-targets';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -267,15 +267,7 @@ export function MealPlanEditor({
   // Só o ajuste DESTE plano. listForPatient devolve jobs do paciente inteiro, e
   // carregar o rascunho de outro plano aqui substituiria a árvore errada ao salvar.
   // Em modo criação (sem planId) nunca há faixa.
-  // Ajuste deste plano ainda em voo — antecede a faixa "Ajuste pronto".
-  const adjustInFlight = planId
-    ? (aiJobs.data ?? []).find(
-        (j) =>
-          j.type === 'MEAL_PLAN_ADJUSTMENT' &&
-          j.mealPlanId === planId &&
-          (j.status === 'PENDING' || j.status === 'RUNNING'),
-      )
-    : undefined;
+  const adjustInFlight = adjustmentInFlightFor(aiJobs.data, planId);
 
   const readyAdjust = planId
     ? (aiJobs.data ?? []).find(
@@ -794,7 +786,11 @@ function OptionCard({
             </tr>
           </thead>
           <tbody>
-            {items.fields.map((itemField, itemIndex) => (
+            {items.fields.map((itemField, itemIndex) => {
+              const quantityField = register(
+                `meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`,
+              );
+              return (
               <tr key={itemField.id}>
                 {canEdit && (
                   <td className="py-1 pr-1 align-top">
@@ -812,22 +808,17 @@ function OptionCard({
                 )}
                 <td className="py-1 pr-1 align-top"><Textarea rows={1} className={`w-48 ${GROW_SM}`} aria-label="Alimento" {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.foodName`)} /></td>
                 <td className="py-1 pr-1 align-top">
-                  {(() => {
-                    const field = register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.quantity`);
-                    return (
-                      <Textarea
-                        rows={1}
-                        className={`w-40 ${GROW_SM}`}
-                        placeholder="120 g"
-                        aria-label="Quantidade"
-                        {...field}
-                        onChange={(e) => {
-                          void field.onChange(e);
-                          onQuantityChange(itemIndex, e.target.value);
-                        }}
-                      />
-                    );
-                  })()}
+                  <Textarea
+                    rows={1}
+                    className={`w-40 ${GROW_SM}`}
+                    placeholder="120 g"
+                    aria-label="Quantidade"
+                    {...quantityField}
+                    onChange={(e) => {
+                      void quantityField.onChange(e);
+                      onQuantityChange(itemIndex, e.target.value);
+                    }}
+                  />
                 </td>
                 {macrosToShow(showAllMacros).map((m) => (
                   <td key={m.key} className="py-1 pr-1 align-top">
@@ -845,7 +836,8 @@ function OptionCard({
                   </td>
                 )}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

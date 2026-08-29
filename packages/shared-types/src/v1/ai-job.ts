@@ -18,6 +18,18 @@ export function isAiJobStuck(
   return now.getTime() - new Date(job.startedAt).getTime() > AI_JOB_STUCK_AFTER_MS;
 }
 
+// "Em andamento" tem uma definição só. O front reescrevia isso em quatro
+// lugares, cada um com um predicado diferente (!== 'DONE', PENDING||RUNNING,
+// !== 'FAILED') que coincidiam por acidente do conjunto de status atual.
+export function isAiJobActive(status: AiJobStatus): boolean {
+  return status === 'PENDING' || status === 'RUNNING';
+}
+
+export const AI_JOB_LABELS: Record<AiJobType, { running: string; failed: string }> = {
+  MEAL_PLAN_GENERATION: { running: 'Gerando plano', failed: 'Falha ao gerar o plano' },
+  MEAL_PLAN_ADJUSTMENT: { running: 'Ajustando plano', failed: 'Falha ao ajustar o plano' },
+};
+
 export interface AiJobView {
   id: string;
   type: AiJobType;

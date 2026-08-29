@@ -100,7 +100,7 @@ workers a resolver.
 
 **Consequência aceita:** um deploy no meio de um job o deixa `RUNNING` para
 sempre. A transcrição já convive com isso e resolve com "Tentar de novo" na linha
-travada. Aplicamos o mesmo contrato: job `RUNNING` há mais de **10 minutos** é
+travada. Aplicamos o mesmo contrato: job `RUNNING` há mais de **35 minutos** é
 apresentado como travado, com o mesmo botão de repetir. Não há varredura de
 background corrigindo status — a leitura decide, o que evita um loop permanente
 no processo.

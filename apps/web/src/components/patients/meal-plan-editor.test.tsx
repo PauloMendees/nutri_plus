@@ -45,7 +45,11 @@ vi.mock('@/lib/queries/foods', () => ({
 const useAiJobsMock = vi.fn().mockReturnValue({ data: [], isLoading: false });
 const consumeMut = vi.fn().mockResolvedValue(undefined);
 const getAiJobMock = vi.fn();
-vi.mock('@/lib/queries/ai-jobs', () => ({
+// Mock parcial: só os hooks precisam de dublê. adjustmentInFlightFor é lógica
+// pura e deve ser exercitada de verdade — reimplementá-la aqui recriaria a
+// duplicação que a extração removeu.
+vi.mock('@/lib/queries/ai-jobs', async (orig) => ({
+  ...(await orig<typeof import('@/lib/queries/ai-jobs')>()),
   useAiJobs: (...a: unknown[]) => useAiJobsMock(...a),
   useConsumeAiJob: () => ({ mutateAsync: consumeMut, isPending: false }),
 }));

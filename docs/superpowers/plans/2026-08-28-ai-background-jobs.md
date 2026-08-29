@@ -15,7 +15,7 @@
 - Todo texto de UI em **pt-BR**.
 - Endpoints sob `@Roles(UserRole.NUTRITIONIST)`; posse do paciente verificada como nos endpoints atuais (404 para não-dono, nunca 403).
 - **Cota de IA** = `AIInteraction(success: true, tipos de IA, mês SP)` **+** `AiJob(PENDING | RUNNING, mês SP)`. Verificada **só na criação do job**, nunca dentro de `runJob`.
-- Limiar de job travado: **10 minutos** desde `startedAt`.
+- Limiar de job travado: **35 minutos** desde `startedAt`.
 - `AIInteraction` continua sendo gravado por chamada, inalterado.
 - Testes: api com Jest (`pnpm --filter @nutri-plus/api test`), web com Vitest (`pnpm --filter @nutri-plus/web test`).
 - Deploy: **API antes do web** — os dois POST mudam de `201` com corpo para `202 { jobId }`.
@@ -304,8 +304,8 @@ describe('isAiJobStuck', () => {
     expect(isAiJobStuck({ status: 'RUNNING', startedAt: null }, now)).toBe(false);
   });
 
-  it('o limiar é de 10 minutos', () => {
-    expect(AI_JOB_STUCK_AFTER_MS).toBe(10 * 60 * 1000);
+  it('o limiar é de 35 minutos', () => {
+    expect(AI_JOB_STUCK_AFTER_MS).toBe(35 * 60 * 1000);
   });
 });
 ```
@@ -327,7 +327,7 @@ export type AiJobStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED';
 
 // Um deploy no meio do job o deixa RUNNING para sempre — a API não tem varredura
 // corrigindo status. Quem lê decide, com este limiar.
-export const AI_JOB_STUCK_AFTER_MS = 10 * 60 * 1000;
+export const AI_JOB_STUCK_AFTER_MS = 35 * 60 * 1000;
 
 export function isAiJobStuck(
   job: { status: AiJobStatus; startedAt: string | null },

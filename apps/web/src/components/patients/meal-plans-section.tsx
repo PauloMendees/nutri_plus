@@ -5,7 +5,7 @@ import Link from 'next/link';
 import type { MealPlanSummary } from '@nutri-plus/shared-types';
 import { Loader2 } from 'lucide-react';
 import { useMealPlans, useSetMealPlanVisibility } from '@/lib/queries/meal-plans';
-import { useAiJobs } from '@/lib/queries/ai-jobs';
+import { adjustmentInFlightFor, useAiJobs } from '@/lib/queries/ai-jobs';
 import { AiQuotaChip } from '@/components/billing/ai-quota-chip';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,17 +34,9 @@ export function MealPlansSection({
   const [generating, setGenerating] = useState(false);
 
   const plans = query.data ?? [];
-  // Planos com ajuste da IA ainda em voo. `mealPlanId` do job de ajuste é o
-  // plano sendo ajustado, então o casamento é direto.
+  // Planos com ajuste da IA ainda em voo, pela mesma regra que o editor usa.
   const adjustingPlanIds = new Set(
-    (aiJobs.data ?? [])
-      .filter(
-        (job) =>
-          job.type === 'MEAL_PLAN_ADJUSTMENT' &&
-          (job.status === 'PENDING' || job.status === 'RUNNING') &&
-          job.mealPlanId,
-      )
-      .map((job) => job.mealPlanId as string),
+    plans.map((p) => adjustmentInFlightFor(aiJobs.data, p.id)?.mealPlanId).filter(Boolean),
   );
 
   return (
