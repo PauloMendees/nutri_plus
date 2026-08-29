@@ -13,7 +13,9 @@ const LABEL: Record<AiJobView['type'], { running: string; failed: string }> = {
 export function AiJobsPanel({ patientId }: { patientId: string }) {
   const query = useAiJobs(patientId);
   const retry = useRetryAiJob(patientId);
-  const jobs = query.data ?? [];
+  // Ajustes DONE não consumidos também vêm de listForPatient — é o que alimenta
+  // a faixa "Ajuste pronto" no editor. Aqui eles não são trabalho em andamento.
+  const jobs = (query.data ?? []).filter((job) => job.status !== 'DONE');
 
   // Sem trabalho em curso, o bloco não existe — não somamos ruído à tela no
   // caso comum, que é não haver nada rodando.
@@ -29,7 +31,7 @@ export function AiJobsPanel({ patientId }: { patientId: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-4xl rounded-xl border bg-card p-4">
+    <div className="rounded-xl border bg-card p-4">
       <h2 className="text-sm font-semibold">Processos de IA</h2>
       <ul className="mt-2 space-y-2">
         {jobs.map((job) => {

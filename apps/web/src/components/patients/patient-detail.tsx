@@ -238,8 +238,10 @@ export function PatientDetail({
           </TabsContent>
         )}
         <TabsContent value="planos">
-          <AiJobsPanel patientId={patient.id} />
-          <MealPlansSection patientId={patient.id} canEdit={canEdit} />
+          <div className="space-y-6">
+            <AiJobsPanel patientId={patient.id} />
+            <MealPlansSection patientId={patient.id} canEdit={canEdit} />
+          </div>
         </TabsContent>
         <TabsContent value="recordatorio">
           <RecordatorioSection patientId={patient.id} canEdit={canEdit} />

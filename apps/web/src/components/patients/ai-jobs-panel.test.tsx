@@ -10,6 +10,9 @@ vi.mock('@/lib/queries/ai-jobs', () => ({
   useRetryAiJob: () => ({ mutateAsync: retryMut, isPending: false }),
 }));
 
+const toastMock = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+vi.mock('sonner', () => ({ toast: toastMock }));
+
 import { AiJobsPanel } from './ai-jobs-panel';
 
 function job(over: Partial<AiJobView> = {}): AiJobView {
@@ -23,6 +26,8 @@ function job(over: Partial<AiJobView> = {}): AiJobView {
 beforeEach(() => {
   retryMut.mockReset().mockResolvedValue({ jobId: 'j1' });
   useAiJobsMock.mockReset().mockReturnValue({ data: [], isLoading: false });
+  toastMock.success.mockReset();
+  toastMock.error.mockReset();
 });
 
 describe('AiJobsPanel', () => {
@@ -49,5 +54,22 @@ describe('AiJobsPanel', () => {
     useAiJobsMock.mockReturnValue({ data: [job({ isStuck: true })], isLoading: false });
     render(<AiJobsPanel patientId="p1" />);
     expect(screen.getByRole('button', { name: /tentar de novo/i })).toBeInTheDocument();
+  });
+
+  it('não lista trabalho já concluído', () => {
+    useAiJobsMock.mockReturnValue({
+      data: [job({ type: 'MEAL_PLAN_ADJUSTMENT', status: 'DONE' })],
+      isLoading: false,
+    });
+    const { container } = render(<AiJobsPanel patientId="p1" />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('mostra erro quando repetir falha', async () => {
+    retryMut.mockRejectedValue(new Error('boom'));
+    useAiJobsMock.mockReturnValue({ data: [job({ status: 'FAILED', error: 'boom' })], isLoading: false });
+    render(<AiJobsPanel patientId="p1" />);
+    await userEvent.click(screen.getByRole('button', { name: /tentar de novo/i }));
+    expect(toastMock.error).toHaveBeenCalledWith('Não foi possível repetir agora.');
   });
 });
