@@ -202,6 +202,11 @@ export function parseGrams(text: string): number | null {
 const GROW = 'min-h-8 resize-none py-1';
 const GROW_SM = 'min-h-7 resize-none py-1';
 
+// Com fibra e sódio ocultos sobram duas colunas de espaço na tabela — os quatro
+// macros restantes ganham largura. Em w-16 valores de 3 dígitos ("220", "105")
+// e decimais ("0,5") saíam cortados.
+const MACRO_INPUT_WIDTH = (showAllMacros: boolean) => (showAllMacros ? 'w-16' : 'w-24');
+
 function sum(values: string[]): number {
   return values.reduce((acc, v) => acc + (Number(v) || 0), 0);
 }
@@ -806,7 +811,7 @@ function OptionCard({
                 </td>
                 {macrosToShow(showAllMacros).map((m) => (
                   <td key={m.key} className="py-1 pr-1 align-top">
-                    <Input className="h-7 w-16" type="number" inputMode="decimal" step="any" aria-label={m.label}
+                    <Input className={`h-7 ${MACRO_INPUT_WIDTH(showAllMacros)}`} type="number" inputMode="decimal" step="any" aria-label={m.label}
                       {...register(`meals.${mealIndex}.options.${optionIndex}.items.${itemIndex}.${m.key}` as const)} />
                   </td>
                 ))}

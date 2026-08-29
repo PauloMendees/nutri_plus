@@ -69,6 +69,14 @@ const plan = {
 };
 
 beforeEach(() => {
+  // O toggle "Ver outros macros" persiste em localStorage, que o jsdom mantém
+  // entre testes do mesmo arquivo — sem limpar, um teste que liga o toggle muda
+  // o que os seguintes renderizam.
+  try {
+    localStorage.clear();
+  } catch {
+    // ambiente sem storage: nada a limpar
+  }
   useMealPlan.mockReset().mockReturnValue({ data: plan, isLoading: false, isError: false });
   createMut.mockReset().mockResolvedValue({ id: 'new1' });
   updateMut.mockReset().mockResolvedValue(plan);
@@ -169,6 +177,19 @@ describe('MealPlanEditor (edit mode)', () => {
     render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
     const firstOption = screen.getAllByTestId('option-card')[0];
     expect(within(firstOption).getByTestId('option-subtotal-calories')).toHaveTextContent('Kcal 230');
+  });
+
+  it('alarga os inputs de macro quando fibra e sódio estão ocultos', async () => {
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    const optionCard = screen.getAllByTestId('option-card')[0];
+
+    // Com 4 colunas sobra espaço: valores de 3 dígitos não podem sair cortados.
+    expect(within(optionCard).getByLabelText('Kcal')).toHaveClass('w-24');
+
+    await userEvent.click(screen.getByRole('button', { name: /ver outros macros/i }));
+
+    // Com 6 colunas o espaço acaba e os inputs voltam ao tamanho compacto.
+    expect(within(optionCard).getByLabelText('Kcal')).toHaveClass('w-16');
   });
 
   it('hides fiber/sodium totals until "Ver outros macros" is pressed', async () => {
