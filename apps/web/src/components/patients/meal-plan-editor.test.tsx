@@ -42,6 +42,14 @@ vi.mock('@/lib/queries/foods', () => ({
     isFetching: false,
   }),
 }));
+const useAiJobsMock = vi.fn().mockReturnValue({ data: [], isLoading: false });
+const consumeMut = vi.fn().mockResolvedValue(undefined);
+const getAiJobMock = vi.fn();
+vi.mock('@/lib/queries/ai-jobs', () => ({
+  useAiJobs: (...a: unknown[]) => useAiJobsMock(...a),
+  useConsumeAiJob: () => ({ mutateAsync: consumeMut, isPending: false }),
+}));
+vi.mock('@/lib/api/ai-jobs', () => ({ getAiJob: (...a: unknown[]) => getAiJobMock(...a) }));
 
 import { MealPlanEditor, fmtMacro, parseGrams } from './meal-plan-editor';
 
@@ -239,6 +247,25 @@ describe('MealPlanEditor (edit mode)', () => {
     useMealPlan.mockReturnValue({ data: undefined, isLoading: false, isError: false });
     render(<MealPlanEditor patientId="p1" canEdit />);
     expect(screen.queryByRole('button', { name: /solicitar ajustes à ia/i })).toBeNull();
+  });
+
+  it('oferece carregar o ajuste pronto e marca como consumido', async () => {
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'DONE', patientId: 'p1',
+        mealPlanId: null, error: null, createdAt: '2026-08-28T12:00:00.000Z',
+        startedAt: null, finishedAt: '2026-08-28T12:01:00.000Z', isStuck: false,
+      }],
+      isLoading: false,
+    });
+    getAiJobMock.mockResolvedValue({ result: { title: 'Plano ajustado', meals: [] } });
+
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /revisar ajuste/i }));
+
+    expect(await screen.findByDisplayValue('Plano ajustado')).toBeInTheDocument();
+    expect(consumeMut).toHaveBeenCalledWith('j1');
   });
 });
 

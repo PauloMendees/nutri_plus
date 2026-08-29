@@ -29,6 +29,8 @@ import {
 } from '@/lib/queries/meal-plans';
 import { ApiError } from '@/lib/api/client';
 import { downloadMealPlanPdf } from '@/lib/api/meal-plans';
+import { getAiJob } from '@/lib/api/ai-jobs';
+import { useAiJobs, useConsumeAiJob } from '@/lib/queries/ai-jobs';
 import { useNutritionTargets } from '@/lib/queries/nutrition-targets';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -224,6 +226,8 @@ export function MealPlanEditor({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
+  const aiJobs = useAiJobs(patientId);
+  const consume = useConsumeAiJob();
   // Preferência por nutricionista: o editor é reaberto dezenas de vezes por dia,
   // e perder a escolha a cada abertura irrita. Lida no mount para não divergir do SSR.
   const [showAllMacros, setShowAllMacros] = useState(false);
@@ -254,6 +258,24 @@ export function MealPlanEditor({
     defaultValues: blankDefaults(),
   });
   const meals = useFieldArray({ control: form.control, name: 'meals' });
+
+  // Um ajuste concluído e ainda não revisado para ESTE plano.
+  const readyAdjust = (aiJobs.data ?? []).find(
+    (j) => j.type === 'MEAL_PLAN_ADJUSTMENT' && j.status === 'DONE',
+  );
+
+  async function applyReadyAdjust(jobId: string) {
+    try {
+      const detail = await getAiJob(jobId);
+      if (detail.result) {
+        form.reset(draftToDefaults(detail.result));
+        toast.success('Ajuste carregado — revise e salve.');
+      }
+      await consume.mutateAsync(jobId);
+    } catch {
+      toast.error('Não foi possível carregar o ajuste.');
+    }
+  }
 
   useEffect(() => {
     if (!isCreate && query.data) form.reset(toDefaults(query.data));
@@ -446,6 +468,20 @@ export function MealPlanEditor({
               ))}
             </div>
           </div>
+
+          {readyAdjust && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/40 bg-card p-3 text-sm">
+              <span>Ajuste pronto para este plano.</span>
+              <Button
+                type="button"
+                size="sm"
+                className="rounded-full"
+                onClick={() => applyReadyAdjust(readyAdjust.id)}
+              >
+                Revisar ajuste
+              </Button>
+            </div>
+          )}
 
           {/* Totals bar (first option per meal) */}
           <div className="sticky top-0 z-10 flex flex-wrap items-center gap-4 rounded-xl border bg-card p-3">

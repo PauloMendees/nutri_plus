@@ -63,7 +63,8 @@ export function AiAdjustDialog({
             onChange={(e) => setInstructions(e.target.value)}
           />
           <p className="text-xs text-muted-foreground">
-            A IA gera uma nova versão para você revisar. Nada é salvo até você clicar em Salvar. As metas do dia, alergias e restrições são mantidas.
+            A IA monta uma nova versão em segundo plano. Quando ficar pronta, ela aparece
+            aqui no plano para você revisar — nada é salvo sem a sua confirmação. As metas do dia, alergias e restrições são mantidas.
           </p>
         </div>
 
