@@ -60,6 +60,12 @@ describe('AiJobsService.create', () => {
     await expect(svc.create(ctx, { type: 'MEAL_PLAN_GENERATION', patientId: 'p1' })).rejects.toThrow();
     expect(prisma.aiJob.create).not.toHaveBeenCalled();
   });
+
+  it('createForPlan grava mealPlanId igual ao planId — é o que a faixa do editor usa para saber a qual plano o ajuste pertence', async () => {
+    const { svc, prisma } = deps();
+    await svc.createForPlan(ctx, 'm1', 'menos carbo');
+    expect(prisma.aiJob.create.mock.calls[0][0].data).toMatchObject({ mealPlanId: 'm1' });
+  });
 });
 
 describe('AiJobsService.runJob', () => {

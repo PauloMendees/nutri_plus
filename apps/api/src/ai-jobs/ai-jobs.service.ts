@@ -60,6 +60,10 @@ export class AiJobsService {
         patientId: args.patientId,
         type: args.type,
         input: input as object,
+        // Semântica dupla desta coluna: na geração é o plano PRODUZIDO (gravado
+        // ao concluir); no ajuste é o plano AJUSTADO, conhecido já na criação.
+        // É o que permite a faixa do editor saber a qual plano o ajuste pertence.
+        mealPlanId: args.planId ?? null,
       },
       select: { id: true },
     });

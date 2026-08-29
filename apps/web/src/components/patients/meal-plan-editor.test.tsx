@@ -77,6 +77,9 @@ beforeEach(() => {
   replace.mockReset();
   downloadMealPlanPdf.mockReset().mockResolvedValue(undefined);
   notifyChapterActionSucceeded.mockReset().mockResolvedValue(false);
+  useAiJobsMock.mockReset().mockReturnValue({ data: [], isLoading: false });
+  consumeMut.mockReset().mockResolvedValue(undefined);
+  getAiJobMock.mockReset();
 });
 
 describe('MealPlanEditor (edit mode)', () => {
@@ -253,7 +256,7 @@ describe('MealPlanEditor (edit mode)', () => {
     useAiJobsMock.mockReturnValue({
       data: [{
         id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'DONE', patientId: 'p1',
-        mealPlanId: null, error: null, createdAt: '2026-08-28T12:00:00.000Z',
+        mealPlanId: 'm1', error: null, createdAt: '2026-08-28T12:00:00.000Z',
         startedAt: null, finishedAt: '2026-08-28T12:01:00.000Z', isStuck: false,
       }],
       isLoading: false,
@@ -266,6 +269,57 @@ describe('MealPlanEditor (edit mode)', () => {
 
     expect(await screen.findByDisplayValue('Plano ajustado')).toBeInTheDocument();
     expect(consumeMut).toHaveBeenCalledWith('j1');
+    // Carregar não salva: é a promessa central da faixa.
+    expect(updateMut).not.toHaveBeenCalled();
+  });
+
+  it('não mostra a faixa em modo leitura (EMPLOYEE sem permissão), mesmo com ajuste pronto para este plano', () => {
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'DONE', patientId: 'p1',
+        mealPlanId: 'm1', error: null, createdAt: '2026-08-28T12:00:00.000Z',
+        startedAt: null, finishedAt: '2026-08-28T12:01:00.000Z', isStuck: false,
+      }],
+      isLoading: false,
+    });
+
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit={false} />);
+
+    expect(screen.queryByRole('button', { name: /revisar ajuste/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/ajuste pronto/i)).not.toBeInTheDocument();
+  });
+
+  it('não mostra a faixa quando o ajuste pronto pertence a OUTRO plano do mesmo paciente', () => {
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'DONE', patientId: 'p1',
+        mealPlanId: 'm2', error: null, createdAt: '2026-08-28T12:00:00.000Z',
+        startedAt: null, finishedAt: '2026-08-28T12:01:00.000Z', isStuck: false,
+      }],
+      isLoading: false,
+    });
+
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+
+    expect(screen.queryByRole('button', { name: /revisar ajuste/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/ajuste pronto/i)).not.toBeInTheDocument();
+  });
+
+  it('não mostra a faixa em modo criação (sem planId)', () => {
+    useMealPlan.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'DONE', patientId: 'p1',
+        mealPlanId: null, error: null, createdAt: '2026-08-28T12:00:00.000Z',
+        startedAt: null, finishedAt: '2026-08-28T12:01:00.000Z', isStuck: false,
+      }],
+      isLoading: false,
+    });
+
+    render(<MealPlanEditor patientId="p1" canEdit />);
+
+    expect(screen.queryByRole('button', { name: /revisar ajuste/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/ajuste pronto/i)).not.toBeInTheDocument();
   });
 });
 

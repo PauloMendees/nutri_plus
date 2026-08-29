@@ -227,7 +227,7 @@ export function MealPlanEditor({
   const [exporting, setExporting] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
   const aiJobs = useAiJobs(patientId);
-  const consume = useConsumeAiJob();
+  const consume = useConsumeAiJob(patientId);
   // Preferência por nutricionista: o editor é reaberto dezenas de vezes por dia,
   // e perder a escolha a cada abertura irrita. Lida no mount para não divergir do SSR.
   const [showAllMacros, setShowAllMacros] = useState(false);
@@ -259,10 +259,14 @@ export function MealPlanEditor({
   });
   const meals = useFieldArray({ control: form.control, name: 'meals' });
 
-  // Um ajuste concluído e ainda não revisado para ESTE plano.
-  const readyAdjust = (aiJobs.data ?? []).find(
-    (j) => j.type === 'MEAL_PLAN_ADJUSTMENT' && j.status === 'DONE',
-  );
+  // Só o ajuste DESTE plano. listForPatient devolve jobs do paciente inteiro, e
+  // carregar o rascunho de outro plano aqui substituiria a árvore errada ao salvar.
+  // Em modo criação (sem planId) nunca há faixa.
+  const readyAdjust = planId
+    ? (aiJobs.data ?? []).find(
+        (j) => j.type === 'MEAL_PLAN_ADJUSTMENT' && j.status === 'DONE' && j.mealPlanId === planId,
+      )
+    : undefined;
 
   async function applyReadyAdjust(jobId: string) {
     try {
@@ -469,7 +473,7 @@ export function MealPlanEditor({
             </div>
           </div>
 
-          {readyAdjust && (
+          {canEdit && readyAdjust && (
             <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/40 bg-card p-3 text-sm">
               <span>Ajuste pronto para este plano.</span>
               <Button
@@ -477,6 +481,7 @@ export function MealPlanEditor({
                 size="sm"
                 className="rounded-full"
                 onClick={() => applyReadyAdjust(readyAdjust.id)}
+                disabled={consume.isPending}
               >
                 Revisar ajuste
               </Button>

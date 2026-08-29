@@ -32,6 +32,10 @@ export function useRetryAiJob(patientId: string) {
   });
 }
 
-export function useConsumeAiJob() {
-  return useMutation({ mutationFn: (id: string) => consumeAiJob(id) });
+export function useConsumeAiJob(patientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => consumeAiJob(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-jobs', patientId] }),
+  });
 }
