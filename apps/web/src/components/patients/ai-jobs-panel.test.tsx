@@ -18,6 +18,7 @@ import { AiJobsPanel } from './ai-jobs-panel';
 function job(over: Partial<AiJobView> = {}): AiJobView {
   return {
     id: 'j1', type: 'MEAL_PLAN_GENERATION', status: 'RUNNING', patientId: 'p1',
+    patientName: 'Maria Silva',
     mealPlanId: null, error: null, createdAt: '2026-08-28T12:00:00.000Z',
     startedAt: '2026-08-28T12:00:00.000Z', finishedAt: null, isStuck: false, ...over,
   };

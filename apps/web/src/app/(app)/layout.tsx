@@ -7,7 +7,7 @@ import { FeedbackPromptHost } from '@/components/feedback/feedback-prompt-host';
 import { FirstRunHost } from '@/components/onboarding/first-run-host';
 import { TourProvider } from '@/components/onboarding/tour-provider';
 import { MobileNavTrigger } from '@/components/app/mobile-nav-trigger';
-import { TodayAgendaWidget } from '@/components/agenda/today-agenda-widget';
+import { CornerWidgets } from '@/components/app/corner-widgets';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/sonner';
 import { isWebDashboardRole } from '@/lib/auth/access';
@@ -36,7 +36,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <MobileNavTrigger />
             </header>
             <main className="flex-1 p-6 md:p-8 md:pb-32">{children}</main>
-            <TodayAgendaWidget />
+            <CornerWidgets />
           </TourProvider>
         </SidebarInset>
       </SidebarProvider>

@@ -10,7 +10,7 @@ const ctx = {
 function deps() {
   const jobs = {
     get: jest.fn().mockResolvedValue({ id: 'j1', status: 'DONE' }),
-    listForPatient: jest.fn().mockResolvedValue([]),
+    list: jest.fn().mockResolvedValue([]),
     retry: jest.fn().mockResolvedValue({ jobId: 'j1' }),
     markConsumed: jest.fn().mockResolvedValue(undefined),
   };
@@ -18,10 +18,17 @@ function deps() {
 }
 
 describe('AiJobsController', () => {
+  it('lista sem paciente devolve os trabalhos do nutricionista inteiro', async () => {
+    const { ctrl, jobs } = deps();
+    await ctrl.list(ctx, {} as never);
+    // undefined, não string vazia: o serviço decide omitir o filtro.
+    expect(jobs.list).toHaveBeenCalledWith(ctx, undefined);
+  });
+
   it('lista por paciente', async () => {
     const { ctrl, jobs } = deps();
     await ctrl.list(ctx, { patientId: 'p1' });
-    expect(jobs.listForPatient).toHaveBeenCalledWith(ctx, 'p1');
+    expect(jobs.list).toHaveBeenCalledWith(ctx, 'p1');
   });
 
   it('busca um job', async () => {

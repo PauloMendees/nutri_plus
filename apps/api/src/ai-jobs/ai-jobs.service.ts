@@ -142,12 +142,14 @@ export class AiJobsService {
     return { ...this.toView(job), result: (job.result as MealPlanDraft | null) ?? null, consumedAt: job.consumedAt?.toISOString() ?? null };
   }
 
-  async listForPatient(ctx: AuthContext, patientId: string): Promise<AiJobView[]> {
+  // `patientId` opcional: sem ele, lista os trabalhos do nutricionista inteiro,
+  // que é o que o widget global consome fora da página do paciente.
+  async list(ctx: AuthContext, patientId?: string): Promise<AiJobView[]> {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const jobs = await this.prisma.aiJob.findMany({
       where: {
         nutritionistId: resolveScopeNutritionistId(ctx),
-        patientId,
+        ...(patientId ? { patientId } : {}),
         OR: [
           { status: { in: ['PENDING', 'RUNNING'] } },
           { status: 'FAILED', createdAt: { gte: since } },
@@ -157,6 +159,7 @@ export class AiJobsService {
         ],
       },
       orderBy: { createdAt: 'desc' },
+      include: { patient: { select: { user: { select: { name: true } } } } },
     });
     return jobs.map((j) => this.toView(j));
   }
@@ -204,6 +207,7 @@ export class AiJobsService {
   private async requireOwned(ctx: AuthContext, jobId: string) {
     const job = await this.prisma.aiJob.findFirst({
       where: { id: jobId, nutritionistId: resolveScopeNutritionistId(ctx) },
+      include: { patient: { select: { user: { select: { name: true } } } } },
     });
     // 404 e não 403: não revelamos a existência de job de outro nutricionista.
     if (!job) throw new NotFoundException('Trabalho não encontrado.');
@@ -214,6 +218,7 @@ export class AiJobsService {
     id: string; type: string; status: string; patientId: string;
     mealPlanId: string | null; error: string | null;
     createdAt: Date; startedAt: Date | null; finishedAt: Date | null;
+    patient?: { user: { name: string } } | null;
   }): AiJobView {
     const startedAt = job.startedAt?.toISOString() ?? null;
     const status = job.status as AiJobView['status'];
@@ -222,6 +227,7 @@ export class AiJobsService {
       type: job.type as AiJobType,
       status,
       patientId: job.patientId,
+      patientName: job.patient?.user.name ?? '',
       mealPlanId: job.mealPlanId,
       error: job.error,
       createdAt: job.createdAt.toISOString(),

@@ -50,8 +50,10 @@ export function TodayAgendaWidget() {
 
   const today = new Date();
 
+  // Posicionamento fica com o CornerWidgets do layout: dois widgets fixos no
+  // mesmo canto se sobreporiam.
   return (
-    <div className="fixed bottom-4 right-4 z-50 hidden md:block">
+    <div className="pointer-events-auto">
       {minimized ? (
         <button
           type="button"

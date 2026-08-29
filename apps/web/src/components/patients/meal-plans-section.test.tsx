@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { ApiError } from '@/lib/api/client';
 
 const useMealPlans = vi.fn();
+const useAiJobsMock = vi.fn();
 const generateMut = vi.fn();
 const visibilityMutate = vi.fn();
 const push = vi.fn();
@@ -13,6 +14,7 @@ vi.mock('@/lib/queries/meal-plans', () => ({
   useGenerateMealPlan: () => ({ mutateAsync: generateMut, isPending: false }),
   useSetMealPlanVisibility: () => ({ mutate: visibilityMutate, isPending: false }),
 }));
+vi.mock('@/lib/queries/ai-jobs', () => ({ useAiJobs: () => useAiJobsMock() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
 vi.mock('@/lib/queries/subscription', () => ({ useSubscription: () => ({ data: undefined }) }));
@@ -29,6 +31,7 @@ function plan(over = {}) {
 }
 
 beforeEach(() => {
+  useAiJobsMock.mockReset().mockReturnValue({ data: [], isLoading: false });
   useMealPlans.mockReset();
   generateMut.mockReset().mockResolvedValue(plan());
   visibilityMutate.mockReset();
@@ -90,5 +93,42 @@ describe('MealPlansSection', () => {
     render(<MealPlansSection patientId="p1" canEdit />);
     await userEvent.click(screen.getByRole('button', { name: /disponibilizar/i }));
     expect(visibilityMutate).toHaveBeenCalledWith({ id: 'm1', visibleToPatient: true });
+  });
+
+  it('marca o card do plano que está sendo ajustado, e só ele', () => {
+    useMealPlans.mockReturnValue({
+      data: [plan(), plan({ id: 'm2', title: 'Plano B' })],
+      isLoading: false,
+    });
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'RUNNING',
+        patientId: 'p1', patientName: 'Maria', mealPlanId: 'm2',
+        error: null, createdAt: '2026-08-29T12:00:00.000Z',
+        startedAt: '2026-08-29T12:00:00.000Z', finishedAt: null, isStuck: false,
+      }],
+      isLoading: false,
+    });
+
+    render(<MealPlansSection patientId="p1" canEdit />);
+
+    expect(screen.getByTestId('plan-adjusting-m2')).toBeInTheDocument();
+    expect(screen.queryByTestId('plan-adjusting-m1')).not.toBeInTheDocument();
+  });
+
+  it('não marca nada quando o ajuste já terminou', () => {
+    useMealPlans.mockReturnValue({ data: [plan()], isLoading: false });
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'DONE',
+        patientId: 'p1', patientName: 'Maria', mealPlanId: 'm1',
+        error: null, createdAt: '2026-08-29T12:00:00.000Z',
+        startedAt: null, finishedAt: '2026-08-29T12:01:00.000Z', isStuck: false,
+      }],
+      isLoading: false,
+    });
+
+    render(<MealPlansSection patientId="p1" canEdit />);
+    expect(screen.queryByTestId('plan-adjusting-m1')).not.toBeInTheDocument();
   });
 });

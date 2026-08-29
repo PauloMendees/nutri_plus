@@ -273,6 +273,41 @@ describe('MealPlanEditor (edit mode)', () => {
     expect(screen.queryByRole('button', { name: /solicitar ajustes à ia/i })).toBeNull();
   });
 
+  it('mostra que há ajuste em andamento para este plano', async () => {
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'RUNNING',
+        patientId: 'p1', patientName: 'Maria', mealPlanId: 'm1',
+        error: null, createdAt: '2026-08-29T12:00:00.000Z',
+        startedAt: '2026-08-29T12:00:00.000Z', finishedAt: null, isStuck: false,
+      }],
+      isLoading: false,
+    });
+
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+
+    expect(await screen.findByTestId('adjust-in-flight')).toBeInTheDocument();
+    // Ainda não há o que revisar — a faixa de pronto só vem depois.
+    expect(screen.queryByRole('button', { name: /revisar ajuste/i })).not.toBeInTheDocument();
+  });
+
+  it('não mostra ajuste em andamento de outro plano', async () => {
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'RUNNING',
+        patientId: 'p1', patientName: 'Maria', mealPlanId: 'm2',
+        error: null, createdAt: '2026-08-29T12:00:00.000Z',
+        startedAt: '2026-08-29T12:00:00.000Z', finishedAt: null, isStuck: false,
+      }],
+      isLoading: false,
+    });
+
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+
+    await screen.findByLabelText(/título/i);
+    expect(screen.queryByTestId('adjust-in-flight')).not.toBeInTheDocument();
+  });
+
   it('oferece carregar o ajuste pronto e marca como consumido', async () => {
     useAiJobsMock.mockReturnValue({
       data: [{

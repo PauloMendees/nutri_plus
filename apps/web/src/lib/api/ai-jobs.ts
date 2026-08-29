@@ -5,6 +5,12 @@ export function listAiJobs(patientId: string): Promise<AiJobView[]> {
   return browserApiFetch<AiJobView[]>(`/ai/jobs?patientId=${patientId}`);
 }
 
+// Sem paciente: todos os trabalhos do nutricionista. É o que o widget global
+// consome, já que ele aparece em telas que não têm paciente no contexto.
+export function listAllAiJobs(): Promise<AiJobView[]> {
+  return browserApiFetch<AiJobView[]>('/ai/jobs');
+}
+
 export function getAiJob(id: string): Promise<AiJobDetail> {
   return browserApiFetch<AiJobDetail>(`/ai/jobs/${id}`);
 }

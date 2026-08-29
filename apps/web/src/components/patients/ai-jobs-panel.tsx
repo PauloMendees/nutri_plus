@@ -12,7 +12,7 @@ const LABEL: Record<AiJobView['type'], { running: string; failed: string }> = {
 
 export function AiJobsPanel({ patientId }: { patientId: string }) {
   const query = useAiJobs(patientId);
-  const retry = useRetryAiJob(patientId);
+  const retry = useRetryAiJob();
   // Ajustes DONE não consumidos também vêm de listForPatient — é o que alimenta
   // a faixa "Ajuste pronto" no editor. Aqui eles não são trabalho em andamento.
   const jobs = (query.data ?? []).filter((job) => job.status !== 'DONE');

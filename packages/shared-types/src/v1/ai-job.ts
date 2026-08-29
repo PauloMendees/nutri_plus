@@ -23,6 +23,9 @@ export interface AiJobView {
   type: AiJobType;
   status: AiJobStatus;
   patientId: string;
+  // O widget global aparece fora da página do paciente, então precisa dizer de
+  // quem é cada processo — sem isso, dois jobs simultâneos ficam indistinguíveis.
+  patientName: string;
   mealPlanId: string | null;
   error: string | null;
   createdAt: string;

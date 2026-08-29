@@ -1,8 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { AiJobView } from '@nutri-plus/shared-types';
-import { consumeAiJob, getAiJob, listAiJobs, retryAiJob } from '@/lib/api/ai-jobs';
+import { consumeAiJob, getAiJob, listAiJobs, listAllAiJobs, retryAiJob } from '@/lib/api/ai-jobs';
 
 const ACTIVE: AiJobView['status'][] = ['PENDING', 'RUNNING'];
+
+// Invalidação usa o prefixo ['ai-jobs'] de propósito: existem duas chaves vivas,
+// ['ai-jobs', patientId] (painel do paciente) e ['ai-jobs', 'all'] (widget
+// global). Invalidar só a específica deixaria o widget desatualizado.
 
 export function useAiJobs(patientId: string) {
   return useQuery({
@@ -16,6 +20,16 @@ export function useAiJobs(patientId: string) {
   });
 }
 
+export function useAllAiJobs() {
+  return useQuery({
+    queryKey: ['ai-jobs', 'all'],
+    queryFn: listAllAiJobs,
+    // Mesma regra do hook por paciente: parado, não fica batendo na API.
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((j) => ACTIVE.includes(j.status)) ? 2000 : false,
+  });
+}
+
 export function useAiJob(id: string, enabled: boolean) {
   return useQuery({
     queryKey: ['ai-job', id],
@@ -24,18 +38,18 @@ export function useAiJob(id: string, enabled: boolean) {
   });
 }
 
-export function useRetryAiJob(patientId: string) {
+export function useRetryAiJob() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => retryAiJob(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-jobs', patientId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-jobs'] }),
   });
 }
 
-export function useConsumeAiJob(patientId: string) {
+export function useConsumeAiJob() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => consumeAiJob(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-jobs', patientId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ai-jobs'] }),
   });
 }

@@ -16,7 +16,7 @@ export class AiJobsController {
 
   @Get()
   list(@CurrentUser() ctx: AuthContext, @Query() query: ListAiJobsDto) {
-    return this.jobs.listForPatient(ctx, query.patientId);
+    return this.jobs.list(ctx, query.patientId);
   }
 
   @Get(':id')

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Loader2, Sparkles } from 'lucide-react';
 import {
   useFieldArray,
   useForm,
@@ -232,7 +232,7 @@ export function MealPlanEditor({
   const [exporting, setExporting] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
   const aiJobs = useAiJobs(patientId);
-  const consume = useConsumeAiJob(patientId);
+  const consume = useConsumeAiJob();
   // Preferência por nutricionista: o editor é reaberto dezenas de vezes por dia,
   // e perder a escolha a cada abertura irrita. Lida no mount para não divergir do SSR.
   const [showAllMacros, setShowAllMacros] = useState(false);
@@ -267,6 +267,16 @@ export function MealPlanEditor({
   // Só o ajuste DESTE plano. listForPatient devolve jobs do paciente inteiro, e
   // carregar o rascunho de outro plano aqui substituiria a árvore errada ao salvar.
   // Em modo criação (sem planId) nunca há faixa.
+  // Ajuste deste plano ainda em voo — antecede a faixa "Ajuste pronto".
+  const adjustInFlight = planId
+    ? (aiJobs.data ?? []).find(
+        (j) =>
+          j.type === 'MEAL_PLAN_ADJUSTMENT' &&
+          j.mealPlanId === planId &&
+          (j.status === 'PENDING' || j.status === 'RUNNING'),
+      )
+    : undefined;
+
   const readyAdjust = planId
     ? (aiJobs.data ?? []).find(
         (j) => j.type === 'MEAL_PLAN_ADJUSTMENT' && j.status === 'DONE' && j.mealPlanId === planId,
@@ -420,11 +430,11 @@ export function MealPlanEditor({
             {canEdit && (
               <Button
                 type="button"
-                variant="outline"
                 size="sm"
-                className="rounded-full"
+                className="rounded-full shadow-sm shadow-primary/30"
                 onClick={() => setAdjusting(true)}
               >
+                <Sparkles className="h-4 w-4" aria-hidden="true" />
                 Solicitar ajustes à IA
               </Button>
             )}
@@ -478,7 +488,17 @@ export function MealPlanEditor({
             </div>
           </div>
 
-          {canEdit && readyAdjust && (
+          {adjustInFlight && (
+    <div
+      className="flex items-center gap-2 rounded-xl border bg-card p-3 text-sm text-muted-foreground"
+      data-testid="adjust-in-flight"
+    >
+      <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />
+      Ajuste em andamento. Avisamos aqui quando estiver pronto para revisar.
+    </div>
+  )}
+
+  {canEdit && readyAdjust && (
             <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/40 bg-card p-3 text-sm">
               <span>Ajuste pronto para este plano.</span>
               <Button

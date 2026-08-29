@@ -203,7 +203,37 @@ describe('AiJobsService.retry', () => {
   });
 });
 
-describe('AiJobsService.listForPatient (toView)', () => {
+describe('AiJobsService.list (toView)', () => {
+  it('traz o nome do paciente, que o widget global usa para distinguir os processos', async () => {
+    const { svc, prisma } = deps();
+    prisma.aiJob.findMany.mockResolvedValue([
+      {
+        id: 'j1', type: 'MEAL_PLAN_GENERATION', status: 'RUNNING', patientId: 'p1',
+        mealPlanId: null, error: null, createdAt: new Date(), startedAt: new Date(), finishedAt: null,
+        patient: { user: { name: 'Maria Silva' } },
+      },
+    ]);
+
+    const views = await svc.list(ctx, 'p1');
+
+    expect(views[0].patientName).toBe('Maria Silva');
+    // O include precisa existir, senão o nome chega vazio em produção.
+    expect(prisma.aiJob.findMany.mock.calls[0][0].include).toEqual({
+      patient: { select: { user: { select: { name: true } } } },
+    });
+  });
+
+  it('sem patientId, não filtra por paciente — é o que o widget global consome', async () => {
+    const { svc, prisma } = deps();
+    prisma.aiJob.findMany.mockResolvedValue([]);
+
+    await svc.list(ctx);
+
+    const where = prisma.aiJob.findMany.mock.calls[0][0].where;
+    expect(where.nutritionistId).toBe('n1');
+    expect(where).not.toHaveProperty('patientId');
+  });
+
   it('deriva isStuck por job e serializa datas como ISO string', async () => {
     const now = new Date();
     const stuckStartedAt = new Date(now.getTime() - 36 * 60_000);
@@ -220,7 +250,7 @@ describe('AiJobsService.listForPatient (toView)', () => {
       },
     ]);
 
-    const views = await svc.listForPatient(ctx, 'p1');
+    const views = await svc.list(ctx, 'p1');
 
     expect(views[0]).toMatchObject({ id: 'j-stuck', isStuck: true });
     expect(views[1]).toMatchObject({ id: 'j-ok', isStuck: false });
