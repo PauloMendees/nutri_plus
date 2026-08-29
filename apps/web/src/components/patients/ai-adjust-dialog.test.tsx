@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toast } from 'sonner';
 
 const adjustMut = vi.fn();
 vi.mock('@/lib/queries/meal-plans', () => ({
@@ -24,6 +25,8 @@ describe('AiAdjustDialog', () => {
 
     expect(adjustMut).toHaveBeenCalledWith('menos carboidrato no jantar');
     expect(onOpenChange).toHaveBeenCalledWith(false);
+    // A copy não promete um aviso que não existe: acompanhar é manual, no painel.
+    expect(toast.success).toHaveBeenCalledWith('Ajustando o plano em segundo plano. Acompanhe em Processos de IA.');
   });
 
   it('disables submit until instructions are entered', () => {

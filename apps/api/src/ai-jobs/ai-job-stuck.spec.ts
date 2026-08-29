@@ -5,7 +5,7 @@ const minutesAgo = (n: number) => new Date(now.getTime() - n * 60_000).toISOStri
 
 describe('isAiJobStuck', () => {
   it('considera travado o RUNNING acima do limiar', () => {
-    expect(isAiJobStuck({ status: 'RUNNING', startedAt: minutesAgo(11) }, now)).toBe(true);
+    expect(isAiJobStuck({ status: 'RUNNING', startedAt: minutesAgo(36) }, now)).toBe(true);
   });
 
   it('não considera travado o RUNNING recente', () => {
@@ -22,8 +22,8 @@ describe('isAiJobStuck', () => {
     expect(isAiJobStuck({ status: 'RUNNING', startedAt: null }, now)).toBe(false);
   });
 
-  it('o limiar é de 10 minutos', () => {
-    expect(AI_JOB_STUCK_AFTER_MS).toBe(10 * 60 * 1000);
+  it('o limiar é de 35 minutos', () => {
+    expect(AI_JOB_STUCK_AFTER_MS).toBe(35 * 60 * 1000);
   });
 
   it('exatamente no limiar ainda não é travado', () => {

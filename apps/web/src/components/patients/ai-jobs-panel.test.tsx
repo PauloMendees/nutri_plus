@@ -65,6 +65,15 @@ describe('AiJobsPanel', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it('mostra o motivo salvo pelo backend quando o job falhou', () => {
+    useAiJobsMock.mockReturnValue({
+      data: [job({ status: 'FAILED', error: 'Complete o cadastro. Faltando: altura, objetivo.' })],
+      isLoading: false,
+    });
+    render(<AiJobsPanel patientId="p1" />);
+    expect(screen.getByText('Complete o cadastro. Faltando: altura, objetivo.')).toBeInTheDocument();
+  });
+
   it('mostra erro quando repetir falha', async () => {
     retryMut.mockRejectedValue(new Error('boom'));
     useAiJobsMock.mockReturnValue({ data: [job({ status: 'FAILED', error: 'boom' })], isLoading: false });

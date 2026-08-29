@@ -66,6 +66,15 @@ describe('AiJobsService.create', () => {
     await svc.createForPlan(ctx, 'm1', 'menos carbo');
     expect(prisma.aiJob.create.mock.calls[0][0].data).toMatchObject({ mealPlanId: 'm1' });
   });
+
+  it('patientId de outro nutricionista (ou inexistente) responde 404 e não grava job', async () => {
+    const { svc, prisma } = deps();
+    prisma.patientProfile.findFirst.mockResolvedValue(null);
+    await expect(
+      svc.create(ctx, { type: 'MEAL_PLAN_GENERATION', patientId: 'other-nutri-patient' }),
+    ).rejects.toThrow(NotFoundException);
+    expect(prisma.aiJob.create).not.toHaveBeenCalled();
+  });
 });
 
 describe('AiJobsService.runJob', () => {
@@ -146,7 +155,7 @@ describe('AiJobsService.retry', () => {
     const stuck = deps({
       id: 'j1', type: 'MEAL_PLAN_GENERATION', status: 'RUNNING',
       nutritionistId: 'n1', patientId: 'p1', input: {},
-      startedAt: new Date(Date.now() - 11 * 60_000),
+      startedAt: new Date(Date.now() - 36 * 60_000),
     });
     await expect(stuck.svc.retry(ctx, 'j1')).resolves.toEqual({ jobId: 'j1' });
   });
@@ -161,7 +170,7 @@ describe('AiJobsService.retry', () => {
     const orphan = deps({
       id: 'j1', type: 'MEAL_PLAN_GENERATION', status: 'PENDING',
       nutritionistId: 'n1', patientId: 'p1', input: {},
-      createdAt: new Date(Date.now() - 11 * 60_000),
+      createdAt: new Date(Date.now() - 36 * 60_000),
     });
     await expect(orphan.svc.retry(ctx, 'j1')).resolves.toEqual({ jobId: 'j1' });
   });
@@ -170,12 +179,34 @@ describe('AiJobsService.retry', () => {
     const { svc } = deps();
     await expect(svc.retry(ctx, 'j1')).rejects.toThrow(NotFoundException);
   });
+
+  it('retry de FAILED com cota estourada rejeita e não grava (FAILED não conta na cota, então precisa ser checado de novo)', async () => {
+    const { svc, entitlements, prisma } = deps({
+      id: 'j1', type: 'MEAL_PLAN_GENERATION', status: 'FAILED',
+      nutritionistId: 'n1', patientId: 'p1', input: {}, startedAt: new Date(),
+    });
+    entitlements.assertAiActionQuota.mockRejectedValue(new Error('AI_QUOTA_EXCEEDED'));
+    await expect(svc.retry(ctx, 'j1')).rejects.toThrow();
+    expect(prisma.aiJob.update).not.toHaveBeenCalled();
+  });
+
+  it('retry de RUNNING travado passa mesmo com a cota no limite — o job já conta, checar de novo o rejeitaria a si mesmo', async () => {
+    const { svc, entitlements, prisma } = deps({
+      id: 'j1', type: 'MEAL_PLAN_GENERATION', status: 'RUNNING',
+      nutritionistId: 'n1', patientId: 'p1', input: {},
+      startedAt: new Date(Date.now() - 36 * 60_000),
+    });
+    entitlements.assertAiActionQuota.mockRejectedValue(new Error('AI_QUOTA_EXCEEDED'));
+    await expect(svc.retry(ctx, 'j1')).resolves.toEqual({ jobId: 'j1' });
+    expect(entitlements.assertAiActionQuota).not.toHaveBeenCalled();
+    expect(prisma.aiJob.update).toHaveBeenCalled();
+  });
 });
 
 describe('AiJobsService.listForPatient (toView)', () => {
   it('deriva isStuck por job e serializa datas como ISO string', async () => {
     const now = new Date();
-    const stuckStartedAt = new Date(now.getTime() - 11 * 60_000);
+    const stuckStartedAt = new Date(now.getTime() - 36 * 60_000);
     const okStartedAt = new Date(now.getTime() - 2 * 60_000);
     const { svc, prisma } = deps();
     prisma.aiJob.findMany.mockResolvedValue([

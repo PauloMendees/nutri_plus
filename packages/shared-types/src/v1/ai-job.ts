@@ -5,7 +5,10 @@ export type AiJobStatus = 'PENDING' | 'RUNNING' | 'DONE' | 'FAILED';
 
 // Um deploy no meio do job o deixa RUNNING para sempre — a API não tem varredura
 // corrigindo status. Quem lê decide, com este limiar.
-export const AI_JOB_STUCK_AFTER_MS = 10 * 60 * 1000;
+// 35 min: acima do pior caso do SDK da OpenAI (timeout de 10 min x 3 tentativas),
+// para que um job ainda vivo nunca seja apresentado como travado — repetir um job
+// vivo dispararia execução dupla.
+export const AI_JOB_STUCK_AFTER_MS = 35 * 60 * 1000;
 
 export function isAiJobStuck(
   job: { status: AiJobStatus; startedAt: string | null },

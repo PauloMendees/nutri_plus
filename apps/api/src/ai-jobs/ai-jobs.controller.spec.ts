@@ -1,3 +1,4 @@
+import { HTTP_CODE_METADATA } from '@nestjs/common/constants';
 import { AiJobsController } from './ai-jobs.controller';
 import { MealGenerationController } from '../meal-generation/meal-generation.controller';
 
@@ -65,5 +66,10 @@ describe('MealGenerationController — os dois POST criam job (e portanto passam
     expect(await c.adjustMealPlan(ctx, { planId: 'm1', instructions: 'y' } as never))
       .toEqual({ jobId: 'j2' });
     expect(jobs.createForPlan).toHaveBeenCalledWith(ctx, 'm1', 'y');
+  });
+
+  it('os dois POST respondem 202, contrato que a ordem de deploy depende', () => {
+    expect(Reflect.getMetadata(HTTP_CODE_METADATA, MealGenerationController.prototype.generateMealPlan)).toBe(202);
+    expect(Reflect.getMetadata(HTTP_CODE_METADATA, MealGenerationController.prototype.adjustMealPlan)).toBe(202);
   });
 });

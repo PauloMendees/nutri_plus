@@ -37,7 +37,7 @@ export function AiAdjustDialog({
     try {
       await adjust.mutateAsync(trimmed);
       onOpenChange(false);
-      toast.success('Ajustando o plano em segundo plano. Avisamos quando ficar pronto.');
+      toast.success('Ajustando o plano em segundo plano. Acompanhe em Processos de IA.');
     } catch {
       toast.error('Não foi possível ajustar o plano. Tente novamente.');
     }

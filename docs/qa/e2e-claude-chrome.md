@@ -15,7 +15,7 @@ O agente **não** usa contas pré-existentes. Ele cria **duas nutricionistas** n
 | **C1** | Cadastro → confirma e-mail → **teste grátis 7 dias** (entitlements de Pro) → assina **Essencial mensal** → **upgrade Pro mensal** | Paciente, planos, agenda, gates Pro vs Essencial |
 | **C2** | Cadastro → confirma e-mail → **pula o trial** → paga **Pro mensal** na hora | Mesmo produto, já como Pro pago |
 
-Cobrança esperada (catálogo atual): C1 ≈ R$ 49 (Essencial) + diferença pró-rata do upgrade para Pro; C2 = R$ 99. Confira os valores na tela antes de pagar.
+Cobrança esperada (catálogo atual): C1 ≈ R$ 39 (Essencial) + diferença pró-rata do upgrade para Pro; C2 = R$ 79. Confira os valores na tela antes de pagar.
 
 ---
 
@@ -62,7 +62,7 @@ CONFIG (preencha antes de começar)
 - CEP: ___
 - ENDERECO_NUMERO: ___
 - TELEFONE: ___                  (com DDD)
-- PODE_PAGAR: sim                (vai gerar cobrança real: C1 Essencial 49 + upgrade pró-rata; C2 Pro 99)
+- PODE_PAGAR: sim                (vai gerar cobrança real: C1 Essencial 39 + upgrade pró-rata; C2 Pro 79)
 - PODE_GERAR_PLANO_IA: sim (1 por conta)
 - NÃO cancele assinatura no fim. NÃO apague as contas.
 
@@ -209,8 +209,8 @@ Na tela de checkout (plano já escolhido, método Cartão):
 
 Valores a conferir no momento do clique (não assumir):
 
-- Essencial mensal no catálogo de cobrança: **R$ 49**
-- Pro mensal: **R$ 99**
+- Essencial mensal no catálogo de cobrança: **R$ 39**
+- Pro mensal: **R$ 79**
 - Landing pode mostrar outros números — divergência = achado.
 
 ### 4.4 Pagar com Pix (só se `PAGAMENTO=PIX`)
@@ -306,7 +306,7 @@ Se o tempo apertar depois de C1G, ainda execute C2A–C2B (pagamento direto é o
 | 0.1 | `MARKETING_URL/` anônimo, 1440px | Landing completa: hero, CTAs cadastro/login, `#precos`, FAQ. Sem tela em branco. |
 | 0.2 | CTAs “Começar” / “Entrar” | `/signup` ou `/login`, não 404. |
 | 0.3 | `#precos`, Mensal / Anual | Cards Essencial e Pro. CTA Essencial → `/signup?plan=essencial`. CTA Pro → `/signup?plan=pro`. |
-| 0.4 | **Anote os preços da landing** | Devem bater com `/assinatura` e com o valor cobrado: Essencial **R$ 49**/mês (**R$ 490**/ano), Pro **R$ 99**/mês (**R$ 990**/ano). Pro: 200 ações de IA/mês (não “ilimitada”). Contabilidade existe nos dois planos. |
+| 0.4 | **Anote os preços da landing** | Devem bater com `/assinatura` e com o valor cobrado: Essencial **R$ 39**/mês (**R$ 390**/ano), Pro **R$ 79**/mês (**R$ 790**/ano). Pro: 200 ações de IA/mês (não “ilimitada”). Contabilidade existe nos dois planos. |
 | 0.5 | FAQ 2–3 itens | Português, sem placeholder. |
 | 0.6 | `/privacy` | “Política de Privacidade”, LGPD, `contato@inutri.life`. |
 | 0.7 | `/suporte` | mailto `contato@inutri.life`. |
@@ -378,7 +378,7 @@ Esperado específico do trial:
 | C1D.1 | `/assinatura` | Picker. Escolher **Essencial** + **Mensal**. |
 | C1D.2 | Método Cartão (ou Pix se CONFIG) | Protocolo 4.3 / 4.4. |
 | C1D.3 | Após sucesso | Dashboard. Faixa de trial **some**. Sem faixa somente-leitura. |
-| C1D.4 | Configurações → Assinatura | Plano **Essencial (mensal)**. Status **Ativa**. Método preenchido. Histórico com 1 pagamento ~ R$ 49 (ou o valor efetivamente cobrado — anote). |
+| C1D.4 | Configurações → Assinatura | Plano **Essencial (mensal)**. Status **Ativa**. Método preenchido. Histórico com 1 pagamento ~ R$ 39 (ou o valor efetivamente cobrado — anote). |
 | C1D.5 | Recibo | Se chegar e-mail de recibo na INBOX, anote. Se não chegar, S3 (não bloqueia). |
 
 ---
@@ -428,7 +428,7 @@ Igual C1A, com nome/e-mail da C2. Cai em `/assinatura` com trial ainda disponív
 | C2B.1 | **Não** clique em “Começar teste grátis”. | |
 | C2B.2 | Escolher **Pro** + **Mensal** | Passo Pix/Cartão. |
 | C2B.3 | Pagar (protocolo 4.3/4.4) | Redirect ao painel. **Sem** faixa de trial. Sem onboarding loop. |
-| C2B.4 | Configurações → Assinatura | Plano **Pro (mensal)**, **Ativa**, pagamento ~ R$ 99. |
+| C2B.4 | Configurações → Assinatura | Plano **Pro (mensal)**, **Ativa**, pagamento ~ R$ 79. |
 | C2B.5 | Abrir `/assinatura` | Título “Troque de plano”. Card Pro = “Seu plano atual”. Essencial mostra preview de **agendamento** (downgrade), não cobrança na hora. Não confirme downgrade. |
 
 ---
@@ -599,8 +599,8 @@ Dialog no sidebar, e-mail pré-preenchido, categorias em português. 1 envio “
 
 | Tema | Marketing | Cobrança / app |
 |---|---|---|
-| Essencial mensal | R$ 59 | R$ 49 |
-| Pro mensal | R$ 97 | R$ 99 |
+| Essencial mensal | R$ 59 | R$ 39 |
+| Pro mensal | R$ 97 | R$ 79 |
 | IA no Pro | até 200/mês | 200/mês |
 | Contabilidade | Pro | sem ProGate |
 | Trial | 7 dias | entitlements de Pro |

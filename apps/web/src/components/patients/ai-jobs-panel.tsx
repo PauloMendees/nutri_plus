@@ -39,10 +39,17 @@ export function AiJobsPanel({ patientId }: { patientId: string }) {
           const canRetry = failed || job.isStuck;
           return (
             <li key={job.id} className="flex flex-wrap items-center gap-3 text-sm">
-              <span className={failed ? 'text-destructive' : 'text-muted-foreground'}>
-                {failed ? LABEL[job.type].failed : LABEL[job.type].running}
-                {job.isStuck && !failed && ' (parece travado)'}
-              </span>
+              <div className="flex flex-col">
+                <span className={failed ? 'text-destructive' : 'text-muted-foreground'}>
+                  {failed ? LABEL[job.type].failed : LABEL[job.type].running}
+                  {job.isStuck && !failed && ' (parece travado)'}
+                </span>
+                {/* Motivo salvo pelo backend (ex.: cadastro incompleto) — sem isto a
+                    nutricionista só vê um erro genérico que não diz o que fazer. */}
+                {failed && job.error && (
+                  <span className="text-xs text-muted-foreground">{job.error}</span>
+                )}
+              </div>
               {canRetry && (
                 <Button
                   type="button"

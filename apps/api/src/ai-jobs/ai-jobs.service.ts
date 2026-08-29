@@ -49,6 +49,14 @@ export class AiJobsService {
     // NUTRITIONIST usa o próprio perfil; EMPLOYEE age no escopo do nutricionista
     // dono. O resolver é a única fonte disso no projeto.
     const nutritionistId = resolveScopeNutritionistId(ctx);
+    // Espelha a checagem de posse de createForPlan: sem isto, um patientId
+    // inexistente ou de outro nutricionista estoura a FK do Prisma (P2003) e
+    // vira 500 em vez de 404.
+    const patient = await this.prisma.patientProfile.findFirst({
+      where: { id: args.patientId, nutritionistId },
+      select: { id: true },
+    });
+    if (!patient) throw new NotFoundException('Paciente não encontrado.');
     // Antes de gravar: um job PENDING já conta contra a cota (Task 4), então
     // verificar aqui é o que impede enfileirar acima do teto.
     await this.entitlements.assertAiActionQuota(nutritionistId);
@@ -163,6 +171,12 @@ export class AiJobsService {
     const stuck = isAiJobStuck({ status: job.status, startedAt }, new Date()) || orphanPending;
     if (job.status !== 'FAILED' && !stuck) {
       throw new ConflictException('Este trabalho não pode ser repetido agora.');
+    }
+
+    // Só o ramo FAILED precisa de cota: um job travado ainda é PENDING/RUNNING,
+    // então já está contado, e verificar de novo o faria rejeitar a si mesmo.
+    if (job.status === 'FAILED') {
+      await this.entitlements.assertAiActionQuota(resolveScopeNutritionistId(ctx));
     }
 
     await this.prisma.aiJob.update({

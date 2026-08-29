@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toast } from 'sonner';
 import { ApiError } from '@/lib/api/client';
 
 const generateMut = vi.fn();
@@ -49,6 +50,8 @@ describe('AiGenerateDialog', () => {
     expect(notifyChapterActionSucceeded).toHaveBeenCalled();
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
     expect(push).not.toHaveBeenCalled();
+    // A copy não promete um aviso que não existe: acompanhar é manual, no painel.
+    expect(toast.success).toHaveBeenCalledWith('Gerando o plano em segundo plano. Acompanhe em Processos de IA.');
   });
 
   it('still closes the dialog when the tour reports the generation was consumed', async () => {
@@ -67,17 +70,6 @@ describe('AiGenerateDialog', () => {
     await waitFor(() => expect(generateMut).toHaveBeenCalledWith(undefined));
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
     expect(push).not.toHaveBeenCalled();
-  });
-
-  it('shows the missing-fields message on a 422 and keeps the dialog open', async () => {
-    generateMut.mockRejectedValue(new ApiError(422, { message: 'Cannot generate a plan: missing height, objective' }));
-    render(<AiGenerateDialog open onOpenChange={onOpenChange} patientId="p1" />);
-    await userEvent.click(screen.getByRole('button', { name: /gerar plano/i }));
-    expect(await screen.findByText(/altura/i)).toBeInTheDocument();
-    expect(screen.getByText(/objetivo/i)).toBeInTheDocument();
-    expect(onOpenChange).not.toHaveBeenCalledWith(false);
-    expect(push).not.toHaveBeenCalled();
-    expect(notifyChapterActionSucceeded).not.toHaveBeenCalled();
   });
 
   it('exits the tour on 402 and does not notify success', async () => {
