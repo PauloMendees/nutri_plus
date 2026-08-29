@@ -1,12 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ApiError } from '@/lib/api/client';
 import { useGenerateMealPlan } from '@/lib/queries/meal-plans';
 import { registerFixture } from '@/lib/onboarding/fixtures';
-import { missingFieldsFromError } from '@/lib/meal-plans/generate-error';
 import { useTour } from '@/components/onboarding/tour-provider';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -28,15 +26,12 @@ export function AiGenerateDialog({
   patientId: string;
 }) {
   const generate = useGenerateMealPlan(patientId);
-  const router = useRouter();
   const tour = useTour();
   const [instructions, setInstructions] = useState('');
-  const [missing, setMissing] = useState<string[] | null>(null);
 
   useEffect(() => {
     if (open) {
       setInstructions('');
-      setMissing(null);
     }
   }, [open]);
 
@@ -48,26 +43,21 @@ export function AiGenerateDialog({
   }, [open]);
 
   async function onGenerate() {
-    setMissing(null);
     try {
       const trimmed = instructions.trim();
-      const plan = await generate.mutateAsync(trimmed || undefined);
-      const consumed = await tour.notifyChapterActionSucceeded();
+      await generate.mutateAsync(trimmed || undefined);
+      await tour.notifyChapterActionSucceeded();
       onOpenChange(false);
-      if (!consumed) {
-        router.push(`/patients/${patientId}/planos/${plan.id}`);
-      }
+      toast.success('Gerando o plano em segundo plano. Acompanhe em Processos de IA.');
     } catch (err) {
       if (err instanceof ApiError && err.status === 402) {
         tour.exit();
         return;
       }
-      const fields = missingFieldsFromError(err);
-      if (fields) {
-        setMissing(fields);
-      } else {
-        toast.error('Não foi possível gerar o plano. Tente novamente.');
-      }
+      // O endpoint responde 202 antes de validar o cadastro: cadastro incompleto
+      // (altura, objetivo, ...) agora vira job FAILED, com o motivo exibido no
+      // painel de Processos de IA (job.error) em vez de um 422 aqui no diálogo.
+      toast.error('Não foi possível gerar o plano. Tente novamente.');
     }
   }
 
@@ -94,13 +84,6 @@ export function AiGenerateDialog({
             As instruções padrão das suas Configurações também se aplicam. Alergias, restrições e as metas do dia são sempre respeitadas.
           </p>
         </div>
-
-        {missing && (
-          <div className="rounded-xl border border-destructive/40 bg-card p-3 text-sm">
-            <p className="font-medium text-destructive">Complete o cadastro do paciente para gerar com IA.</p>
-            <p className="mt-1 text-muted-foreground">Faltando: {missing.join(', ')}.</p>
-          </div>
-        )}
 
         <DialogFooter className="justify-end">
           <Button

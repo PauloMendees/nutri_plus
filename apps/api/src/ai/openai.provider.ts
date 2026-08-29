@@ -7,6 +7,11 @@ import { AIInteractionType } from '../generated/prisma/client';
 import { estimateCostUsd, estimateTranscriptionCostUsd } from './pricing';
 import { GenerateStructuredOptions, ModelTier } from './types/ai.types';
 
+// Pior caso de uma chamada: 10 min x 3 tentativas = 30 min. É o número que
+// AI_JOB_STUCK_AFTER_MS precisa superar.
+export const OPENAI_TIMEOUT_MS = 10 * 60 * 1000;
+export const OPENAI_MAX_RETRIES = 2;
+
 // Keep stored error payloads bounded; full content is never logged (PII).
 function truncate(s: string, max = 500): string {
   return s.length > max ? `${s.slice(0, max)}…` : s;
@@ -27,8 +32,14 @@ export class OpenAIProvider {
     config: ConfigService,
     private readonly interactions: AiInteractionsService,
   ) {
+    // Explícitos de propósito: AI_JOB_STUCK_AFTER_MS (35 min, em shared-types)
+    // é dimensionado sobre o PIOR CASO daqui — timeout x (1 + maxRetries). Se
+    // esses números mudarem, aquele limiar precisa mudar junto, senão um job
+    // ainda vivo passa a ser apresentado como travado.
     this.client = new OpenAI({
       apiKey: config.getOrThrow<string>('OPENAI_API_KEY'),
+      timeout: OPENAI_TIMEOUT_MS,
+      maxRetries: OPENAI_MAX_RETRIES,
     });
     this.models = {
       smart: config.getOrThrow<string>('OPENAI_MODEL_SMART'),
@@ -151,19 +162,23 @@ export class OpenAIProvider {
       const file = await toFile(buffer, filename);
       const result = await this.client.audio.transcriptions.create({ model, file, language: 'pt' });
       text = result.text;
-    } catch {
+    } catch (err) {
+      // O motivo real precisa sobreviver: engolir a exceção aqui já custou um
+      // diagnóstico em que "não foi possível transcrever" escondia um
+      // "file too large" da OpenAI, e só medir o arquivo por fora revelou.
+      const reason = err instanceof Error ? err.message : String(err);
       await this.interactions.record({
         type: AIInteractionType.CONSULTATION_TRANSCRIPTION,
         model,
         input: meta,
         latencyMs: Date.now() - startedAt,
         success: false,
-        errorMessage: 'OpenAI transcription failed',
+        errorMessage: truncate(reason),
         patientId: opts.patientId,
         nutritionistId: opts.nutritionistId,
       });
-      this.logger.warn(`OpenAI transcription failed (model=${model})`);
-      throw new BadGatewayException('AI provider unavailable');
+      this.logger.warn(`OpenAI transcription failed (model=${model}): ${reason}`);
+      throw new BadGatewayException(reason);
     }
 
     const latencyMs = Date.now() - startedAt;

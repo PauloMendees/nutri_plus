@@ -1,4 +1,7 @@
 import { SubscriptionService } from './subscription.service';
+import { planValue } from './prorata';
+
+// Derivados do catálogo: estes testes são sobre a fiação com o Asaas, não sobre o preço.
 
 function deps(sub: any) {
   const prisma = {
@@ -37,7 +40,7 @@ describe('SubscriptionService.checkout', () => {
     const out = await svc.checkout('n1', { plan: 'ESSENCIAL', period: 'MONTHLY', cpfCnpj: '12345678901', method: 'PIX' }, { name: 'A', email: 'a@x.com' }, '1.2.3.4');
     expect(out).toEqual({ method: 'PIX', pixQrCode: { encodedImage: 'B64', payload: 'p' } });
     expect(asaas.ensureCustomer).toHaveBeenCalled();
-    expect(asaas.createPixSubscription).toHaveBeenCalledWith(expect.objectContaining({ value: 49, cycle: 'MONTHLY', customerId: 'cus_1' }));
+    expect(asaas.createPixSubscription).toHaveBeenCalledWith(expect.objectContaining({ value: planValue('ESSENCIAL', 'MONTHLY'), cycle: 'MONTHLY', customerId: 'cus_1' }));
     expect(prisma.subscription.update).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ asaasSubscriptionId: 'sub_1', plan: 'ESSENCIAL', billingPeriod: 'MONTHLY' }),
     }));
@@ -48,7 +51,7 @@ describe('SubscriptionService.checkout', () => {
     await svc.checkout('n1', { plan: 'PRO', period: 'YEARLY', cpfCnpj: '12345678901', method: 'PIX' }, { name: 'A', email: 'a@x.com' }, '1.2.3.4');
     expect(asaas.ensureCustomer).not.toHaveBeenCalled();
     expect(asaas.cancelSubscription).toHaveBeenCalledWith('sub_old');
-    expect(asaas.createPixSubscription).toHaveBeenCalledWith(expect.objectContaining({ value: 990, cycle: 'YEARLY' }));
+    expect(asaas.createPixSubscription).toHaveBeenCalledWith(expect.objectContaining({ value: planValue('PRO', 'YEARLY'), cycle: 'YEARLY' }));
   });
 
   it('checkout PIX cria assinatura Pix, grava onboarding/método e retorna o QR (status intacto)', async () => {
@@ -156,7 +159,7 @@ describe('SubscriptionService.changePlan', () => {
     expect(out).toMatchObject({ kind: 'UPGRADE', method: 'CREDIT_CARD', status: 'ACTIVE' });
     expect((out as any).amount).toBeGreaterThan(0); // ChangePlanResponse.SCHEDULED não tem `amount`; TS não estreita via toMatchObject
     expect(asaas.createOneOffCharge).toHaveBeenCalledWith(expect.objectContaining({ billingType: 'CREDIT_CARD', creditCardToken: 'tok_1' }));
-    expect(asaas.updateSubscriptionValue).toHaveBeenCalledWith('sub_1', { value: 99 });
+    expect(asaas.updateSubscriptionValue).toHaveBeenCalledWith('sub_1', { value: planValue('PRO', 'MONTHLY') });
     const data = prisma.subscription.update.mock.calls[0][0].data;
     expect(data).toMatchObject({ plan: 'PRO' });
     expect(data.currentPeriodEnd).toBeUndefined(); // mantém o vencimento
@@ -198,7 +201,7 @@ describe('SubscriptionService.changePlan', () => {
     const out = await svc.changePlan('n1', { plan: 'ESSENCIAL', period: 'MONTHLY' });
     expect(out).toMatchObject({ kind: 'SCHEDULED' });
     expect(asaas.createOneOffCharge).not.toHaveBeenCalled();
-    expect(asaas.updateSubscriptionValue).toHaveBeenCalledWith('sub_1', { value: 49, cycle: 'MONTHLY' });
+    expect(asaas.updateSubscriptionValue).toHaveBeenCalledWith('sub_1', { value: planValue('ESSENCIAL', 'MONTHLY'), cycle: 'MONTHLY' });
     expect(prisma.subscription.update.mock.calls[0][0].data).toMatchObject({ pendingPlan: 'ESSENCIAL' });
   });
 
@@ -229,7 +232,7 @@ describe('SubscriptionService.previewChangePlan', () => {
     const out = await svc.previewChangePlan('n1', { plan: 'PRO', period: 'MONTHLY' });
     expect(out.kind).toBe('UPGRADE');
     expect(out.amountNow).toBeGreaterThan(0);
-    expect(out.recurringValue).toBe(99);
+    expect(out.recurringValue).toBe(planValue('PRO', 'MONTHLY'));
     expect(out.recurringPeriod).toBe('MONTHLY');
     expect(typeof out.effectiveDate).toBe('string');
     // Sem efeito colateral: nada de Asaas nem gravação.
@@ -244,7 +247,7 @@ describe('SubscriptionService.previewChangePlan', () => {
     const out = await svc.previewChangePlan('n1', { plan: 'ESSENCIAL', period: 'MONTHLY' });
     expect(out.kind).toBe('SCHEDULED');
     expect(out.amountNow).toBe(0);
-    expect(out.recurringValue).toBe(49);
+    expect(out.recurringValue).toBe(planValue('ESSENCIAL', 'MONTHLY'));
     expect(out.recurringPeriod).toBe('MONTHLY');
     expect(prisma.subscription.update).not.toHaveBeenCalled();
     expect(asaas.updateSubscriptionValue).not.toHaveBeenCalled();

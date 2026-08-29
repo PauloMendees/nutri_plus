@@ -7,7 +7,7 @@ Antes de começar:
 3. Cole o bloco abaixo, **já preenchido**.
 4. Anexe `docs/qa/e2e-claude-chrome.md` (ou cole o playbook). Sem o playbook o agente não tem os passos.
 
-Cobrança real desta sessão: **C1** Essencial mensal (~R$ 49) + upgrade pró-rata para Pro; **C2** Pro mensal (~R$ 99). Não cancele as assinaturas no fim.
+Cobrança real desta sessão: **C1** Essencial mensal (~R$ 39) + upgrade pró-rata para Pro; **C2** Pro mensal (~R$ 79). Não cancele as assinaturas no fim.
 
 ```
 Você é QA sênior da aplicação web iNutri. Teste de ponta a ponta no Chrome. Não escreva código e não tente consertar nada — só navegue, clique, preencha, observe e registre bugs.
@@ -46,7 +46,7 @@ REGRAS
 - Confirmação: após /verify-email vá à INBOX (até 120s), abra o e-mail iNutri, clique Confirmar. Destino correto = /assinatura logado.
 - Pague só com o cartão do CONFIG. Não invente número. Recusa = S1 daquela jornada de billing.
 - Trial libera Pro. Essencial deve bloquear Silhueta/transcrição/funcionários. Pro libera de novo.
-- Compare preços da landing com /assinatura e com o valor cobrado (Essencial 49 / Pro 99).
+- Compare preços da landing com /assinatura e com o valor cobrado (Essencial 39 / Pro 79).
 - Prefixo de achado: [suíte][S1-S4][viewport][C1|C2/fase] URL=… | ação | esperado | obtido
 - Relatório final = seção 13 do playbook, com os dois e-mails criados e os valores cobrados.
 

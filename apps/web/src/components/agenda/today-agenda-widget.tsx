@@ -9,6 +9,7 @@ import { useAppointments } from "@/lib/queries/appointments";
 import { startOfDay, formatTimeRange } from "@/lib/agenda/dates";
 import { appointmentColor } from "@/lib/agenda/colors";
 import { AppointmentDialog } from "@/components/agenda/appointment-dialog";
+import { useMinimizedPreference } from "@/lib/ui/use-minimized-preference";
 
 const STORAGE_KEY = "today-agenda-widget:minimized";
 
@@ -24,19 +25,9 @@ function todayRange(): { from: string; to: string } {
 
 export function TodayAgendaWidget() {
   const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
-  const [minimized, setMinimized] = useState(false);
+  const { mounted, minimized, setMinimized } = useMinimizedPreference(STORAGE_KEY);
   const [editing, setEditing] = useState<Appointment | null>(null);
   const [creating, setCreating] = useState(false);
-
-  // Read the persisted collapsed preference after mount (SSR/hydration-safe).
-  useEffect(() => {
-    setMounted(true);
-    setMinimized(window.localStorage.getItem(STORAGE_KEY) === "true");
-  }, []);
-  useEffect(() => {
-    if (mounted) window.localStorage.setItem(STORAGE_KEY, String(minimized));
-  }, [mounted, minimized]);
 
   const { from, to } = todayRange();
   const query = useAppointments({ from, to });
@@ -50,8 +41,10 @@ export function TodayAgendaWidget() {
 
   const today = new Date();
 
+  // Posicionamento fica com o CornerWidgets do layout: dois widgets fixos no
+  // mesmo canto se sobreporiam.
   return (
-    <div className="fixed bottom-4 right-4 z-50 hidden md:block">
+    <div className="pointer-events-auto">
       {minimized ? (
         <button
           type="button"

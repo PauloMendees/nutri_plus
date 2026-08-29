@@ -10,7 +10,7 @@ import type {
   PaymentMethodRequest,
   SubscriptionView,
 } from '@nutri-plus/shared-types';
-import { PLAN_CATALOG, type PlanTier } from '@nutri-plus/shared-types';
+import { type PlanTier } from '@nutri-plus/shared-types';
 import { computePlanChange, planValue } from './prorata';
 import { PrismaService } from '../prisma/prisma.service';
 import { ResendService } from '../support/resend.service';
@@ -115,8 +115,7 @@ export class SubscriptionService {
       await this.asaas.cancelSubscription(sub.asaasSubscriptionId); // troca de plano
     }
 
-    const cfg = PLAN_CATALOG[dto.plan];
-    const value = dto.period === 'MONTHLY' ? cfg.monthlyBrl : cfg.yearlyBrl;
+    const value = planValue(dto.plan, dto.period);
     const base = {
       asaasCustomerId: customerId, plan: dto.plan, billingPeriod: dto.period,
       cancelAtPeriodEnd: false, onboardedAt: new Date(),

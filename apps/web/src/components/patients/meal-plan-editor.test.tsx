@@ -42,8 +42,20 @@ vi.mock('@/lib/queries/foods', () => ({
     isFetching: false,
   }),
 }));
+const useAiJobsMock = vi.fn().mockReturnValue({ data: [], isLoading: false });
+const consumeMut = vi.fn().mockResolvedValue(undefined);
+const getAiJobMock = vi.fn();
+// Mock parcial: só os hooks precisam de dublê. adjustmentInFlightFor é lógica
+// pura e deve ser exercitada de verdade — reimplementá-la aqui recriaria a
+// duplicação que a extração removeu.
+vi.mock('@/lib/queries/ai-jobs', async (orig) => ({
+  ...(await orig<typeof import('@/lib/queries/ai-jobs')>()),
+  useAiJobs: (...a: unknown[]) => useAiJobsMock(...a),
+  useConsumeAiJob: () => ({ mutateAsync: consumeMut, isPending: false }),
+}));
+vi.mock('@/lib/api/ai-jobs', () => ({ getAiJob: (...a: unknown[]) => getAiJobMock(...a) }));
 
-import { MealPlanEditor } from './meal-plan-editor';
+import { MealPlanEditor, fmtMacro, parseGrams } from './meal-plan-editor';
 
 const plan = {
   id: 'm1', patientId: 'p1', title: 'Plano A', objective: 'Hipertrofia', aiGenerated: false,
@@ -61,6 +73,14 @@ const plan = {
 };
 
 beforeEach(() => {
+  // O toggle "Ver outros macros" persiste em localStorage, que o jsdom mantém
+  // entre testes do mesmo arquivo — sem limpar, um teste que liga o toggle muda
+  // o que os seguintes renderizam.
+  try {
+    localStorage.clear();
+  } catch {
+    // ambiente sem storage: nada a limpar
+  }
   useMealPlan.mockReset().mockReturnValue({ data: plan, isLoading: false, isError: false });
   createMut.mockReset().mockResolvedValue({ id: 'new1' });
   updateMut.mockReset().mockResolvedValue(plan);
@@ -69,6 +89,9 @@ beforeEach(() => {
   replace.mockReset();
   downloadMealPlanPdf.mockReset().mockResolvedValue(undefined);
   notifyChapterActionSucceeded.mockReset().mockResolvedValue(false);
+  useAiJobsMock.mockReset().mockReturnValue({ data: [], isLoading: false });
+  consumeMut.mockReset().mockResolvedValue(undefined);
+  getAiJobMock.mockReset();
 });
 
 describe('MealPlanEditor (edit mode)', () => {
@@ -160,11 +183,33 @@ describe('MealPlanEditor (edit mode)', () => {
     expect(within(firstOption).getByTestId('option-subtotal-calories')).toHaveTextContent('Kcal 230');
   });
 
-  it('shows fiber/sodium totals for a single item', () => {
+  it('alarga os inputs de macro quando fibra e sódio estão ocultos', async () => {
     render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    const optionCard = screen.getAllByTestId('option-card')[0];
+
+    // Com 4 colunas sobra espaço: valores de 3 dígitos não podem sair cortados.
+    expect(within(optionCard).getByLabelText('Kcal')).toHaveClass('w-24');
+
+    await userEvent.click(screen.getByRole('button', { name: /ver outros macros/i }));
+
+    // Com 6 colunas o espaço acaba e os inputs voltam ao tamanho compacto.
+    expect(within(optionCard).getByLabelText('Kcal')).toHaveClass('w-16');
+  });
+
+  it('hides fiber/sodium totals until "Ver outros macros" is pressed', async () => {
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    expect(screen.queryByTestId('total-fiber')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('total-sodium')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /ver outros macros/i }));
     expect(screen.getByTestId('total-fiber')).toHaveTextContent('3');
     expect(screen.getByTestId('total-sodium')).toHaveTextContent('5');
+
+    await userEvent.click(screen.getByRole('button', { name: /ocultar outros macros/i }));
+    expect(screen.queryByTestId('total-fiber')).not.toBeInTheDocument();
   });
+
+
 
   it('applies the latest nutrition target via "Usar Meta atual"', async () => {
     render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
@@ -231,6 +276,111 @@ describe('MealPlanEditor (edit mode)', () => {
     render(<MealPlanEditor patientId="p1" canEdit />);
     expect(screen.queryByRole('button', { name: /solicitar ajustes à ia/i })).toBeNull();
   });
+
+  it('mostra que há ajuste em andamento para este plano', async () => {
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'RUNNING',
+        patientId: 'p1', patientName: 'Maria', mealPlanId: 'm1',
+        error: null, createdAt: '2026-08-29T12:00:00.000Z',
+        startedAt: '2026-08-29T12:00:00.000Z', finishedAt: null, isStuck: false,
+      }],
+      isLoading: false,
+    });
+
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+
+    expect(await screen.findByTestId('adjust-in-flight')).toBeInTheDocument();
+    // Ainda não há o que revisar — a faixa de pronto só vem depois.
+    expect(screen.queryByRole('button', { name: /revisar ajuste/i })).not.toBeInTheDocument();
+  });
+
+  it('não mostra ajuste em andamento de outro plano', async () => {
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'RUNNING',
+        patientId: 'p1', patientName: 'Maria', mealPlanId: 'm2',
+        error: null, createdAt: '2026-08-29T12:00:00.000Z',
+        startedAt: '2026-08-29T12:00:00.000Z', finishedAt: null, isStuck: false,
+      }],
+      isLoading: false,
+    });
+
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+
+    await screen.findByLabelText(/título/i);
+    expect(screen.queryByTestId('adjust-in-flight')).not.toBeInTheDocument();
+  });
+
+  it('oferece carregar o ajuste pronto e marca como consumido', async () => {
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'DONE', patientId: 'p1',
+        mealPlanId: 'm1', error: null, createdAt: '2026-08-28T12:00:00.000Z',
+        startedAt: null, finishedAt: '2026-08-28T12:01:00.000Z', isStuck: false,
+      }],
+      isLoading: false,
+    });
+    getAiJobMock.mockResolvedValue({ result: { title: 'Plano ajustado', meals: [] } });
+
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+
+    await userEvent.click(await screen.findByRole('button', { name: /revisar ajuste/i }));
+
+    expect(await screen.findByDisplayValue('Plano ajustado')).toBeInTheDocument();
+    expect(consumeMut).toHaveBeenCalledWith('j1');
+    // Carregar não salva: é a promessa central da faixa.
+    expect(updateMut).not.toHaveBeenCalled();
+  });
+
+  it('não mostra a faixa em modo leitura (EMPLOYEE sem permissão), mesmo com ajuste pronto para este plano', () => {
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'DONE', patientId: 'p1',
+        mealPlanId: 'm1', error: null, createdAt: '2026-08-28T12:00:00.000Z',
+        startedAt: null, finishedAt: '2026-08-28T12:01:00.000Z', isStuck: false,
+      }],
+      isLoading: false,
+    });
+
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit={false} />);
+
+    expect(screen.queryByRole('button', { name: /revisar ajuste/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/ajuste pronto/i)).not.toBeInTheDocument();
+  });
+
+  it('não mostra a faixa quando o ajuste pronto pertence a OUTRO plano do mesmo paciente', () => {
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'DONE', patientId: 'p1',
+        mealPlanId: 'm2', error: null, createdAt: '2026-08-28T12:00:00.000Z',
+        startedAt: null, finishedAt: '2026-08-28T12:01:00.000Z', isStuck: false,
+      }],
+      isLoading: false,
+    });
+
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+
+    expect(screen.queryByRole('button', { name: /revisar ajuste/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/ajuste pronto/i)).not.toBeInTheDocument();
+  });
+
+  it('não mostra a faixa em modo criação (sem planId)', () => {
+    useMealPlan.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'DONE', patientId: 'p1',
+        mealPlanId: null, error: null, createdAt: '2026-08-28T12:00:00.000Z',
+        startedAt: null, finishedAt: '2026-08-28T12:01:00.000Z', isStuck: false,
+      }],
+      isLoading: false,
+    });
+
+    render(<MealPlanEditor patientId="p1" canEdit />);
+
+    expect(screen.queryByRole('button', { name: /revisar ajuste/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/ajuste pronto/i)).not.toBeInTheDocument();
+  });
 });
 
 describe('MealPlanEditor (create mode)', () => {
@@ -250,7 +400,7 @@ describe('MealPlanEditor (create mode)', () => {
     expect(screen.queryByRole('button', { name: /exportar pdf/i })).not.toBeInTheDocument();
   });
 
-  it('picks a food via the picker dialog, then recomputes macros as grams change', async () => {
+  it('picks a food via the picker dialog, then recomputes macros as the quantity changes', async () => {
     render(<MealPlanEditor patientId="p1" canEdit />);
     const optionCard = screen.getAllByTestId('option-card')[0];
 
@@ -258,16 +408,92 @@ describe('MealPlanEditor (create mode)', () => {
     await userEvent.type(screen.getByRole('textbox', { name: /buscar alimento/i }), 'arroz');
     await userEvent.click(await screen.findByRole('button', { name: /arroz integral cozido/i }));
 
-    const grams = within(optionCard).getByLabelText('Gramas');
-    await userEvent.clear(grams);
-    await userEvent.type(grams, '150');
+    // Sem porção declarada, escolher o alimento assume 100 g e escreve no campo.
+    const quantity = within(optionCard).getByLabelText('Quantidade');
+    expect(quantity).toHaveValue('100 g');
+
+    await userEvent.clear(quantity);
+    await userEvent.type(quantity, '150 g');
 
     expect(within(optionCard).getByLabelText('Kcal')).toHaveValue(186);
     expect(within(optionCard).getByLabelText('P')).toHaveValue(4);
     expect(within(optionCard).getByLabelText('C')).toHaveValue(39);
     expect(within(optionCard).getByLabelText('G')).toHaveValue(2);
+    expect(within(optionCard).getByDisplayValue('Arroz integral cozido')).toBeInTheDocument();
+
+    // Fibra e sódio só existem na tela depois do toggle.
+    expect(within(optionCard).queryByLabelText('Fib')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /ver outros macros/i }));
     expect(within(optionCard).getByLabelText('Fib')).toHaveValue(4);
     expect(within(optionCard).getByLabelText('Na')).toHaveValue(2);
-    expect(within(optionCard).getByDisplayValue('Arroz integral cozido')).toBeInTheDocument();
+  });
+
+  it('keeps a household measure and leaves macros alone when no grams are written', async () => {
+    render(<MealPlanEditor patientId="p1" canEdit />);
+    const optionCard = screen.getAllByTestId('option-card')[0];
+
+    await userEvent.click(within(optionCard).getByRole('button', { name: /buscar alimento/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /buscar alimento/i }), 'arroz');
+    await userEvent.click(await screen.findByRole('button', { name: /arroz integral cozido/i }));
+
+    const quantity = within(optionCard).getByLabelText('Quantidade');
+    await userEvent.clear(quantity);
+    await userEvent.type(quantity, '1 xícara (120 g)');
+
+    // O número entre parênteses vence a medida caseira que vem antes.
+    expect(within(optionCard).getByLabelText('Kcal')).toHaveValue(149);
+    expect(quantity).toHaveValue('1 xícara (120 g)');
+
+    await userEvent.clear(quantity);
+    await userEvent.type(quantity, '2 fatias');
+
+    // Sem gramas no texto, os macros ficam como estavam — não zeram.
+    expect(within(optionCard).getByLabelText('Kcal')).toHaveValue(149);
+  });
+});
+
+describe('fmtMacro', () => {
+  it('corta o ruído de ponto flutuante da soma', () => {
+    // 87.6 + 87.6 em float dá 175.20000000000002 — foi o que apareceu na tela.
+    expect(fmtMacro('protein', 87.6 + 87.6)).toBe('175.2');
+    expect(fmtMacro('carbs', 526.1500000000001)).toBe('526.2');
+    expect(fmtMacro('fats', 102.99999999999999)).toBe('103');
+  });
+
+  it('usa inteiro para kcal e sódio, uma casa para os demais', () => {
+    expect(fmtMacro('calories', 3713.4)).toBe('3713');
+    expect(fmtMacro('sodium', 5.6)).toBe('6');
+    expect(fmtMacro('fiber', 3.25)).toBe('3.3');
+  });
+
+  it('não escreve casa decimal inútil', () => {
+    expect(fmtMacro('protein', 180)).toBe('180');
+  });
+});
+
+describe('parseGrams', () => {
+  it('lê as formas usuais', () => {
+    expect(parseGrams('120 g')).toBe(120);
+    expect(parseGrams('120g')).toBe(120);
+    expect(parseGrams('200 ml')).toBe(200);
+    expect(parseGrams('80 gramas')).toBe(80);
+  });
+
+  it('converte kg e litro', () => {
+    expect(parseGrams('0,5 kg')).toBe(500);
+    expect(parseGrams('1.2 kg')).toBe(1200);
+    expect(parseGrams('1 l')).toBe(1000);
+  });
+
+  it('prefere o número da última unidade, não o da medida caseira', () => {
+    expect(parseGrams('1 xícara (120 g)')).toBe(120);
+    expect(parseGrams('2 colheres de sopa (30 g)')).toBe(30);
+  });
+
+  it('devolve null quando não há gramas declaradas', () => {
+    expect(parseGrams('2 fatias')).toBeNull();
+    expect(parseGrams('a gosto')).toBeNull();
+    expect(parseGrams('')).toBeNull();
+    expect(parseGrams('0 g')).toBeNull();
   });
 });

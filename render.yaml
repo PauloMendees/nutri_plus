@@ -31,10 +31,14 @@ services:
       # The deployed web origin (drives CORS). Placeholder until the web is deployed.
       - key: WEB_ORIGIN
         sync: false
-      # Optional — omit to use the app defaults (gpt-4o / gpt-4o-mini).
+      # Opcional — sem valor no painel, valem os defaults de
+      # apps/api/src/config/env.schema.ts. Preencher aqui sobrescreve o default,
+      # então uma troca de modelo no código só vale se o campo estiver vazio.
       - key: OPENAI_MODEL_SMART
         sync: false
       - key: OPENAI_MODEL_FAST
+        sync: false
+      - key: OPENAI_MODEL_TRANSCRIBE
         sync: false
       # Segredo do endpoint interno de disparo de lembretes. O gatilho periódico
       # NÃO é um cron do Render — é um GitHub Actions agendado

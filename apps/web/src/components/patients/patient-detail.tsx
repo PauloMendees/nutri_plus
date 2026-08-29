@@ -9,6 +9,7 @@ import { usePatient, useUploadPatientPhoto, useDeletePatientPhoto } from '@/lib/
 import { useAssessments } from '@/lib/queries/assessments';
 import { downloadAssessmentsPdf } from '@/lib/api/assessments';
 import { EditPatientForm } from '@/components/patients/edit-patient-form';
+import { AiJobsPanel } from '@/components/patients/ai-jobs-panel';
 import { AnamneseSection } from '@/components/patients/anamnese-section';
 import { ConsultationAudioSection } from '@/components/patients/consultation-audio-section';
 import { BioimpedanceSection } from '@/components/patients/bioimpedance-section';
@@ -237,7 +238,10 @@ export function PatientDetail({
           </TabsContent>
         )}
         <TabsContent value="planos">
-          <MealPlansSection patientId={patient.id} canEdit={canEdit} />
+          <div className="space-y-6">
+            <AiJobsPanel patientId={patient.id} />
+            <MealPlansSection patientId={patient.id} canEdit={canEdit} />
+          </div>
         </TabsContent>
         <TabsContent value="recordatorio">
           <RecordatorioSection patientId={patient.id} canEdit={canEdit} />

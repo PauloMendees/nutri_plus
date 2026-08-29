@@ -13,6 +13,7 @@ import { TransactionsModule } from './transactions/transactions.module';
 import { MealPlansModule } from './meal-plans/meal-plans.module';
 import { AiModule } from './ai/ai.module';
 import { MealGenerationModule } from './meal-generation/meal-generation.module';
+import { AiJobsModule } from './ai-jobs/ai-jobs.module';
 import { NutritionistSettingsModule } from './nutritionist-settings/nutritionist-settings.module';
 import { OutsideHomeModule } from './outside-home/outside-home.module';
 import { SilhuetaModule } from './silhueta/silhueta.module';
@@ -48,6 +49,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
     MealPlansModule,
     AiModule,
     MealGenerationModule,
+    AiJobsModule,
     NutritionistSettingsModule,
     OutsideHomeModule,
     SilhuetaModule,

@@ -7,7 +7,6 @@ import type { MealPlanDraft } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import { OpenAIProvider } from '../ai/openai.provider';
 import { MealPlansService, GeneratedMealInput } from '../meal-plans/meal-plans.service';
-import { EntitlementsService } from '../billing/entitlements.service';
 import { AuthContext } from '../auth/types/auth-context';
 import { AIInteractionType, Food } from '../generated/prisma/client';
 import { resolveScopeNutritionistId } from '../auth/auth-scope';
@@ -37,7 +36,6 @@ export class MealGenerationService {
     private readonly prisma: PrismaService,
     private readonly provider: OpenAIProvider,
     private readonly mealPlans: MealPlansService,
-    private readonly entitlements: EntitlementsService,
   ) {}
 
   async generate(ctx: AuthContext, patientId: string, instructions?: string) {
@@ -62,7 +60,8 @@ export class MealGenerationService {
       select: { mealPlanAiInstructions: true },
     });
 
-    await this.entitlements.assertAiActionQuota(nutritionistId);
+    // A cota é verificada na criação do AiJob (AiJobsService.create). Repetir
+    // aqui rejeitaria o próprio job, que já conta como ativo.
 
     const generated = await this.provider.generateStructured<MealPlanResponse>({
       tier: 'smart',
@@ -120,7 +119,8 @@ export class MealGenerationService {
       select: { objective: true, restrictions: true, allergies: true, medicalConditions: true, notes: true },
     });
 
-    await this.entitlements.assertAiActionQuota(nutritionistId);
+    // A cota é verificada na criação do AiJob (AiJobsService.create). Repetir
+    // aqui rejeitaria o próprio job, que já conta como ativo.
 
     const revised = await this.provider.generateStructured<MealPlanResponse>({
       tier: 'smart',

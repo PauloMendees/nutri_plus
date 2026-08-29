@@ -10,7 +10,6 @@ import { MealPlansService } from '../meal-plans/meal-plans.service';
 import { MealGenerationService } from './meal-generation.service';
 import { AuthContext } from '../auth/types/auth-context';
 import { AIInteractionType } from '../generated/prisma/client';
-import { EntitlementsService } from '../billing/entitlements.service';
 
 const ctx: AuthContext = {
   authProviderId: 'sub-n',
@@ -76,29 +75,13 @@ describe('MealGenerationService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let provider: DeepMockProxy<OpenAIProvider>;
   let mealPlans: DeepMockProxy<MealPlansService>;
-  let entitlements: DeepMockProxy<EntitlementsService>;
   let service: MealGenerationService;
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
     provider = mockDeep<OpenAIProvider>();
     mealPlans = mockDeep<MealPlansService>();
-    entitlements = mockDeep<EntitlementsService>();
-    service = new MealGenerationService(prisma, provider, mealPlans, entitlements);
-  });
-
-  it('não chama a OpenAI quando a cota está esgotada', async () => {
-    const provider = { generateStructured: jest.fn() } as any;
-    const entitlements = {
-      assertAiActionQuota: jest.fn().mockRejectedValue(new Error('quota')),
-    } as any;
-    const prisma = {
-      patientProfile: { findFirst: jest.fn().mockResolvedValue({ id: 'p1', nutritionistId: 'n1', height: 170, birthDate: new Date('1990-01-01'), gender: 'MALE', objective: 'MAINTAIN', activityLevel: 'MODERATE', assessments: [{ weight: 70, basalMetabolicRate: 1600 }] }) },
-      nutritionistProfile: { findUnique: jest.fn().mockResolvedValue({ mealPlanAiInstructions: null }) },
-    } as any;
-    const svc = new MealGenerationService(prisma, provider, {} as any, entitlements);
-    await expect(svc.generate({ user: { role: 'NUTRITIONIST', nutritionistProfile: { id: 'n1' } } } as any, 'p1')).rejects.toThrow('quota');
-    expect(provider.generateStructured).not.toHaveBeenCalled();
+    service = new MealGenerationService(prisma, provider, mealPlans);
   });
 
   it('throws NotFound when the patient is missing or not owned', async () => {

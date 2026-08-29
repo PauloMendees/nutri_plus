@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import type { MealPlanDraft } from '@nutri-plus/shared-types';
+import { ApiError } from '@/lib/api/client';
 import { useAdjustMealPlan } from '@/lib/queries/meal-plans';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,14 +18,14 @@ export function AiAdjustDialog({
   open,
   onOpenChange,
   planId,
-  onApplied,
+  patientId,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   planId: string;
-  onApplied: (draft: MealPlanDraft) => void;
+  patientId: string;
 }) {
-  const adjust = useAdjustMealPlan(planId);
+  const adjust = useAdjustMealPlan(planId, patientId);
   const [instructions, setInstructions] = useState('');
 
   useEffect(() => {
@@ -36,10 +36,15 @@ export function AiAdjustDialog({
     const trimmed = instructions.trim();
     if (!trimmed) return;
     try {
-      const draft = await adjust.mutateAsync(trimmed);
+      await adjust.mutateAsync(trimmed);
       onOpenChange(false);
-      onApplied(draft);
-    } catch {
+      toast.success('Ajustando o plano em segundo plano. Acompanhe em Processos de IA.');
+    } catch (err) {
+      // Cota estourada já abre o modal global de billing (MutationCache.onError
+      // em app/providers). Somar um toast "tente novamente" contradiria ele e
+      // mandaria repetir uma ação que vai falhar igual. Mesmo tratamento do
+      // AiGenerateDialog.
+      if (err instanceof ApiError && err.status === 402) return;
       toast.error('Não foi possível ajustar o plano. Tente novamente.');
     }
   }
@@ -64,7 +69,8 @@ export function AiAdjustDialog({
             onChange={(e) => setInstructions(e.target.value)}
           />
           <p className="text-xs text-muted-foreground">
-            A IA gera uma nova versão para você revisar. Nada é salvo até você clicar em Salvar. As metas do dia, alergias e restrições são mantidas.
+            A IA monta uma nova versão em segundo plano. Quando ficar pronta, ela aparece
+            aqui no plano para você revisar — nada é salvo sem a sua confirmação. As metas do dia, alergias e restrições são mantidas.
           </p>
         </div>
 

@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import type { MealPlanSummary } from '@nutri-plus/shared-types';
+import { Loader2 } from 'lucide-react';
 import { useMealPlans, useSetMealPlanVisibility } from '@/lib/queries/meal-plans';
+import { adjustmentInFlightFor, useAiJobs } from '@/lib/queries/ai-jobs';
 import { AiQuotaChip } from '@/components/billing/ai-quota-chip';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,9 +30,14 @@ export function MealPlansSection({
 }) {
   const query = useMealPlans(patientId);
   const visibility = useSetMealPlanVisibility(patientId);
+  const aiJobs = useAiJobs(patientId);
   const [generating, setGenerating] = useState(false);
 
   const plans = query.data ?? [];
+  // Planos com ajuste da IA ainda em voo, pela mesma regra que o editor usa.
+  const adjustingPlanIds = new Set(
+    plans.map((p) => adjustmentInFlightFor(aiJobs.data, p.id)?.mealPlanId).filter(Boolean),
+  );
 
   return (
     <section className="space-y-4">
@@ -99,6 +106,15 @@ export function MealPlansSection({
                     {p.targetCalories != null && ` · ${p.targetCalories} kcal`}
                   </span>
                 </span>
+                {adjustingPlanIds.has(p.id) && (
+                  <span
+                    className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"
+                    data-testid={`plan-adjusting-${p.id}`}
+                  >
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" aria-hidden="true" />
+                    Ajuste em andamento
+                  </span>
+                )}
                 {p.aiGenerated && (
                   <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-bold uppercase text-secondary-foreground">
                     IA

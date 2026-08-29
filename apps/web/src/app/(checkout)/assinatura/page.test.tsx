@@ -1,14 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { checkoutValue } from '@/lib/analytics/meta-events';
 
 const startTrial = vi.fn();
 const checkout = vi.fn();
 const changePlan = vi.fn();
 const previewChangePlan = vi.fn();
 const trackMetaEvent = vi.fn();
-vi.mock('@/lib/analytics/meta-events', () => ({
+// Mock parcial: só trackMetaEvent precisa de espião (toca window.fbq).
+// checkoutValue é puro sobre o PLAN_CATALOG — reimplementá-lo aqui faria as
+// asserções compararem o mock contra ele mesmo.
+vi.mock('@/lib/analytics/meta-events', async (orig) => ({
+  ...(await orig<typeof import('@/lib/analytics/meta-events')>()),
   trackMetaEvent: (...a: unknown[]) => trackMetaEvent(...a),
-  checkoutValue: (plan: string, period: string) => (plan === 'PRO' ? (period === 'YEARLY' ? 990 : 99) : period === 'YEARLY' ? 490 : 49),
 }));
 vi.mock('@/lib/api/subscription', () => ({
   startTrial: () => startTrial(),
@@ -81,7 +85,7 @@ it('escolher plano + Pix mostra o QR', async () => {
   await waitFor(() => expect(screen.getByAltText(/qr code pix/i)).toBeInTheDocument());
   expect(trackMetaEvent).toHaveBeenCalledWith(
     'InitiateCheckout',
-    expect.objectContaining({ content_name: 'ESSENCIAL', currency: 'BRL', value: 49 }),
+    expect.objectContaining({ content_name: 'ESSENCIAL', currency: 'BRL', value: checkoutValue('ESSENCIAL', 'MONTHLY') }),
   );
 });
 
@@ -176,7 +180,7 @@ it('?plan=pro pulando o picker abre o checkout do Pro', async () => {
   expect(screen.queryByRole('button', { name: /começar teste grátis/i })).not.toBeInTheDocument();
   expect(trackMetaEvent).toHaveBeenCalledWith(
     'InitiateCheckout',
-    expect.objectContaining({ content_name: 'PRO', currency: 'BRL', value: 99 }),
+    expect.objectContaining({ content_name: 'PRO', currency: 'BRL', value: checkoutValue('PRO', 'MONTHLY') }),
   );
 });
 
@@ -198,7 +202,7 @@ it('cartão confirmado dispara Subscribe com o valor do plano', async () => {
   await waitFor(() =>
     expect(trackMetaEvent).toHaveBeenCalledWith(
       'Subscribe',
-      expect.objectContaining({ content_name: 'ESSENCIAL', currency: 'BRL', value: 49 }),
+      expect.objectContaining({ content_name: 'ESSENCIAL', currency: 'BRL', value: checkoutValue('ESSENCIAL', 'MONTHLY') }),
     ),
   );
 });

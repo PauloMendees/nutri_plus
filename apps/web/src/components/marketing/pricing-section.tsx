@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PLAN_CATALOG } from '@nutri-plus/shared-types';
+import { entryDailyLabel } from '@/lib/billing/price-copy';
 import { CtaLink } from './cta-link';
 
 type Billing = 'monthly' | 'yearly';
@@ -107,7 +108,7 @@ export function PricingSection() {
             const priceNote =
               billing === 'monthly'
                 ? key === 'essencial'
-                  ? 'Menos de R$2 por dia'
+                  ? entryDailyLabel
                   : 'IA, Silhueta e transcrição'
                 : `R$${plan.yearly}/ano · economize R$${plan.yearlySave}`;
 
@@ -167,7 +168,7 @@ export function PricingSection() {
           <p>
             <strong className="text-foreground">Nos sete dias, você percorre o fluxo completo.</strong>{' '}
             Não gostou? Cancele antes do fim do período de teste e não será cobrado. No Pro, Silhueta e
-            até 200 ações de IA/mês entram no plano — sem custo extra escondido.
+            até {pro.aiActionsPerMonth} ações de IA/mês entram no plano — sem custo extra escondido.
           </p>
           <p className="text-xs">
             Líderes do mercado costumam ficar na casa dos R$90+/mês no plano completo — nem sempre
