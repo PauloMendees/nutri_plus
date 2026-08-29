@@ -1445,7 +1445,7 @@ Remover a prop `onApplied` e seu uso em `meal-plan-editor.tsx` — o rascunho pa
 
 - [ ] **Step 6: Rodar e confirmar que passa**
 
-Run: `pnpm --filter @nutri-plus/web test -- "ai-generate-dialog|ai-adjust|meal-plan-editor"`
+Run: `pnpm --filter @nutri-plus/web test -- ai-generate-dialog ai-adjust meal-plan-editor`
 Expected: PASS.
 
 - [ ] **Step 7: Commit**
@@ -1614,7 +1614,7 @@ Logo acima de `<MealPlansSection patientId={patient.id} canEdit={canEdit} />`:
 
 - [ ] **Step 5: Rodar e confirmar que passa**
 
-Run: `pnpm --filter @nutri-plus/web test -- "ai-jobs-panel|patient-detail"`
+Run: `pnpm --filter @nutri-plus/web test -- ai-jobs-panel patient-detail`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
