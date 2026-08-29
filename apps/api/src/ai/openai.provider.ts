@@ -151,19 +151,23 @@ export class OpenAIProvider {
       const file = await toFile(buffer, filename);
       const result = await this.client.audio.transcriptions.create({ model, file, language: 'pt' });
       text = result.text;
-    } catch {
+    } catch (err) {
+      // O motivo real precisa sobreviver: engolir a exceção aqui já custou um
+      // diagnóstico em que "não foi possível transcrever" escondia um
+      // "file too large" da OpenAI, e só medir o arquivo por fora revelou.
+      const reason = err instanceof Error ? err.message : String(err);
       await this.interactions.record({
         type: AIInteractionType.CONSULTATION_TRANSCRIPTION,
         model,
         input: meta,
         latencyMs: Date.now() - startedAt,
         success: false,
-        errorMessage: 'OpenAI transcription failed',
+        errorMessage: truncate(reason),
         patientId: opts.patientId,
         nutritionistId: opts.nutritionistId,
       });
-      this.logger.warn(`OpenAI transcription failed (model=${model})`);
-      throw new BadGatewayException('AI provider unavailable');
+      this.logger.warn(`OpenAI transcription failed (model=${model}): ${reason}`);
+      throw new BadGatewayException(reason);
     }
 
     const latencyMs = Date.now() - startedAt;

@@ -12,7 +12,10 @@ export const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1),
   OPENAI_MODEL_SMART: z.string().min(1).default('gpt-5-mini'),
   OPENAI_MODEL_FAST: z.string().min(1).default('gpt-4o-mini'),
-  OPENAI_MODEL_TRANSCRIBE: z.string().min(1).default('gpt-4o-mini-transcribe'),
+  // whisper-1 e não gpt-4o-mini-transcribe: a família gpt-4o-transcribe tem teto
+  // de 2000 tokens de saída, que trunca a transcrição por volta dos 10 minutos
+  // de fala — inviável para consulta. Ver docs/models/gpt-4o-mini-transcribe.
+  OPENAI_MODEL_TRANSCRIBE: z.string().min(1).default('whisper-1'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   REMINDER_DISPATCH_KEY: z.string().min(1).optional(),
   ASAAS_API_KEY: z.string().min(1).optional(),

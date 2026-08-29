@@ -30,6 +30,9 @@ export function fmtElapsed(totalSec: number): string {
 
 const BAR_COUNT = 24;
 
+// 25 MB / (32 kbps) ≈ 1h45 de gravação — cobre a consulta mais longa na prática.
+const AUDIO_BITS_PER_SECOND = 32_000;
+
 export function ConsultationAudioSection({ patientId, canEdit }: { patientId: string; canEdit: boolean }) {
   const query = useAudios(patientId);
   const upload = useUploadAudio(patientId);
@@ -121,7 +124,10 @@ export function ConsultationAudioSection({ patientId, canEdit }: { patientId: st
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      const recorder = new MediaRecorder(stream);
+      // 32 kbps opus: adequado para fala e para transcrição automática, e é o
+      // que mantém uma consulta longa abaixo dos 25 MB que a API de transcrição
+      // aceita. No padrão do navegador (~129 kbps) o teto cai para ~26 minutos.
+      const recorder = new MediaRecorder(stream, { audioBitsPerSecond: AUDIO_BITS_PER_SECOND });
       chunksRef.current = [];
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       recorder.onstop = async () => {

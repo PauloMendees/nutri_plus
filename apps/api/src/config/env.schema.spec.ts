@@ -34,7 +34,7 @@ describe('validateEnv', () => {
     const result = validateEnv(valid);
     expect(result.OPENAI_MODEL_SMART).toBe('gpt-5-mini');
     expect(result.OPENAI_MODEL_FAST).toBe('gpt-4o-mini');
-    expect(result.OPENAI_MODEL_TRANSCRIBE).toBe('gpt-4o-mini-transcribe');
+    expect(result.OPENAI_MODEL_TRANSCRIBE).toBe('whisper-1');
   });
 
   it('uses explicit model-tier values when provided', () => {

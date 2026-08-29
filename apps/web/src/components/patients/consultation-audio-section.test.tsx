@@ -40,7 +40,12 @@ function audio(over: Partial<ConsultationAudio> = {}): ConsultationAudio {
 
 // jsdom não traz MediaRecorder nem getUserMedia; o dublê expõe só o que o
 // componente usa (start/stop/onstop) para que o fluxo de cancelamento seja testável.
+const recorderOptions: unknown[] = [];
+
 class FakeRecorder {
+  constructor(_stream: unknown, options?: unknown) {
+    recorderOptions.push(options);
+  }
   state = 'inactive';
   mimeType = 'audio/webm';
   ondataavailable: ((e: { data: Blob }) => void) | null = null;
@@ -53,6 +58,7 @@ const trackStop = vi.fn();
 
 function installMediaMocks() {
   trackStop.mockReset();
+  recorderOptions.length = 0;
   Object.defineProperty(navigator, 'mediaDevices', {
     configurable: true,
     value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: trackStop }] }) },
@@ -205,5 +211,14 @@ describe('fmtElapsed', () => {
   it('não quebra com entrada inválida', () => {
     expect(fmtElapsed(-5)).toBe('00:00');
     expect(fmtElapsed(12.7)).toBe('00:12');
+  });
+
+  it('grava em 32 kbps para caber no limite da transcrição', async () => {
+    render(<ConsultationAudioSection patientId="p1" canEdit />);
+    await startRecording();
+
+    // No padrão do navegador (~129 kbps) uma consulta de 30 min passa de 25 MB
+    // e a API de transcrição recusa o arquivo inteiro.
+    expect(recorderOptions[0]).toEqual({ audioBitsPerSecond: 32_000 });
   });
 });

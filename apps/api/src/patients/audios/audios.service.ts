@@ -156,14 +156,20 @@ export class AudiosService {
         where: { id: audioId },
         data: { transcript, transcriptStatus: 'DONE', transcribedAt: new Date(), transcriptError: null },
       });
-    } catch {
+    } catch (err) {
+      // Mensagem fixa escondia a causa: quem lê a tela precisa saber se foi
+      // arquivo grande demais, provedor fora do ar, ou outra coisa.
+      const reason = err instanceof Error ? err.message : String(err);
       await this.prisma.consultationAudio
         .update({
           where: { id: audioId },
-          data: { transcriptStatus: 'FAILED', transcriptError: 'Não foi possível transcrever o áudio.' },
+          data: {
+            transcriptStatus: 'FAILED',
+            transcriptError: `Não foi possível transcrever o áudio: ${reason}`.slice(0, 500),
+          },
         })
         .catch(() => undefined);
-      this.logger.warn(`Transcription failed (audioId=${audioId})`);
+      this.logger.warn(`Transcription failed (audioId=${audioId}): ${reason}`);
     }
   }
 }

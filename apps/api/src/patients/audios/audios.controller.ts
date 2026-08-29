@@ -12,7 +12,10 @@ import { RequiresFeature } from '../../billing/decorators';
 import { AudiosService } from './audios.service';
 import { CreateAudioDto } from './dto/create-audio.dto';
 
-const MAX_AUDIO = 50 * 1024 * 1024;
+// Teto de upload da API de transcrição da OpenAI, e por isso o nosso também:
+// aceitar mais só adia a falha para depois da gravação inteira ter sido enviada.
+// Ver docs/… guides/speech-to-text — 25 MB vale para todos os modelos.
+const MAX_AUDIO = 25 * 1024 * 1024;
 
 @ApiTags('consultation-audio')
 @ApiBearerAuth()
