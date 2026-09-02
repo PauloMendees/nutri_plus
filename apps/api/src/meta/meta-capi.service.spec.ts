@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { MetaCapiService, hashEmail } from './meta-capi.service';
+import { sha256 } from './meta-user-data';
 import { serverOnlyMetaContext, type MetaContext } from './meta-context';
 
 function config(values: Record<string, string | undefined>): ConfigService {
@@ -69,7 +70,7 @@ describe('MetaCapiService', () => {
     await new MetaCapiService(config(FULL_CONFIG)).send({
       name: 'CompleteRegistration',
       context: BROWSER_CTX,
-      email: 'Ana@Clinica.com',
+      identity: { email: 'Ana@Clinica.com' },
       customData: { status: true },
     });
 
@@ -98,7 +99,7 @@ describe('MetaCapiService', () => {
     await new MetaCapiService(config(FULL_CONFIG)).send({
       name: 'Subscribe',
       context: BROWSER_CTX,
-      email: 'ana@clinica.com',
+      identity: { email: 'ana@clinica.com' },
     });
     expect((fetchMock.mock.calls[0][1] as RequestInit).body).not.toContain('ana@clinica.com');
   });
@@ -135,7 +136,8 @@ describe('MetaCapiService', () => {
       name: 'TrialAtivado',
       context: serverOnlyMetaContext(),
     });
-    expect(sentBody(fetchMock).data[0].user_data).toEqual({});
+    // `country` é constante do produto (só Brasil): sai sempre, sem dado novo.
+    expect(sentBody(fetchMock).data[0].user_data).toEqual({ country: [sha256('br')] });
     expect(sentBody(fetchMock).data[0]).not.toHaveProperty('event_source_url');
   });
 

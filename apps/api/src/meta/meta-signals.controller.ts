@@ -27,6 +27,6 @@ export class MetaSignalsController {
   @Public()
   @HttpCode(202)
   track(@Body() dto: MetaPublicSignalDto, @MetaCtx() ctx: MetaContext): MetaSignalResponse {
-    return { fired: this.signals.registration(dto.email, ctx) };
+    return { fired: this.signals.registration({ email: dto.email, name: dto.name_full }, ctx) };
   }
 }

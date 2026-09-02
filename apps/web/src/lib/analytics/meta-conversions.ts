@@ -52,10 +52,11 @@ function relayPublic(
  * Cadastro concluído. Roda antes da confirmação de e-mail, quando ainda não há
  * sessão — por isso usa o relay público, que só aceita este evento.
  */
-export function trackCompleteRegistration(email: string): void {
+export function trackCompleteRegistration(email: string, nameFull?: string): void {
   const ctx = metaClientContext();
   trackMetaEvent('CompleteRegistration', { status: true }, ctx.eventId);
-  void relayPublic({ name: 'CompleteRegistration', email }, ctx).catch(() => {});
+  // `name_full` vira fn/ln hasheados na CAPI — sobe a correspondência do evento.
+  void relayPublic({ name: 'CompleteRegistration', email, name_full: nameFull }, ctx).catch(() => {});
 }
 
 /**
@@ -64,12 +65,31 @@ export function trackCompleteRegistration(email: string): void {
  * relê o plano no banco.
  */
 export function trackConversion(
-  event: Exclude<MetaStandardEvent, 'CompleteRegistration'>,
+  event: Exclude<MetaStandardEvent, 'CompleteRegistration' | 'StartTrial'>,
   opts: { params?: Record<string, unknown>; plan?: PlanTier; period?: BillingPeriod } = {},
 ): void {
   const ctx = metaClientContext();
   trackMetaEvent(event, opts.params, ctx.eventId);
   void relayAuthenticated({ name: event, plan: opts.plan, period: opts.period }, ctx).catch(() => {});
+}
+
+/**
+ * `StartTrial` — um trial gera UM evento, e quem garante isso é o servidor.
+ *
+ * Segue a mesma ordem invertida do `TrialAtivado`: o relay vai primeiro e o
+ * `fbq` só dispara quando a resposta confirma que ESTA chamada emitiu. Sem
+ * isso, um segundo clique (ou uma segunda aba) emitiria outro evento com
+ * `event_id` novo — que o Meta conta como conversão separada, jogando o custo
+ * por trial para metade do valor real.
+ */
+export async function trackStartTrial(): Promise<void> {
+  const ctx = metaClientContext();
+  try {
+    const { fired } = await relayAuthenticated({ name: 'StartTrial' }, ctx);
+    if (fired) trackMetaEvent('StartTrial', { value: 0, currency: 'BRL' }, ctx.eventId);
+  } catch {
+    // Relay indisponível: nenhum lado dispara, para não arriscar contagem dupla.
+  }
 }
 
 /**

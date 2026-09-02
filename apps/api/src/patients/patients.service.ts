@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import type { MealLog, NutritionistContact } from '@nutri-plus/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
+import { MetaActivationService } from '../meta/meta-activation.service';
+import { serverOnlyMetaContext, type MetaContext } from '../meta/meta-context';
 import { AuthContext } from '../auth/types/auth-context';
 import { DEMO_PROVIDER } from '../auth/auth.constants';
 import { resolveScopeNutritionistId, resolveScopePatientId } from '../auth/auth-scope';
@@ -59,6 +61,7 @@ export class PatientsService {
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
     private readonly supabaseAdmin: SupabaseAdminService,
+    private readonly metaActivation: MetaActivationService,
   ) {}
 
   // Registers a patient during the consultation: invite via the Supabase Admin
@@ -66,7 +69,7 @@ export class PatientsService {
   // local record. If the local write fails, the invited auth user is rolled back.
   // Demo identities skip the invite (no mailbox) and the example.com undeliverable
   // guard; app toggles are forced off regardless of nutritionist defaults.
-  async createPatient(ctx: AuthContext, dto: CreatePatientDto) {
+  async createPatient(ctx: AuthContext, dto: CreatePatientDto, meta?: MetaContext) {
     const nutritionistId = resolveScopeNutritionistId(ctx);
     const { name, email, demo, ...clinical } = dto;
 
@@ -129,7 +132,24 @@ export class PatientsService {
       throw error;
     }
 
+    this.maybeEvaluateActivation(nutritionistId, meta);
     return this.getPatient(ctx, profileId);
+  }
+
+  /**
+   * Rede de segurança do TrialAtivado para clientes SEM navegador.
+   *
+   * Quando a requisição traz `x-meta-event-id` (o web sempre traz), o próprio
+   * navegador chama `POST /me/signals` logo depois e emite o evento pelos dois
+   * lados, deduplicado. Avaliar aqui nesse caso venceria a corrida e destruiria
+   * a metade "navegador" — que é justamente o que se quer preservar.
+   *
+   * Sem o header (app mobile, integração, importação em lote), ninguém vai
+   * relayar: o evento é avaliado aqui e sai só pelo servidor.
+   */
+  private maybeEvaluateActivation(nutritionistId: string, meta?: MetaContext): void {
+    if (meta?.fromBrowser) return;
+    this.metaActivation.evaluateInBackground(nutritionistId, meta ?? serverOnlyMetaContext());
   }
 
   async listPatients(

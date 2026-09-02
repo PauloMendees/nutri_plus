@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+  __resetFbqQueue,
   checkoutValue,
   metaClientContext,
   metaHeaders,
@@ -17,6 +18,7 @@ function clearCookies() {
 }
 
 beforeEach(() => {
+  __resetFbqQueue();
   window.fbq = vi.fn();
   clearCookies();
 });
@@ -45,6 +47,50 @@ describe('trackMetaEvent', () => {
   it('não quebra quando o pixel não carregou', () => {
     delete window.fbq;
     expect(() => trackMetaEvent('StartTrial')).not.toThrow();
+  });
+});
+
+describe('fila do fbq (corrida com a hidratação)', () => {
+  beforeEach(() => {
+    __resetFbqQueue();
+    vi.useFakeTimers();
+    delete window.fbq;
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('enfileira o evento disparado antes do pixel carregar e entrega quando ele chega', () => {
+    // Antes: window.fbq?.() descartava isto em silêncio e a dedup sumia.
+    trackMetaEvent('StartTrial', { value: 0 }, 'evt-fila');
+    const fbq = vi.fn();
+    window.fbq = fbq;
+    vi.advanceTimersByTime(250);
+    expect(fbq).toHaveBeenCalledWith('track', 'StartTrial', { value: 0 }, { eventID: 'evt-fila' });
+  });
+
+  it('preserva a ordem de vários eventos enfileirados', () => {
+    trackMetaEvent('InitiateCheckout', {}, 'a');
+    trackMetaEvent('Subscribe', {}, 'b');
+    const fbq = vi.fn();
+    window.fbq = fbq;
+    vi.advanceTimersByTime(250);
+    expect(fbq.mock.calls.map((c) => c[1])).toEqual(['InitiateCheckout', 'Subscribe']);
+  });
+
+  it('avisa no console quando desiste — antes a perda era invisível', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    trackMetaEvent('StartTrial', {}, 'evt-perdido');
+    vi.advanceTimersByTime(10_200);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('StartTrial'));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('bloqueador'));
+  });
+
+  it('não deixa timer rodando depois de entregar', () => {
+    trackMetaEvent('StartTrial', {}, 'x');
+    window.fbq = vi.fn();
+    vi.advanceTimersByTime(250);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 

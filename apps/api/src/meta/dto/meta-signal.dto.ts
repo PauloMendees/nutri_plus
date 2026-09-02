@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsOptional } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import {
   META_CUSTOM_EVENTS,
   META_STANDARD_EVENTS,
@@ -34,4 +34,11 @@ export class MetaPublicSignalDto implements MetaPublicSignalRequest {
 
   @IsEmail()
   email!: string;
+
+  // Nome que a pessoa acabou de digitar no cadastro. Hasheado em fn/ln no
+  // servidor; melhora a correspondência do evento que hoje é o mais fraco.
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  name_full?: string;
 }

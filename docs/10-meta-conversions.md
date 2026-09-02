@@ -14,7 +14,7 @@ calculado sai pela metade do real e a campanha otimiza para o alvo errado.
 
 | Evento | Navegador | CAPI | Onde dispara |
 | --- | --- | --- | --- |
-| `PageView` | ✅ | — | `MetaPixel` na landing, auth e checkout |
+| `PageView` | ✅ | — | `MetaPixel` na landing, `/signup`, `/verify-email` e checkout |
 | `CompleteRegistration` | ✅ | ✅ | submit do cadastro (`signup-form.tsx`) |
 | `StartTrial` | ✅ | ✅ | botão "Começar teste grátis" (`/assinatura`) |
 | `InitiateCheckout` | ✅ | ✅ | escolha de plano (`/assinatura`) |
@@ -23,6 +23,44 @@ calculado sai pela metade do real e a campanha otimiza para o alvo errado.
 
 `PageView` fica só no navegador de propósito: volume alto e nenhum valor de
 otimização server-side.
+
+### Onde o pixel NÃO entra
+
+O grupo de rotas `(auth)` mistura funil de aquisição com rotas que o **paciente**
+percorre: `/accept-invite` (destino do convite disparado por
+`PatientsService.createPatient`), `/download-app` (para onde `(app)` redireciona
+todo `PATIENT`), `/login` e `/reset-password`.
+
+Por isso o pixel **não** está em `(auth)/layout.tsx` — ele é montado por página,
+só em `/signup` e `/verify-email`. Com o pixel no layout, todo paciente
+convidado gerava PageView e recebia o cookie `_fbp`, contaminando retargeting e
+lookalike com gente que nunca vai comprar software para nutricionista. E a
+proporção só piora: cada nutricionista traz dezenas de pacientes.
+
+### Disparo único: `StartTrial` e `TrialAtivado`
+
+Os dois seguem a mesma ordem invertida — **o relay vai primeiro e o `fbq` só
+dispara quando a resposta confirma `fired: true`**. O servidor é a autoridade,
+com a flag reivindicada por `updateMany` condicional
+(`Subscription.startTrialEventoEm` e `Subscription.trialAtivadoEm`).
+
+Sem essa guarda, uma segunda chamada emitia outro evento com `event_id` novo — e
+o Meta não deduplica ids diferentes, então o custo por trial saía pela metade do
+real. `InitiateCheckout` e `Subscribe` continuam sem guarda de propósito: a
+pessoa pode legitimamente comparar planos e reabrir o checkout.
+
+### Corrida com a hidratação
+
+`next/script` injeta o snippet do pixel depois da hidratação. Antes, um disparo
+nessa janela caía em `window.fbq?.()` e era **descartado em silêncio** — o
+evento saía pela CAPI e nunca pelo navegador, e a deduplicação sumia sem sinal
+nenhum. Agora `meta-events.ts` mantém uma fila: enfileira, entrega quando o
+pixel carrega, e depois de 10s desiste com `console.warn` nomeando os eventos
+perdidos (causa mais provável: bloqueador em `connect.facebook.net`).
+
+`beforeInteractive` resolveria a corrida, mas no App Router só funciona no
+layout raiz — o que carregaria o pixel em todas as páginas e desfaria a
+separação acima.
 
 ## Como o `event_id` chega ao backend
 
@@ -62,8 +100,20 @@ POST /v1/me/signals   (autenticado)                        (mesmo event_id)
   (`CompleteRegistration`). Existe porque o cadastro acontece antes da
   confirmação de e-mail: não há sessão para exigir Bearer. Não aceita valor
   monetário, então o pior abuso possível suja volume, nunca receita atribuída.
-- **`POST /v1/me/signals`** — autenticado. O e-mail do `user_data` vem da
-  sessão, **nunca** do corpo.
+- **`POST /v1/me/signals`** — autenticado. A identidade do `user_data` (e-mail,
+  nome, `external_id`) vem da **sessão**, nunca do corpo.
+
+### Qualidade da correspondência (`user_data`)
+
+Montado em `meta-user-data.ts`. Hasheados em SHA-256: `em`, `external_id`
+(`User.id`), `fn`/`ln` (nome do cadastro, com títulos como "Dra." descartados) e
+`country` (constante `br`). Em claro, como o Meta exige: `fbp`, `fbc`,
+`client_ip_address`, `client_user_agent`.
+
+**Ainda não enviados:** `ph` e `zp` chegam no `CheckoutDto` (`CardHolderInfo`)
+mas **não são persistidos** — só repassados ao Asaas. Usá-los exige decidir se o
+iNutri passa a guardá-los, o que é decisão de privacidade, não técnica. `ct`/`st`
+não são coletados em lugar nenhum.
 
 Os paths são neutros (`/signals`, não `/meta/events`) porque bloqueadores de
 anúncio filtram por padrões no caminho da URL.

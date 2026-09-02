@@ -35,14 +35,14 @@ describe('MetaActivationService', () => {
     withCounts(1, 1);
     prisma.subscription.updateMany.mockResolvedValue({ count: 1 } as never);
     prisma.nutritionistProfile.findUnique.mockResolvedValue({
-      user: { email: 'ana@clinica.com' },
+      user: { id: 'u1', email: 'ana@clinica.com', name: 'Ana Silva' },
     } as never);
 
     await expect(service.evaluate('nutri-1', CTX)).resolves.toBe(true);
     expect(capi.enqueue).toHaveBeenCalledWith({
       name: 'TrialAtivado',
       context: CTX,
-      email: 'ana@clinica.com',
+      identity: { email: 'ana@clinica.com', name: 'Ana Silva', externalId: 'u1' },
     });
   });
 
@@ -96,7 +96,7 @@ describe('MetaActivationService', () => {
     pending();
     withCounts(1, 1);
     prisma.subscription.updateMany.mockResolvedValue({ count: 1 } as never);
-    prisma.nutritionistProfile.findUnique.mockResolvedValue({ user: { email: 'a@b.c' } } as never);
+    prisma.nutritionistProfile.findUnique.mockResolvedValue({ user: { id: 'u1', email: 'a@b.c', name: 'A B' } } as never);
     await service.evaluate('nutri-1', CTX);
     expect(prisma.subscription.updateMany).toHaveBeenCalledWith({
       where: { id: 's1', trialAtivadoEm: null },
@@ -118,7 +118,7 @@ describe('MetaActivationService', () => {
     pending();
     withCounts(1, 1);
     prisma.subscription.updateMany.mockResolvedValue({ count: 1 } as never);
-    prisma.nutritionistProfile.findUnique.mockResolvedValue({ user: { email: 'a@b.c' } } as never);
+    prisma.nutritionistProfile.findUnique.mockResolvedValue({ user: { id: 'u1', email: 'a@b.c', name: 'A B' } } as never);
 
     const serverCtx = serverOnlyMetaContext();
     expect(serverCtx.fromBrowser).toBe(false);

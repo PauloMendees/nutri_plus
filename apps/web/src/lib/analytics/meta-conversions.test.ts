@@ -9,10 +9,13 @@ vi.mock('@/lib/api/browser', () => ({ browserApiFetch: (...a: unknown[]) => brow
 import {
   trackCompleteRegistration,
   trackConversion,
+  trackStartTrial,
   trackTrialAtivadoIfReady,
 } from './meta-conversions';
+import { __resetFbqQueue } from './meta-events';
 
 beforeEach(() => {
+  __resetFbqQueue();
   window.fbq = vi.fn();
   apiFetch.mockReset().mockResolvedValue({ fired: true });
   browserApiFetch.mockReset().mockResolvedValue({ fired: true });
@@ -43,7 +46,7 @@ describe('trackCompleteRegistration', () => {
       '/signals',
       expect.objectContaining({
         method: 'POST',
-        body: { name: 'CompleteRegistration', email: 'Ana@Clinica.com ' },
+        body: { name: 'CompleteRegistration', email: 'Ana@Clinica.com ', name_full: undefined },
       }),
     );
     expect(headers['x-meta-fbp']).toBe('fb.1.1700000000.123');
@@ -74,12 +77,45 @@ describe('trackConversion', () => {
     );
   });
 
-  it('StartTrial vai sem plano', () => {
-    trackConversion('StartTrial', { params: { value: 0, currency: 'BRL' } });
+});
+
+describe('trackStartTrial', () => {
+  it('relay primeiro; só dispara o pixel quando o servidor confirma que emitiu', async () => {
+    browserApiFetch.mockResolvedValue({ fired: true });
+    await trackStartTrial();
     expect(browserApiFetch).toHaveBeenCalledWith(
       '/me/signals',
-      expect.objectContaining({ body: { name: 'StartTrial', plan: undefined, period: undefined } }),
+      expect.objectContaining({ body: { name: 'StartTrial' } }),
     );
+    expect(window.fbq).toHaveBeenCalledWith(
+      'track',
+      'StartTrial',
+      { value: 0, currency: 'BRL' },
+      { eventID: expect.any(String) },
+    );
+    assertDeduplicated(browserApiFetch);
+  });
+
+  it('não dispara o pixel quando o trial já tinha emitido (segundo clique)', async () => {
+    browserApiFetch.mockResolvedValue({ fired: false });
+    await trackStartTrial();
+    expect(window.fbq).not.toHaveBeenCalled();
+  });
+
+  it('dois cliques seguidos produzem no máximo um evento no navegador', async () => {
+    browserApiFetch.mockResolvedValueOnce({ fired: true }).mockResolvedValueOnce({ fired: false });
+    await trackStartTrial();
+    await trackStartTrial();
+    const starts = (window.fbq as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (c) => c[1] === 'StartTrial',
+    );
+    expect(starts).toHaveLength(1);
+  });
+
+  it('relay fora do ar: nenhum lado dispara, para não arriscar contagem dupla', async () => {
+    browserApiFetch.mockRejectedValue(new Error('offline'));
+    await expect(trackStartTrial()).resolves.toBeUndefined();
+    expect(window.fbq).not.toHaveBeenCalled();
   });
 });
 

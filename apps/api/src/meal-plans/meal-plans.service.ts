@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetaActivationService } from '../meta/meta-activation.service';
-import { serverOnlyMetaContext } from '../meta/meta-context';
+import { serverOnlyMetaContext, type MetaContext } from '../meta/meta-context';
 import { AuthContext } from '../auth/types/auth-context';
 import { resolveScopeNutritionistId } from '../auth/auth-scope';
 import { CreateMealPlanDto } from './dto/create-meal-plan.dto';
@@ -55,11 +55,11 @@ export class MealPlansService {
 
   // --- Nutritionist surface (ownership via the patient's nutritionistId) ---
 
-  async createPlan(ctx: AuthContext, dto: CreateMealPlanDto) {
+  async createPlan(ctx: AuthContext, dto: CreateMealPlanDto, meta?: MetaContext) {
     await this.requireOwnedPatient(ctx, dto.patientId);
     const { patientId, meals, ...top } = dto;
     if (meals) await this.assertFoodsExist(meals);
-    return this.prisma.mealPlan.create({
+    const plan = await this.prisma.mealPlan.create({
       data: {
         ...top,
         patientId,
@@ -67,6 +67,18 @@ export class MealPlansService {
       },
       include: FULL_TREE,
     });
+
+    // Rede de segurança só para cliente SEM navegador — ver a explicação em
+    // PatientsService.maybeEvaluateActivation. Com o header presente, quem
+    // emite é o relay do navegador, preservando a deduplicação.
+    if (!meta?.fromBrowser) {
+      this.metaActivation.evaluateInBackground(
+        resolveScopeNutritionistId(ctx),
+        meta ?? serverOnlyMetaContext(),
+      );
+    }
+
+    return plan;
   }
 
   // Persists an AI-generated plan: ownership-checked, aiGenerated=true, with the

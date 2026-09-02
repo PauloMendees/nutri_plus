@@ -15,6 +15,7 @@ import { UserRole } from '../generated/prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AuthContext } from '../auth/types/auth-context';
+import { MetaCtx, type MetaContext } from '../meta/meta-context';
 import { MealPlansService } from './meal-plans.service';
 import { MealPlanPdfService } from './meal-plan-pdf.service';
 import { CreateMealPlanDto } from './dto/create-meal-plan.dto';
@@ -32,8 +33,12 @@ export class MealPlansController {
   ) {}
 
   @Post()
-  create(@CurrentUser() ctx: AuthContext, @Body() dto: CreateMealPlanDto) {
-    return this.mealPlans.createPlan(ctx, dto);
+  create(
+    @CurrentUser() ctx: AuthContext,
+    @Body() dto: CreateMealPlanDto,
+    @MetaCtx() meta: MetaContext,
+  ) {
+    return this.mealPlans.createPlan(ctx, dto, meta);
   }
 
   @Get()

@@ -577,6 +577,11 @@ model Subscription {
   // alimentar, ambos reais — demos do tour não contam). Reivindicado por
   // updateMany condicional em MetaActivationService, nunca por estado de sessão.
   trialAtivadoEm DateTime?
+  // Guarda de disparo único do StartTrial. Um trial só pode gerar UM evento de
+  // conversão: sem isto, uma segunda chamada ao relay emitia outro evento com
+  // event_id novo (o Meta não deduplica ids diferentes) e o custo por trial
+  // saía pela metade do real.
+  startTrialEventoEm DateTime?
   paymentMethod String?
   cardLast4     String?
   cardBrand     String?

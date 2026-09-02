@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHash } from 'node:crypto';
 import type { MetaEventName } from '@nutri-plus/shared-types';
+import { buildUserData, hashEmail, type MetaIdentity } from './meta-user-data';
 import type { MetaContext } from './meta-context';
 
 const DEFAULT_API_VERSION = 'v21.0';
@@ -10,15 +10,15 @@ const REQUEST_TIMEOUT_MS = 5000;
 export interface MetaCapiEvent {
   name: MetaEventName;
   context: MetaContext;
-  /** E-mail em claro; é hasheado aqui e NUNCA sai do processo sem hash. */
-  email?: string | null;
+  /**
+   * Identidade em claro (e-mail, nome, id do usuário). É hasheada aqui e NUNCA
+   * sai do processo sem hash — ver meta-user-data.ts.
+   */
+  identity?: MetaIdentity;
   customData?: Record<string, unknown>;
 }
 
-/** SHA-256 do e-mail normalizado (minúsculo, sem espaços nas pontas), como o Meta exige. */
-export function hashEmail(email: string): string {
-  return createHash('sha256').update(email.trim().toLowerCase()).digest('hex');
-}
+export { hashEmail };
 
 @Injectable()
 export class MetaCapiService {
@@ -76,12 +76,12 @@ export class MetaCapiService {
 
   private buildEvent(event: MetaCapiEvent): Record<string, unknown> {
     const { context } = event;
-    const userData: Record<string, unknown> = {};
-    if (event.email) userData.em = [hashEmail(event.email)];
-    if (context.fbp) userData.fbp = context.fbp;
-    if (context.fbc) userData.fbc = context.fbc;
-    if (context.clientIpAddress) userData.client_ip_address = context.clientIpAddress;
-    if (context.clientUserAgent) userData.client_user_agent = context.clientUserAgent;
+    const userData = buildUserData(event.identity ?? {}, {
+      fbp: context.fbp,
+      fbc: context.fbc,
+      clientIpAddress: context.clientIpAddress,
+      clientUserAgent: context.clientUserAgent,
+    });
 
     const out: Record<string, unknown> = {
       event_name: event.name,

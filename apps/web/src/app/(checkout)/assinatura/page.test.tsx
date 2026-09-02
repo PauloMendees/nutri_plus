@@ -7,10 +7,12 @@ const checkout = vi.fn();
 const changePlan = vi.fn();
 const previewChangePlan = vi.fn();
 const trackConversion = vi.fn();
+const trackStartTrial = vi.fn();
 // checkoutValue continua real (puro sobre o PLAN_CATALOG); reimplementá-lo aqui
 // faria as asserções compararem o mock contra ele mesmo.
 vi.mock('@/lib/analytics/meta-conversions', () => ({
   trackConversion: (...a: unknown[]) => trackConversion(...a),
+  trackStartTrial: () => trackStartTrial(),
 }));
 vi.mock('@/lib/api/subscription', () => ({
   startTrial: () => startTrial(),
@@ -48,6 +50,7 @@ beforeEach(() => {
   useQuery.mockReturnValue({ data: { onboardedAt: null, canStartTrial: true, status: 'TRIALING', entitlements: { isReadOnly: true } } });
   currentSearchParams = new URLSearchParams();
   trackConversion.mockReset();
+  trackStartTrial.mockReset();
 });
 
 it('no onboarding mostra "Começar teste grátis" e inicia o trial', async () => {
@@ -61,7 +64,8 @@ it('no onboarding mostra "Começar teste grátis" e inicia o trial', async () =>
   const invalidateOrder = invalidateQueries.mock.invocationCallOrder[0];
   const replaceOrder = replace.mock.invocationCallOrder[0];
   expect(invalidateOrder).toBeLessThan(replaceOrder);
-  expect(trackConversion).toHaveBeenCalledWith('StartTrial', { params: { value: 0, currency: 'BRL' } });
+  // StartTrial passou a ser gated pelo servidor: o relay decide se o pixel dispara.
+  expect(trackStartTrial).toHaveBeenCalled();
 });
 
 it('não dispara StartTrial quando o trial falha', async () => {
@@ -70,7 +74,7 @@ it('não dispara StartTrial quando o trial falha', async () => {
   fireEvent.click(screen.getByRole('button', { name: /começar teste grátis/i }));
   await waitFor(() => expect(startTrial).toHaveBeenCalled());
   expect(replace).not.toHaveBeenCalled();
-  expect(trackConversion).not.toHaveBeenCalledWith('StartTrial', expect.anything());
+  expect(trackStartTrial).not.toHaveBeenCalled();
 });
 
 it('escolher plano + Pix mostra o QR', async () => {

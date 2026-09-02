@@ -13,7 +13,7 @@ import { PixPayment } from '@/components/billing/pix-payment';
 import { PlanPicker } from '@/components/billing/plan-picker';
 import { parseSignupPlan } from '@/lib/billing/signup-plan';
 import { checkoutValue } from '@/lib/analytics/meta-events';
-import { trackConversion } from '@/lib/analytics/meta-conversions';
+import { trackConversion, trackStartTrial } from '@/lib/analytics/meta-conversions';
 
 type Choice = { plan: PlanTier; period: BillingPeriod };
 type Method = 'PIX' | 'CREDIT_CARD';
@@ -151,7 +151,7 @@ export default function AssinaturaPage() {
     setTrialLoading(true);
     try {
       await startTrial();
-      trackConversion('StartTrial', { params: { value: 0, currency: 'BRL' } });
+      void trackStartTrial();
       // Invalida o cache de assinatura antes de navegar: sem isso, `/` serve o
       // cache stale (onboardedAt === null) e o OnboardingGate manda de volta pra cá.
       await queryClient.invalidateQueries({ queryKey: SUBSCRIPTION_KEY });

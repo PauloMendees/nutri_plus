@@ -64,6 +64,8 @@ export interface MetaSignalRequest {
 export interface MetaPublicSignalRequest {
   name: 'CompleteRegistration';
   email: string;
+  /** Nome digitado no cadastro; vira `fn`/`ln` hasheados na CAPI. */
+  name_full?: string;
 }
 
 /**

@@ -56,7 +56,7 @@ export function SignupForm() {
       setFormError(mapAuthError(error));
       return;
     }
-    trackCompleteRegistration(values.email);
+    trackCompleteRegistration(values.email, values.name);
     router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
   }
 

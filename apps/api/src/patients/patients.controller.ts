@@ -22,6 +22,7 @@ import { UserRole } from '../generated/prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AuthContext } from '../auth/types/auth-context';
+import { MetaCtx, type MetaContext } from '../meta/meta-context';
 import { PatientsService, UploadedImage } from './patients.service';
 import { EvolutionPdfService } from './pdf/evolution-pdf.service';
 import { UpdatePatientDto } from './dto/update-patient.dto';
@@ -41,8 +42,12 @@ export class PatientsController {
   ) {}
 
   @Post()
-  create(@CurrentUser() ctx: AuthContext, @Body() dto: CreatePatientDto) {
-    return this.patients.createPatient(ctx, dto);
+  create(
+    @CurrentUser() ctx: AuthContext,
+    @Body() dto: CreatePatientDto,
+    @MetaCtx() meta: MetaContext,
+  ) {
+    return this.patients.createPatient(ctx, dto, meta);
   }
 
   @Get()

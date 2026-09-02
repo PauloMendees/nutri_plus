@@ -28,12 +28,91 @@ export function newEventId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
+/**
+ * Fila de eventos disparados antes de `window.fbq` existir.
+ *
+ * O `next/script` injeta o snippet do pixel depois da hidratação, então há uma
+ * janela real — maior em conexão lenta — em que o componente já respondeu ao
+ * clique mas `window.fbq` ainda é `undefined`. Antes isto era um
+ * `window.fbq?.()`, que descartava o evento em silêncio: sem erro, sem log,
+ * sem retentativa. O evento saía pela CAPI e nunca pelo navegador, e a
+ * deduplicação deixava de existir sem nenhum sinal.
+ *
+ * `beforeInteractive` resolveria a corrida, mas no App Router só funciona no
+ * layout raiz — o que carregaria o pixel em todas as páginas, inclusive as do
+ * paciente. A fila resolve sem esse efeito colateral.
+ */
+const FLUSH_INTERVAL_MS = 200;
+const FLUSH_TIMEOUT_MS = 10_000;
+
+let queue: unknown[][] = [];
+let flushTimer: ReturnType<typeof setInterval> | null = null;
+let waitedMs = 0;
+
+function fbqReady(): boolean {
+  return typeof window !== 'undefined' && typeof window.fbq === 'function';
+}
+
+function drain(): void {
+  const pending = queue;
+  queue = [];
+  for (const args of pending) {
+    (window.fbq as (...a: unknown[]) => void)(...args);
+  }
+}
+
+function startFlushing(): void {
+  if (flushTimer !== null) return;
+  waitedMs = 0;
+  flushTimer = setInterval(() => {
+    if (fbqReady()) {
+      stopFlushing();
+      drain();
+      return;
+    }
+    waitedMs += FLUSH_INTERVAL_MS;
+    if (waitedMs >= FLUSH_TIMEOUT_MS) {
+      stopFlushing();
+      const lost = queue.map((a) => a[1]).join(', ');
+      queue = [];
+      console.warn(
+        `[meta] pixel não carregou em ${FLUSH_TIMEOUT_MS}ms — eventos perdidos no navegador: ${lost}. ` +
+          'Causa provável: bloqueador de anúncios em connect.facebook.net. ' +
+          'A CAPI ainda recebeu o evento, mas sem o par para deduplicar.',
+      );
+    }
+  }, FLUSH_INTERVAL_MS);
+}
+
+function stopFlushing(): void {
+  if (flushTimer !== null) clearInterval(flushTimer);
+  flushTimer = null;
+}
+
+/** Chama o fbq agora, ou enfileira até o pixel carregar. Nunca falha em silêncio. */
+function callFbq(args: unknown[]): void {
+  if (typeof window === 'undefined') return;
+  if (fbqReady()) {
+    (window.fbq as (...a: unknown[]) => void)(...args);
+    return;
+  }
+  queue.push(args);
+  startFlushing();
+}
+
+/** Só para os testes: zera fila e timer entre casos. */
+export function __resetFbqQueue(): void {
+  stopFlushing();
+  queue = [];
+  waitedMs = 0;
+}
+
 export function trackMetaEvent(
   event: MetaStandardEvent,
   params?: Record<string, unknown>,
   eventId?: string,
 ): void {
-  window.fbq?.('track', event, params ?? {}, eventId ? { eventID: eventId } : undefined);
+  callFbq(['track', event, params ?? {}, eventId ? { eventID: eventId } : undefined]);
 }
 
 export function trackMetaCustomEvent(
@@ -41,7 +120,7 @@ export function trackMetaCustomEvent(
   params?: Record<string, unknown>,
   eventId?: string,
 ): void {
-  window.fbq?.('trackCustom', event, params ?? {}, eventId ? { eventID: eventId } : undefined);
+  callFbq(['trackCustom', event, params ?? {}, eventId ? { eventID: eventId } : undefined]);
 }
 
 function readCookie(name: string): string | undefined {

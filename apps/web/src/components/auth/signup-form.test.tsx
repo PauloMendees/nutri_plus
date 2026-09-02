@@ -65,7 +65,7 @@ describe('SignupForm', () => {
     expect(arg.options.emailRedirectTo).toMatch(/\/auth\/callback\?plan=$/);
     expect(push).toHaveBeenCalledWith('/verify-email?email=ana%40clinica.com');
     // O e-mail vai junto: é dele que o backend tira o SHA-256 do user_data da CAPI.
-    expect(trackCompleteRegistration).toHaveBeenCalledWith('ana@clinica.com');
+    expect(trackCompleteRegistration).toHaveBeenCalledWith('ana@clinica.com', 'Dra. Ana');
   });
 
   it('shows the chosen plan and keeps it on the confirmation redirect', async () => {

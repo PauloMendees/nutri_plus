@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { MetaPixel } from '@/components/analytics/meta-pixel';
 
 export default async function VerifyEmailPage({
   searchParams,
@@ -9,6 +10,8 @@ export default async function VerifyEmailPage({
 
   return (
     <div className="space-y-4 text-center">
+      {/* Continuação do funil de cadastro — nunca alcançada por paciente. */}
+      <MetaPixel />
       <h2 className="font-heading text-2xl font-bold text-foreground">Confirme seu e-mail</h2>
       <p className="text-sm text-muted-foreground">
         Enviamos um link de confirmação{email ? ' para ' : ''}

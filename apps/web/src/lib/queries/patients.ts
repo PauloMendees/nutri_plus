@@ -28,11 +28,13 @@ export function useCreatePatient() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: CreatePatientRequest) => createPatient(body),
-    onSuccess: () => {
+    onSuccess: (_data, body) => {
       qc.invalidateQueries({ queryKey: ['patients'] });
       qc.invalidateQueries({ queryKey: ONBOARDING_KEY });
       // Metade da condição de TrialAtivado. O servidor decide se dispara.
-      void trackTrialAtivadoIfReady();
+      // Paciente de demonstração do tour não conta para a ativação, então
+      // nem vale a ida ao servidor — ele responderia `fired: false`.
+      if (!body.demo) void trackTrialAtivadoIfReady();
     },
   });
 }

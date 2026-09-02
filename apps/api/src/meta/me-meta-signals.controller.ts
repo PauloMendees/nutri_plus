@@ -38,7 +38,13 @@ export class MeMetaSignalsController {
       .authenticated(
         {
           nutritionistId: resolveScopeNutritionistId(auth),
-          email: auth.email ?? auth.user?.email ?? null,
+          // Identidade SEMPRE da sessão, nunca do corpo. external_id usa o
+          // User.id: identificador estável e sem PII nova.
+          identity: {
+            email: auth.email ?? auth.user?.email ?? null,
+            name: auth.name ?? auth.user?.name ?? null,
+            externalId: auth.user?.id ?? null,
+          },
           dto,
         },
         ctx,

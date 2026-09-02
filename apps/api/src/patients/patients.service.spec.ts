@@ -1,6 +1,7 @@
 import { ConflictException, ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../prisma/prisma.service';
+import { MetaActivationService } from '../meta/meta-activation.service';
 import { PatientsService } from './patients.service';
 import { UsersService } from '../users/users.service';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
@@ -85,6 +86,7 @@ describe('PatientsService', () => {
   let prisma: DeepMockProxy<PrismaService>;
   let users: DeepMockProxy<UsersService>;
   let supabaseAdmin: DeepMockProxy<SupabaseAdminService>;
+  let metaActivation: DeepMockProxy<MetaActivationService>;
   let service: PatientsService;
   const ctx = ctxWithNutritionist('nutri-1');
 
@@ -92,7 +94,8 @@ describe('PatientsService', () => {
     prisma = mockDeep<PrismaService>();
     users = mockDeep<UsersService>();
     supabaseAdmin = mockDeep<SupabaseAdminService>();
-    service = new PatientsService(prisma, users, supabaseAdmin);
+    metaActivation = mockDeep<MetaActivationService>();
+    service = new PatientsService(prisma, users, supabaseAdmin, metaActivation);
     // deleteMyAccount reads this before teardown; default to none so the
     // pre-existing deleteMyAccount specs (which don't set this up) don't
     // iterate over an unmocked (undefined) result.

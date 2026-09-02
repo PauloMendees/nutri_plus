@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetaCapiService } from './meta-capi.service';
 import type { MetaContext } from './meta-context';
+import type { MetaIdentity } from './meta-user-data';
 
 /**
  * `TrialAtivado`: o nutricionista cadastrou pelo menos 1 paciente E criou pelo
@@ -57,8 +58,11 @@ export class MetaActivationService {
       });
       if (claimed.count === 0) return false;
 
-      const email = await this.nutritionistEmail(nutritionistId);
-      this.capi.enqueue({ name: 'TrialAtivado', context, email });
+      this.capi.enqueue({
+        name: 'TrialAtivado',
+        context,
+        identity: await this.identity(nutritionistId),
+      });
       return true;
     } catch (err: unknown) {
       // Ativação é telemetria: um erro aqui nunca pode derrubar o fluxo do usuário.
@@ -72,11 +76,15 @@ export class MetaActivationService {
     void this.evaluate(nutritionistId, context);
   }
 
-  private async nutritionistEmail(nutritionistId: string): Promise<string | null> {
+  private async identity(nutritionistId: string): Promise<MetaIdentity> {
     const profile = await this.prisma.nutritionistProfile.findUnique({
       where: { id: nutritionistId },
-      select: { user: { select: { email: true } } },
+      select: { user: { select: { id: true, email: true, name: true } } },
     });
-    return profile?.user.email ?? null;
+    return {
+      email: profile?.user.email ?? null,
+      name: profile?.user.name ?? null,
+      externalId: profile?.user.id ?? null,
+    };
   }
 }

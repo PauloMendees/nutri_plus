@@ -30,11 +30,11 @@ describe('MetaSignalsService', () => {
   });
 
   it('CompleteRegistration usa o e-mail do corpo (não há sessão ainda)', () => {
-    expect(service.registration('ana@clinica.com', CTX)).toBe(true);
+    expect(service.registration({ email: 'ana@clinica.com' }, CTX)).toBe(true);
     expect(capi.enqueue).toHaveBeenCalledWith({
       name: 'CompleteRegistration',
       context: CTX,
-      email: 'ana@clinica.com',
+      identity: { email: 'ana@clinica.com' },
       customData: { status: true },
     });
   });
@@ -48,7 +48,7 @@ describe('MetaSignalsService', () => {
     await service.authenticated(
       {
         nutritionistId: 'n1',
-        email: 'ana@clinica.com',
+        identity: { email: 'ana@clinica.com' },
         // Cliente alegando Essencial mensal (R$39): o servidor ignora e usa Pro anual.
         dto: { name: 'Subscribe', plan: 'ESSENCIAL', period: 'MONTHLY' },
       },
@@ -58,7 +58,7 @@ describe('MetaSignalsService', () => {
     expect(capi.enqueue).toHaveBeenCalledWith({
       name: 'Subscribe',
       context: CTX,
-      email: 'ana@clinica.com',
+      identity: { email: 'ana@clinica.com' },
       customData: { currency: 'BRL', value: 790, content_name: 'PRO' },
     });
   });
@@ -66,7 +66,7 @@ describe('MetaSignalsService', () => {
   it('Subscribe cai para o plano informado quando a assinatura ainda não gravou', async () => {
     prisma.subscription.findUnique.mockResolvedValue(null as never);
     await service.authenticated(
-      { nutritionistId: 'n1', email: 'a@b.c', dto: { name: 'Subscribe', plan: 'PRO', period: 'MONTHLY' } },
+      { nutritionistId: 'n1', identity: { email: 'a@b.c' }, dto: { name: 'Subscribe', plan: 'PRO', period: 'MONTHLY' } },
       CTX,
     );
     expect(capi.enqueue).toHaveBeenCalledWith(
@@ -76,7 +76,7 @@ describe('MetaSignalsService', () => {
 
   it('InitiateCheckout deriva o valor do plano escolhido', async () => {
     await service.authenticated(
-      { nutritionistId: 'n1', email: 'a@b.c', dto: { name: 'InitiateCheckout', plan: 'ESSENCIAL', period: 'YEARLY' } },
+      { nutritionistId: 'n1', identity: { email: 'a@b.c' }, dto: { name: 'InitiateCheckout', plan: 'ESSENCIAL', period: 'YEARLY' } },
       CTX,
     );
     expect(capi.enqueue).toHaveBeenCalledWith(
@@ -88,20 +88,75 @@ describe('MetaSignalsService', () => {
     expect(prisma.subscription.findUnique).not.toHaveBeenCalled();
   });
 
-  it('StartTrial vai sem valor de propósito — a campanha otimiza pelo evento', async () => {
+  describe('StartTrial (disparo único)', () => {
+    function claim(count: number) {
+      prisma.subscription.updateMany.mockResolvedValue({ count } as never);
+    }
+
+    it('emite sem valor de propósito — a campanha otimiza pelo evento', async () => {
+      claim(1);
+      await expect(
+        service.authenticated(
+          { nutritionistId: 'n1', identity: { email: 'a@b.c' }, dto: { name: 'StartTrial' } },
+          CTX,
+        ),
+      ).resolves.toBe(true);
+      expect(capi.enqueue).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'StartTrial', customData: { currency: 'BRL', value: 0 } }),
+      );
+    });
+
+    it('reivindica com o cadeado startTrialEventoEm: null', async () => {
+      claim(1);
+      await service.authenticated(
+        { nutritionistId: 'n1', identity: {}, dto: { name: 'StartTrial' } },
+        CTX,
+      );
+      expect(prisma.subscription.updateMany).toHaveBeenCalledWith({
+        where: { nutritionistId: 'n1', startTrialEventoEm: null },
+        data: { startTrialEventoEm: expect.any(Date) },
+      });
+    });
+
+    it('NÃO emite na segunda chamada — era isto que dobrava a contagem', async () => {
+      claim(0);
+      await expect(
+        service.authenticated(
+          { nutritionistId: 'n1', identity: {}, dto: { name: 'StartTrial' } },
+          CTX,
+        ),
+      ).resolves.toBe(false);
+      expect(capi.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('na dúvida não emite: erro de banco devolve false em vez de duplicar', async () => {
+      prisma.subscription.updateMany.mockRejectedValue(new Error('db fora'));
+      await expect(
+        service.authenticated(
+          { nutritionistId: 'n1', identity: {}, dto: { name: 'StartTrial' } },
+          CTX,
+        ),
+      ).resolves.toBe(false);
+      expect(capi.enqueue).not.toHaveBeenCalled();
+    });
+  });
+
+  it('InitiateCheckout NÃO é idempotente: a pessoa pode comparar planos', async () => {
     await service.authenticated(
-      { nutritionistId: 'n1', email: 'a@b.c', dto: { name: 'StartTrial' } },
+      { nutritionistId: 'n1', identity: {}, dto: { name: 'InitiateCheckout', plan: 'PRO', period: 'MONTHLY' } },
       CTX,
     );
-    expect(capi.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'StartTrial', customData: { currency: 'BRL', value: 0 } }),
+    await service.authenticated(
+      { nutritionistId: 'n1', identity: {}, dto: { name: 'InitiateCheckout', plan: 'ESSENCIAL', period: 'MONTHLY' } },
+      CTX,
     );
+    expect(capi.enqueue).toHaveBeenCalledTimes(2);
   });
 
   it('TrialAtivado delega a decisão ao serviço de ativação e devolve o veredito', async () => {
     activation.evaluate.mockResolvedValue(true);
     await expect(
-      service.authenticated({ nutritionistId: 'n1', email: 'a@b.c', dto: { name: 'TrialAtivado' } }, CTX),
+      service.authenticated({ nutritionistId: 'n1', identity: { email: 'a@b.c' }, dto: { name: 'TrialAtivado' } }, CTX),
     ).resolves.toBe(true);
     expect(activation.evaluate).toHaveBeenCalledWith('n1', CTX);
     // Não passa pela CAPI direto: quem enfileira é o serviço de ativação, depois da flag.
@@ -111,7 +166,7 @@ describe('MetaSignalsService', () => {
   it('TrialAtivado devolve false quando a condição ainda não fechou', async () => {
     activation.evaluate.mockResolvedValue(false);
     await expect(
-      service.authenticated({ nutritionistId: 'n1', email: 'a@b.c', dto: { name: 'TrialAtivado' } }, CTX),
+      service.authenticated({ nutritionistId: 'n1', identity: { email: 'a@b.c' }, dto: { name: 'TrialAtivado' } }, CTX),
     ).resolves.toBe(false);
   });
 });
