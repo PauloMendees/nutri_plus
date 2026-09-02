@@ -4,15 +4,15 @@ import userEvent from '@testing-library/user-event';
 
 const signUp = vi.fn();
 const push = vi.fn();
-const trackMetaEvent = vi.fn();
+const trackCompleteRegistration = vi.fn();
 
 // O cadastro DEVE usar createSignupClient (flowType implicit). Se alguém voltar
 // para createClient, o mock não cobre e o teste quebra — de propósito.
 vi.mock('@/lib/supabase/client', () => ({
   createSignupClient: () => ({ auth: { signUp } }),
 }));
-vi.mock('@/lib/analytics/meta-events', () => ({
-  trackMetaEvent: (...a: unknown[]) => trackMetaEvent(...a),
+vi.mock('@/lib/analytics/meta-conversions', () => ({
+  trackCompleteRegistration: (...a: unknown[]) => trackCompleteRegistration(...a),
 }));
 let currentSearchParams = new URLSearchParams();
 
@@ -26,7 +26,7 @@ import { SignupForm } from './signup-form';
 beforeEach(() => {
   signUp.mockReset();
   push.mockReset();
-  trackMetaEvent.mockReset();
+  trackCompleteRegistration.mockReset();
   currentSearchParams = new URLSearchParams();
 });
 
@@ -64,7 +64,8 @@ describe('SignupForm', () => {
     // sem query string a concatenação viraria parte do path.
     expect(arg.options.emailRedirectTo).toMatch(/\/auth\/callback\?plan=$/);
     expect(push).toHaveBeenCalledWith('/verify-email?email=ana%40clinica.com');
-    expect(trackMetaEvent).toHaveBeenCalledWith('CompleteRegistration', { status: true });
+    // O e-mail vai junto: é dele que o backend tira o SHA-256 do user_data da CAPI.
+    expect(trackCompleteRegistration).toHaveBeenCalledWith('ana@clinica.com');
   });
 
   it('shows the chosen plan and keeps it on the confirmation redirect', async () => {
@@ -85,6 +86,6 @@ describe('SignupForm', () => {
     await userEvent.click(screen.getByRole('button', { name: /criar conta/i }));
     expect(await screen.findByText(/já existe/i)).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
-    expect(trackMetaEvent).not.toHaveBeenCalled();
+    expect(trackCompleteRegistration).not.toHaveBeenCalled();
   });
 });

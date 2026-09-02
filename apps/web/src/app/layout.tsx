@@ -21,6 +21,13 @@ export const metadata: Metadata = {
   },
   description:
     'Software para nutricionistas: planos com IA, app do paciente e consultório em um só lugar.',
+  // Verificação de domínio do Meta. Precisa vir no HTML renderizado no
+  // servidor: o crawler do Meta não executa JS, então injetar por script no
+  // cliente faz a verificação falhar. Fica no layout raiz para valer também
+  // em `/`, que é a URL que o Gerenciador de Negócios busca.
+  verification: {
+    other: { 'facebook-domain-verification': 'cfsx06wk3o0czu9oltv1794ic26q0b' },
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

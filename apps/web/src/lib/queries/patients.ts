@@ -10,6 +10,7 @@ import {
   uploadPatientPhoto,
 } from '@/lib/api/patients';
 import { ONBOARDING_KEY } from '@/lib/queries/onboarding';
+import { trackTrialAtivadoIfReady } from '@/lib/analytics/meta-conversions';
 
 export function usePatients(params: ListPatientsParams = {}) {
   return useQuery({
@@ -30,6 +31,8 @@ export function useCreatePatient() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['patients'] });
       qc.invalidateQueries({ queryKey: ONBOARDING_KEY });
+      // Metade da condição de TrialAtivado. O servidor decide se dispara.
+      void trackTrialAtivadoIfReady();
     },
   });
 }

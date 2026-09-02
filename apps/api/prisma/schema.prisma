@@ -573,6 +573,10 @@ model Subscription {
   asaasCardToken       String?
 
   onboardedAt   DateTime?
+  // Guarda de disparo único do evento TrialAtivado (>=1 paciente E >=1 plano
+  // alimentar, ambos reais — demos do tour não contam). Reivindicado por
+  // updateMany condicional em MetaActivationService, nunca por estado de sessão.
+  trialAtivadoEm DateTime?
   paymentMethod String?
   cardLast4     String?
   cardBrand     String?

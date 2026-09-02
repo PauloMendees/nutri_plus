@@ -10,6 +10,7 @@ import {
   setMealPlanVisibility,
   updateMealPlan,
 } from '@/lib/api/meal-plans';
+import { trackTrialAtivadoIfReady } from '@/lib/analytics/meta-conversions';
 
 export function useMealPlans(patientId: string) {
   return useQuery({
@@ -31,7 +32,11 @@ export function useCreateMealPlan(patientId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: CreateMealPlanRequest) => createMealPlan(body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['meal-plans', patientId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['meal-plans', patientId] });
+      // A outra metade da condição de TrialAtivado. O servidor decide se dispara.
+      void trackTrialAtivadoIfReady();
+    },
   });
 }
 

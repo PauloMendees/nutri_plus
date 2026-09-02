@@ -12,8 +12,16 @@ declare global {
 
 export function MetaPixel({
   pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID,
+  trackPageView = true,
 }: {
   pixelId?: string;
+  /**
+   * `false` inicializa o pixel sem contar PageView. É o modo usado dentro do
+   * app autenticado: o pixel precisa existir para `trackCustom('TrialAtivado')`
+   * ter onde disparar, mas a navegação interna do produto não é audiência de
+   * campanha e não deve inflar o volume de PageView.
+   */
+  trackPageView?: boolean;
 }) {
   const pathname = usePathname();
   const isFirstPath = useRef(true);
@@ -23,8 +31,9 @@ export function MetaPixel({
       isFirstPath.current = false;
       return;
     }
+    if (!trackPageView) return;
     window.fbq?.('track', 'PageView');
-  }, [pathname]);
+  }, [pathname, trackPageView]);
 
   if (!pixelId) return null;
 
@@ -44,19 +53,21 @@ t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window, document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
 fbq('init', '${pixelId}');
-fbq('track', 'PageView');
+${trackPageView ? "fbq('track', 'PageView');" : ''}
           `.trim(),
         }}
       />
-      <noscript>
-        <img
-          height={1}
-          width={1}
-          style={{ display: 'none' }}
-          src={`https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1`}
-          alt=""
-        />
-      </noscript>
+      {trackPageView && (
+        <noscript>
+          <img
+            height={1}
+            width={1}
+            style={{ display: 'none' }}
+            src={`https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1`}
+            alt=""
+          />
+        </noscript>
+      )}
     </>
   );
 }

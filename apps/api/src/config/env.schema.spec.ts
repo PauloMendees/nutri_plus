@@ -53,6 +53,23 @@ describe('validateEnv', () => {
     );
   });
 
+  it('aceita a ausência total das vars do Meta (CAPI desligada em dev/testes)', () => {
+    const result = validateEnv(valid);
+    expect(result.META_PIXEL_ID).toBeUndefined();
+    expect(result.META_CAPI_ACCESS_TOKEN).toBeUndefined();
+    expect(result.META_CAPI_TEST_EVENT_CODE).toBeUndefined();
+  });
+
+  it('aplica v21.0 como versão default da Graph API', () => {
+    expect(validateEnv(valid).META_CAPI_API_VERSION).toBe('v21.0');
+  });
+
+  it('rejeita uma versão de Graph API fora do formato vNN.N', () => {
+    expect(() => validateEnv({ ...valid, META_CAPI_API_VERSION: '21' })).toThrow(
+      /META_CAPI_API_VERSION/,
+    );
+  });
+
   it('throws when WEB_ORIGIN has no http(s) scheme', () => {
     // A bare host:port parses as a URL (scheme 'localhost:'), so the schema
     // must additionally require an http(s) scheme — else redirectTo breaks.

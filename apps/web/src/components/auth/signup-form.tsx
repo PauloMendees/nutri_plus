@@ -9,7 +9,7 @@ import { createSignupClient } from '@/lib/supabase/client';
 import { signupSchema, type SignupValues } from '@/lib/validation/auth';
 import { mapAuthError } from '@/lib/auth/errors';
 import { parseSignupPlan } from '@/lib/billing/signup-plan';
-import { trackMetaEvent } from '@/lib/analytics/meta-events';
+import { trackCompleteRegistration } from '@/lib/analytics/meta-conversions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -56,7 +56,7 @@ export function SignupForm() {
       setFormError(mapAuthError(error));
       return;
     }
-    trackMetaEvent('CompleteRegistration', { status: true });
+    trackCompleteRegistration(values.email);
     router.push(`/verify-email?email=${encodeURIComponent(values.email)}`);
   }
 

@@ -26,6 +26,16 @@ export const envSchema = z.object({
   RESEND_API_KEY: z.string().min(1).optional(),
   SUPPORT_INBOX_EMAIL: z.string().email().optional(),
   SUPPORT_FROM_EMAIL: z.string().min(1).optional(),
+  // --- Meta Conversions API ---
+  // Todos opcionais: sem pixel + token o MetaCapiService vira no-op silencioso,
+  // então dev e testes rodam sem nenhuma variável do Meta configurada.
+  META_PIXEL_ID: z.string().min(1).optional(),
+  // Token de acesso do Gerenciador de Eventos. NUNCA no código, nunca no bundle
+  // do front (não tem prefixo NEXT_PUBLIC_ de propósito).
+  META_CAPI_ACCESS_TOKEN: z.string().min(1).optional(),
+  // Preenchido só em dev: manda os eventos para a aba "Eventos de teste".
+  META_CAPI_TEST_EVENT_CODE: z.string().min(1).optional(),
+  META_CAPI_API_VERSION: z.string().regex(/^v\d+\.\d+$/).default('v21.0'),
 });
 
 export type Env = z.infer<typeof envSchema>;

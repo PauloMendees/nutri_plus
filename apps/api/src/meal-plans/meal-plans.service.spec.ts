@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../prisma/prisma.service';
+import { MetaActivationService } from '../meta/meta-activation.service';
 import { MealPlansService } from './meal-plans.service';
 import { AuthContext } from '../auth/types/auth-context';
 
@@ -61,12 +62,46 @@ function empCtx(nutritionistId: string): AuthContext {
 
 describe('MealPlansService', () => {
   let prisma: DeepMockProxy<PrismaService>;
+  let metaActivation: DeepMockProxy<MetaActivationService>;
   let service: MealPlansService;
   const ctx = nutCtx('nutri-1');
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
-    service = new MealPlansService(prisma);
+    metaActivation = mockDeep<MetaActivationService>();
+    service = new MealPlansService(prisma, metaActivation);
+  });
+
+  describe('createGeneratedPlan (caminho do job de IA)', () => {
+    const args = {
+      patientId: 'p1',
+      title: 'Plano IA',
+      targets: { calories: 2000, protein: 120, carbs: 220, fats: 60 },
+      meals: [],
+    };
+
+    beforeEach(() => {
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
+      prisma.mealPlan.create.mockResolvedValue({ id: 'mp1' } as any);
+    });
+
+    it('avalia TrialAtivado no servidor: é o único caminho sem navegador na frente', async () => {
+      await service.createGeneratedPlan(ctx, args);
+      expect(metaActivation.evaluateInBackground).toHaveBeenCalledWith(
+        'nutri-1',
+        expect.objectContaining({ fromBrowser: false }),
+      );
+    });
+
+    it('devolve o plano criado (a telemetria não entra no caminho de retorno)', async () => {
+      await expect(service.createGeneratedPlan(ctx, args)).resolves.toEqual({ id: 'mp1' });
+    });
+
+    it('não avalia quando a criação falha', async () => {
+      prisma.mealPlan.create.mockRejectedValue(new Error('db fora'));
+      await expect(service.createGeneratedPlan(ctx, args)).rejects.toThrow('db fora');
+      expect(metaActivation.evaluateInBackground).not.toHaveBeenCalled();
+    });
   });
 
   describe('createPlan', () => {
