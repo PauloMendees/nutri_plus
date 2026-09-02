@@ -13,7 +13,7 @@ export async function browserToken(): Promise<string> {
 
 export async function browserApiFetch<T>(
   path: string,
-  opts: { method?: string; body?: unknown } = {},
+  opts: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
 ): Promise<T> {
   const token = await browserToken();
   return apiFetch<T>(path, { token, ...opts });

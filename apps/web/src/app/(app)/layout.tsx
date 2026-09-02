@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { Logo } from '@/components/brand/logo';
+import { MetaPixel } from '@/components/analytics/meta-pixel';
 import { AppSidebar } from '@/components/app/app-sidebar';
 import { BillingGate } from '@/components/billing/billing-gate';
 import { OnboardingGate } from '@/components/billing/onboarding-gate';
@@ -23,6 +24,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <Providers>
+      {/* Sem PageView: o pixel entra aqui só para o evento TrialAtivado ter
+          onde disparar no navegador e poder ser deduplicado com a CAPI. */}
+      <MetaPixel trackPageView={false} />
       <SidebarProvider>
         <AppSidebar user={me ? { name: me.name, email: me.email, role: me.role } : null} />
         <SidebarInset>

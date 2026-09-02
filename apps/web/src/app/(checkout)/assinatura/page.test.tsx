@@ -6,13 +6,11 @@ const startTrial = vi.fn();
 const checkout = vi.fn();
 const changePlan = vi.fn();
 const previewChangePlan = vi.fn();
-const trackMetaEvent = vi.fn();
-// Mock parcial: só trackMetaEvent precisa de espião (toca window.fbq).
-// checkoutValue é puro sobre o PLAN_CATALOG — reimplementá-lo aqui faria as
-// asserções compararem o mock contra ele mesmo.
-vi.mock('@/lib/analytics/meta-events', async (orig) => ({
-  ...(await orig<typeof import('@/lib/analytics/meta-events')>()),
-  trackMetaEvent: (...a: unknown[]) => trackMetaEvent(...a),
+const trackConversion = vi.fn();
+// checkoutValue continua real (puro sobre o PLAN_CATALOG); reimplementá-lo aqui
+// faria as asserções compararem o mock contra ele mesmo.
+vi.mock('@/lib/analytics/meta-conversions', () => ({
+  trackConversion: (...a: unknown[]) => trackConversion(...a),
 }));
 vi.mock('@/lib/api/subscription', () => ({
   startTrial: () => startTrial(),
@@ -49,7 +47,7 @@ beforeEach(() => {
   // Conta nova: nunca fez trial, nunca pagou -> elegível.
   useQuery.mockReturnValue({ data: { onboardedAt: null, canStartTrial: true, status: 'TRIALING', entitlements: { isReadOnly: true } } });
   currentSearchParams = new URLSearchParams();
-  trackMetaEvent.mockReset();
+  trackConversion.mockReset();
 });
 
 it('no onboarding mostra "Começar teste grátis" e inicia o trial', async () => {
@@ -63,7 +61,7 @@ it('no onboarding mostra "Começar teste grátis" e inicia o trial', async () =>
   const invalidateOrder = invalidateQueries.mock.invocationCallOrder[0];
   const replaceOrder = replace.mock.invocationCallOrder[0];
   expect(invalidateOrder).toBeLessThan(replaceOrder);
-  expect(trackMetaEvent).toHaveBeenCalledWith('StartTrial', { value: 0, currency: 'BRL' });
+  expect(trackConversion).toHaveBeenCalledWith('StartTrial', { params: { value: 0, currency: 'BRL' } });
 });
 
 it('não dispara StartTrial quando o trial falha', async () => {
@@ -72,7 +70,7 @@ it('não dispara StartTrial quando o trial falha', async () => {
   fireEvent.click(screen.getByRole('button', { name: /começar teste grátis/i }));
   await waitFor(() => expect(startTrial).toHaveBeenCalled());
   expect(replace).not.toHaveBeenCalled();
-  expect(trackMetaEvent).not.toHaveBeenCalledWith('StartTrial', expect.anything());
+  expect(trackConversion).not.toHaveBeenCalledWith('StartTrial', expect.anything());
 });
 
 it('escolher plano + Pix mostra o QR', async () => {
@@ -83,9 +81,14 @@ it('escolher plano + Pix mostra o QR', async () => {
   fireEvent.change(screen.getByLabelText(/cpf\/cnpj/i), { target: { value: '123.456.789-01' } });
   fireEvent.click(screen.getByRole('button', { name: /gerar código pix/i }));
   await waitFor(() => expect(screen.getByAltText(/qr code pix/i)).toBeInTheDocument());
-  expect(trackMetaEvent).toHaveBeenCalledWith(
+  expect(trackConversion).toHaveBeenCalledWith(
     'InitiateCheckout',
-    expect.objectContaining({ content_name: 'ESSENCIAL', currency: 'BRL', value: checkoutValue('ESSENCIAL', 'MONTHLY') }),
+    expect.objectContaining({
+      params: expect.objectContaining({ content_name: 'ESSENCIAL', currency: 'BRL', value: checkoutValue('ESSENCIAL', 'MONTHLY') }),
+      // plan/period vão para o relay: o servidor recalcula o valor pelo catálogo.
+      plan: 'ESSENCIAL',
+      period: 'MONTHLY',
+    }),
   );
 });
 
@@ -178,9 +181,13 @@ it('?plan=pro pulando o picker abre o checkout do Pro', async () => {
   expect(await screen.findByRole('button', { name: /^pix$/i })).toBeInTheDocument();
   expect(screen.getByText(/mensal/i)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /começar teste grátis/i })).not.toBeInTheDocument();
-  expect(trackMetaEvent).toHaveBeenCalledWith(
+  expect(trackConversion).toHaveBeenCalledWith(
     'InitiateCheckout',
-    expect.objectContaining({ content_name: 'PRO', currency: 'BRL', value: checkoutValue('PRO', 'MONTHLY') }),
+    expect.objectContaining({
+      params: expect.objectContaining({ content_name: 'PRO', currency: 'BRL', value: checkoutValue('PRO', 'MONTHLY') }),
+      plan: 'PRO',
+      period: 'MONTHLY',
+    }),
   );
 });
 
@@ -200,9 +207,13 @@ it('cartão confirmado dispara Subscribe com o valor do plano', async () => {
   fireEvent.click(screen.getByRole('button', { name: /pagar/i }));
   await waitFor(() => expect(checkout).toHaveBeenCalled());
   await waitFor(() =>
-    expect(trackMetaEvent).toHaveBeenCalledWith(
+    expect(trackConversion).toHaveBeenCalledWith(
       'Subscribe',
-      expect.objectContaining({ content_name: 'ESSENCIAL', currency: 'BRL', value: checkoutValue('ESSENCIAL', 'MONTHLY') }),
+      expect.objectContaining({
+        params: expect.objectContaining({ content_name: 'ESSENCIAL', currency: 'BRL', value: checkoutValue('ESSENCIAL', 'MONTHLY') }),
+        plan: 'ESSENCIAL',
+        period: 'MONTHLY',
+      }),
     ),
   );
 });

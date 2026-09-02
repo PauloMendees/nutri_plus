@@ -12,13 +12,15 @@ type ApiFetchOptions = {
   token?: string;
   method?: string;
   body?: unknown;
+  /** Headers extras da chamada (ex.: o contexto de deduplicação do Meta). */
+  headers?: Record<string, string>;
 };
 
 export async function apiFetch<T>(path: string, opts: ApiFetchOptions = {}): Promise<T> {
   const base = process.env.NEXT_PUBLIC_API_URL;
   if (!base) throw new Error('NEXT_PUBLIC_API_URL is not set');
 
-  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  const headers: Record<string, string> = { 'content-type': 'application/json', ...opts.headers };
   if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
 
   const res = await fetch(`${base}/v1${path}`, {

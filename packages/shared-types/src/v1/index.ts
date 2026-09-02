@@ -30,3 +30,4 @@ export * from './support';
 export * from './feedback';
 export * from './whatsapp';
 export * from './meal-log';
+export * from './meta';

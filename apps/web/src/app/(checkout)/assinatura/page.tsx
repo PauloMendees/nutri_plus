@@ -12,7 +12,8 @@ import { CardForm } from '@/components/billing/card-form';
 import { PixPayment } from '@/components/billing/pix-payment';
 import { PlanPicker } from '@/components/billing/plan-picker';
 import { parseSignupPlan } from '@/lib/billing/signup-plan';
-import { checkoutValue, trackMetaEvent } from '@/lib/analytics/meta-events';
+import { checkoutValue } from '@/lib/analytics/meta-events';
+import { trackConversion } from '@/lib/analytics/meta-conversions';
 
 type Choice = { plan: PlanTier; period: BillingPeriod };
 type Method = 'PIX' | 'CREDIT_CARD';
@@ -89,20 +90,28 @@ export default function AssinaturaPage() {
     appliedPlanQuery.current = true;
     setChoice({ plan: preselected, period: 'MONTHLY' });
     setMethod('PIX');
-    trackMetaEvent('InitiateCheckout', {
-      content_name: preselected,
-      currency: 'BRL',
-      value: checkoutValue(preselected, 'MONTHLY'),
+    trackConversion('InitiateCheckout', {
+      params: {
+        content_name: preselected,
+        currency: 'BRL',
+        value: checkoutValue(preselected, 'MONTHLY'),
+      },
+      plan: preselected,
+      period: 'MONTHLY',
     });
   }, [isActive, choice, preselected]);
 
   useEffect(() => {
     if (subscribed.current || !choice || !pix || !isActive) return;
     subscribed.current = true;
-    trackMetaEvent('Subscribe', {
-      content_name: choice.plan,
-      currency: 'BRL',
-      value: checkoutValue(choice.plan, choice.period),
+    trackConversion('Subscribe', {
+      params: {
+        content_name: choice.plan,
+        currency: 'BRL',
+        value: checkoutValue(choice.plan, choice.period),
+      },
+      plan: choice.plan,
+      period: choice.period,
     });
   }, [choice, pix, isActive]);
 
@@ -111,10 +120,10 @@ export default function AssinaturaPage() {
     setMethod('PIX');
     setPix(null);
     setError(null);
-    trackMetaEvent('InitiateCheckout', {
-      content_name: plan,
-      currency: 'BRL',
-      value: checkoutValue(plan, period),
+    trackConversion('InitiateCheckout', {
+      params: { content_name: plan, currency: 'BRL', value: checkoutValue(plan, period) },
+      plan,
+      period,
     });
   }
 
@@ -142,7 +151,7 @@ export default function AssinaturaPage() {
     setTrialLoading(true);
     try {
       await startTrial();
-      trackMetaEvent('StartTrial', { value: 0, currency: 'BRL' });
+      trackConversion('StartTrial', { params: { value: 0, currency: 'BRL' } });
       // Invalida o cache de assinatura antes de navegar: sem isso, `/` serve o
       // cache stale (onboardedAt === null) e o OnboardingGate manda de volta pra cá.
       await queryClient.invalidateQueries({ queryKey: SUBSCRIPTION_KEY });
@@ -179,10 +188,14 @@ export default function AssinaturaPage() {
     setError(null);
     try {
       await checkoutSubscription({ plan: choice.plan, period: choice.period, cpfCnpj, method: 'CREDIT_CARD', card, holderInfo });
-      trackMetaEvent('Subscribe', {
-        content_name: choice.plan,
-        currency: 'BRL',
-        value: checkoutValue(choice.plan, choice.period),
+      trackConversion('Subscribe', {
+        params: {
+          content_name: choice.plan,
+          currency: 'BRL',
+          value: checkoutValue(choice.plan, choice.period),
+        },
+        plan: choice.plan,
+        period: choice.period,
       });
       // Mesmo motivo do trial: invalida o cache antes de navegar pra `/`.
       await queryClient.invalidateQueries({ queryKey: SUBSCRIPTION_KEY });

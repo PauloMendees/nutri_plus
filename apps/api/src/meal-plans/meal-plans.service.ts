@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MetaActivationService } from '../meta/meta-activation.service';
+import { serverOnlyMetaContext } from '../meta/meta-context';
 import { AuthContext } from '../auth/types/auth-context';
 import { resolveScopeNutritionistId } from '../auth/auth-scope';
 import { CreateMealPlanDto } from './dto/create-meal-plan.dto';
@@ -46,7 +48,10 @@ const FULL_TREE = {
 
 @Injectable()
 export class MealPlansService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly metaActivation: MetaActivationService,
+  ) {}
 
   // --- Nutritionist surface (ownership via the patient's nutritionistId) ---
 
@@ -77,7 +82,7 @@ export class MealPlansService {
     },
   ) {
     await this.requireOwnedPatient(ctx, args.patientId);
-    return this.prisma.mealPlan.create({
+    const plan = await this.prisma.mealPlan.create({
       data: {
         patientId: args.patientId,
         title: args.title,
@@ -90,6 +95,18 @@ export class MealPlansService {
       },
       include: FULL_TREE,
     });
+
+    // Este é o ÚNICO caminho de criação de plano sem navegador na frente: roda
+    // dentro do job de IA, muito depois do 202. Como não há cliente para chamar
+    // o relay com um event_id, a ativação é avaliada aqui e o TrialAtivado sai
+    // só pelo servidor (contado uma vez; deduplicação só é necessária quando os
+    // dois lados disparam). Os caminhos manuais são cobertos pelo relay do web.
+    this.metaActivation.evaluateInBackground(
+      resolveScopeNutritionistId(ctx),
+      serverOnlyMetaContext(),
+    );
+
+    return plan;
   }
 
   async listPlans(ctx: AuthContext, patientId: string) {
