@@ -15,3 +15,4 @@ apps/api/src/generated/
 
 # Dumps do banco (contem dados de saude de pacientes — nunca versionar)
 /backups/
+marketing/
