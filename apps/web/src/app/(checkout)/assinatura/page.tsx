@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { BillingPeriod, CardHolderInfo, CardInput, ChangePlanPreview, PixQrCode, PlanTier } from '@nutri-plus/shared-types';
 import { ApiError } from '@/lib/api/client';
@@ -113,7 +114,14 @@ export default function AssinaturaPage() {
       plan: choice.plan,
       period: choice.period,
     });
-  }, [choice, pix, isActive]);
+    // O webhook do Asaas confirmou o Pix e o polling trouxe o ACTIVE. Sem este
+    // replace o render cai no ramo de troca de plano ("Troque de plano", com o
+    // plano recém-assinado como atual) e a pessoa fica presa lá — o cartão e o
+    // trial navegam na mão porque são síncronos; o Pix não tinha equivalente.
+    // Não precisa invalidar o cache: o `data` que disparou este efeito É a
+    // resposta fresca do polling, gravada na mesma query key que `/` lê.
+    router.replace('/');
+  }, [choice, pix, isActive, router]);
 
   function onChoosePlan(plan: PlanTier, period: BillingPeriod) {
     setChoice({ plan, period });
@@ -277,9 +285,17 @@ export default function AssinaturaPage() {
                 onChoose={onChangePlan}
                 busy={loading}
               />
-              <div className="text-center">
+              {/* "Cancelar" usa router.back(), que só serve pra quem chegou
+                  aqui de dentro do app. Quem acabou de assinar e recarregou a
+                  página durante o Pix perdeu choice/pix, não recebe o replace
+                  automático e cairia aqui sem histórico — o back leva ao signup.
+                  O link explícito é a saída que faltava. */}
+              <div className="flex items-center justify-center gap-2">
                 <Button variant="ghost" size="sm" disabled={loading} onClick={() => router.back()}>
                   Cancelar
+                </Button>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/">Ir para o painel</Link>
                 </Button>
               </div>
             </div>

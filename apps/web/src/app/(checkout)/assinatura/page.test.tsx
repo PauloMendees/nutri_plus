@@ -307,3 +307,81 @@ it('upgrade por Pix: com o QR na tela ainda dá para voltar', async () => {
   expect(screen.queryByAltText(/qr code pix/i)).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: /trocar para pro/i })).toBeInTheDocument();
 });
+
+it('Pix pago: o polling vê a ativação e leva o usuário para o painel', async () => {
+  checkout.mockResolvedValue({ method: 'PIX', pixQrCode: { encodedImage: 'B64', payload: 'p' } });
+  const { rerender } = render(<AssinaturaPage />);
+  fireEvent.click(screen.getAllByRole('button', { name: /assinar/i })[0]);
+  fireEvent.click(screen.getByRole('button', { name: /^pix$/i }));
+  fireEvent.change(screen.getByLabelText(/cpf\/cnpj/i), { target: { value: '70791944158' } });
+  fireEvent.click(screen.getByRole('button', { name: /gerar código pix/i }));
+  await waitFor(() => expect(screen.getByAltText(/qr code pix/i)).toBeInTheDocument());
+
+  // O webhook do Asaas confirmou o Pix; o polling de 5s enxerga o ACTIVE.
+  useQuery.mockReturnValue({
+    data: {
+      status: 'ACTIVE',
+      plan: 'ESSENCIAL',
+      billingPeriod: 'MONTHLY',
+      onboardedAt: '2026-09-08T00:00:00Z',
+      canStartTrial: false,
+      entitlements: { isReadOnly: false },
+    },
+  });
+  rerender(<AssinaturaPage />);
+
+  // Sem isto o usuário cai no picker de "Troque de plano" e fica preso lá.
+  await waitFor(() => expect(replace).toHaveBeenCalledWith('/'));
+});
+
+it('Pix pago ainda dispara Subscribe junto com o redirecionamento', async () => {
+  checkout.mockResolvedValue({ method: 'PIX', pixQrCode: { encodedImage: 'B64', payload: 'p' } });
+  const { rerender } = render(<AssinaturaPage />);
+  fireEvent.click(screen.getAllByRole('button', { name: /assinar/i })[0]);
+  fireEvent.click(screen.getByRole('button', { name: /^pix$/i }));
+  fireEvent.change(screen.getByLabelText(/cpf\/cnpj/i), { target: { value: '70791944158' } });
+  fireEvent.click(screen.getByRole('button', { name: /gerar código pix/i }));
+  await waitFor(() => expect(screen.getByAltText(/qr code pix/i)).toBeInTheDocument());
+
+  useQuery.mockReturnValue({
+    data: {
+      status: 'ACTIVE',
+      plan: 'ESSENCIAL',
+      billingPeriod: 'MONTHLY',
+      onboardedAt: '2026-09-08T00:00:00Z',
+      canStartTrial: false,
+      entitlements: { isReadOnly: false },
+    },
+  });
+  rerender(<AssinaturaPage />);
+
+  await waitFor(() =>
+    expect(trackConversion).toHaveBeenCalledWith(
+      'Subscribe',
+      expect.objectContaining({
+        params: expect.objectContaining({ content_name: 'ESSENCIAL', currency: 'BRL', value: checkoutValue('ESSENCIAL', 'MONTHLY') }),
+        plan: 'ESSENCIAL',
+        period: 'MONTHLY',
+      }),
+    ),
+  );
+});
+
+it('assinante ativo tem uma saída para o painel mesmo sem histórico de navegação', () => {
+  // Cenário do bug: recarregou a página com o QR na tela e pagou depois.
+  // choice/pix se perderam, então o redirect automático não dispara e o
+  // `router.back()` do "Cancelar" leva ao signup, não ao painel.
+  previewChangePlan.mockResolvedValue({ kind: 'UPGRADE', amountNow: 25, recurringValue: 99, recurringPeriod: 'MONTHLY', effectiveDate: '2026-09-20T00:00:00Z' });
+  useQuery.mockReturnValue({
+    data: {
+      status: 'ACTIVE',
+      plan: 'ESSENCIAL',
+      billingPeriod: 'MONTHLY',
+      onboardedAt: '2026-09-08T00:00:00Z',
+      entitlements: { isReadOnly: false },
+    },
+  });
+  render(<AssinaturaPage />);
+  const painel = screen.getByRole('link', { name: /painel/i });
+  expect(painel).toHaveAttribute('href', '/');
+});
