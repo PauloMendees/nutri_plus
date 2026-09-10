@@ -164,7 +164,12 @@ describe('UsersService', () => {
       email: 'p@x.com',
       name: 'Pat',
       nutritionistId: 'nutri-1',
-      clinical: { height: 165 } as any,
+      clinical: {
+        height: 165,
+        name: 'Other',
+        email: 'other@x.com',
+        phone: '11999998888',
+      } as any,
     });
 
     const arg = prisma.user.create.mock.calls[0][0] as any;
@@ -258,7 +263,14 @@ describe('UsersService', () => {
       email: 'demo.user-1.1@example.com',
       name: 'Maria Demonstração',
       nutritionistId: 'nutri-1',
-      clinical: { height: 165, canLogAssessments: true, showMealTargetToPatient: true } as any,
+      clinical: {
+        height: 165,
+        name: 'Other',
+        email: 'other@example.com',
+        phone: '11999998888',
+        canLogAssessments: true,
+        showMealTargetToPatient: true,
+      } as any,
     });
 
     const arg = prisma.user.create.mock.calls[0][0] as any;

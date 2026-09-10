@@ -93,6 +93,7 @@ export class UsersService {
     clinical: UpdatePatientDto;
   }): Promise<LocalUser> {
     try {
+      const { name: _name, email: _email, phone: _phone, ...clinical } = input.clinical;
       return await this.prisma.user.create({
         data: {
           authProvider: SUPABASE_PROVIDER,
@@ -105,7 +106,7 @@ export class UsersService {
               nutritionistId: input.nutritionistId,
               name: input.name,
               email: input.email,
-              ...input.clinical,
+              ...clinical,
             },
           },
         },
@@ -132,6 +133,7 @@ export class UsersService {
     clinical: UpdatePatientDto;
   }): Promise<LocalUser> {
     try {
+      const { name: _name, email: _email, phone: _phone, ...clinical } = input.clinical;
       return await this.prisma.user.create({
         data: {
           authProvider: DEMO_PROVIDER,
@@ -144,7 +146,7 @@ export class UsersService {
               nutritionistId: input.nutritionistId,
               name: input.name,
               email: input.email,
-              ...input.clinical,
+              ...clinical,
               canLogAssessments: false,
               showMealTargetToPatient: false,
             },
