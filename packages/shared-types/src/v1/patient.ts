@@ -22,16 +22,20 @@ export enum ActivityLevel {
   VERY_ACTIVE = 'VERY_ACTIVE',
 }
 
-export interface PatientUserSummary {
+export type PatientInviteStatus = 'NOT_INVITED' | 'INVITED' | 'ACTIVE';
+
+export interface PatientUserRef {
   id: string;
-  name: string;
-  email: string;
 }
 
 // Dates are ISO strings over the wire.
 export interface PatientSummary {
   id: string;
-  user: PatientUserSummary;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  inviteStatus: PatientInviteStatus;
+  user: PatientUserRef | null;
   nutritionistId: string | null;
   birthDate: string | null;
   gender: Gender | null;
@@ -65,7 +69,8 @@ export interface ListPatientsParams {
 
 export interface CreatePatientRequest {
   name: string;
-  email: string;
+  email?: string;
+  phone?: string;
   birthDate?: string;
   gender?: Gender;
   height?: number;
@@ -79,7 +84,21 @@ export interface CreatePatientRequest {
   demo?: boolean;
 }
 
-export type UpdatePatientRequest = Omit<CreatePatientRequest, 'name' | 'email'> & {
+export type UpdatePatientRequest = Partial<Omit<CreatePatientRequest, 'demo'>> & {
   canLogAssessments?: boolean;
   showMealTargetToPatient?: boolean;
 };
+
+export interface ImportPreviewResponse {
+  headers: string[];
+  suggestedMapping: Record<string, string>;
+  mappedBy: Record<string, 'template' | 'alias' | 'ai' | 'unmapped'>;
+  rowCount: number;
+  previewRows: { line: number; values: Record<string, string> }[];
+}
+
+export interface ImportCommitResponse {
+  created: number;
+  skipped: number;
+  errors: { line: number; name: string | null; message: string }[];
+}

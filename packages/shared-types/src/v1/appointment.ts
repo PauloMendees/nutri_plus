@@ -2,7 +2,9 @@ import type { AppointmentCategorySummary } from './appointment-category';
 
 export interface AppointmentPatientSummary {
   id: string;
-  user: { id: string; name: string; email: string };
+  name: string;
+  email: string | null;
+  user: { id: string } | null;
 }
 
 // Dates are ISO strings over the wire.
