@@ -84,16 +84,15 @@ export class UsersService {
 
   // Creates a patient that a nutritionist invited (the Supabase identity was
   // already created via the Admin API, so authProviderId is known up front).
+  // Connects the User to the existing ficha — does not nested-create a profile.
   // Maps the unique-constraint violation (email/identity already used) to 409.
   async createInvitedPatient(input: {
     authProviderId: string;
     email: string;
     name: string;
-    nutritionistId: string;
-    clinical: UpdatePatientDto;
+    patientId: string;
   }): Promise<LocalUser> {
     try {
-      const { name: _name, email: _email, phone: _phone, ...clinical } = input.clinical;
       return await this.prisma.user.create({
         data: {
           authProvider: SUPABASE_PROVIDER,
@@ -101,14 +100,7 @@ export class UsersService {
           email: input.email,
           name: input.name,
           role: UserRole.PATIENT,
-          patientProfile: {
-            create: {
-              nutritionistId: input.nutritionistId,
-              name: input.name,
-              email: input.email,
-              ...clinical,
-            },
-          },
+          patientProfile: { connect: { id: input.patientId } },
         },
         include: INCLUDE_PROFILES,
       });

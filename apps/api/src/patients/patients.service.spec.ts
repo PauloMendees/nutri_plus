@@ -749,6 +749,61 @@ describe('PatientsService', () => {
     });
   });
 
+  describe('invitePatient', () => {
+    it('invites then connects the User to the existing ficha', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValueOnce({
+        id: 'pp1', email: 'a@x.com', name: 'Ann', userId: null,
+      } as any);
+      supabaseAdmin.inviteUser.mockResolvedValue({ id: 'sub-new' });
+      users.createInvitedPatient.mockResolvedValue({} as any);
+      prisma.patientProfile.findFirst.mockResolvedValueOnce({
+        id: 'pp1', name: 'Ann', email: 'a@x.com', phone: null, userId: 'u-new',
+        firstAppLoginAt: null, isDemo: false, assessments: [], consents: [], height: null,
+      } as any);
+
+      const result = await service.invitePatient(ctx, 'pp1');
+
+      expect(supabaseAdmin.inviteUser).toHaveBeenCalledWith('a@x.com', { name: 'Ann' });
+      expect(users.createInvitedPatient).toHaveBeenCalledWith({
+        authProviderId: 'sub-new',
+        email: 'a@x.com',
+        name: 'Ann',
+        patientId: 'pp1',
+      });
+      expect(result.inviteStatus).toBe('INVITED');
+    });
+
+    it('422 without email', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'pp1', email: null, userId: null } as any);
+      await expect(service.invitePatient(ctx, 'pp1')).rejects.toBeInstanceOf(UnprocessableEntityException);
+      expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
+    });
+
+    it('422 for example.com', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({
+        id: 'pp1', email: 'qa@example.com', name: 'Ann', userId: null,
+      } as any);
+      await expect(service.invitePatient(ctx, 'pp1')).rejects.toBeInstanceOf(UnprocessableEntityException);
+    });
+
+    it('409 when already invited', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({
+        id: 'pp1', email: 'a@x.com', userId: 'u1',
+      } as any);
+      await expect(service.invitePatient(ctx, 'pp1')).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('rolls back the auth user when local write fails', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({
+        id: 'pp1', email: 'a@x.com', name: 'Ann', userId: null,
+      } as any);
+      supabaseAdmin.inviteUser.mockResolvedValue({ id: 'sub-new' });
+      users.createInvitedPatient.mockRejectedValue(new ConflictException('dup'));
+      await expect(service.invitePatient(ctx, 'pp1')).rejects.toBeInstanceOf(ConflictException);
+      expect(supabaseAdmin.deleteUser).toHaveBeenCalledWith('sub-new');
+    });
+  });
+
   describe('deleteDemoPatient', () => {
     it('403 when isDemo === false', async () => {
       prisma.patientProfile.findFirst.mockResolvedValue({

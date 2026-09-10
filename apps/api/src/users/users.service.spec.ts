@@ -153,7 +153,7 @@ describe('UsersService', () => {
     expect(result).toEqual({ id: 'user-8' });
   });
 
-  it('creates an invited patient linked to the nutritionist with clinical fields', async () => {
+  it('creates an invited patient connected to the existing ficha', async () => {
     prisma.user.create.mockResolvedValue({
       id: 'u1',
       patientProfile: { id: 'pp1' },
@@ -163,13 +163,7 @@ describe('UsersService', () => {
       authProviderId: 'sub-1',
       email: 'p@x.com',
       name: 'Pat',
-      nutritionistId: 'nutri-1',
-      clinical: {
-        height: 165,
-        name: 'Other',
-        email: 'other@x.com',
-        phone: '11999998888',
-      } as any,
+      patientId: 'pp1',
     });
 
     const arg = prisma.user.create.mock.calls[0][0] as any;
@@ -177,12 +171,8 @@ describe('UsersService', () => {
     expect(arg.data.authProvider).toBe('SUPABASE');
     expect(arg.data.authProviderId).toBe('sub-1');
     expect(arg.data.email).toBe('p@x.com');
-    expect(arg.data.patientProfile.create).toEqual({
-      nutritionistId: 'nutri-1',
-      name: 'Pat',
-      email: 'p@x.com',
-      height: 165,
-    });
+    expect(arg.data.patientProfile).toEqual({ connect: { id: 'pp1' } });
+    expect(arg.data.patientProfile.create).toBeUndefined();
   });
 
   it('maps a duplicate email to ConflictException', async () => {
@@ -198,8 +188,7 @@ describe('UsersService', () => {
         authProviderId: 'sub-2',
         email: 'dup@x.com',
         name: 'Dup',
-        nutritionistId: 'nutri-1',
-        clinical: {} as any,
+        patientId: 'pp1',
       }),
     ).rejects.toBeInstanceOf(ConflictException);
   });

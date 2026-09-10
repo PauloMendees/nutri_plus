@@ -27,6 +27,8 @@ export type { UploadedImage } from '../supabase/image-upload';
 
 const PATIENT_USER_INCLUDE = { select: { id: true } } as const;
 
+const UNDELIVERABLE_EMAIL = /@(example\.(com|net|org)|test|invalid|localhost)$/i;
+
 const PHOTO_BUCKET = 'patient-photos';
 
 const PATIENT_DETAIL_INCLUDE = {
@@ -124,6 +126,50 @@ export class PatientsService {
 
     this.maybeEvaluateActivation(nutritionistId, meta);
     return this.getPatient(ctx, profileId);
+  }
+
+  // Invite requires a deliverable email on the ficha. Reserved domains
+  // (example.com, test, invalid, localhost) cannot receive the Supabase
+  // invite. A ficha that already has a User is 409.
+  async invitePatient(ctx: AuthContext, id: string) {
+    const nutritionistId = resolveScopeNutritionistId(ctx);
+    const owned = await this.prisma.patientProfile.findFirst({
+      where: { id, nutritionistId },
+      select: { id: true, email: true, name: true, userId: true },
+    });
+    if (!owned) {
+      throw new NotFoundException('Patient not found');
+    }
+    if (!owned.email) {
+      throw new UnprocessableEntityException();
+    }
+    if (UNDELIVERABLE_EMAIL.test(owned.email)) {
+      throw new UnprocessableEntityException(
+        'Use um e-mail que receba mensagens. Endereços de exemplo (example.com) não podem receber o convite.',
+      );
+    }
+    if (owned.userId) {
+      throw new ConflictException();
+    }
+
+    const { id: authProviderId } = await this.supabaseAdmin.inviteUser(owned.email, {
+      name: owned.name,
+    });
+
+    try {
+      await this.users.createInvitedPatient({
+        authProviderId,
+        email: owned.email,
+        name: owned.name,
+        patientId: owned.id,
+      });
+    } catch (error) {
+      await this.supabaseAdmin.deleteUser(authProviderId);
+      throw error;
+    }
+
+    this.maybeEvaluateActivation(nutritionistId);
+    return this.getPatient(ctx, owned.id);
   }
 
   /**

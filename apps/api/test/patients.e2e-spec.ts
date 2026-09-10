@@ -278,4 +278,38 @@ describe('Patients (e2e)', () => {
         .expect(403);
     });
   });
+
+  describe('POST /v1/patients/:id/invite', () => {
+    beforeEach(() => {
+      fakeAdmin.inviteUser.mockClear();
+    });
+
+    it('creates without email, patches email, then invites (200 INVITED)', async () => {
+      const created = await request(app.getHttpServer())
+        .post('/v1/patients')
+        .set('Authorization', `Bearer ${nutA.token}`)
+        .send({ name: 'Invitee' })
+        .expect(201);
+
+      expect(created.body.email).toBeNull();
+      expect(created.body.inviteStatus).toBe('NOT_INVITED');
+      expect(fakeAdmin.inviteUser).not.toHaveBeenCalled();
+
+      await request(app.getHttpServer())
+        .patch(`/v1/patients/${created.body.id}`)
+        .set('Authorization', `Bearer ${nutA.token}`)
+        .send({ email: 'invitee@x.com' })
+        .expect(200);
+
+      const invited = await request(app.getHttpServer())
+        .post(`/v1/patients/${created.body.id}/invite`)
+        .set('Authorization', `Bearer ${nutA.token}`)
+        .expect(200);
+
+      expect(invited.body.inviteStatus).toBe('INVITED');
+      expect(invited.body.email).toBe('invitee@x.com');
+      expect(invited.body.user).toEqual({ id: expect.any(String) });
+      expect(fakeAdmin.inviteUser).toHaveBeenCalledTimes(1);
+    });
+  });
 });
