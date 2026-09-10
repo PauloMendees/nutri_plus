@@ -73,13 +73,20 @@ export class UsersService {
       nutritionistId = nutritionist.id;
     }
 
-    return this.prisma.user.create({
-      data: {
-        ...base,
-        patientProfile: { create: { nutritionistId, name: input.name, email: input.email } },
-      },
-      include: INCLUDE_PROFILES,
-    });
+    try {
+      return await this.prisma.user.create({
+        data: {
+          ...base,
+          patientProfile: { create: { nutritionistId, name: input.name, email: input.email } },
+        },
+        include: INCLUDE_PROFILES,
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('Já existe um paciente com este e-mail.');
+      }
+      throw error;
+    }
   }
 
   // Creates a patient that a nutritionist invited (the Supabase identity was

@@ -36,6 +36,27 @@ describe('UsersService', () => {
     expect(createArg.data.patientProfile.create.email).toBe('p@x.com');
   });
 
+  it('maps nested patient email unique to ConflictException', async () => {
+    const dup = new Prisma.PrismaClientKnownRequestError('Unique constraint', {
+      code: 'P2002',
+      clientVersion: 'test',
+      meta: { target: ['email'] },
+    });
+    prisma.user.create.mockRejectedValue(dup);
+
+    await expect(
+      service.createWithProfile({
+        authProviderId: 'sub-dup',
+        email: 'dup@x.com',
+        name: 'Dup',
+        role: UserRole.PATIENT,
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: 'Já existe um paciente com este e-mail.',
+    });
+  });
+
   it('rejects an unknown referral code', async () => {
     prisma.nutritionistProfile.findUnique.mockResolvedValue(null);
 

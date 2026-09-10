@@ -114,7 +114,7 @@ export class ImportService {
   async buildTemplate(): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Pacientes');
-    sheet.addRow(IMPORT_FIELDS.map((field) => field.label));
+    sheet.addRow(IMPORT_FIELDS.filter((field) => field.key !== 'ignore').map((field) => field.label));
     const instructions = workbook.addWorksheet('Instruções');
     for (const line of TEMPLATE_INSTRUCTION_LINES) {
       instructions.addRow([line]);

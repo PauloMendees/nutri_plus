@@ -289,11 +289,19 @@ export class PatientsService {
     // Return the full PatientDetail shape (same include as getPatient) so the
     // PATCH response matches its declared type and clients can cache it without
     // losing the user/assessments relations.
-    const patient = await this.prisma.patientProfile.update({
-      where: { id },
-      data,
-      include: PATIENT_DETAIL_INCLUDE,
-    });
+    let patient;
+    try {
+      patient = await this.prisma.patientProfile.update({
+        where: { id },
+        data,
+        include: PATIENT_DETAIL_INCLUDE,
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('Já existe um paciente com este e-mail.');
+      }
+      throw error;
+    }
     if (dto.name && owned.userId) {
       await this.prisma.user.update({
         where: { id: owned.userId },

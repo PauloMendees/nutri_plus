@@ -448,6 +448,20 @@ describe('PatientsService', () => {
       .rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 
+  it('maps a duplicate email on update to ConflictException', async () => {
+    prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1', userId: null } as any);
+    const dup = new Prisma.PrismaClientKnownRequestError('Unique constraint', {
+      code: 'P2002',
+      clientVersion: 'test',
+      meta: { target: ['email'] },
+    });
+    prisma.patientProfile.update.mockRejectedValue(dup);
+    await expect(service.updatePatient(ctx, 'p1', { email: 'dup@x.com' } as any)).rejects.toMatchObject({
+      status: 409,
+      message: 'Já existe um paciente com este e-mail.',
+    });
+  });
+
   it('canonicalizes phone', async () => {
     prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1', userId: null } as any);
     prisma.patientProfile.update.mockResolvedValue({

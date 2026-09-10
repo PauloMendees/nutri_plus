@@ -167,7 +167,10 @@ describe('ImportService', () => {
     expect(pacientes).toBeDefined();
     expect(instructions).toBeDefined();
     const headers = (pacientes!.getRow(1).values as Array<string | undefined>).slice(1);
-    expect(headers).toEqual(IMPORT_FIELDS.map((field) => field.label));
+    expect(headers).toEqual(
+      IMPORT_FIELDS.filter((field) => field.key !== 'ignore').map((field) => field.label),
+    );
+    expect(headers).not.toContain('Ignorar');
     expect(pacientes!.rowCount).toBe(1);
     expect(instructions!.getCell('A1').value).toEqual(expect.stringMatching(/e-mail/i));
     expect(instructions!.getCell('A2').value).toEqual(expect.stringMatching(/convite/i));
