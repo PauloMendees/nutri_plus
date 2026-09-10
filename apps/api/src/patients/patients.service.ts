@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { canonicalizeWhatsappNumber, type MealLog, type NutritionistContact } from '@nutri-plus/shared-types';
 import { Prisma } from '../generated/prisma/client';
@@ -210,18 +211,49 @@ export class PatientsService {
   }
 
   async updatePatient(ctx: AuthContext, id: string, dto: UpdatePatientDto) {
-    await this.requireOwned(ctx, id);
     // Check-then-act is acceptable here: a nutritionist only ever touches their
     // own patients and patient re-assignment is out of MVP scope. update() must
     // target by primary key, so ownership can't be folded into this call.
+    const owned = await this.prisma.patientProfile.findFirst({
+      where: { id, nutritionistId: resolveScopeNutritionistId(ctx) },
+      select: { id: true, userId: true },
+    });
+    if (!owned) {
+      throw new NotFoundException('Patient not found');
+    }
+
+    // Email is locked once a User exists (invite already sent). Name still
+    // mirrors onto User.name so login and ficha stay in sync.
+    if (dto.email !== undefined && owned.userId) {
+      throw new UnprocessableEntityException();
+    }
+
+    const { name, email, phone, ...clinical } = dto;
+    const data: Prisma.PatientProfileUpdateInput = { ...clinical };
+    if (name !== undefined) data.name = name;
+    if (email !== undefined) data.email = email ? email.toLowerCase() : null;
+    if (phone !== undefined) {
+      try {
+        data.phone = canonicalizeWhatsappNumber(phone);
+      } catch {
+        throw new BadRequestException('Número de WhatsApp inválido.');
+      }
+    }
+
     // Return the full PatientDetail shape (same include as getPatient) so the
     // PATCH response matches its declared type and clients can cache it without
     // losing the user/assessments relations.
     const patient = await this.prisma.patientProfile.update({
       where: { id },
-      data: dto,
+      data,
       include: PATIENT_DETAIL_INCLUDE,
     });
+    if (dto.name && owned.userId) {
+      await this.prisma.user.update({
+        where: { id: owned.userId },
+        data: { name: dto.name },
+      });
+    }
     return this.toDetail(patient);
   }
 

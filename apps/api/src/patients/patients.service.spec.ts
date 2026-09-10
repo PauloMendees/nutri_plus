@@ -1,4 +1,9 @@
-import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -356,7 +361,7 @@ describe('PatientsService', () => {
 
     expect(prisma.patientProfile.findFirst).toHaveBeenCalledWith({
       where: { id: 'p1', nutritionistId: 'nutri-1' },
-      select: { id: true },
+      select: { id: true, userId: true },
     });
     // The PATCH response must carry the same shape as GET (user + latest
     // assessment) so the cached detail stays complete — otherwise the patient
@@ -421,6 +426,38 @@ describe('PatientsService', () => {
       service.updatePatient(ctxWithNutritionist(null), 'p1', { height: 180 } as any),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.patientProfile.update).not.toHaveBeenCalled();
+  });
+
+  it('updates name on the ficha and mirrors User.name when invited', async () => {
+    prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1', userId: 'u1' } as any);
+    prisma.patientProfile.update.mockResolvedValue({
+      id: 'p1', name: 'Ana', email: 'a@x.com', phone: null, userId: 'u1',
+      firstAppLoginAt: null, isDemo: false, assessments: [], consents: [], height: null,
+    } as any);
+    prisma.user.update.mockResolvedValue({} as any);
+    await service.updatePatient(ctx, 'p1', { name: 'Ana' } as any);
+    expect(prisma.patientProfile.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ name: 'Ana' }),
+    }));
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { name: 'Ana' } });
+  });
+
+  it('422 when changing email after invite', async () => {
+    prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1', userId: 'u1' } as any);
+    await expect(service.updatePatient(ctx, 'p1', { email: 'new@x.com' } as any))
+      .rejects.toBeInstanceOf(UnprocessableEntityException);
+  });
+
+  it('canonicalizes phone', async () => {
+    prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1', userId: null } as any);
+    prisma.patientProfile.update.mockResolvedValue({
+      id: 'p1', name: 'Ann', email: null, phone: '5511999998888', userId: null,
+      firstAppLoginAt: null, isDemo: false, assessments: [], consents: [], height: null,
+    } as any);
+    await service.updatePatient(ctx, 'p1', { phone: '11999998888' } as any);
+    expect(prisma.patientProfile.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ phone: '5511999998888' }),
+    }));
   });
 
   it('lists assessments newest-first for an owned patient', async () => {

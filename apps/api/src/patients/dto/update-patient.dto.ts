@@ -2,12 +2,14 @@ import { Type } from 'class-transformer';
 import {
   IsBoolean,
   IsDate,
+  IsEmail,
   IsEnum,
   IsOptional,
   IsPositive,
   IsString,
   MaxDate,
   MaxLength,
+  MinLength,
 } from 'class-validator';
 import {
   ActivityLevel,
@@ -15,10 +17,11 @@ import {
   PatientObjective,
 } from '../../generated/prisma/client';
 
-// All fields optional: PATCH applies a partial update. Only these clinical
-// fields are writable; the global ValidationPipe (forbidNonWhitelisted) rejects
-// anything else (e.g. userId, nutritionistId) with a 400.
-export class UpdatePatientDto {
+// Optional clinical fields shared by create and PATCH. Identity lives on each
+// subclass so create can keep name required while PATCH keeps it optional.
+// The global ValidationPipe (forbidNonWhitelisted) rejects anything else
+// (e.g. userId, nutritionistId) with a 400.
+export class PatientClinicalDto {
   @IsOptional()
   @Type(() => Date)
   @IsDate()
@@ -72,4 +75,22 @@ export class UpdatePatientDto {
   @IsOptional()
   @IsBoolean()
   showMealTargetToPatient?: boolean;
+}
+
+export class UpdatePatientDto extends PatientClinicalDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(200)
+  name?: string;
+
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(320)
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  phone?: string;
 }

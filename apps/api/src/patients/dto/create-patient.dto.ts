@@ -1,9 +1,9 @@
 import { IsBoolean, IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-import { UpdatePatientDto } from './update-patient.dto';
+import { PatientClinicalDto } from './update-patient.dto';
 
-// Inherits optional clinical fields from UpdatePatientDto. Name is required;
+// Inherits optional clinical fields from PatientClinicalDto. Name is required;
 // email and phone are optional — create writes a ficha, not an invited account.
-export class CreatePatientDto extends UpdatePatientDto {
+export class CreatePatientDto extends PatientClinicalDto {
   @IsString()
   @MinLength(2)
   @MaxLength(200)
