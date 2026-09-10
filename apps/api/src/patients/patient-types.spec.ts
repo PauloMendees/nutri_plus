@@ -7,6 +7,7 @@ import type {
   UpdatePatientRequest,
 } from '@nutri-plus/shared-types';
 import type { AppointmentPatientSummary } from '@nutri-plus/shared-types';
+import { AIInteractionType, type PatientProfile } from '../generated/prisma/client';
 
 describe('patient identity types', () => {
   it('PatientSummary carries ficha fields, not user.name', () => {
@@ -68,5 +69,20 @@ describe('patient identity types', () => {
       user: null,
     };
     expect(p.name).toBe('Maria');
+  });
+});
+
+describe('PatientProfile identity schema', () => {
+  it('generated client exposes ficha columns, optional userId, and COLUMN_MAPPING', () => {
+    const row: Pick<PatientProfile, 'name' | 'email' | 'phone' | 'isDemo' | 'userId'> = {
+      name: 'Maria Silva',
+      email: null,
+      phone: null,
+      isDemo: false,
+      userId: null,
+    };
+    expect(row.userId).toBeNull();
+    expect(row.isDemo).toBe(false);
+    expect(AIInteractionType.COLUMN_MAPPING).toBe('COLUMN_MAPPING');
   });
 });
