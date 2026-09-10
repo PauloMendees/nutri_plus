@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Landing utilities live here. Explicit so a gitignore named "marketing/"
+   cannot hide the folder from Tailwind v4's source detection. */
+@source "../components/marketing";
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
