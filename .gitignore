@@ -15,6 +15,10 @@ apps/api/src/generated/
 
 # Dumps do banco (contem dados de saude de pacientes — nunca versionar)
 /backups/
-marketing/
+
+# Ad creatives at the repo root only. Keep the leading slash: an unanchored
+# `marketing/` also matches apps/web/src/components/marketing, and Tailwind v4
+# skips gitignored paths when detecting class names.
+/marketing/
 
 .worktrees/
