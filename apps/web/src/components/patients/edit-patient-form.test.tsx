@@ -84,4 +84,19 @@ describe('EditPatientForm', () => {
       ),
     );
   });
+
+  it('renders name, phone and email fields', () => {
+    render(<EditPatientForm patient={patient} />);
+    expect(screen.getByLabelText(/nome/i)).toHaveValue('Maria Silva');
+    expect(screen.getByLabelText(/telefone/i)).toHaveValue('5511999998888');
+    expect(screen.getByLabelText(/^e-mail$/i)).toHaveValue('maria@x.com');
+    expect(screen.getByLabelText(/^e-mail$/i)).not.toBeDisabled();
+  });
+
+  it('disables the email input when the patient is already invited', () => {
+    render(<EditPatientForm patient={{ ...patient, inviteStatus: 'INVITED' }} />);
+    expect(screen.getByLabelText(/^e-mail$/i)).toBeDisabled();
+    expect(screen.getByLabelText(/nome/i)).not.toBeDisabled();
+    expect(screen.getByLabelText(/telefone/i)).not.toBeDisabled();
+  });
 });

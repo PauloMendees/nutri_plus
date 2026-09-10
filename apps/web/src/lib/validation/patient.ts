@@ -1,7 +1,27 @@
 import { z } from 'zod';
-import { ActivityLevel, Gender, PatientObjective } from '@nutri-plus/shared-types';
+import { ActivityLevel, Gender, PatientObjective, canonicalizeWhatsappNumber } from '@nutri-plus/shared-types';
 
 const emptyToUndefined = (v: unknown) => (v === '' || v === null ? undefined : v);
+
+const optionalEmail = z.preprocess(
+  emptyToUndefined,
+  z.string().email('Informe um e-mail válido.').max(320).optional(),
+);
+
+const optionalPhone = z.preprocess(
+  emptyToUndefined,
+  z
+    .string()
+    .refine((v) => {
+      try {
+        canonicalizeWhatsappNumber(v);
+        return true;
+      } catch {
+        return false;
+      }
+    }, 'Número de WhatsApp inválido.')
+    .optional(),
+);
 
 const optionalText = (max: number) =>
   z.preprocess(emptyToUndefined, z.string().max(max, `Máximo de ${max} caracteres.`).optional());
@@ -34,6 +54,9 @@ const clinicalShape = {
 };
 
 export const updatePatientSchema = z.object({
+  name: z.string().min(2, 'Informe o nome do paciente.').max(200).optional(),
+  email: optionalEmail,
+  phone: optionalPhone,
   ...clinicalShape,
   canLogAssessments: z.boolean().optional(),
   showMealTargetToPatient: z.boolean().optional(),
@@ -41,7 +64,8 @@ export const updatePatientSchema = z.object({
 
 export const createPatientSchema = z.object({
   name: z.string().min(2, 'Informe o nome do paciente.').max(200),
-  email: z.string().email('Informe um e-mail válido.').max(320),
+  email: optionalEmail,
+  phone: optionalPhone,
   ...clinicalShape,
 });
 

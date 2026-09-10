@@ -5,6 +5,7 @@ import {
   deleteDemoPatient,
   deletePatientPhoto,
   getPatient,
+  invitePatient,
   listPatients,
   updatePatient,
   uploadPatientPhoto,
@@ -57,6 +58,17 @@ export function useUpdatePatient(id: string) {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['patients'] });
       qc.setQueryData(['patient', id], data);
+    },
+  });
+}
+
+export function useInvitePatient(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => invitePatient(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['patient', id] });
+      qc.invalidateQueries({ queryKey: ['patients'] });
     },
   });
 }

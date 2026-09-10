@@ -6,7 +6,12 @@ import { ChevronLeft, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { whatsappMeUrl } from '@nutri-plus/shared-types';
 import { ApiError } from '@/lib/api/client';
-import { usePatient, useUploadPatientPhoto, useDeletePatientPhoto } from '@/lib/queries/patients';
+import {
+  usePatient,
+  useInvitePatient,
+  useUploadPatientPhoto,
+  useDeletePatientPhoto,
+} from '@/lib/queries/patients';
 import { useAssessments } from '@/lib/queries/assessments';
 import { downloadAssessmentsPdf } from '@/lib/api/assessments';
 import { EditPatientForm } from '@/components/patients/edit-patient-form';
@@ -39,6 +44,7 @@ export function PatientDetail({
   canEdit?: boolean;
 }) {
   const query = usePatient(id);
+  const invite = useInvitePatient(id);
   const fileRef = useRef<HTMLInputElement>(null);
   const uploadPhoto = useUploadPatientPhoto(id);
   const deletePhoto = useDeletePatientPhoto(id);
@@ -76,6 +82,16 @@ export function PatientDetail({
       toast.success('Foto removida.');
     } catch {
       toast.error('Não foi possível remover a foto.');
+    }
+  }
+
+  async function onInvite() {
+    if (!window.confirm('O paciente vai receber um e-mail para criar a senha do app.')) return;
+    try {
+      await invite.mutateAsync();
+      toast.success('Convite enviado.');
+    } catch {
+      toast.error('Não foi possível enviar o convite. Tente novamente.');
     }
   }
 
@@ -125,6 +141,24 @@ export function PatientDetail({
             <Badge variant="outline">{INVITE_STATUS_LABELS[patient.inviteStatus]}</Badge>
           </p>
           <p className="truncate text-sm text-muted-foreground">{patient.email ?? '—'}</p>
+          {patient.inviteStatus === 'NOT_INVITED' && (
+            <div className="mt-1">
+              <Button
+                type="button"
+                size="sm"
+                className="rounded-full"
+                disabled={!canEdit || !patient.email || invite.isPending}
+                onClick={onInvite}
+              >
+                {invite.isPending ? 'Enviando…' : 'Enviar convite'}
+              </Button>
+              {!patient.email ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Preencha o e-mail na ficha para enviar o convite.
+                </p>
+              ) : null}
+            </div>
+          )}
           {patient.phone ? (
             <a
               href={whatsappMeUrl(patient.phone)}
