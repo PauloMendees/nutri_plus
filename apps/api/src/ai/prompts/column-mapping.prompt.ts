@@ -10,10 +10,8 @@ export const COLUMN_MAPPING_SYSTEM_PROMPT = [
 ].join(' ');
 
 export function buildColumnMappingUserPrompt(unmatched: string[]): string {
-  // Keys + aliases only: official labels (e.g. "Nome") must not appear as JSON
-  // strings, because the user payload is unmatched headers — never already-mapped ones.
   return JSON.stringify({
     unmatched,
-    catalog: IMPORT_FIELDS.map(({ key, aliases }) => ({ key, aliases })),
+    catalog: IMPORT_FIELDS.map(({ key, label, aliases }) => ({ key, label, aliases })),
   });
 }

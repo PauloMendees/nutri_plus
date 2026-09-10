@@ -25,9 +25,23 @@ describe('import-mapping', () => {
     const arg = generateStructured.mock.calls[0][0];
     expect(arg.user).not.toMatch(/Maria|1199/);
     expect(arg.user).toContain('Fone do paciente');
-    expect(arg.user).not.toContain('"Nome"'); // already matched, not sent
+    const payload = JSON.parse(arg.user);
+    expect(payload.unmatched).toEqual(['Fone do paciente']);
+    expect(payload.unmatched).not.toContain('Nome');
+    expect(payload.catalog).toEqual(
+      expect.arrayContaining([expect.objectContaining({ key: 'name', label: 'Nome' })]),
+    );
     expect(result.suggestedMapping['Fone do paciente']).toBe('phone');
     expect(result.mappedBy['Fone do paciente']).toBe('ai');
+  });
+
+  it('treats AI ignore as unmapped', async () => {
+    const generateStructured = jest.fn().mockResolvedValue({
+      mappings: [{ header: 'CPF', field: 'ignore' }],
+    });
+    const result = await mapHeadersWithAi(['CPF'], { generateStructured } as any, 'nut-1');
+    expect(result.suggestedMapping['CPF']).toBe('ignore');
+    expect(result.mappedBy['CPF']).toBe('unmapped');
   });
 
   it('falls back to dictionary when AI throws', async () => {

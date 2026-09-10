@@ -66,7 +66,9 @@ export async function mapHeadersWithAi(
     });
     const unmatchedSet = new Set(unmatched);
     for (const mapping of result.mappings) {
-      if (!unmatchedSet.has(mapping.header) || mapping.field == null) continue;
+      if (!unmatchedSet.has(mapping.header) || mapping.field == null || mapping.field === 'ignore') {
+        continue;
+      }
       if (!KNOWN_KEYS.has(mapping.field)) continue;
       suggestedMapping[mapping.header] = mapping.field;
       mappedBy[mapping.header] = 'ai';

@@ -10,8 +10,9 @@ describe('column-mapping prompt', () => {
     const parsed = JSON.parse(json);
     expect(parsed.unmatched).toEqual(['Fone']);
     expect(Array.isArray(parsed.catalog)).toBe(true);
-    const keys = parsed.catalog.map((entry: { key: string }) => entry.key);
-    expect(keys).toEqual(IMPORT_FIELDS.map((field) => field.key));
+    expect(parsed.catalog).toEqual(
+      IMPORT_FIELDS.map(({ key, label, aliases }) => ({ key, label, aliases })),
+    );
     expect(json).not.toMatch(/Maria|1199/);
   });
 
