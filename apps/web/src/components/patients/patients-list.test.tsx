@@ -127,7 +127,7 @@ describe('PatientsList', () => {
     usePatients.mockReturnValue({ isLoading: false, isError: false, isFetching: false, data: envelope() });
     render(<PatientsList canCreate={false} />);
     expect(screen.queryByRole('link', { name: /novo paciente/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Importar' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /importar/i })).not.toBeInTheDocument();
   });
 
   it('hides the empty-state CTA when canCreate is false', () => {
@@ -158,7 +158,7 @@ describe('PatientsList', () => {
   it('links Importar next to + Novo paciente', () => {
     usePatients.mockReturnValue({ isLoading: false, isError: false, isFetching: false, data: envelope() });
     render(<PatientsList />);
-    expect(screen.getByRole('link', { name: 'Importar' })).toHaveAttribute('href', '/patients/import');
+    expect(screen.getByRole('link', { name: /importar/i })).toHaveAttribute('href', '/patients/import');
     expect(screen.getByRole('link', { name: /novo paciente/i })).toHaveAttribute('href', '/patients/new');
   });
 

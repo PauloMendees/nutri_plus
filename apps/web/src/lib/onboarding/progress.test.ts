@@ -14,6 +14,7 @@ import {
 
 const CHAPTER_IDS = [
   'lista',
+  'importar',
   'cadastro',
   'ficha',
   'anamnese',
@@ -47,13 +48,16 @@ function tour(partial: Partial<OnboardingTourProgressView> = {}): OnboardingTour
 }
 
 describe('PATIENTS_TOUR catalog', () => {
-  it('has nine chapters in the locked order', () => {
+  it('has ten chapters in the locked order', () => {
     expect(PATIENTS_TOUR.id).toBe('patients');
     expect(PATIENTS_TOUR.title).toBe('Pacientes');
-    expect(PATIENTS_TOUR.summary).toBe('Cadastro, ficha, avaliações e planos alimentares.');
+    expect(PATIENTS_TOUR.summary).toBe(
+      'Cadastro, importação, ficha, avaliações e planos alimentares.',
+    );
     expect(PATIENTS_TOUR.chapters.map((c) => c.id)).toEqual([...CHAPTER_IDS]);
     expect(PATIENTS_TOUR.chapters.map((c) => c.title)).toEqual([
       'Lista',
+      'Importar',
       'Cadastro',
       'Ficha',
       'Anamnese',
@@ -65,9 +69,9 @@ describe('PATIENTS_TOUR catalog', () => {
     ]);
   });
 
-  it('requires demo on every chapter except lista and cadastro', () => {
+  it('requires demo on every chapter except lista, importar and cadastro', () => {
     for (const chapter of PATIENTS_TOUR.chapters) {
-      if (chapter.id === 'lista' || chapter.id === 'cadastro') {
+      if (chapter.id === 'lista' || chapter.id === 'importar' || chapter.id === 'cadastro') {
         expect(chapter.requiresDemo).toBeFalsy();
       } else {
         expect(chapter.requiresDemo).toBe(true);
@@ -254,6 +258,7 @@ describe('firstIncompleteChapterId', () => {
       demoPatientId: 'p1',
       chapters: [
         { chapterId: 'lista', status: 'COMPLETED', furthestStepId: 'new', completedAt: 'x' },
+        { chapterId: 'importar', status: 'COMPLETED', furthestStepId: 'dropzone', completedAt: 'x' },
         { chapterId: 'cadastro', status: 'SKIPPED', furthestStepId: null, completedAt: 'x' },
       ],
     });

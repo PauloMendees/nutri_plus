@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const preview = vi.fn();
@@ -40,22 +40,24 @@ beforeEach(() => {
   downloadImportTemplate.mockReset().mockResolvedValue(undefined);
 });
 
+async function uploadAndEditMapping() {
+  await userEvent.upload(screen.getByLabelText(/planilha/i), xlsxFile());
+  await screen.findByRole('button', { name: 'Importar 2 pacientes' });
+  await userEvent.click(screen.getByRole('button', { name: 'Editar mapeamento' }));
+}
+
 describe('PatientImportWizard', () => {
-  it('shows mapping dropdowns from preview and has no convite checkbox', async () => {
-    preview.mockResolvedValue({
-      headers: ['Nome', 'CPF'],
-      suggestedMapping: { Nome: 'name', CPF: 'ignore' },
-      mappedBy: { Nome: 'template', CPF: 'unmapped' },
-      rowCount: 2,
-      previewRows: [{ line: 2, values: { Nome: 'Ana', CPF: '1' } }],
-    });
+  it('explains the flow and keeps mapping collapsed until Editar mapeamento', async () => {
     render(<PatientImportWizard />);
-    const file = new File(['x'], 'a.xlsx', {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
-    await userEvent.upload(screen.getByLabelText(/planilha/i), file);
+    expect(screen.getByText('Como funciona')).toBeInTheDocument();
+    expect(screen.getByText(/editar o mapeamento/i)).toBeInTheDocument();
+    await userEvent.upload(screen.getByLabelText(/planilha/i), xlsxFile());
+    expect(await screen.findByText('Ana')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Importar 2 pacientes' })).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Nome')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Editar mapeamento' }));
     expect(await screen.findByDisplayValue('Nome')).toBeTruthy();
-    expect(screen.queryByText(/convidar/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/convidar agora/i)).not.toBeInTheDocument();
     expect(screen.getByText('Modelo')).toBeInTheDocument();
     expect(screen.getByText('—')).toBeInTheDocument();
   });
@@ -70,6 +72,7 @@ describe('PatientImportWizard', () => {
     const file = xlsxFile();
     await userEvent.upload(screen.getByLabelText(/planilha/i), file);
     await screen.findByRole('button', { name: 'Importar 2 pacientes' });
+    await userEvent.click(screen.getByRole('button', { name: 'Editar mapeamento' }));
     await userEvent.selectOptions(screen.getByDisplayValue('Ignorar'), 'email');
     await userEvent.click(screen.getByRole('button', { name: 'Importar 2 pacientes' }));
     expect(commit).toHaveBeenCalledWith({
@@ -80,10 +83,19 @@ describe('PatientImportWizard', () => {
     expect(screen.getByText(/Nome obrigatório/)).toBeInTheDocument();
   });
 
+  it('accepts a dropped spreadsheet', async () => {
+    render(<PatientImportWizard />);
+    const zone = screen.getByText(/solte a planilha aqui/i).closest('label');
+    expect(zone).toBeTruthy();
+    fireEvent.drop(zone!, { dataTransfer: { files: [xlsxFile()] } });
+    expect(await screen.findByRole('button', { name: 'Importar 2 pacientes' })).toBeInTheDocument();
+    expect(preview).toHaveBeenCalledTimes(1);
+  });
+
   it('offers Baixar planilha modelo and a voltar link', () => {
     render(<PatientImportWizard />);
     expect(screen.getByRole('button', { name: 'Baixar planilha modelo' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /voltar/i })).toHaveAttribute('href', '/patients');
+    expect(screen.getAllByRole('link', { name: /voltar/i })[0]).toHaveAttribute('href', '/patients');
   });
 
   it('disables Importar when two columns map to the same field', async () => {
@@ -95,8 +107,8 @@ describe('PatientImportWizard', () => {
       previewRows: [{ line: 2, values: { Nome: 'Ana', Paciente: 'Bia' } }],
     });
     render(<PatientImportWizard />);
-    await userEvent.upload(screen.getByLabelText(/planilha/i), xlsxFile());
-    const btn = await screen.findByRole('button', { name: 'Importar 2 pacientes' });
+    await uploadAndEditMapping();
+    const btn = screen.getByRole('button', { name: 'Importar 2 pacientes' });
     expect(btn).toBeEnabled();
     await userEvent.selectOptions(screen.getByDisplayValue('Ignorar'), 'name');
     expect(screen.getByRole('button', { name: 'Importar 2 pacientes' })).toBeDisabled();

@@ -275,7 +275,7 @@ describe('PatientDetail', () => {
   it('shows an enabled Enviar convite button when NOT_INVITED with email', () => {
     usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
     render(<PatientDetail id="p1" created={false} />);
-    expect(screen.getByRole('button', { name: 'Enviar convite' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Enviar convite para o app' })).toBeEnabled();
   });
 
   it('disables Enviar convite with a hint when NOT_INVITED and email is null', () => {
@@ -285,7 +285,7 @@ describe('PatientDetail', () => {
       data: { ...patient, email: null },
     });
     render(<PatientDetail id="p1" created={false} />);
-    expect(screen.getByRole('button', { name: 'Enviar convite' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Enviar convite para o app' })).toBeDisabled();
     expect(screen.getByText(/preencha o e-mail/i)).toBeInTheDocument();
   });
 
@@ -296,14 +296,14 @@ describe('PatientDetail', () => {
       data: { ...patient, inviteStatus: 'INVITED' },
     });
     render(<PatientDetail id="p1" created={false} />);
-    expect(screen.queryByRole('button', { name: 'Enviar convite' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Enviar convite para o app' })).not.toBeInTheDocument();
   });
 
   it('confirms before inviting and posts the invite', async () => {
     usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
     inviteMut.mockResolvedValue({ ...patient, inviteStatus: 'INVITED' });
     render(<PatientDetail id="p1" created={false} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Enviar convite' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar convite para o app' }));
     expect(window.confirm).toHaveBeenCalledWith(
       'O paciente vai receber um e-mail para criar a senha do app.',
     );
@@ -314,7 +314,7 @@ describe('PatientDetail', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(false);
     usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
     render(<PatientDetail id="p1" created={false} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Enviar convite' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar convite para o app' }));
     expect(inviteMut).not.toHaveBeenCalled();
   });
 });

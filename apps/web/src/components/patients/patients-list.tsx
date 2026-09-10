@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { FileSpreadsheet } from 'lucide-react';
 import { whatsappMeUrl } from '@nutri-plus/shared-types';
 import { usePatients } from '@/lib/queries/patients';
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
@@ -49,8 +50,15 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
         </div>
         {canCreate && (
           <div className="flex items-center gap-2">
-            <Button variant="outline" className="rounded-full" asChild>
-              <Link href="/patients/import">Importar</Link>
+            <Button
+              variant="outline"
+              className="rounded-full border-primary text-secondary-foreground hover:bg-primary/10 hover:text-secondary-foreground dark:text-primary dark:hover:text-primary"
+              asChild
+            >
+              <Link href="/patients/import" data-tour="patients.import">
+                <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
+                Importar
+              </Link>
             </Button>
             <Button className="rounded-full" asChild>
               <Link href="/patients/new" data-tour="patients.new">
