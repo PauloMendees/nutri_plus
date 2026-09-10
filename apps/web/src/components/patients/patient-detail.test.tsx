@@ -49,7 +49,11 @@ import { PatientDetail } from './patient-detail';
 
 const patient = {
   id: 'p1',
-  user: { id: 'u1', name: 'Maria Silva', email: 'maria@x.com' },
+  name: 'Maria Silva',
+  email: 'maria@x.com',
+  phone: '5511999998888',
+  inviteStatus: 'NOT_INVITED',
+  user: null,
   birthDate: '1991-03-14T00:00:00.000Z',
   gender: 'FEMALE',
   height: 165,
@@ -65,6 +69,7 @@ const patient = {
   canLogAssessments: false,
   showMealTargetToPatient: false,
   photoUrl: 'https://example.com/photo.jpg',
+  isDemo: false,
   createdAt: '2026-05-12T00:00:00.000Z',
   updatedAt: '2026-05-12T00:00:00.000Z',
   assessments: [],
@@ -92,6 +97,11 @@ describe('PatientDetail', () => {
     render(<PatientDetail id="p1" created={false} />);
     expect(screen.getByText('Maria Silva')).toBeInTheDocument();
     expect(screen.getByText('maria@x.com')).toBeInTheDocument();
+    expect(screen.getByText('Sem convite')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(
+      'href',
+      'https://wa.me/5511999998888',
+    );
     expect(document.querySelector('[data-tour="patients.detail.header"]')).toBeTruthy();
     expect(screen.getByRole('tab', { name: /dados/i })).toHaveAttribute('data-tour', 'patients.tab.dados');
     expect(screen.getByRole('tab', { name: /anamnese/i })).toHaveAttribute(

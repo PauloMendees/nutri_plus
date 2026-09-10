@@ -40,7 +40,7 @@ export function AppointmentTooltip({
               {formatTimeRange(appointment.startsAt, appointment.endsAt)}
             </p>
             {appointment.patient && (
-              <p className="text-background/80">{appointment.patient.user.name}</p>
+              <p className="text-background/80">{appointment.patient.name}</p>
             )}
             {appointment.description && (
               <p className="text-background/70">{appointment.description}</p>

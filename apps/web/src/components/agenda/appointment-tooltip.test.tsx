@@ -25,7 +25,7 @@ function makeAppt(overrides: Partial<Appointment> = {}): Appointment {
 describe('AppointmentTooltip', () => {
   it('shows the full appointment details on hover', async () => {
     const appt = makeAppt({
-      patient: { id: 'p1', user: { id: 'u1', name: 'Maria Silva', email: 'maria@x.com' } },
+      patient: { id: 'p1', name: 'Maria Silva', email: 'maria@x.com', user: null },
       description: 'Levar exames recentes',
     });
     render(

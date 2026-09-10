@@ -53,7 +53,7 @@ export function DayPanel({
                   <span className="text-sm font-semibold">
                     {a.title}
                     {a.patient && (
-                      <span className="font-medium text-muted-foreground"> · {a.patient.user.name}</span>
+                      <span className="font-medium text-muted-foreground"> · {a.patient.name}</span>
                     )}
                   </span>
                 </button>

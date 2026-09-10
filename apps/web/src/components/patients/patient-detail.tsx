@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { whatsappMeUrl } from '@nutri-plus/shared-types';
 import { ApiError } from '@/lib/api/client';
 import { usePatient, useUploadPatientPhoto, useDeletePatientPhoto } from '@/lib/queries/patients';
 import { useAssessments } from '@/lib/queries/assessments';
@@ -25,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PatientAvatar } from '@/components/patients/patient-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { INVITE_STATUS_LABELS } from '@/lib/patients/labels';
 import { formatImc } from '@/lib/health/imc';
 
 export function PatientDetail({
@@ -109,7 +111,7 @@ export function PatientDetail({
         data-tour="patients.detail.header"
       >
         <div className="relative">
-          <PatientAvatar name={patient.user.name} photoUrl={patient.photoUrl} className="size-16 text-lg" />
+          <PatientAvatar name={patient.name} photoUrl={patient.photoUrl} className="size-16 text-lg" />
           {photoPending && (
             <div className="absolute inset-0 flex items-center justify-center rounded-full bg-background/60">
               <Loader2 className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />
@@ -118,10 +120,22 @@ export function PatientDetail({
         </div>
         <div className="min-w-0">
           <p className="flex items-center gap-2 font-bold">
-            {patient.user.name}
+            {patient.name}
             {patient.isDemo ? <Badge>Demo</Badge> : null}
+            <Badge variant="outline">{INVITE_STATUS_LABELS[patient.inviteStatus]}</Badge>
           </p>
-          <p className="truncate text-sm text-muted-foreground">{patient.user.email}</p>
+          <p className="truncate text-sm text-muted-foreground">{patient.email ?? '—'}</p>
+          {patient.phone ? (
+            <a
+              href={whatsappMeUrl(patient.phone)}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="WhatsApp"
+              className="mt-1 inline-block text-sm font-medium text-primary hover:underline"
+            >
+              {patient.phone}
+            </a>
+          ) : null}
           <p className="mt-1 text-xs text-muted-foreground">
             {patient.latestConsent
               ? `Consentimento LGPD: aceito em ${new Date(patient.latestConsent.acceptedAt).toLocaleDateString('pt-BR')}`
