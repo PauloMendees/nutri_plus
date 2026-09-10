@@ -85,4 +85,48 @@ describe('PatientImportWizard', () => {
     expect(screen.getByRole('button', { name: 'Baixar planilha modelo' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /voltar/i })).toHaveAttribute('href', '/patients');
   });
+
+  it('disables Importar when two columns map to the same field', async () => {
+    preview.mockResolvedValue({
+      headers: ['Nome', 'Paciente'],
+      suggestedMapping: { Nome: 'name', Paciente: 'ignore' },
+      mappedBy: { Nome: 'template', Paciente: 'unmapped' },
+      rowCount: 2,
+      previewRows: [{ line: 2, values: { Nome: 'Ana', Paciente: 'Bia' } }],
+    });
+    render(<PatientImportWizard />);
+    await userEvent.upload(screen.getByLabelText(/planilha/i), xlsxFile());
+    const btn = await screen.findByRole('button', { name: 'Importar 2 pacientes' });
+    expect(btn).toBeEnabled();
+    await userEvent.selectOptions(screen.getByDisplayValue('Ignorar'), 'name');
+    expect(screen.getByRole('button', { name: 'Importar 2 pacientes' })).toBeDisabled();
+    expect(screen.getByText(/campo Nome mapeado duas vezes/i)).toBeInTheDocument();
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  it('does not commit twice while the first commit is pending', async () => {
+    commit.mockImplementation(() => new Promise(() => {}));
+    render(<PatientImportWizard />);
+    await userEvent.upload(screen.getByLabelText(/planilha/i), xlsxFile());
+    const btn = await screen.findByRole('button', { name: 'Importar 2 pacientes' });
+    await userEvent.click(btn);
+    expect(commit).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /importando/i })).toBeDisabled();
+  });
+
+  it('clears mapping so a second file cannot commit with the previous mapping', async () => {
+    preview.mockResolvedValueOnce(PREVIEW);
+    preview.mockImplementationOnce(() => new Promise(() => {}));
+    render(<PatientImportWizard />);
+    await userEvent.upload(screen.getByLabelText(/planilha/i), xlsxFile());
+    expect(await screen.findByRole('button', { name: 'Importar 2 pacientes' })).toBeInTheDocument();
+
+    const fileB = new File(['y'], 'b.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    await userEvent.upload(screen.getByLabelText(/planilha/i), fileB);
+    expect(screen.queryByRole('button', { name: 'Importar 2 pacientes' })).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue('Nome')).not.toBeInTheDocument();
+    expect(commit).not.toHaveBeenCalled();
+  });
 });

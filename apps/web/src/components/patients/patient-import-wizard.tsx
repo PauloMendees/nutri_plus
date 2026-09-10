@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ChangeEvent } from 'react';
+import { useRef, useState, type ChangeEvent } from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { toast } from 'sonner';
@@ -46,6 +46,21 @@ function mapImportError(err: unknown): string {
   return 'Não foi possível importar a planilha. Tente novamente.';
 }
 
+function duplicateMappedField(headers: string[], mapping: Record<string, string>): string | null {
+  const seen = new Set<string>();
+  for (const header of headers) {
+    const field = mapping[header] ?? 'ignore';
+    if (field === 'ignore') continue;
+    if (seen.has(field)) return field;
+    seen.add(field);
+  }
+  return null;
+}
+
+function fieldLabel(key: string): string {
+  return IMPORT_FIELD_OPTIONS.find((field) => field.key === key)?.label ?? key;
+}
+
 export function PatientImportWizard() {
   const previewMut = usePreviewPatientImport();
   const commitMut = useCommitPatientImport();
@@ -55,18 +70,25 @@ export function PatientImportWizard() {
   const [result, setResult] = useState<ImportCommitResponse | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [committing, setCommitting] = useState(false);
+  const commitInFlight = useRef(false);
+  const previewGen = useRef(0);
 
   async function onFileChange(event: ChangeEvent<HTMLInputElement>) {
     const next = event.target.files?.[0];
     if (!next) return;
+    const gen = ++previewGen.current;
     setFile(next);
     setResult(null);
     setFormError(null);
+    setPreview(null);
+    setMapping({});
     try {
       const data = await previewMut.mutateAsync(next);
+      if (gen !== previewGen.current) return;
       setPreview(data);
       setMapping({ ...data.suggestedMapping });
     } catch (err) {
+      if (gen !== previewGen.current) return;
       setPreview(null);
       setMapping({});
       const message = mapImportError(err);
@@ -85,7 +107,10 @@ export function PatientImportWizard() {
   }
 
   async function onCommit() {
+    if (commitInFlight.current || committing || commitMut.isPending) return;
     if (!file || !preview) return;
+    if (duplicateMappedField(preview.headers, mapping)) return;
+    commitInFlight.current = true;
     setFormError(null);
     setCommitting(true);
     try {
@@ -96,9 +121,13 @@ export function PatientImportWizard() {
       setFormError(message);
       toast.error(message);
     } finally {
+      commitInFlight.current = false;
       setCommitting(false);
     }
   }
+
+  const duplicateKey = preview ? duplicateMappedField(preview.headers, mapping) : null;
+  const duplicateLabel = duplicateKey ? fieldLabel(duplicateKey) : null;
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -129,25 +158,23 @@ export function PatientImportWizard() {
               type="file"
               accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
               onChange={(event) => void onFileChange(event)}
-              disabled={previewMut.isPending || committing}
+              disabled={committing}
             />
           </section>
 
           {formError && <p className="text-sm text-destructive">{formError}</p>}
 
-          {preview && !committing && (
+          {preview && (
             <MappingStep
               preview={preview}
               mapping={mapping}
+              duplicateLabel={duplicateLabel}
+              committing={committing}
               onMappingChange={(header, key) =>
                 setMapping((prev) => ({ ...prev, [header]: key }))
               }
               onCommit={() => void onCommit()}
             />
-          )}
-
-          {committing && (
-            <p className="text-sm text-muted-foreground">Importando pacientes…</p>
           )}
         </div>
       )}
@@ -158,11 +185,15 @@ export function PatientImportWizard() {
 function MappingStep({
   preview,
   mapping,
+  duplicateLabel,
+  committing,
   onMappingChange,
   onCommit,
 }: {
   preview: ImportPreviewResponse;
   mapping: Record<string, string>;
+  duplicateLabel: string | null;
+  committing: boolean;
   onMappingChange: (header: string, key: string) => void;
   onCommit: () => void;
 }) {
@@ -194,6 +225,7 @@ function MappingStep({
                       className="h-10 w-full min-w-48 rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                       aria-label={`Destino de ${header}`}
                       value={mapping[header] ?? 'ignore'}
+                      disabled={committing}
                       onChange={(event) => onMappingChange(header, event.target.value)}
                     >
                       {SELECT_OPTIONS.map((option) => (
@@ -247,8 +279,16 @@ function MappingStep({
         </section>
       )}
 
-      <Button className="rounded-full" onClick={onCommit}>
-        Importar {preview.rowCount} pacientes
+      {duplicateLabel && (
+        <p className="text-sm text-destructive">campo {duplicateLabel} mapeado duas vezes</p>
+      )}
+
+      <Button
+        className="rounded-full"
+        onClick={onCommit}
+        disabled={Boolean(duplicateLabel) || committing}
+      >
+        {committing ? 'Importando...' : `Importar ${preview.rowCount} pacientes`}
       </Button>
     </>
   );
