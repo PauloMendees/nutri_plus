@@ -165,9 +165,9 @@ describe('PatientDetail', () => {
   it('shows the post-create banner only when created', () => {
     usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
     const { rerender } = render(<PatientDetail id="p1" created={false} />);
-    expect(screen.queryByText(/criado e convidado/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Paciente criado')).not.toBeInTheDocument();
     rerender(<PatientDetail id="p1" created />);
-    expect(screen.getByText(/criado e convidado/i)).toBeInTheDocument();
+    expect(screen.getByText('Paciente criado')).toBeInTheDocument();
   });
 
   it('saves clinical edits via updatePatient', async () => {

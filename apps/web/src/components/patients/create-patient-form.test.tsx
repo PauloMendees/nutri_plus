@@ -127,17 +127,15 @@ describe('CreatePatientForm', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('shows the API message when invite is rejected', async () => {
+  it('shows the API message when creation is rejected', async () => {
     mutateAsync.mockRejectedValue(
-      new ApiError(422, {
-        message: 'Use um e-mail que receba mensagens. Endereços de exemplo (example.com) não podem receber o convite.',
-      }),
+      new ApiError(400, { message: 'Número de WhatsApp inválido.' }),
     );
     render(<CreatePatientForm />);
     await userEvent.type(screen.getByLabelText(/nome/i), 'Maria Silva');
-    await userEvent.type(screen.getByLabelText(/^e-mail$/i), 'maria@example.com');
+    await userEvent.type(screen.getByLabelText(/telefone/i), '11999998888');
     await userEvent.click(screen.getByRole('button', { name: /criar paciente/i }));
-    expect(await screen.findByText(/e-mail que receba mensagens/i)).toBeInTheDocument();
+    expect(await screen.findByText(/número de whatsapp inválido/i)).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
   });
 

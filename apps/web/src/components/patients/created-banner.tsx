@@ -10,7 +10,7 @@ export function CreatedBanner({ show }: { show: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/30 bg-secondary/60 p-4">
       <div className="flex-1">
-        <p className="font-semibold">Paciente criado e convidado por e-mail</p>
+        <p className="font-semibold">Paciente criado</p>
         <p className="text-sm text-muted-foreground">Quer registrar a primeira bioimpedância agora?</p>
       </div>
       <div className="flex gap-2">

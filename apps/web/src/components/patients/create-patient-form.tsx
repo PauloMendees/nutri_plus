@@ -32,9 +32,6 @@ function mapCreateError(err: unknown): string {
     if (err.status === 409) return 'Já existe um usuário com este e-mail.';
     const fromApi = apiMessage(err.body);
     if (fromApi) return fromApi;
-    if (err.status === 502) {
-      return 'Não foi possível enviar o convite para este e-mail. Use um endereço que receba mensagens.';
-    }
   }
   return 'Não foi possível criar o paciente. Tente novamente.';
 }
