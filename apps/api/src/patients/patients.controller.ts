@@ -50,6 +50,13 @@ export class PatientsController {
     return this.patients.createPatient(ctx, dto, meta);
   }
 
+  @Post(':id/invite')
+  @HttpCode(200)
+  @Roles(UserRole.NUTRITIONIST)
+  invite(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
+    return this.patients.invitePatient(ctx, id);
+  }
+
   @Get()
   @Roles(UserRole.NUTRITIONIST, UserRole.EMPLOYEE)
   list(@CurrentUser() ctx: AuthContext, @Query() query: ListPatientsQueryDto) {

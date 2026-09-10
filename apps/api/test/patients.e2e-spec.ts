@@ -69,6 +69,13 @@ describe('Patients (e2e)', () => {
   // Fixed subs are intentional: setup-e2e.ts truncates all tables before each
   // test, so re-syncing with the same sub recreates the actor from scratch
   // (the sync-user create path), keeping every test independent.
+  async function startTrial(token: string) {
+    await request(app.getHttpServer())
+      .post('/v1/me/subscription/start-trial')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(201);
+  }
+
   beforeEach(async () => {
     nutA = await syncUser({
       sub: 'nutA',
@@ -82,6 +89,8 @@ describe('Patients (e2e)', () => {
       name: 'Nut B',
       role: UserRole.NUTRITIONIST,
     });
+    await startTrial(nutA.token);
+    await startTrial(nutB.token);
     patient = await syncUser({
       sub: 'patP',
       email: 'p@x.com',
@@ -100,15 +109,15 @@ describe('Patients (e2e)', () => {
       .get('/v1/patients')
       .set('Authorization', `Bearer ${nutA.token}`)
       .expect(200);
-    expect(resA.body).toHaveLength(1);
-    expect(resA.body[0].id).toBe(patientId());
-    expect(resA.body[0].user.email).toBe('p@x.com');
+    expect(resA.body.items).toHaveLength(1);
+    expect(resA.body.items[0].id).toBe(patientId());
+    expect(resA.body.items[0].email).toBe('p@x.com');
 
     const resB = await request(app.getHttpServer())
       .get('/v1/patients')
       .set('Authorization', `Bearer ${nutB.token}`)
       .expect(200);
-    expect(resB.body).toHaveLength(0);
+    expect(resB.body.items).toHaveLength(0);
   });
 
   it('returns patient detail for the owner', async () => {
@@ -205,40 +214,60 @@ describe('Patients (e2e)', () => {
   });
 
   describe('POST /v1/patients', () => {
-    it('creates and links a patient, then lists it under the nutritionist', async () => {
+    beforeEach(() => {
+      fakeAdmin.inviteUser.mockClear();
+    });
+
+    it('creates a ficha without inviting, then lists it under the nutritionist', async () => {
       const res = await request(app.getHttpServer())
         .post('/v1/patients')
         .set('Authorization', `Bearer ${nutA.token}`)
         .send({ name: 'New Patient', email: 'new@x.com', height: 170 })
         .expect(201);
 
-      expect(res.body.user.email).toBe('new@x.com');
-      expect(res.body.user.name).toBe('New Patient');
+      expect(res.body.name).toBe('New Patient');
+      expect(res.body.email).toBe('new@x.com');
+      expect(res.body.user).toBeNull();
+      expect(res.body.inviteStatus).toBe('NOT_INVITED');
       expect(res.body.nutritionistId).toBe(nutA.body.nutritionistProfile.id);
       expect(res.body.height).toBe(170);
+      expect(fakeAdmin.inviteUser).not.toHaveBeenCalled();
 
       const list = await request(app.getHttpServer())
         .get('/v1/patients')
         .set('Authorization', `Bearer ${nutA.token}`)
         .expect(200);
-      const emails = list.body.map((p: any) => p.user.email);
+      const emails = list.body.items.map((p: any) => p.email);
       expect(emails).toContain('new@x.com');
     });
 
-    it('rejects a missing email (400)', async () => {
-      await request(app.getHttpServer())
+    it('creates without email (201)', async () => {
+      const res = await request(app.getHttpServer())
         .post('/v1/patients')
         .set('Authorization', `Bearer ${nutA.token}`)
         .send({ name: 'No Email' })
-        .expect(400);
+        .expect(201);
+
+      expect(res.body.name).toBe('No Email');
+      expect(res.body.email).toBeNull();
+      expect(res.body.user).toBeNull();
+      expect(res.body.inviteStatus).toBe('NOT_INVITED');
+      expect(fakeAdmin.inviteUser).not.toHaveBeenCalled();
     });
 
-    it('returns 409 when the email already exists in Supabase', async () => {
+    it('returns 409 when the email already exists on a ficha', async () => {
       await request(app.getHttpServer())
         .post('/v1/patients')
         .set('Authorization', `Bearer ${nutA.token}`)
         .send({ name: 'Dup', email: 'dup@x.com' })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .post('/v1/patients')
+        .set('Authorization', `Bearer ${nutA.token}`)
+        .send({ name: 'Dup 2', email: 'dup@x.com' })
         .expect(409);
+      expect(fakeAdmin.inviteUser).not.toHaveBeenCalled();
     });
 
     it('rejects a PATIENT token (403)', async () => {
@@ -247,6 +276,40 @@ describe('Patients (e2e)', () => {
         .set('Authorization', `Bearer ${patient.token}`)
         .send({ name: 'X', email: 'x@x.com' })
         .expect(403);
+    });
+  });
+
+  describe('POST /v1/patients/:id/invite', () => {
+    beforeEach(() => {
+      fakeAdmin.inviteUser.mockClear();
+    });
+
+    it('creates without email, patches email, then invites (200 INVITED)', async () => {
+      const created = await request(app.getHttpServer())
+        .post('/v1/patients')
+        .set('Authorization', `Bearer ${nutA.token}`)
+        .send({ name: 'Invitee' })
+        .expect(201);
+
+      expect(created.body.email).toBeNull();
+      expect(created.body.inviteStatus).toBe('NOT_INVITED');
+      expect(fakeAdmin.inviteUser).not.toHaveBeenCalled();
+
+      await request(app.getHttpServer())
+        .patch(`/v1/patients/${created.body.id}`)
+        .set('Authorization', `Bearer ${nutA.token}`)
+        .send({ email: 'invitee@x.com' })
+        .expect(200);
+
+      const invited = await request(app.getHttpServer())
+        .post(`/v1/patients/${created.body.id}/invite`)
+        .set('Authorization', `Bearer ${nutA.token}`)
+        .expect(200);
+
+      expect(invited.body.inviteStatus).toBe('INVITED');
+      expect(invited.body.email).toBe('invitee@x.com');
+      expect(invited.body.user).toEqual({ id: expect.any(String) });
+      expect(fakeAdmin.inviteUser).toHaveBeenCalledTimes(1);
     });
   });
 });

@@ -5,6 +5,7 @@ import { ApiError } from '@/lib/api/client';
 
 const usePatient = vi.fn();
 const mutateAsync = vi.fn();
+const inviteMut = vi.fn();
 const uploadPhotoMut = vi.fn();
 const deletePhotoMut = vi.fn();
 let uploadPhotoPending = false;
@@ -12,6 +13,7 @@ let uploadPhotoPending = false;
 vi.mock('@/lib/queries/patients', () => ({
   usePatient: (id: string) => usePatient(id),
   useUpdatePatient: () => ({ mutateAsync, isPending: false }),
+  useInvitePatient: () => ({ mutateAsync: inviteMut, isPending: false }),
   useUploadPatientPhoto: () => ({ mutateAsync: uploadPhotoMut, isPending: uploadPhotoPending }),
   useDeletePatientPhoto: () => ({ mutateAsync: deletePhotoMut, isPending: false }),
 }));
@@ -40,7 +42,7 @@ vi.mock('@/lib/queries/nutrition-targets', () => ({
   useCreateNutritionTarget: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
-vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/queries/subscription', () => ({
   useSubscription: () => ({ data: { entitlements: { features: { silhueta: true } } } }),
 }));
@@ -49,7 +51,11 @@ import { PatientDetail } from './patient-detail';
 
 const patient = {
   id: 'p1',
-  user: { id: 'u1', name: 'Maria Silva', email: 'maria@x.com' },
+  name: 'Maria Silva',
+  email: 'maria@x.com',
+  phone: '5511999998888',
+  inviteStatus: 'NOT_INVITED',
+  user: null,
   birthDate: '1991-03-14T00:00:00.000Z',
   gender: 'FEMALE',
   height: 165,
@@ -65,6 +71,7 @@ const patient = {
   canLogAssessments: false,
   showMealTargetToPatient: false,
   photoUrl: 'https://example.com/photo.jpg',
+  isDemo: false,
   createdAt: '2026-05-12T00:00:00.000Z',
   updatedAt: '2026-05-12T00:00:00.000Z',
   assessments: [],
@@ -74,10 +81,12 @@ const patient = {
 beforeEach(() => {
   usePatient.mockReset();
   mutateAsync.mockReset();
+  inviteMut.mockReset();
   uploadPhotoMut.mockReset();
   deletePhotoMut.mockReset();
   uploadPhotoPending = false;
   useAssessments.mockReset().mockReturnValue({ data: [], isLoading: false, isError: false });
+  vi.spyOn(window, 'confirm').mockReturnValue(true);
 });
 
 describe('PatientDetail', () => {
@@ -92,6 +101,11 @@ describe('PatientDetail', () => {
     render(<PatientDetail id="p1" created={false} />);
     expect(screen.getByText('Maria Silva')).toBeInTheDocument();
     expect(screen.getByText('maria@x.com')).toBeInTheDocument();
+    expect(screen.getByText('Sem convite')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(
+      'href',
+      'https://wa.me/5511999998888',
+    );
     expect(document.querySelector('[data-tour="patients.detail.header"]')).toBeTruthy();
     expect(screen.getByRole('tab', { name: /dados/i })).toHaveAttribute('data-tour', 'patients.tab.dados');
     expect(screen.getByRole('tab', { name: /anamnese/i })).toHaveAttribute(
@@ -151,9 +165,9 @@ describe('PatientDetail', () => {
   it('shows the post-create banner only when created', () => {
     usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
     const { rerender } = render(<PatientDetail id="p1" created={false} />);
-    expect(screen.queryByText(/criado e convidado/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Paciente criado')).not.toBeInTheDocument();
     rerender(<PatientDetail id="p1" created />);
-    expect(screen.getByText(/criado e convidado/i)).toBeInTheDocument();
+    expect(screen.getByText('Paciente criado')).toBeInTheDocument();
   });
 
   it('saves clinical edits via updatePatient', async () => {
@@ -256,5 +270,51 @@ describe('PatientDetail', () => {
     });
     render(<PatientDetail id="p1" created={false} />);
     expect(screen.getByText('Demo')).toBeInTheDocument();
+  });
+
+  it('shows an enabled Enviar convite button when NOT_INVITED with email', () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} />);
+    expect(screen.getByRole('button', { name: 'Enviar convite para o app' })).toBeEnabled();
+  });
+
+  it('disables Enviar convite with a hint when NOT_INVITED and email is null', () => {
+    usePatient.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { ...patient, email: null },
+    });
+    render(<PatientDetail id="p1" created={false} />);
+    expect(screen.getByRole('button', { name: 'Enviar convite para o app' })).toBeDisabled();
+    expect(screen.getByText(/preencha o e-mail/i)).toBeInTheDocument();
+  });
+
+  it('hides Enviar convite when the patient is INVITED', () => {
+    usePatient.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: { ...patient, inviteStatus: 'INVITED' },
+    });
+    render(<PatientDetail id="p1" created={false} />);
+    expect(screen.queryByRole('button', { name: 'Enviar convite para o app' })).not.toBeInTheDocument();
+  });
+
+  it('confirms before inviting and posts the invite', async () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    inviteMut.mockResolvedValue({ ...patient, inviteStatus: 'INVITED' });
+    render(<PatientDetail id="p1" created={false} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar convite para o app' }));
+    expect(window.confirm).toHaveBeenCalledWith(
+      'O paciente vai receber um e-mail para criar a senha do app.',
+    );
+    expect(inviteMut).toHaveBeenCalled();
+  });
+
+  it('does not invite when the confirm dialog is cancelled', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar convite para o app' }));
+    expect(inviteMut).not.toHaveBeenCalled();
   });
 });

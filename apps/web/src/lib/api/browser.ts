@@ -28,7 +28,10 @@ export async function browserApiUpload<T>(
   return apiUpload<T>(path, { token, formData, method });
 }
 
-export async function browserApiDownload(path: string): Promise<Blob> {
+export async function browserApiDownload(
+  path: string,
+  opts: { accept?: string } = {},
+): Promise<Blob> {
   const token = await browserToken();
-  return apiDownload(path, { token });
+  return apiDownload(path, { token, accept: opts.accept });
 }

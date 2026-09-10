@@ -35,7 +35,7 @@ describe('EvolutionPdfService', () => {
     (patients.listAssessments as jest.Mock).mockResolvedValue([]);
     (prisma.patientProfile.findFirst as jest.Mock).mockResolvedValue({
       height: 170,
-      user: { name: 'Ana' },
+      name: 'Ana',
     });
     (prisma.nutritionistProfile.findUnique as jest.Mock).mockResolvedValue({
       displayName: 'Clínica',

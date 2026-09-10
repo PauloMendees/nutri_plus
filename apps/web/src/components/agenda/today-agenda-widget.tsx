@@ -101,7 +101,7 @@ export function TodayAgendaWidget() {
                         <span className="min-w-0 flex-1 truncate text-sm font-semibold">
                           {a.title}
                           {a.patient ? (
-                            <span className="font-normal text-muted-foreground"> · {a.patient.user.name}</span>
+                            <span className="font-normal text-muted-foreground"> · {a.patient.name}</span>
                           ) : null}
                         </span>
                       </button>

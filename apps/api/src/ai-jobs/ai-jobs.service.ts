@@ -175,7 +175,7 @@ export class AiJobsService {
       // rascunho completo do plano. Como um ajuste DONE não consumido fica na
       // lista até a nutricionista abrir o editor, esse JSON seria lido, trafegado
       // e descartado a cada tick de 2s do polling.
-      select: { ...VIEW_FIELDS, patient: { select: { user: { select: { name: true } } } } },
+      select: { ...VIEW_FIELDS, patient: { select: { name: true } } },
     });
     return jobs.map((j) => this.toView(j));
   }
@@ -230,7 +230,7 @@ export class AiJobsService {
   private async requireOwned(ctx: AuthContext, jobId: string) {
     const job = await this.prisma.aiJob.findFirst({
       where: { id: jobId, nutritionistId: resolveScopeNutritionistId(ctx) },
-      include: { patient: { select: { user: { select: { name: true } } } } },
+      include: { patient: { select: { name: true } } },
     });
     // 404 e não 403: não revelamos a existência de job de outro nutricionista.
     if (!job) throw new NotFoundException('Trabalho não encontrado.');
@@ -241,7 +241,7 @@ export class AiJobsService {
     id: string; type: string; status: string; patientId: string;
     mealPlanId: string | null; error: string | null;
     createdAt: Date; startedAt: Date | null; finishedAt: Date | null;
-    patient?: { user: { name: string } } | null;
+    patient?: { name: string } | null;
   }): AiJobView {
     const startedAt = job.startedAt?.toISOString() ?? null;
     const status = job.status as AiJobView['status'];
@@ -250,7 +250,7 @@ export class AiJobsService {
       type: job.type as AiJobType,
       status,
       patientId: job.patientId,
-      patientName: job.patient?.user.name ?? '',
+      patientName: job.patient?.name ?? '',
       mealPlanId: job.mealPlanId,
       error: job.error,
       createdAt: job.createdAt.toISOString(),

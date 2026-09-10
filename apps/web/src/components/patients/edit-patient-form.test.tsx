@@ -12,7 +12,11 @@ import { EditPatientForm } from './edit-patient-form';
 
 const patient = {
   id: 'p1',
-  user: { id: 'u1', name: 'Maria Silva', email: 'maria@x.com' },
+  name: 'Maria Silva',
+  email: 'maria@x.com',
+  phone: '5511999998888',
+  inviteStatus: 'NOT_INVITED',
+  user: null,
   birthDate: '1991-03-14T00:00:00.000Z',
   gender: 'FEMALE',
   height: 165,
@@ -27,6 +31,8 @@ const patient = {
   canLogAssessments: false,
   showMealTargetToPatient: false,
   nutritionistId: 'n1',
+  photoUrl: null,
+  isDemo: false,
   createdAt: '2026-05-12T00:00:00.000Z',
   updatedAt: '2026-05-12T00:00:00.000Z',
   assessments: [],
@@ -77,5 +83,20 @@ describe('EditPatientForm', () => {
         expect.objectContaining({ showMealTargetToPatient: true }),
       ),
     );
+  });
+
+  it('renders name, phone and email fields', () => {
+    render(<EditPatientForm patient={patient} />);
+    expect(screen.getByLabelText(/nome/i)).toHaveValue('Maria Silva');
+    expect(screen.getByLabelText(/telefone/i)).toHaveValue('5511999998888');
+    expect(screen.getByLabelText(/^e-mail$/i)).toHaveValue('maria@x.com');
+    expect(screen.getByLabelText(/^e-mail$/i)).not.toBeDisabled();
+  });
+
+  it('disables the email input when the patient is already invited', () => {
+    render(<EditPatientForm patient={{ ...patient, inviteStatus: 'INVITED' }} />);
+    expect(screen.getByLabelText(/^e-mail$/i)).toBeDisabled();
+    expect(screen.getByLabelText(/nome/i)).not.toBeDisabled();
+    expect(screen.getByLabelText(/telefone/i)).not.toBeDisabled();
   });
 });

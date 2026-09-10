@@ -32,6 +32,10 @@ export function updatePatient(id: string, body: UpdatePatientRequest): Promise<P
   return browserApiFetch<PatientDetail>(`/patients/${id}`, { method: 'PATCH', body });
 }
 
+export function invitePatient(id: string): Promise<PatientDetail> {
+  return browserApiFetch<PatientDetail>(`/patients/${id}/invite`, { method: 'POST' });
+}
+
 export function uploadPatientPhoto(id: string, file: File): Promise<PatientDetail> {
   const formData = new FormData();
   formData.append('file', file);

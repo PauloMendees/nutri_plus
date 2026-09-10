@@ -10,12 +10,12 @@ describe('CreatedBanner', () => {
   });
   it('shows the success message with a disabled bioimpedância CTA', () => {
     render(<CreatedBanner show />);
-    expect(screen.getByText(/criado e convidado/i)).toBeInTheDocument();
+    expect(screen.getByText('Paciente criado')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /bioimped/i })).toBeDisabled();
   });
   it('dismisses when "Deixar para depois" is clicked', async () => {
     render(<CreatedBanner show />);
     await userEvent.click(screen.getByRole('button', { name: /deixar para depois/i }));
-    expect(screen.queryByText(/criado e convidado/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Paciente criado')).not.toBeInTheDocument();
   });
 });

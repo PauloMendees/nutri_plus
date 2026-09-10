@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const browserApiFetch = vi.fn();
 vi.mock('@/lib/api/browser', () => ({ browserApiFetch: (...a: unknown[]) => browserApiFetch(...a) }));
 
-import { createPatient, getPatient, listPatients, updatePatient } from './patients';
+import { createPatient, getPatient, invitePatient, listPatients, updatePatient } from './patients';
 
 beforeEach(() => browserApiFetch.mockReset());
 
@@ -30,5 +30,9 @@ describe('patients API', () => {
   it('updates a patient via PATCH', async () => {
     await updatePatient('p1', { notes: 'ok' });
     expect(browserApiFetch).toHaveBeenCalledWith('/patients/p1', { method: 'PATCH', body: { notes: 'ok' } });
+  });
+  it('invites a patient via POST /patients/:id/invite', async () => {
+    await invitePatient('p1');
+    expect(browserApiFetch).toHaveBeenCalledWith('/patients/p1/invite', { method: 'POST' });
   });
 });

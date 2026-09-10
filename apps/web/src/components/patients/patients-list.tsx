@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { FileSpreadsheet } from 'lucide-react';
+import { whatsappMeUrl } from '@nutri-plus/shared-types';
 import { usePatients } from '@/lib/queries/patients';
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
-import { ACTIVITY_LABELS, OBJECTIVE_LABELS } from '@/lib/patients/labels';
+import { ACTIVITY_LABELS, INVITE_STATUS_LABELS, OBJECTIVE_LABELS } from '@/lib/patients/labels';
 import { formatImc } from '@/lib/health/imc';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,16 +49,28 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
           )}
         </div>
         {canCreate && (
-          <Button className="rounded-full" asChild>
-            <Link href="/patients/new" data-tour="patients.new">
-              + Novo paciente
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="rounded-full border-primary text-secondary-foreground hover:bg-primary/10 hover:text-secondary-foreground dark:text-primary dark:hover:text-primary"
+              asChild
+            >
+              <Link href="/patients/import" data-tour="patients.import">
+                <FileSpreadsheet className="h-4 w-4" aria-hidden="true" />
+                Importar
+              </Link>
+            </Button>
+            <Button className="rounded-full" asChild>
+              <Link href="/patients/new" data-tour="patients.new">
+                + Novo paciente
+              </Link>
+            </Button>
+          </div>
         )}
       </div>
 
       <Input
-        placeholder="Buscar por nome ou e-mail"
+        placeholder="Buscar por nome, e-mail ou telefone"
         aria-label="Buscar paciente"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
@@ -106,21 +120,31 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
           {/* Mobile: stacked cards */}
           <div className="space-y-3 md:hidden">
             {items.map((p) => (
-              <Link
-                key={p.id}
-                href={`/patients/${p.id}`}
-                className="flex items-center gap-3 rounded-xl border bg-card p-4"
-              >
-                <PatientAvatar name={p.user.name} photoUrl={p.photoUrl} className="size-11 text-sm" />
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className="block truncate font-semibold">{p.user.name}</span>
-                    {p.isDemo ? <Badge>Demo</Badge> : null}
+              <div key={p.id} className="flex items-center gap-3 rounded-xl border bg-card p-4">
+                <Link href={`/patients/${p.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                  <PatientAvatar name={p.name} photoUrl={p.photoUrl} className="size-11 text-sm" />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="block truncate font-semibold">{p.name}</span>
+                      {p.isDemo ? <Badge>Demo</Badge> : null}
+                      <Badge variant="outline">{INVITE_STATUS_LABELS[p.inviteStatus]}</Badge>
+                    </span>
+                    <span className="block truncate text-sm text-muted-foreground">{p.email ?? '—'}</span>
                   </span>
-                  <span className="block truncate text-sm text-muted-foreground">{p.user.email}</span>
-                </span>
+                </Link>
+                {p.phone ? (
+                  <a
+                    href={whatsappMeUrl(p.phone)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="WhatsApp"
+                    className="shrink-0 text-sm font-medium text-primary hover:underline"
+                  >
+                    {p.phone}
+                  </a>
+                ) : null}
                 {p.objective && <Badge variant="secondary">{OBJECTIVE_LABELS[p.objective]}</Badge>}
-              </Link>
+              </div>
             ))}
           </div>
 
@@ -130,7 +154,9 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
               <thead>
                 <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-3 font-semibold">Paciente</th>
+                  <th className="px-4 py-3 font-semibold">Telefone</th>
                   <th className="px-4 py-3 font-semibold">E-mail</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
                   <th className="px-4 py-3 font-semibold">IMC</th>
                   <th className="px-4 py-3 font-semibold">Objetivo</th>
                   <th className="px-4 py-3 font-semibold">Atividade</th>
@@ -142,14 +168,32 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
                   <tr key={p.id} className="border-b last:border-0 hover:bg-muted/40">
                     <td className="px-4 py-3">
                       <Link href={`/patients/${p.id}`} className="flex items-center gap-3 font-semibold">
-                        <PatientAvatar name={p.user.name} photoUrl={p.photoUrl} className="size-10 text-sm" />
+                        <PatientAvatar name={p.name} photoUrl={p.photoUrl} className="size-10 text-sm" />
                         <span className="flex items-center gap-2">
-                          {p.user.name}
+                          {p.name}
                           {p.isDemo ? <Badge>Demo</Badge> : null}
                         </span>
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{p.user.email}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {p.phone ? (
+                        <a
+                          href={whatsappMeUrl(p.phone)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label="WhatsApp"
+                          className="text-primary hover:underline"
+                        >
+                          {p.phone}
+                        </a>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{p.email ?? '—'}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant="outline">{INVITE_STATUS_LABELS[p.inviteStatus]}</Badge>
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">{formatImc(p.imc)}</td>
                     <td className="px-4 py-3">
                       {p.objective ? <Badge variant="secondary">{OBJECTIVE_LABELS[p.objective]}</Badge> : '—'}

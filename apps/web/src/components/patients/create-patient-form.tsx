@@ -15,7 +15,7 @@ import { useTour } from '@/components/onboarding/tour-provider';
 import { PatientClinicalFields } from '@/components/patients/patient-clinical-fields';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 function apiMessage(body: unknown): string | null {
   if (typeof body === 'string' && body.trim()) return body;
@@ -32,9 +32,6 @@ function mapCreateError(err: unknown): string {
     if (err.status === 409) return 'Já existe um usuário com este e-mail.';
     const fromApi = apiMessage(err.body);
     if (fromApi) return fromApi;
-    if (err.status === 502) {
-      return 'Não foi possível enviar o convite para este e-mail. Use um endereço que receba mensagens.';
-    }
   }
   return 'Não foi possível criar o paciente. Tente novamente.';
 }
@@ -50,6 +47,7 @@ export function CreatePatientForm() {
     defaultValues: {
       name: '',
       email: '',
+      phone: '',
       birthDate: '',
       gender: '',
       height: '',
@@ -66,7 +64,8 @@ export function CreatePatientForm() {
   function fillDemoPatient() {
     form.reset({
       name: 'Maria Demonstração',
-      email: `demo.web.${Date.now()}@example.com`,
+      email: '',
+      phone: '',
       birthDate: '1990-05-12',
       gender: 'FEMALE',
       height: '165',
@@ -141,18 +140,31 @@ export function CreatePatientForm() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>E-mail *</FormLabel>
+                    <FormLabel>E-mail</FormLabel>
                     <FormControl>
                       <Input type="email" placeholder="paciente@email.com" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      O convite do app é enviado depois, na ficha, quando houver e-mail.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone</FormLabel>
+                    <FormControl>
+                      <Input type="tel" placeholder="11999998888" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">
-              O paciente receberá um convite por e-mail para acessar a conta.
-            </p>
           </section>
 
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}

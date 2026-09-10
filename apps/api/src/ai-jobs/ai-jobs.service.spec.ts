@@ -210,7 +210,7 @@ describe('AiJobsService.list (toView)', () => {
       {
         id: 'j1', type: 'MEAL_PLAN_GENERATION', status: 'RUNNING', patientId: 'p1',
         mealPlanId: null, error: null, createdAt: new Date(), startedAt: new Date(), finishedAt: null,
-        patient: { user: { name: 'Maria Silva' } },
+        patient: { name: 'Maria Silva' },
       },
     ]);
 
@@ -219,7 +219,7 @@ describe('AiJobsService.list (toView)', () => {
     expect(views[0].patientName).toBe('Maria Silva');
     const select = prisma.aiJob.findMany.mock.calls[0][0].select;
     // O join do nome precisa existir, senão chega vazio em produção.
-    expect(select.patient).toEqual({ select: { user: { select: { name: true } } } });
+    expect(select.patient).toEqual({ select: { name: true } });
     // E `result` NÃO pode ser trazido: é o rascunho inteiro do plano, relido a
     // cada tick de 2s do polling enquanto um ajuste espera revisão.
     expect(select.result).toBeUndefined();

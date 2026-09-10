@@ -1,4 +1,4 @@
-import { ActivityLevel, Gender, PatientObjective } from '@nutri-plus/shared-types';
+import { ActivityLevel, Gender, PatientInviteStatus, PatientObjective } from '@nutri-plus/shared-types';
 
 export const OBJECTIVE_LABELS: Record<PatientObjective, string> = {
   [PatientObjective.WEIGHT_LOSS]: 'Perda de peso',
@@ -20,4 +20,10 @@ export const GENDER_LABELS: Record<Gender, string> = {
   [Gender.FEMALE]: 'Feminino',
   [Gender.OTHER]: 'Outro',
   [Gender.PREFER_NOT_TO_SAY]: 'Prefiro não informar',
+};
+
+export const INVITE_STATUS_LABELS: Record<PatientInviteStatus, string> = {
+  NOT_INVITED: 'Sem convite',
+  INVITED: 'Convite enviado',
+  ACTIVE: 'Ativo',
 };

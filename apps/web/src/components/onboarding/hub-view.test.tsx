@@ -129,7 +129,7 @@ describe('HubView', () => {
     };
     renderHub(UserRole.NUTRITIONIST);
     await userEvent.click(screen.getByRole('button', { name: /continuar/i }));
-    expect(start).toHaveBeenCalledWith({ tourId: 'patients', chapterId: 'cadastro', replay: false });
+    expect(start).toHaveBeenCalledWith({ tourId: 'patients', chapterId: 'importar', replay: false });
   });
 
   it('shows Concluído and Rever when the tour is COMPLETED', () => {
@@ -215,7 +215,11 @@ describe('HubView', () => {
         tour({
           status: 'IN_PROGRESS',
           demoPatientId: null,
-          chapters: [chapter('lista', 'COMPLETED'), chapter('cadastro', 'COMPLETED')],
+          chapters: [
+            chapter('lista', 'COMPLETED'),
+            chapter('importar', 'COMPLETED'),
+            chapter('cadastro', 'COMPLETED'),
+          ],
         }),
       ],
     };

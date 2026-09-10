@@ -7,9 +7,10 @@ import { PatientAssessmentsController } from './patient-assessments.controller';
 import { MeController } from './me.controller';
 import { PatientsService } from './patients.service';
 import { EvolutionPdfService } from './pdf/evolution-pdf.service';
+import { ImportModule } from './import/import.module';
 
 @Module({
-  imports: [UsersModule, SupabaseAdminModule, MetaModule],
+  imports: [UsersModule, SupabaseAdminModule, MetaModule, ImportModule],
   controllers: [PatientsController, PatientAssessmentsController, MeController],
   providers: [PatientsService, EvolutionPdfService],
 })

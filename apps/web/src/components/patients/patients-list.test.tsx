@@ -11,11 +11,17 @@ import { PatientsList } from './patients-list';
 
 const patient = {
   id: 'p1',
-  user: { id: 'u1', name: 'Maria Silva', email: 'maria@x.com' },
+  name: 'Maria Silva',
+  email: 'maria@x.com',
+  phone: '5511999998888',
+  inviteStatus: 'NOT_INVITED',
+  user: null,
   objective: 'WEIGHT_LOSS',
   activityLevel: 'MODERATE',
   imc: 24.2,
   createdAt: '2026-05-12T00:00:00.000Z',
+  photoUrl: null,
+  isDemo: false,
 };
 
 function envelope(overrides: Record<string, unknown> = {}) {
@@ -54,7 +60,7 @@ describe('PatientsList', () => {
   });
 
   it('shows the IMC column formatted, and a — placeholder when imc is null', () => {
-    const withoutImc = { ...patient, id: 'p2', user: { id: 'u2', name: 'Ana Souza', email: 'ana@x.com' }, imc: null };
+    const withoutImc = { ...patient, id: 'p2', name: 'Ana Souza', email: 'ana@x.com', imc: null };
     usePatients.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -117,10 +123,11 @@ describe('PatientsList', () => {
     expect(screen.getByText(/nenhum paciente encontrado/i)).toBeInTheDocument();
   });
 
-  it('hides the create button when canCreate is false', () => {
+  it('hides the create and import buttons when canCreate is false', () => {
     usePatients.mockReturnValue({ isLoading: false, isError: false, isFetching: false, data: envelope() });
     render(<PatientsList canCreate={false} />);
     expect(screen.queryByRole('link', { name: /novo paciente/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /importar/i })).not.toBeInTheDocument();
   });
 
   it('hides the empty-state CTA when canCreate is false', () => {
@@ -146,5 +153,37 @@ describe('PatientsList', () => {
     });
     render(<PatientsList />);
     expect(screen.getAllByText('Demo').length).toBeGreaterThan(0);
+  });
+
+  it('links Importar next to + Novo paciente', () => {
+    usePatients.mockReturnValue({ isLoading: false, isError: false, isFetching: false, data: envelope() });
+    render(<PatientsList />);
+    expect(screen.getByRole('link', { name: /importar/i })).toHaveAttribute('href', '/patients/import');
+    expect(screen.getByRole('link', { name: /novo paciente/i })).toHaveAttribute('href', '/patients/new');
+  });
+
+  it('searches by name, e-mail or telefone and shows invite status plus WhatsApp', () => {
+    usePatients.mockReturnValue({ isLoading: false, isError: false, isFetching: false, data: envelope() });
+    render(<PatientsList />);
+    expect(screen.getByPlaceholderText('Buscar por nome, e-mail ou telefone')).toBeInTheDocument();
+    expect(screen.getAllByText('Sem convite').length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'WhatsApp' })[0]).toHaveAttribute(
+      'href',
+      'https://wa.me/5511999998888',
+    );
+  });
+
+  it.each([
+    ['INVITED', 'Convite enviado'],
+    ['ACTIVE', 'Ativo'],
+  ] as const)('renders invite status %s as %s', (inviteStatus, label) => {
+    usePatients.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      isFetching: false,
+      data: envelope({ items: [{ ...patient, inviteStatus }] }),
+    });
+    render(<PatientsList />);
+    expect(screen.getAllByText(label).length).toBeGreaterThan(0);
   });
 });

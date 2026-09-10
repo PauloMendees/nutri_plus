@@ -142,11 +142,15 @@ model EmployeeProfile {
 
 model PatientProfile {
   id             String   @id @default(uuid())
-  userId         String   @unique
-  user           User     @relation(fields: [userId], references: [id])
+  userId         String?  @unique
+  user           User?    @relation(fields: [userId], references: [id], onDelete: Restrict)
   nutritionistId String?
   nutritionist   NutritionistProfile? @relation(fields: [nutritionistId], references: [id])
 
+  name              String
+  email             String?
+  phone             String?
+  isDemo            Boolean @default(false)
   birthDate         DateTime?
   gender            Gender?
   height            Float?  // centimeters
@@ -413,6 +417,7 @@ enum AIInteractionType {
   MEAL_PLAN_ADJUSTMENT
   SILHUETA_SCAN
   CONSULTATION_TRANSCRIPTION
+  COLUMN_MAPPING
 }
 
 // Audit trail for every AI call, successful or failed. The patient FK is explicitly

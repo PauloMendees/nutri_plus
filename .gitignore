@@ -20,3 +20,5 @@ apps/api/src/generated/
 # `marketing/` also matches apps/web/src/components/marketing, and Tailwind v4
 # skips gitignored paths when detecting class names.
 /marketing/
+
+.worktrees/

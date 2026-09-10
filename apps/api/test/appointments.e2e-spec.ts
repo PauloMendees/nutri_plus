@@ -34,6 +34,13 @@ describe('Appointments (e2e)', () => {
   let nutA: { token: string; body: any };
   let nutB: { token: string; body: any };
 
+  async function startTrial(token: string) {
+    await request(app.getHttpServer())
+      .post('/v1/me/subscription/start-trial')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(201);
+  }
+
   beforeAll(async () => {
     jwks = await startJwksServer();
     process.env.SUPABASE_URL = jwks.url;
@@ -58,6 +65,8 @@ describe('Appointments (e2e)', () => {
   beforeEach(async () => {
     nutA = await syncUser({ sub: 'nutA', email: 'a@x.com', name: 'Nut A', role: UserRole.NUTRITIONIST });
     nutB = await syncUser({ sub: 'nutB', email: 'b@x.com', name: 'Nut B', role: UserRole.NUTRITIONIST });
+    await startTrial(nutA.token);
+    await startTrial(nutB.token);
   });
 
   async function inviteAndSyncEmployee(email: string, name: string) {
@@ -142,7 +151,9 @@ describe('Appointments (e2e)', () => {
       .send(body({ patientId: patient.body.id }))
       .expect(201);
     expect(ok.body.patientId).toBe(patient.body.id);
-    expect(ok.body.patient.user.email).toBe('pat@x.com');
+    expect(ok.body.patient.email).toBe('pat@x.com');
+    expect(ok.body.patient.name).toBe('Pat');
+    expect(ok.body.patient.user).toBeNull();
 
     // nutB cannot link nutA's patient.
     await request(app.getHttpServer())

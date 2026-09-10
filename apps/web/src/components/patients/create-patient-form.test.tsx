@@ -34,18 +34,42 @@ beforeEach(() => {
 });
 
 describe('CreatePatientForm', () => {
-  it('blocks submit and shows errors when name/email are missing', async () => {
+  it('blocks submit and shows errors when name is missing', async () => {
     render(<CreatePatientForm />);
     await userEvent.click(screen.getByRole('button', { name: /criar paciente/i }));
     expect(await screen.findByText(/informe o nome/i)).toBeInTheDocument();
+    expect(screen.queryByText(/informe um e-mail/i)).not.toBeInTheDocument();
     expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('labels email without an asterisk and explains that invite is sent later', () => {
+    render(<CreatePatientForm />);
+    expect(screen.getByLabelText('E-mail')).toBeInTheDocument();
+    expect(screen.queryByText('E-mail *')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Telefone')).toBeInTheDocument();
+    expect(
+      screen.getByText('O convite do app é enviado depois, na ficha, quando houver e-mail.'),
+    ).toBeInTheDocument();
+  });
+
+  it('submits with only a name and no required-email error', async () => {
+    mutateAsync.mockResolvedValue({ id: 'p-new' });
+    render(<CreatePatientForm />);
+    await userEvent.type(screen.getByLabelText(/nome/i), 'Maria Silva');
+    await userEvent.click(screen.getByRole('button', { name: /criar paciente/i }));
+    await waitFor(() =>
+      expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ name: 'Maria Silva' })),
+    );
+    expect(mutateAsync.mock.calls[0][0].email).toBeUndefined();
+    expect(screen.queryByText(/informe um e-mail/i)).not.toBeInTheDocument();
+    expect(push).toHaveBeenCalledWith('/patients/p-new?created=1');
   });
 
   it('creates the patient and redirects to its page with ?created=1', async () => {
     mutateAsync.mockResolvedValue({ id: 'p-new' });
     render(<CreatePatientForm />);
     await userEvent.type(screen.getByLabelText(/nome/i), 'Maria Silva');
-    await userEvent.type(screen.getByLabelText(/e-mail/i), 'maria@x.com');
+    await userEvent.type(screen.getByLabelText(/^e-mail$/i), 'maria@x.com');
     await userEvent.click(screen.getByRole('button', { name: /criar paciente/i }));
     await waitFor(() =>
       expect(mutateAsync).toHaveBeenCalledWith(
@@ -67,7 +91,7 @@ describe('CreatePatientForm', () => {
     render(<CreatePatientForm />);
     await userEvent.click(screen.getByRole('button', { name: /preencher com dados fictícios/i }));
     expect(screen.getByLabelText(/nome/i)).toHaveValue('Maria Demonstração');
-    expect((screen.getByLabelText(/e-mail/i) as HTMLInputElement).value).toMatch(/^demo\.web\.\d+@example\.com$/);
+    expect((screen.getByLabelText(/^e-mail$/i) as HTMLInputElement).value).not.toMatch(/example\.com/);
   });
 
   it('marks the submit button with the tour anchor', () => {
@@ -83,7 +107,6 @@ describe('CreatePatientForm', () => {
     mutateAsync.mockResolvedValue({ id: 'p-demo' });
     render(<CreatePatientForm />);
     await userEvent.type(screen.getByLabelText(/nome/i), 'Maria Demonstração');
-    await userEvent.type(screen.getByLabelText(/e-mail/i), 'demo.web@example.com');
     await userEvent.click(screen.getByRole('button', { name: /criar paciente/i }));
     await waitFor(() =>
       expect(mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ demo: true })),
@@ -97,24 +120,22 @@ describe('CreatePatientForm', () => {
     mutateAsync.mockRejectedValue(new ApiError(409, {}));
     render(<CreatePatientForm />);
     await userEvent.type(screen.getByLabelText(/nome/i), 'Maria Silva');
-    await userEvent.type(screen.getByLabelText(/e-mail/i), 'maria@x.com');
+    await userEvent.type(screen.getByLabelText(/^e-mail$/i), 'maria@x.com');
     await userEvent.click(screen.getByRole('button', { name: /criar paciente/i }));
     expect(await screen.findByText(/já existe/i)).toBeInTheDocument();
     expect(notifyChapterActionSucceeded).not.toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('shows the API message when invite is rejected', async () => {
+  it('shows the API message when creation is rejected', async () => {
     mutateAsync.mockRejectedValue(
-      new ApiError(422, {
-        message: 'Use um e-mail que receba mensagens. Endereços de exemplo (example.com) não podem receber o convite.',
-      }),
+      new ApiError(400, { message: 'Número de WhatsApp inválido.' }),
     );
     render(<CreatePatientForm />);
     await userEvent.type(screen.getByLabelText(/nome/i), 'Maria Silva');
-    await userEvent.type(screen.getByLabelText(/e-mail/i), 'maria@example.com');
+    await userEvent.type(screen.getByLabelText(/telefone/i), '11999998888');
     await userEvent.click(screen.getByRole('button', { name: /criar paciente/i }));
-    expect(await screen.findByText(/e-mail que receba mensagens/i)).toBeInTheDocument();
+    expect(await screen.findByText(/número de whatsapp inválido/i)).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
   });
 
@@ -122,7 +143,7 @@ describe('CreatePatientForm', () => {
     mutateAsync.mockRejectedValue(new ApiError(409, {}));
     render(<CreatePatientForm />);
     await userEvent.type(screen.getByLabelText(/nome/i), 'Maria Silva');
-    await userEvent.type(screen.getByLabelText(/e-mail/i), 'maria@x.com');
+    await userEvent.type(screen.getByLabelText(/^e-mail$/i), 'maria@x.com');
     await userEvent.click(screen.getByRole('button', { name: /criar paciente/i }));
     expect(await screen.findByText(/já existe/i)).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();

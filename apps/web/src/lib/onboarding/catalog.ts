@@ -65,7 +65,7 @@ function savedPlanRoute(ctx: TourRouteCtx): string | null {
 export const PATIENTS_TOUR: TourDefinition = {
   id: 'patients',
   title: 'Pacientes',
-  summary: 'Cadastro, ficha, avaliações e planos alimentares.',
+  summary: 'Cadastro, importação, ficha, avaliações e planos alimentares.',
   canStart: canManagePatients,
   startLockedText: 'Este tutorial é feito pelo nutricionista (cadastro de pacientes).',
   chapters: [
@@ -88,6 +88,36 @@ export const PATIENTS_TOUR: TourDefinition = {
           title: 'Novo paciente',
           body: 'Clique para cadastrar. O tour usa um paciente de demonstração.',
           advance: 'click',
+        },
+      ],
+    },
+    {
+      id: 'importar',
+      title: 'Importar',
+      steps: [
+        {
+          id: 'button',
+          route: LIST_ROUTE,
+          anchor: '[data-tour="patients.import"]',
+          title: 'Importar planilha',
+          body: 'Traga a base de outro sistema. Clique para abrir a importação.',
+          advance: 'click',
+        },
+        {
+          id: 'howto',
+          route: '/patients/import',
+          anchor: '[data-tour="patients.import.howto"]',
+          title: 'Como funciona',
+          body: 'Use o modelo iNutri ou qualquer planilha. As colunas são mapeadas automaticamente; você pode editar o mapeamento.',
+          advance: 'next',
+        },
+        {
+          id: 'dropzone',
+          route: '/patients/import',
+          anchor: '[data-tour="patients.import.dropzone"]',
+          title: 'Enviar arquivo',
+          body: 'Arraste o arquivo para cá ou clique para escolher um .xlsx ou .csv.',
+          advance: 'next',
         },
       ],
     },

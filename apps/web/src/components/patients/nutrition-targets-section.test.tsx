@@ -49,7 +49,11 @@ function assessment(over: Record<string, unknown> = {}) {
 function patient(over: Record<string, unknown> = {}): PatientDetail {
   return {
     id: 'p1',
-    user: { id: 'u1', name: 'João Souza', email: 'joao@x.com' },
+    name: 'João Souza',
+    email: 'joao@x.com',
+    phone: null,
+    inviteStatus: 'NOT_INVITED',
+    user: null,
     nutritionistId: 'n1',
     birthDate: '1990-06-15T00:00:00.000Z',
     gender: 'MALE',
@@ -65,6 +69,7 @@ function patient(over: Record<string, unknown> = {}): PatientDetail {
     canLogAssessments: true,
     showMealTargetToPatient: false,
     photoUrl: null,
+    isDemo: false,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     assessments: [assessment()],

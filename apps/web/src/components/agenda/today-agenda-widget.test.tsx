@@ -36,7 +36,7 @@ function appt(over: Partial<Appointment> = {}): Appointment {
     endsAt: end.toISOString(),
     createdAt: start.toISOString(),
     updatedAt: start.toISOString(),
-    patient: { id: "p1", user: { id: "u1", name: "Ana Souza", email: "ana@x.com" } },
+    patient: { id: "p1", name: "Ana Souza", email: "ana@x.com", user: null },
     categoryId: null,
     category: null,
     ...over,

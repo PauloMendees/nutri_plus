@@ -73,24 +73,31 @@ export class UsersService {
       nutritionistId = nutritionist.id;
     }
 
-    return this.prisma.user.create({
-      data: {
-        ...base,
-        patientProfile: { create: { nutritionistId } },
-      },
-      include: INCLUDE_PROFILES,
-    });
+    try {
+      return await this.prisma.user.create({
+        data: {
+          ...base,
+          patientProfile: { create: { nutritionistId, name: input.name, email: input.email } },
+        },
+        include: INCLUDE_PROFILES,
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('Já existe um paciente com este e-mail.');
+      }
+      throw error;
+    }
   }
 
   // Creates a patient that a nutritionist invited (the Supabase identity was
   // already created via the Admin API, so authProviderId is known up front).
+  // Connects the User to the existing ficha — does not nested-create a profile.
   // Maps the unique-constraint violation (email/identity already used) to 409.
   async createInvitedPatient(input: {
     authProviderId: string;
     email: string;
     name: string;
-    nutritionistId: string;
-    clinical: UpdatePatientDto;
+    patientId: string;
   }): Promise<LocalUser> {
     try {
       return await this.prisma.user.create({
@@ -100,9 +107,7 @@ export class UsersService {
           email: input.email,
           name: input.name,
           role: UserRole.PATIENT,
-          patientProfile: {
-            create: { nutritionistId: input.nutritionistId, ...input.clinical },
-          },
+          patientProfile: { connect: { id: input.patientId } },
         },
         include: INCLUDE_PROFILES,
       });
@@ -127,6 +132,7 @@ export class UsersService {
     clinical: UpdatePatientDto;
   }): Promise<LocalUser> {
     try {
+      const { name: _name, email: _email, phone: _phone, ...clinical } = input.clinical;
       return await this.prisma.user.create({
         data: {
           authProvider: DEMO_PROVIDER,
@@ -137,7 +143,9 @@ export class UsersService {
           patientProfile: {
             create: {
               nutritionistId: input.nutritionistId,
-              ...input.clinical,
+              name: input.name,
+              email: input.email,
+              ...clinical,
               canLogAssessments: false,
               showMealTargetToPatient: false,
             },
