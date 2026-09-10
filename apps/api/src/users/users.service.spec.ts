@@ -32,6 +32,8 @@ describe('UsersService', () => {
     const createArg = prisma.user.create.mock.calls[0][0] as any;
     expect(createArg.data.role).toBe(UserRole.PATIENT);
     expect(createArg.data.patientProfile.create.nutritionistId).toBe('nutri-1');
+    expect(createArg.data.patientProfile.create.name).toBe('Pat');
+    expect(createArg.data.patientProfile.create.email).toBe('p@x.com');
   });
 
   it('rejects an unknown referral code', async () => {

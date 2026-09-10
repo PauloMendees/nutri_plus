@@ -1,5 +1,6 @@
-import { ConflictException, ForbiddenException, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
+import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetaActivationService } from '../meta/meta-activation.service';
 import { PatientsService } from './patients.service';
@@ -575,60 +576,68 @@ describe('PatientsService', () => {
       } as any);
     });
 
-    it('invites the patient then creates the linked local record', async () => {
-      supabaseAdmin.inviteUser.mockResolvedValue({ id: 'sub-new' });
-      users.createInvitedPatient.mockResolvedValue({
-        patientProfile: { id: 'pp1' },
-      } as any);
+    it('creates a ficha without inviting, even when email is present', async () => {
+      prisma.patientProfile.create.mockResolvedValue({ id: 'pp1' } as any);
       prisma.patientProfile.findFirst.mockResolvedValue({
-        id: 'pp1',
-        height: null,
-        assessments: [],
-        consents: [],
-        name: 'Ann',
-        email: 'a@x.com',
-        phone: null,
-        isDemo: false,
-        userId: 'u1',
-        firstAppLoginAt: null,
-        user: { id: 'u1' },
+        id: 'pp1', name: 'Ann', email: 'a@x.com', phone: null,
+        userId: null, firstAppLoginAt: null, isDemo: false,
+        height: 160, assessments: [], consents: [],
       } as any);
 
       const result = await service.createPatient(ctx, dto);
 
-      expect(supabaseAdmin.inviteUser).toHaveBeenCalledWith('a@x.com', {
-        name: 'Ann',
+      expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
+      expect(users.createInvitedPatient).not.toHaveBeenCalled();
+      expect(prisma.patientProfile.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          name: 'Ann',
+          email: 'a@x.com',
+          nutritionistId: 'nutri-1',
+          height: 160,
+          isDemo: false,
+        }),
       });
-      expect(users.createInvitedPatient).toHaveBeenCalledWith({
-        authProviderId: 'sub-new',
-        email: 'a@x.com',
-        name: 'Ann',
-        nutritionistId: 'nutri-1',
-        clinical: { height: 160, canLogAssessments: false, showMealTargetToPatient: false },
+      expect(result.inviteStatus).toBe('NOT_INVITED');
+      expect(result.user).toBeNull();
+    });
+
+    it('creates without email', async () => {
+      prisma.patientProfile.create.mockResolvedValue({ id: 'pp1' } as any);
+      prisma.patientProfile.findFirst.mockResolvedValue({
+        id: 'pp1', name: 'Ann', email: null, phone: null,
+        userId: null, firstAppLoginAt: null, isDemo: false,
+        height: null, assessments: [], consents: [],
+      } as any);
+      await service.createPatient(ctx, { name: 'Ann' } as any);
+      expect(prisma.patientProfile.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ name: 'Ann', email: null }),
       });
-      expect(prisma.patientProfile.findFirst).toHaveBeenCalledWith({
-        where: { id: 'pp1', nutritionistId: 'nutri-1' },
-        include: {
-          user: { select: { id: true } },
-          assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
-          consents: { orderBy: { acceptedAt: 'desc' }, take: 1 },
-        },
-      });
-      expect(result).toEqual({
-        id: 'pp1',
-        height: null,
-        assessments: [],
-        imc: null,
-        latestConsent: null,
-        isDemo: false,
-        name: 'Ann',
-        email: 'a@x.com',
-        phone: null,
-        userId: 'u1',
-        firstAppLoginAt: null,
-        inviteStatus: 'INVITED',
-        user: { id: 'u1' },
-      });
+      expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
+    });
+
+    it('does not reject example.com on create (no invite)', async () => {
+      prisma.patientProfile.create.mockResolvedValue({ id: 'pp1' } as any);
+      prisma.patientProfile.findFirst.mockResolvedValue({
+        id: 'pp1', name: 'Ann', email: 'qa@example.com', phone: null,
+        userId: null, firstAppLoginAt: null, isDemo: false,
+        assessments: [], consents: [], height: null,
+      } as any);
+      await service.createPatient(ctx, { name: 'Ann', email: 'qa@example.com' } as any);
+      expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
+    });
+
+    it('demo: true creates a ficha without User', async () => {
+      prisma.patientProfile.create.mockResolvedValue({ id: 'pp-demo' } as any);
+      prisma.onboardingProgress.upsert.mockResolvedValue({} as any);
+      prisma.patientProfile.findFirst.mockResolvedValue({
+        id: 'pp-demo', name: 'Maria Demonstração', email: null, phone: null,
+        userId: null, firstAppLoginAt: null, isDemo: true,
+        assessments: [], consents: [], height: null,
+      } as any);
+      const result = await service.createPatient(ctx, { name: 'Maria Demonstração', demo: true } as any);
+      expect(users.createDemoPatient).not.toHaveBeenCalled();
+      expect(result.isDemo).toBe(true);
+      expect(result.user).toBeNull();
     });
 
     it("seeds the new patient's toggles from the nutritionist's configured defaults", async () => {
@@ -636,15 +645,18 @@ describe('PatientsService', () => {
         defaultCanLogAssessments: true,
         defaultShowMealTargetToPatient: true,
       } as any);
-      supabaseAdmin.inviteUser.mockResolvedValue({ id: 'sub-new' });
-      users.createInvitedPatient.mockResolvedValue({
-        patientProfile: { id: 'pp1' },
-      } as any);
+      prisma.patientProfile.create.mockResolvedValue({ id: 'pp1' } as any);
       prisma.patientProfile.findFirst.mockResolvedValue({
         id: 'pp1',
         height: null,
         assessments: [],
         consents: [],
+        name: 'Ann',
+        email: 'a@x.com',
+        phone: null,
+        userId: null,
+        firstAppLoginAt: null,
+        isDemo: false,
       } as any);
 
       await service.createPatient(ctx, dto);
@@ -653,20 +665,12 @@ describe('PatientsService', () => {
         where: { id: 'nutri-1' },
         select: { defaultCanLogAssessments: true, defaultShowMealTargetToPatient: true },
       });
-      const call = users.createInvitedPatient.mock.calls[0][0];
-      expect(call.clinical).toEqual(
-        expect.objectContaining({ canLogAssessments: true, showMealTargetToPatient: true }),
-      );
-    });
-
-    it('rolls back the invited user when the local write fails', async () => {
-      supabaseAdmin.inviteUser.mockResolvedValue({ id: 'sub-new' });
-      users.createInvitedPatient.mockRejectedValue(new ConflictException('dup'));
-
-      await expect(service.createPatient(ctx, dto)).rejects.toBeInstanceOf(
-        ConflictException,
-      );
-      expect(supabaseAdmin.deleteUser).toHaveBeenCalledWith('sub-new');
+      expect(prisma.patientProfile.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          canLogAssessments: true,
+          showMealTargetToPatient: true,
+        }),
+      });
     });
 
     it('does not invite when the caller has no nutritionist profile', async () => {
@@ -674,96 +678,70 @@ describe('PatientsService', () => {
         service.createPatient(ctxWithNutritionist(null), dto),
       ).rejects.toBeInstanceOf(ForbiddenException);
       expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
+      expect(prisma.patientProfile.create).not.toHaveBeenCalled();
     });
 
-    it('rejects reserved example.com addresses before inviting', async () => {
-      await expect(
-        service.createPatient(ctx, { name: 'Ann', email: 'qa@example.com' } as any),
-      ).rejects.toBeInstanceOf(UnprocessableEntityException);
-      expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
+    it('maps a duplicate email to ConflictException', async () => {
+      const dup = new Prisma.PrismaClientKnownRequestError('Unique constraint', {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: { target: ['email'] },
+      });
+      prisma.patientProfile.create.mockRejectedValue(dup);
+      await expect(service.createPatient(ctx, dto)).rejects.toBeInstanceOf(ConflictException);
     });
 
-    it('demo: true skips invite, forces app toggles off, upserts progress, returns isDemo', async () => {
-      users.createDemoPatient.mockResolvedValue({
-        patientProfile: { id: 'pp-demo' },
-      } as any);
-      prisma.onboardingProgress.upsert.mockResolvedValue({} as any);
+    it('canonicalizes phone and persists it', async () => {
+      prisma.patientProfile.create.mockResolvedValue({ id: 'pp1' } as any);
       prisma.patientProfile.findFirst.mockResolvedValue({
-        id: 'pp-demo',
-        height: null,
-        assessments: [],
-        consents: [],
-        name: 'Maria Demonstração',
-        email: 'demo.user-1.1@example.com',
-        phone: null,
-        isDemo: true,
-        userId: 'u-d',
-        firstAppLoginAt: null,
-        user: { id: 'u-d', authProvider: 'demo' },
+        id: 'pp1', name: 'Ann', email: 'a@x.com', phone: '5511999998888',
+        userId: null, firstAppLoginAt: null, isDemo: false,
+        height: 160, assessments: [], consents: [],
       } as any);
-
-      const result = await service.createPatient(ctx, {
-        name: 'Maria Demonstração',
-        email: 'demo.user-1.1@example.com',
-        demo: true,
-      } as any);
-
-      expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
-      expect(users.createDemoPatient).toHaveBeenCalledWith(expect.objectContaining({
-        email: 'demo.user-1.1@example.com',
-        name: 'Maria Demonstração',
-        nutritionistId: 'nutri-1',
-        clinical: expect.objectContaining({ canLogAssessments: false, showMealTargetToPatient: false }),
-      }));
-      expect(prisma.onboardingProgress.upsert).toHaveBeenCalledWith(expect.objectContaining({
-        where: { userId_tourId: { userId: 'user-1', tourId: 'patients' } },
-        create: expect.objectContaining({ userId: 'user-1', tourId: 'patients', demoPatientId: 'pp-demo' }),
-        update: expect.objectContaining({ demoPatientId: 'pp-demo' }),
-      }));
-      expect(result.isDemo).toBe(true);
+      await service.createPatient(ctx, { ...dto, phone: '11999998888' } as any);
+      expect(prisma.patientProfile.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ phone: '5511999998888' }),
+      });
     });
 
-    it('demo: true still creates when email matches UNDELIVERABLE_EMAIL', async () => {
-      users.createDemoPatient.mockResolvedValue({ patientProfile: { id: 'pp-demo' } } as any);
-      prisma.onboardingProgress.upsert.mockResolvedValue({} as any);
-      prisma.patientProfile.findFirst.mockResolvedValue({
-        id: 'pp-demo', height: null, assessments: [], consents: [],
-        name: 'Maria Demonstração', email: 'x@example.com', phone: null,
-        isDemo: true, userId: 'u-d', firstAppLoginAt: null,
-        user: { id: 'u-d', authProvider: 'demo' },
-      } as any);
-      await service.createPatient(ctx, { name: 'Maria Demonstração', email: 'x@example.com', demo: true } as any);
-      expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
-    });
-
-    it('without demo still rejects example.com before inviting', async () => {
+    it('rejects an invalid phone with 400', async () => {
       await expect(
-        service.createPatient(ctx, { name: 'Ann', email: 'qa@example.com' } as any),
-      ).rejects.toBeInstanceOf(UnprocessableEntityException);
-      expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
+        service.createPatient(ctx, { ...dto, phone: '12345' } as any),
+      ).rejects.toMatchObject({ status: 400, message: 'Número de WhatsApp inválido.' });
+      expect(prisma.patientProfile.create).not.toHaveBeenCalled();
     });
   });
 
   describe('deleteDemoPatient', () => {
-    it('403 when the patient is not a demo identity', async () => {
+    it('403 when isDemo === false', async () => {
       prisma.patientProfile.findFirst.mockResolvedValue({
         id: 'pp1',
         userId: 'u1',
-        user: { authProvider: 'SUPABASE' },
+        isDemo: false,
       } as any);
       await expect(service.deleteDemoPatient(ctx, 'pp1')).rejects.toMatchObject({ status: 403 });
       expect(prisma.user.delete).not.toHaveBeenCalled();
     });
 
-    it('deletes the demo user (cascades profile) when authProvider is demo', async () => {
+    it('deletes the User when isDemo and userId is set', async () => {
       prisma.patientProfile.findFirst.mockResolvedValue({
         id: 'pp-demo',
         userId: 'u-d',
-        user: { authProvider: 'demo' },
+        isDemo: true,
       } as any);
-      prisma.user.delete.mockResolvedValue({} as any);
       await service.deleteDemoPatient(ctx, 'pp-demo');
       expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'u-d' } });
+    });
+
+    it('does not delete a User when isDemo and userId is null', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({
+        id: 'pp-demo',
+        userId: null,
+        isDemo: true,
+      } as any);
+      await service.deleteDemoPatient(ctx, 'pp-demo');
+      expect(prisma.patientProfile.delete).toHaveBeenCalledWith({ where: { id: 'pp-demo' } });
+      expect(prisma.user.delete).not.toHaveBeenCalled();
     });
   });
 

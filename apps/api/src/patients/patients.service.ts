@@ -1,16 +1,16 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
-  UnprocessableEntityException,
 } from '@nestjs/common';
-import type { MealLog, NutritionistContact } from '@nutri-plus/shared-types';
+import { canonicalizeWhatsappNumber, type MealLog, type NutritionistContact } from '@nutri-plus/shared-types';
+import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetaActivationService } from '../meta/meta-activation.service';
 import { serverOnlyMetaContext, type MetaContext } from '../meta/meta-context';
 import { AuthContext } from '../auth/types/auth-context';
-import { DEMO_PROVIDER } from '../auth/auth.constants';
 import { resolveScopeNutritionistId, resolveScopePatientId } from '../auth/auth-scope';
 import { UsersService } from '../users/users.service';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
@@ -25,8 +25,6 @@ import { inviteStatusOf } from './invite-status';
 export type { UploadedImage } from '../supabase/image-upload';
 
 const PATIENT_USER_INCLUDE = { select: { id: true } } as const;
-
-const UNDELIVERABLE_EMAIL = /@(example\.(com|net|org)|test|invalid|localhost)$/i;
 
 const PHOTO_BUCKET = 'patient-photos';
 
@@ -55,40 +53,46 @@ export class PatientsService {
     private readonly metaActivation: MetaActivationService,
   ) {}
 
-  // Registers a patient during the consultation: invite via the Supabase Admin
-  // API (creates the auth identity + emails the patient), then create the linked
-  // local record. If the local write fails, the invited auth user is rolled back.
-  // Demo identities skip the invite (no mailbox) and the example.com undeliverable
-  // guard; app toggles are forced off regardless of nutritionist defaults.
+  // Creates a ficha only: no Supabase invite and no User. Email is optional.
+  // Demo identities skip User entirely, force app toggles off, and record the
+  // tour's demoPatientId. Phone is canonicalized like nutritionist WhatsApp.
   async createPatient(ctx: AuthContext, dto: CreatePatientDto, meta?: MetaContext) {
     const nutritionistId = resolveScopeNutritionistId(ctx);
-    const { name, email, demo, ...clinical } = dto;
+    const { name, email, demo, phone, ...clinical } = dto;
+
+    let canonicalPhone: string | null | undefined;
+    if (phone !== undefined) {
+      try {
+        canonicalPhone = canonicalizeWhatsappNumber(phone);
+      } catch {
+        throw new BadRequestException('Número de WhatsApp inválido.');
+      }
+    }
+
+    const normalizedEmail = email ? email.toLowerCase() : null;
+    const profileData = {
+      ...clinical,
+      name,
+      email: normalizedEmail,
+      phone: canonicalPhone ?? null,
+      nutritionistId,
+    };
 
     if (demo) {
-      const localUser = await this.users.createDemoPatient({
-        email,
-        name,
-        nutritionistId,
-        clinical: {
-          ...clinical,
+      const created = await this.prisma.patientProfile.create({
+        data: {
+          ...profileData,
+          isDemo: true,
           canLogAssessments: false,
           showMealTargetToPatient: false,
         },
       });
-      // A patient is always created with a nested profile, so this is non-null.
-      const profileId = localUser.patientProfile!.id;
       await this.prisma.onboardingProgress.upsert({
         where: { userId_tourId: { userId: ctx.user!.id, tourId: 'patients' } },
-        create: { userId: ctx.user!.id, tourId: 'patients', demoPatientId: profileId },
-        update: { demoPatientId: profileId },
+        create: { userId: ctx.user!.id, tourId: 'patients', demoPatientId: created.id },
+        update: { demoPatientId: created.id },
       });
-      return this.getPatient(ctx, profileId);
-    }
-
-    if (UNDELIVERABLE_EMAIL.test(email)) {
-      throw new UnprocessableEntityException(
-        'Use um e-mail que receba mensagens. Endereços de exemplo (example.com) não podem receber o convite.',
-      );
+      return this.getPatient(ctx, created.id);
     }
 
     // New patients inherit the nutritionist's configured defaults for the two
@@ -99,27 +103,21 @@ export class PatientsService {
       select: { defaultCanLogAssessments: true, defaultShowMealTargetToPatient: true },
     });
 
-    const { id: authProviderId } = await this.supabaseAdmin.inviteUser(email, {
-      name,
-    });
-
     let profileId: string;
     try {
-      const localUser = await this.users.createInvitedPatient({
-        authProviderId,
-        email,
-        name,
-        nutritionistId,
-        clinical: {
-          ...clinical,
+      const created = await this.prisma.patientProfile.create({
+        data: {
+          ...profileData,
+          isDemo: false,
           canLogAssessments: defaults.defaultCanLogAssessments,
           showMealTargetToPatient: defaults.defaultShowMealTargetToPatient,
         },
       });
-      // A patient is always created with a nested profile, so this is non-null.
-      profileId = localUser.patientProfile!.id;
+      profileId = created.id;
     } catch (error) {
-      await this.supabaseAdmin.deleteUser(authProviderId);
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('A user with this email already exists');
+      }
       throw error;
     }
 
@@ -306,19 +304,19 @@ export class PatientsService {
   }
 
   // Demo-only hard delete. Real patients have no nutritionist delete path.
-  // Restrict children match deleteMyAccount so the profile can go; the demo
-  // user has no Supabase identity. OnboardingProgress.demoPatientId SetNulls.
+  // Restrict children match deleteMyAccount so the profile can go. New demos
+  // have no User; older demos may still have one — delete it only if userId is set.
+  // OnboardingProgress.demoPatientId SetNulls.
   async deleteDemoPatient(ctx: AuthContext, id: string): Promise<void> {
     await this.requireOwned(ctx, id);
     const patient = await this.prisma.patientProfile.findFirst({
       where: { id, nutritionistId: resolveScopeNutritionistId(ctx) },
-      select: { userId: true, user: { select: { authProvider: true } } },
+      select: { userId: true, isDemo: true },
     });
     if (!patient) {
       throw new NotFoundException('Patient not found');
     }
-    const userId = patient.userId;
-    if (!userId || patient.user?.authProvider !== DEMO_PROVIDER) {
+    if (!patient.isDemo) {
       throw new ForbiddenException('Only demo patients can be deleted this way');
     }
 
@@ -331,7 +329,9 @@ export class PatientsService {
       this.prisma.silhuetaScan.deleteMany({ where: { patientId: id } }),
       this.prisma.mealPlan.deleteMany({ where: { patientId: id } }),
       this.prisma.patientProfile.delete({ where: { id } }),
-      this.prisma.user.delete({ where: { id: userId } }),
+      ...(patient.userId
+        ? [this.prisma.user.delete({ where: { id: patient.userId } })]
+        : []),
     ]);
   }
 
