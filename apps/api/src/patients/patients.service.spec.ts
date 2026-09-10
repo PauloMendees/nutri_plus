@@ -103,17 +103,17 @@ describe('PatientsService', () => {
   });
 
   it('scopes an employee to the owning nutritionist and paginates', async () => {
-    prisma.$transaction.mockResolvedValue([[{ id: 'p1', height: null, assessments: [] }], 1] as any);
+    prisma.$transaction.mockResolvedValue([[{ id: 'p1', height: null, assessments: [], isDemo: false }], 1] as any);
 
     const result = await service.listPatients(ctxWithEmployee('nutri-9'));
 
     expect(prisma.patientProfile.findMany).toHaveBeenCalledWith({
       where: { nutritionistId: 'nutri-9' },
       include: {
-        user: { select: { id: true, name: true, email: true, authProvider: true } },
+        user: { select: { id: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
       },
-      orderBy: { user: { name: 'asc' } },
+      orderBy: { name: 'asc' },
       skip: 0,
       take: 20,
     });
@@ -121,7 +121,17 @@ describe('PatientsService', () => {
       where: { nutritionistId: 'nutri-9' },
     });
     expect(result).toEqual({
-      items: [{ id: 'p1', height: null, imc: null, isDemo: false }],
+      items: [{
+        id: 'p1',
+        height: null,
+        imc: null,
+        isDemo: false,
+        name: undefined,
+        email: undefined,
+        phone: undefined,
+        inviteStatus: 'NOT_INVITED',
+        user: null,
+      }],
       total: 1,
       page: 1,
       pageSize: 20,
@@ -130,17 +140,17 @@ describe('PatientsService', () => {
   });
 
   it('lists only patients linked to the nutritionist (default page 1, size 20)', async () => {
-    prisma.$transaction.mockResolvedValue([[{ id: 'p1', height: null, assessments: [] }], 1] as any);
+    prisma.$transaction.mockResolvedValue([[{ id: 'p1', height: null, assessments: [], isDemo: false }], 1] as any);
 
     const result = await service.listPatients(ctx);
 
     expect(prisma.patientProfile.findMany).toHaveBeenCalledWith({
       where: { nutritionistId: 'nutri-1' },
       include: {
-        user: { select: { id: true, name: true, email: true, authProvider: true } },
+        user: { select: { id: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
       },
-      orderBy: { user: { name: 'asc' } },
+      orderBy: { name: 'asc' },
       skip: 0,
       take: 20,
     });
@@ -148,7 +158,17 @@ describe('PatientsService', () => {
       where: { nutritionistId: 'nutri-1' },
     });
     expect(result).toEqual({
-      items: [{ id: 'p1', height: null, imc: null, isDemo: false }],
+      items: [{
+        id: 'p1',
+        height: null,
+        imc: null,
+        isDemo: false,
+        name: undefined,
+        email: undefined,
+        phone: undefined,
+        inviteStatus: 'NOT_INVITED',
+        user: null,
+      }],
       total: 1,
       page: 1,
       pageSize: 20,
@@ -157,32 +177,41 @@ describe('PatientsService', () => {
   });
 
   it('filters by name/email (case-insensitive) and applies skip/take per page', async () => {
-    prisma.$transaction.mockResolvedValue([[{ id: 'p1', height: 170, assessments: [{ weight: 70 }] }], 35] as any);
+    prisma.$transaction.mockResolvedValue([[{ id: 'p1', height: 170, assessments: [{ weight: 70 }], isDemo: false }], 35] as any);
 
     const result = await service.listPatients(ctx, { search: 'ana', page: 2, pageSize: 10 });
 
     const where = {
       nutritionistId: 'nutri-1',
-      user: {
-        OR: [
-          { name: { contains: 'ana', mode: 'insensitive' } },
-          { email: { contains: 'ana', mode: 'insensitive' } },
-        ],
-      },
+      OR: [
+        { name: { contains: 'ana', mode: 'insensitive' } },
+        { email: { contains: 'ana', mode: 'insensitive' } },
+        { phone: { contains: 'ana', mode: 'insensitive' } },
+      ],
     };
     expect(prisma.patientProfile.findMany).toHaveBeenCalledWith({
       where,
       include: {
-        user: { select: { id: true, name: true, email: true, authProvider: true } },
+        user: { select: { id: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
       },
-      orderBy: { user: { name: 'asc' } },
+      orderBy: { name: 'asc' },
       skip: 10,
       take: 10,
     });
     expect(prisma.patientProfile.count).toHaveBeenCalledWith({ where });
     expect(result).toEqual({
-      items: [{ id: 'p1', height: 170, imc: 24.22, isDemo: false }],
+      items: [{
+        id: 'p1',
+        height: 170,
+        imc: 24.22,
+        isDemo: false,
+        name: undefined,
+        email: undefined,
+        phone: undefined,
+        inviteStatus: 'NOT_INVITED',
+        user: null,
+      }],
       total: 35,
       page: 2,
       pageSize: 10,
@@ -206,6 +235,7 @@ describe('PatientsService', () => {
           id: 'p1',
           height: null,
           assessments: [],
+          isDemo: false,
           consents: [{ policyVersion: 'x', acceptedAt: new Date() }],
         },
       ],
@@ -215,7 +245,17 @@ describe('PatientsService', () => {
     const result = await service.listPatients(ctx);
 
     expect(result.items[0]).not.toHaveProperty('consents');
-    expect(result.items[0]).toEqual({ id: 'p1', height: null, imc: null, isDemo: false });
+    expect(result.items[0]).toEqual({
+      id: 'p1',
+      height: null,
+      imc: null,
+      isDemo: false,
+      name: undefined,
+      email: undefined,
+      phone: undefined,
+      inviteStatus: 'NOT_INVITED',
+      user: null,
+    });
   });
 
   it('returns patient detail with the latest assessment, scoped by ownership', async () => {
@@ -224,6 +264,13 @@ describe('PatientsService', () => {
       height: null,
       assessments: [],
       consents: [],
+      name: 'Ann',
+      email: 'a@x.com',
+      phone: null,
+      isDemo: false,
+      userId: 'u1',
+      firstAppLoginAt: null,
+      user: { id: 'u1', authProvider: 'supabase' },
     } as any);
 
     const result = await service.getPatient(ctx, 'p1');
@@ -231,12 +278,19 @@ describe('PatientsService', () => {
     expect(prisma.patientProfile.findFirst).toHaveBeenCalledWith({
       where: { id: 'p1', nutritionistId: 'nutri-1' },
       include: {
-        user: { select: { id: true, name: true, email: true, authProvider: true } },
+        user: { select: { id: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
         consents: { orderBy: { acceptedAt: 'desc' }, take: 1 },
       },
     });
-    expect(result).toEqual({ id: 'p1', height: null, assessments: [], imc: null, latestConsent: null, isDemo: false });
+    expect(result).toEqual(expect.objectContaining({
+      name: 'Ann',
+      email: 'a@x.com',
+      phone: null,
+      inviteStatus: 'INVITED',
+      user: { id: 'u1' },
+      isDemo: false,
+    }));
   });
 
   it('returns the latest consent when the patient has accepted one', async () => {
@@ -245,6 +299,12 @@ describe('PatientsService', () => {
       height: null,
       assessments: [],
       consents: [{ policyVersion: '2026-07-09', acceptedAt: new Date('2026-07-10') }],
+      name: 'Ann',
+      email: 'a@x.com',
+      phone: null,
+      isDemo: false,
+      userId: 'u1',
+      firstAppLoginAt: null,
     } as any);
 
     const result = await service.getPatient(ctx, 'p1');
@@ -256,6 +316,13 @@ describe('PatientsService', () => {
       imc: null,
       latestConsent: { policyVersion: '2026-07-09', acceptedAt: new Date('2026-07-10') },
       isDemo: false,
+      name: 'Ann',
+      email: 'a@x.com',
+      phone: null,
+      userId: 'u1',
+      firstAppLoginAt: null,
+      inviteStatus: 'INVITED',
+      user: { id: 'u1' },
     });
   });
 
@@ -271,7 +338,13 @@ describe('PatientsService', () => {
     prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
     const full = {
       id: 'p1',
-      user: { id: 'u1', name: 'Ann', email: 'a@x.com' },
+      name: 'Ann',
+      email: 'a@x.com',
+      phone: null,
+      isDemo: false,
+      userId: 'u1',
+      firstAppLoginAt: null,
+      user: { id: 'u1' },
       assessments: [],
       consents: [],
     };
@@ -291,13 +364,20 @@ describe('PatientsService', () => {
       where: { id: 'p1' },
       data: dto,
       include: {
-        user: { select: { id: true, name: true, email: true, authProvider: true } },
+        user: { select: { id: true } },
         assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
         consents: { orderBy: { acceptedAt: 'desc' }, take: 1 },
       },
     });
     const { consents: _consents, ...restFull } = full;
-    expect(result).toEqual({ ...restFull, imc: null, latestConsent: null, isDemo: false });
+    expect(result).toEqual({
+      ...restFull,
+      imc: null,
+      latestConsent: null,
+      isDemo: false,
+      inviteStatus: 'INVITED',
+      user: { id: 'u1' },
+    });
   });
 
   it('does not update when the patient is not owned', async () => {
@@ -505,6 +585,13 @@ describe('PatientsService', () => {
         height: null,
         assessments: [],
         consents: [],
+        name: 'Ann',
+        email: 'a@x.com',
+        phone: null,
+        isDemo: false,
+        userId: 'u1',
+        firstAppLoginAt: null,
+        user: { id: 'u1' },
       } as any);
 
       const result = await service.createPatient(ctx, dto);
@@ -522,12 +609,26 @@ describe('PatientsService', () => {
       expect(prisma.patientProfile.findFirst).toHaveBeenCalledWith({
         where: { id: 'pp1', nutritionistId: 'nutri-1' },
         include: {
-          user: { select: { id: true, name: true, email: true, authProvider: true } },
+          user: { select: { id: true } },
           assessments: { orderBy: { assessmentDate: 'desc' }, take: 1 },
           consents: { orderBy: { acceptedAt: 'desc' }, take: 1 },
         },
       });
-      expect(result).toEqual({ id: 'pp1', height: null, assessments: [], imc: null, latestConsent: null, isDemo: false });
+      expect(result).toEqual({
+        id: 'pp1',
+        height: null,
+        assessments: [],
+        imc: null,
+        latestConsent: null,
+        isDemo: false,
+        name: 'Ann',
+        email: 'a@x.com',
+        phone: null,
+        userId: 'u1',
+        firstAppLoginAt: null,
+        inviteStatus: 'INVITED',
+        user: { id: 'u1' },
+      });
     });
 
     it("seeds the new patient's toggles from the nutritionist's configured defaults", async () => {
@@ -592,7 +693,13 @@ describe('PatientsService', () => {
         height: null,
         assessments: [],
         consents: [],
-        user: { id: 'u-d', name: 'Maria Demonstração', email: 'demo.user-1.1@example.com', authProvider: 'demo' },
+        name: 'Maria Demonstração',
+        email: 'demo.user-1.1@example.com',
+        phone: null,
+        isDemo: true,
+        userId: 'u-d',
+        firstAppLoginAt: null,
+        user: { id: 'u-d', authProvider: 'demo' },
       } as any);
 
       const result = await service.createPatient(ctx, {
@@ -621,7 +728,9 @@ describe('PatientsService', () => {
       prisma.onboardingProgress.upsert.mockResolvedValue({} as any);
       prisma.patientProfile.findFirst.mockResolvedValue({
         id: 'pp-demo', height: null, assessments: [], consents: [],
-        user: { id: 'u-d', name: 'Maria Demonstração', email: 'x@example.com', authProvider: 'demo' },
+        name: 'Maria Demonstração', email: 'x@example.com', phone: null,
+        isDemo: true, userId: 'u-d', firstAppLoginAt: null,
+        user: { id: 'u-d', authProvider: 'demo' },
       } as any);
       await service.createPatient(ctx, { name: 'Maria Demonstração', email: 'x@example.com', demo: true } as any);
       expect(supabaseAdmin.inviteUser).not.toHaveBeenCalled();
@@ -835,7 +944,7 @@ describe('PatientsService', () => {
         activityLevel: null, restrictions: null, allergies: null, medicalConditions: null,
         notes: null, canLogAssessments: false, showMealTargetToPatient: false, photoUrl: null,
         createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-02'),
-        user: { name: 'Ana', email: 'ana@x.com' },
+        name: 'Ana', email: 'ana@x.com',
       } as any);
       prisma.patientAnamnese.findUnique.mockResolvedValue({ id: 'an1', patientId: 'pp-1', mainComplaint: 'Cansaço' } as any);
       prisma.bodyAssessment.findMany.mockResolvedValue([{ id: 'a1' }] as any);
@@ -942,7 +1051,7 @@ describe('PatientsService', () => {
         activityLevel: null, restrictions: null, allergies: null, medicalConditions: null,
         notes: null, canLogAssessments: false, showMealTargetToPatient: false, photoUrl: null,
         createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-01-02'),
-        user: { name: 'Ana', email: 'ana@x.com' },
+        name: 'Ana', email: 'ana@x.com',
       } as any);
       prisma.patientAnamnese.findUnique.mockResolvedValue(null);
       prisma.bodyAssessment.findMany.mockResolvedValue([]);

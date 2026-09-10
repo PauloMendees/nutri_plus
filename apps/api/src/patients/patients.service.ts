@@ -20,38 +20,29 @@ import { CreatePatientDto } from './dto/create-patient.dto';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
 import { computeImc } from './imc';
+import { inviteStatusOf } from './invite-status';
 
 export type { UploadedImage } from '../supabase/image-upload';
 
-const USER_SUMMARY = { select: { id: true, name: true, email: true, authProvider: true } } as const;
-
-type PatientUserRow = {
-  id: string;
-  name: string;
-  email: string;
-  authProvider: string;
-};
-
-function toPublicUser(user: PatientUserRow) {
-  return { id: user.id, name: user.name, email: user.email };
-}
+const PATIENT_USER_INCLUDE = { select: { id: true } } as const;
 
 const UNDELIVERABLE_EMAIL = /@(example\.(com|net|org)|test|invalid|localhost)$/i;
 
 const PHOTO_BUCKET = 'patient-photos';
 
 const PATIENT_DETAIL_INCLUDE = {
-  user: USER_SUMMARY,
+  user: PATIENT_USER_INCLUDE,
   assessments: { orderBy: { assessmentDate: 'desc' as const }, take: 1 },
   consents: { orderBy: { acceptedAt: 'desc' as const }, take: 1 },
 } as const;
 
-// listPatients only ever needs the fields folded into PatientSummary (user +
-// latest assessment for imc). It must NOT include consents: PatientSummary
-// has no field for it, so reusing PATIENT_DETAIL_INCLUDE here would leak the
-// raw consents relation (policyVersion/acceptedAt) into every list row.
+// listPatients only ever needs the fields folded into PatientSummary (ficha
+// identity + latest assessment for imc). It must NOT include consents:
+// PatientSummary has no field for it, so reusing PATIENT_DETAIL_INCLUDE here
+// would leak the raw consents relation (policyVersion/acceptedAt) into every
+// list row.
 const PATIENT_LIST_INCLUDE = {
-  user: USER_SUMMARY,
+  user: PATIENT_USER_INCLUDE,
   assessments: { orderBy: { assessmentDate: 'desc' as const }, take: 1 },
 } as const;
 
@@ -164,12 +155,11 @@ export class PatientsService {
       nutritionistId: resolveScopeNutritionistId(ctx),
       ...(search
         ? {
-            user: {
-              OR: [
-                { name: { contains: search, mode: 'insensitive' as const } },
-                { email: { contains: search, mode: 'insensitive' as const } },
-              ],
-            },
+            OR: [
+              { name: { contains: search, mode: 'insensitive' as const } },
+              { email: { contains: search, mode: 'insensitive' as const } },
+              { phone: { contains: search, mode: 'insensitive' as const } },
+            ],
           }
         : {}),
     };
@@ -178,7 +168,7 @@ export class PatientsService {
       this.prisma.patientProfile.findMany({
         where,
         include: PATIENT_LIST_INCLUDE,
-        orderBy: { user: { name: 'asc' } },
+        orderBy: { name: 'asc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -192,14 +182,17 @@ export class PatientsService {
     // just widens the destructure target; it does not affect the real,
     // consents-less Prisma return type.
     const items = rawItems.map((raw) => {
-      const { assessments, consents: _consents, user, ...rest } = raw as typeof raw & {
+      const { assessments, consents: _consents, user: _user, ...rest } = raw as typeof raw & {
         consents?: unknown;
-        user?: PatientUserRow;
       };
       return {
         ...rest,
-        ...(user ? { user: toPublicUser(user) } : {}),
-        isDemo: user?.authProvider === DEMO_PROVIDER,
+        name: rest.name,
+        email: rest.email,
+        phone: rest.phone,
+        inviteStatus: inviteStatusOf(rest.userId, rest.firstAppLoginAt),
+        user: rest.userId ? { id: rest.userId } : null,
+        isDemo: rest.isDemo,
         imc: computeImc(rest.height, assessments[0]?.weight ?? null),
       };
     });
@@ -324,7 +317,8 @@ export class PatientsService {
     if (!patient) {
       throw new NotFoundException('Patient not found');
     }
-    if (patient.user.authProvider !== DEMO_PROVIDER) {
+    const userId = patient.userId;
+    if (!userId || patient.user?.authProvider !== DEMO_PROVIDER) {
       throw new ForbiddenException('Only demo patients can be deleted this way');
     }
 
@@ -337,7 +331,7 @@ export class PatientsService {
       this.prisma.silhuetaScan.deleteMany({ where: { patientId: id } }),
       this.prisma.mealPlan.deleteMany({ where: { patientId: id } }),
       this.prisma.patientProfile.delete({ where: { id } }),
-      this.prisma.user.delete({ where: { id: patient.userId } }),
+      this.prisma.user.delete({ where: { id: userId } }),
     ]);
   }
 
@@ -462,7 +456,6 @@ export class PatientsService {
     const patientId = resolveScopePatientId(ctx);
     const p = await this.prisma.patientProfile.findUniqueOrThrow({
       where: { id: patientId },
-      include: { user: { select: { name: true, email: true } } },
     });
     const [
       anamnese,
@@ -516,8 +509,8 @@ export class PatientsService {
     return {
       exportedAt: new Date().toISOString(),
       profile: {
-        name: p.user.name,
-        email: p.user.email,
+        name: p.name,
+        email: p.email,
         birthDate: p.birthDate,
         gender: p.gender,
         height: p.height,
@@ -573,14 +566,23 @@ export class PatientsService {
       height: number | null;
       assessments: { weight: number | null }[];
       consents: { policyVersion: string; acceptedAt: Date }[];
-      user?: PatientUserRow;
+      userId: string | null;
+      firstAppLoginAt: Date | null;
+      isDemo: boolean;
+      name: string;
+      email: string | null;
+      phone: string | null;
     },
-  >(patient: T) {
-    const { consents, user, ...rest } = patient;
+  >(patient: T & { user?: unknown }) {
+    const { consents, user: _user, ...rest } = patient;
     return {
       ...rest,
-      ...(user ? { user: toPublicUser(user) } : {}),
-      isDemo: user?.authProvider === DEMO_PROVIDER,
+      name: rest.name,
+      email: rest.email,
+      phone: rest.phone,
+      inviteStatus: inviteStatusOf(rest.userId, rest.firstAppLoginAt),
+      user: rest.userId ? { id: rest.userId } : null,
+      isDemo: rest.isDemo,
       imc: computeImc(patient.height, patient.assessments[0]?.weight ?? null),
       latestConsent: consents[0]
         ? { policyVersion: consents[0].policyVersion, acceptedAt: consents[0].acceptedAt }

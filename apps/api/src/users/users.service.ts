@@ -76,7 +76,7 @@ export class UsersService {
     return this.prisma.user.create({
       data: {
         ...base,
-        patientProfile: { create: { nutritionistId } },
+        patientProfile: { create: { nutritionistId, name: input.name, email: input.email } },
       },
       include: INCLUDE_PROFILES,
     });
@@ -101,7 +101,12 @@ export class UsersService {
           name: input.name,
           role: UserRole.PATIENT,
           patientProfile: {
-            create: { nutritionistId: input.nutritionistId, ...input.clinical },
+            create: {
+              nutritionistId: input.nutritionistId,
+              name: input.name,
+              email: input.email,
+              ...input.clinical,
+            },
           },
         },
         include: INCLUDE_PROFILES,
@@ -137,6 +142,8 @@ export class UsersService {
           patientProfile: {
             create: {
               nutritionistId: input.nutritionistId,
+              name: input.name,
+              email: input.email,
               ...input.clinical,
               canLogAssessments: false,
               showMealTargetToPatient: false,

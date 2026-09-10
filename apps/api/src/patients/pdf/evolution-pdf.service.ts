@@ -25,11 +25,11 @@ export class EvolutionPdfService {
     const assessments = await this.patients.listAssessments(ctx, patientId); // owned check; 404 propagates
     const patient = await this.prisma.patientProfile.findFirst({
       where: { id: patientId, nutritionistId },
-      select: { height: true, user: { select: { name: true } } },
+      select: { height: true, name: true },
     });
     return this.build(
       {
-        patientName: patient?.user.name ?? 'Paciente',
+        patientName: patient?.name ?? 'Paciente',
         height: patient?.height ?? null,
         assessments,
       },

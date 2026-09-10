@@ -11,9 +11,9 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { ListAppointmentsQueryDto } from './dto/list-appointments-query.dto';
 
-// Linked patient summary returned with an appointment (patient + their user name/email).
+// Linked patient summary returned with an appointment (ficha name/email + optional account id).
 const PATIENT_SUMMARY = {
-  select: { id: true, user: { select: { id: true, name: true, email: true } } },
+  select: { id: true, name: true, email: true, user: { select: { id: true } } },
 } as const;
 const APPOINTMENT_INCLUDE = {
   patient: PATIENT_SUMMARY,

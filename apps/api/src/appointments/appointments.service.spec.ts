@@ -173,7 +173,7 @@ describe('AppointmentsService reads/mutations', () => {
       },
       orderBy: { startsAt: 'asc' },
       include: {
-        patient: { select: { id: true, user: { select: { id: true, name: true, email: true } } } },
+        patient: { select: { id: true, name: true, email: true, user: { select: { id: true } } } },
         category: { select: { id: true, name: true, color: true } },
       },
     });
@@ -198,7 +198,7 @@ describe('AppointmentsService reads/mutations', () => {
     expect(prisma.appointment.findFirst).toHaveBeenCalledWith({
       where: { id: 'a1', nutritionistId: 'nutri-1' },
       include: {
-        patient: { select: { id: true, user: { select: { id: true, name: true, email: true } } } },
+        patient: { select: { id: true, name: true, email: true, user: { select: { id: true } } } },
         category: { select: { id: true, name: true, color: true } },
       },
     });

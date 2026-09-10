@@ -172,6 +172,8 @@ describe('UsersService', () => {
     expect(arg.data.email).toBe('p@x.com');
     expect(arg.data.patientProfile.create).toEqual({
       nutritionistId: 'nutri-1',
+      name: 'Pat',
+      email: 'p@x.com',
       height: 165,
     });
   });
@@ -265,6 +267,8 @@ describe('UsersService', () => {
     expect(arg.data.name).toBe('Maria Demonstração');
     expect(arg.data.patientProfile.create).toEqual({
       nutritionistId: 'nutri-1',
+      name: 'Maria Demonstração',
+      email: 'demo.user-1.1@example.com',
       height: 165,
       canLogAssessments: false,
       showMealTargetToPatient: false,
