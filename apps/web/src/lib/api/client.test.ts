@@ -27,6 +27,25 @@ describe('apiDownload', () => {
     expect(result).toBe(blob);
   });
 
+  it('uses a custom Accept when provided', async () => {
+    const blob = new Blob(['xlsx']);
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await apiDownload('/patients/import/template', {
+      token: 'tok',
+      accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith('http://api.test/v1/patients/import/template', {
+      headers: {
+        Authorization: 'Bearer tok',
+        Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      },
+      cache: 'no-store',
+    });
+  });
+
   it('throws ApiError on a non-ok response', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, text: () => Promise.resolve('nope') }));
     await expect(apiDownload('/meal-plans/x/pdf', { token: 't' })).rejects.toBeInstanceOf(ApiError);
