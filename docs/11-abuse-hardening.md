@@ -4,9 +4,9 @@ Spec: `docs/superpowers/specs/2026-09-14-abuse-hardening-design.md`. Glossário 
 
 ## Rate limit (API)
 
-- `@nestjs/throttler`, guard global `ApiThrottlerGuard` registrado antes da autenticação. Registra dois throttlers: `global` (um balde por cliente em toda a API) e `route` (por handler, sobrescrito por `@Throttle`).
+- `@nestjs/throttler`, guard global `ApiThrottlerGuard` registrado antes da autenticação. Registra dois throttlers: `global` (um balde por cliente em toda a API) e `route` (por handler, sobrescrito por `@Throttle`); `/health` pula os dois.
 - Chave: `user:<sub>` em rota autenticada (sub lido do JWT sem verificar; forjar leva 401), `ip:<req.ip>` em rota pública.
-- Números em `apps/api/src/common/rate-limit/rate-limit.policy.ts`. `/health` fora do limite.
+- Números em `apps/api/src/common/rate-limit/rate-limit.policy.ts`.
 - Resposta: 429 `{ code: 'RATE_LIMITED' }` + `Retry-After`.
 
 ## Teto diário de IA (API)
