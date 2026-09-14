@@ -16,6 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AiGenerateDialog } from '@/components/patients/ai-generate-dialog';
 
 function formatDate(iso: string): string {
@@ -52,6 +53,8 @@ export function MealPlansSection({
   );
   const missingWeight = missingInputs.includes('weight');
   const missingOther = missingInputs.some((k) => k !== 'weight');
+  const blocked = missingInputs.length > 0;
+  const reason = `Para gerar com IA, complete a ficha: falta ${missingInputsList(missingInputs)}.`;
 
   return (
     <section className="space-y-4">
@@ -62,14 +65,37 @@ export function MealPlansSection({
         </div>
         {canEdit && (
           <div className="flex items-center gap-2">
-            <Button
-              className="rounded-full shadow-sm shadow-primary/30"
-              onClick={() => setGenerating(true)}
-              data-tour="patients.plan.ai"
-              disabled={missingInputs.length > 0}
-            >
-              ✨ Gerar com IA
-            </Button>
+            {blocked ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <Popover>
+                    <TooltipTrigger asChild>
+                      <PopoverTrigger asChild>
+                        <Button
+                          className="rounded-full shadow-sm shadow-primary/30 aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                          data-tour="patients.plan.ai"
+                          aria-disabled="true"
+                        >
+                          ✨ Gerar com IA
+                        </Button>
+                      </PopoverTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>{reason}</TooltipContent>
+                    <PopoverContent>
+                      <p>{reason}</p>
+                    </PopoverContent>
+                  </Popover>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <Button
+                className="rounded-full shadow-sm shadow-primary/30"
+                onClick={() => setGenerating(true)}
+                data-tour="patients.plan.ai"
+              >
+                ✨ Gerar com IA
+              </Button>
+            )}
             <Button variant="outline" size="sm" className="rounded-full" asChild>
               <Link href={`/patients/${patientId}/planos/novo`} data-tour="patients.plan.new">
                 Novo plano

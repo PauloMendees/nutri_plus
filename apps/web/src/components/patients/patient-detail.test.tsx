@@ -331,7 +331,10 @@ describe('PatientDetail', () => {
     usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
     render(<PatientDetail id="p1" created={false} canEdit />);
     await userEvent.click(screen.getByRole('tab', { name: /planos alimentares/i }));
-    expect(await screen.findByRole('button', { name: /gerar com ia/i })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: /gerar com ia/i })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     expect(screen.getByText(/peso \(última avaliação\)/)).toBeInTheDocument();
   });
 

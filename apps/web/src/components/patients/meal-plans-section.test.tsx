@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApiError } from '@/lib/api/client';
 
@@ -137,7 +137,10 @@ describe('MealPlansSection', () => {
       />,
     );
 
-    expect(screen.getByRole('button', { name: /gerar com ia/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /gerar com ia/i })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     expect(
       screen.getByText('Para gerar com IA, complete a ficha: falta peso (última avaliação) e altura.'),
     ).toBeInTheDocument();
@@ -153,9 +156,41 @@ describe('MealPlansSection', () => {
     useMealPlans.mockReturnValue({ isLoading: false, isError: false, data: [] });
     render(<MealPlansSection patientId="p1" canEdit missingInputs={['objective']} />);
 
-    expect(screen.getByRole('button', { name: /gerar com ia/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /gerar com ia/i })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     expect(screen.getByRole('button', { name: /completar dados/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /registrar peso/i })).not.toBeInTheDocument();
+  });
+
+  it('does not open the AI dialog and opens a popover with the reason when the blocked button is clicked', async () => {
+    useMealPlans.mockReturnValue({ isLoading: false, isError: false, data: [] });
+    render(<MealPlansSection patientId="p1" canEdit missingInputs={['weight', 'height']} />);
+
+    const button = screen.getByRole('button', { name: /gerar com ia/i });
+    await userEvent.click(button);
+
+    expect(screen.queryByLabelText(/instruções personalizadas/i)).not.toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByText(
+        'Para gerar com IA, complete a ficha: falta peso (última avaliação) e altura.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('shows the reason in a tooltip when hovering the blocked button', async () => {
+    useMealPlans.mockReturnValue({ isLoading: false, isError: false, data: [] });
+    render(<MealPlansSection patientId="p1" canEdit missingInputs={['weight', 'height']} />);
+
+    const button = screen.getByRole('button', { name: /gerar com ia/i });
+    await userEvent.hover(button);
+
+    const tip = await screen.findByRole('tooltip');
+    expect(tip).toHaveTextContent(
+      'Para gerar com IA, complete a ficha: falta peso (última avaliação) e altura.',
+    );
   });
 
   it('stays as before with no missing inputs: enabled button, no warning', () => {
