@@ -30,16 +30,22 @@ export async function POST(request: NextRequest) {
   const remoteip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
   if (remoteip) body.set('remoteip', remoteip);
 
-  let success = false;
+  // A Cloudflare fora do ar (throw, status não-OK ou corpo que não parseia)
+  // é 502: indisponibilidade do lado deles, não recusa do desafio. Só um
+  // "success" explicitamente falso, com a Cloudflare respondendo OK, vira
+  // 403. Nunca 204 num desses casos.
+  let data: { success?: boolean };
   try {
     const res = await fetch(SITEVERIFY_URL, { method: 'POST', body });
-    const data = res.ok ? ((await res.json()) as { success?: boolean }) : null;
-    success = data?.success === true;
+    if (!res.ok) {
+      return NextResponse.json({ code: 'CAPTCHA_UNAVAILABLE' }, { status: 502 });
+    }
+    data = (await res.json()) as { success?: boolean };
   } catch {
-    success = false;
+    return NextResponse.json({ code: 'CAPTCHA_UNAVAILABLE' }, { status: 502 });
   }
 
-  if (!success) {
+  if (data.success !== true) {
     return NextResponse.json({ code: 'CAPTCHA_FAILED' }, { status: 403 });
   }
   return new NextResponse(null, { status: 204 });

@@ -20,6 +20,7 @@ Spec: `docs/superpowers/specs/2026-09-14-abuse-hardening-design.md`. Glossário 
 
 - Widget Turnstile no formulário (`NEXT_PUBLIC_TURNSTILE_SITE_KEY`), verificado em `POST /api/signup-gate` (`TURNSTILE_SECRET_KEY`).
 - Sem site key: widget e gate desligados (dev/testes). Sem secret em produção: 503, falha fechado.
+- Cloudflare fora do ar (fetch falha, status não-OK ou corpo que não parseia): 502 `{ code: 'CAPTCHA_UNAVAILABLE' }`. Só um `success` explicitamente falso com resposta OK vira 403 `{ code: 'CAPTCHA_FAILED' }`. Nunca 204 num desses casos.
 - Captcha nativo do Supabase não é usado: valeria para o projeto todo e quebraria o login do app.
 
 ## Checklist de painel (uma vez)

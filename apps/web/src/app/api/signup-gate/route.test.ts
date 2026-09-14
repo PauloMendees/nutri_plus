@@ -43,10 +43,18 @@ describe('POST /api/signup-gate', () => {
     expect(await res.json()).toEqual({ code: 'CAPTCHA_FAILED' });
   });
 
-  it('403 CAPTCHA_FAILED quando a Cloudflare está fora (nunca aprova por falha)', async () => {
+  it('502 CAPTCHA_UNAVAILABLE quando a Cloudflare está fora (nunca aprova por falha)', async () => {
     fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) });
     const res = await POST(post({ token: 'tok-1' }));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ code: 'CAPTCHA_UNAVAILABLE' });
+  });
+
+  it('502 CAPTCHA_UNAVAILABLE quando o fetch para a Cloudflare rejeita', async () => {
+    fetchMock.mockRejectedValue(new Error('down'));
+    const res = await POST(post({ token: 'tok-1' }));
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ code: 'CAPTCHA_UNAVAILABLE' });
   });
 
   it('400 sem token ou com corpo inválido', async () => {
