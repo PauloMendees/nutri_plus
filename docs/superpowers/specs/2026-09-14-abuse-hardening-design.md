@@ -18,7 +18,7 @@ Duas evidências de 2026-09-14 mostram o tamanho da exposição:
 Quatro barreiras, cada uma no ponto mais alto possível:
 
 1. **Rate limit na API**, global e por rota, identificando o cliente pelo `sub` do JWT quando autenticado e pelo IP quando não. Rotas públicas e rotas que disparam IA ganham limites mais apertados.
-2. **Teto diário de IA** aplicado no gateway único da OpenAI, cobrindo todo tipo de chamada presente e futura: 60 chamadas por dia por nutricionista (todos os tipos) e 10 por dia por paciente no "Fora de casa". É rede de segurança, abaixo das cotas mensais de plano, que continuam valendo.
+2. **Teto diário de IA** aplicado no gateway único da OpenAI, cobrindo todo tipo de chamada presente e futura: 60 chamadas por dia por nutricionista (todos os tipos, exceto o Fora de casa, que tem teto próprio por paciente) e 10 por dia por paciente no "Fora de casa". É rede de segurança, abaixo das cotas mensais de plano, que continuam valendo.
 3. **Gate de cadastro com Cloudflare Turnstile** no formulário web: o `signUp` no Supabase só acontece depois que o token do widget é verificado no servidor. Sem widget resolvido, sem conta e sem `CompleteRegistration`.
 4. **Remoção do proxy público de login** da API. Web e app usam o SDK do Supabase diretamente; o endpoint não tem chamador e concentrava tentativas de senha no IP único do Render.
 
