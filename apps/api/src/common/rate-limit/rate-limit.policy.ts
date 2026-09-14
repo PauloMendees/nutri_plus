@@ -14,8 +14,10 @@ export const RATE_LIMITS = {
   outsideHome: 5,
 } as const;
 
-// Forma que o decorator @Throttle espera; 'default' é o nome do throttler
-// registrado em AppModule.
+// Forma que o decorator @Throttle espera. Só sobrescreve o throttler 'route'
+// (contagem por handler); o orçamento 'global' (um balde por cliente em toda
+// a API, ver ApiThrottlerGuard.generateKey) nunca é sobrescrito por rota — os
+// dois nomes são registrados em AppModule.
 export function perMinute(limit: number) {
-  return { default: { limit, ttl: RATE_LIMIT_WINDOW_MS } };
+  return { route: { limit, ttl: RATE_LIMIT_WINDOW_MS } };
 }

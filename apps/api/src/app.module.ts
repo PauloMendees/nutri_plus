@@ -42,8 +42,16 @@ import { MetaModule } from './meta/meta.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    // Dois throttlers nomeados: 'global' é o orçamento único por cliente em
+    // toda a API (spec: 120 req/min por chave); 'route' conta por handler e
+    // é o que @Throttle(perMinute(...)) sobrescreve por rota — seu padrão
+    // também é 120 para que uma rota sem decorator não fique mais restrita
+    // que o global. ApiThrottlerGuard.generateKey ajusta a chave de cada um.
     ThrottlerModule.forRoot({
-      throttlers: [{ name: 'default', ttl: RATE_LIMIT_WINDOW_MS, limit: RATE_LIMITS.global }],
+      throttlers: [
+        { name: 'global', ttl: RATE_LIMIT_WINDOW_MS, limit: RATE_LIMITS.global },
+        { name: 'route', ttl: RATE_LIMIT_WINDOW_MS, limit: RATE_LIMITS.global },
+      ],
     }),
     PrismaModule,
     AuthModule,

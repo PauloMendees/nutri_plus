@@ -50,7 +50,10 @@ describe('Rate limit (e2e)', () => {
       code: 'RATE_LIMITED',
       message: 'Muitas solicitações. Aguarde um minuto e tente de novo.',
     });
-    expect(res.headers['retry-after']).toBeDefined();
+    // Com dois throttlers nomeados, o header ganha o sufixo do throttler que
+    // estourou — aqui é o 'route' (limite de 5 de /v1/signals), não o
+    // 'global' (120, nem perto de estourar com só 6 chamadas).
+    expect(res.headers['retry-after-route']).toBeDefined();
   });
 
   it('rota pública: outro IP tem contador próprio', async () => {
@@ -92,5 +95,35 @@ describe('Rate limit (e2e)', () => {
     }
     await sync(a).expect(429);
     await sync(b).expect(200);
+  });
+
+  it('rota autenticada: orçamento global é um balde só por cliente em toda a API', async () => {
+    const token = signSupabaseJwt({ sub: 'rl-global-user', email: 'glob@rl.com', name: 'Glob' });
+    const authGet = (path: string) =>
+      request(app.getHttpServer())
+        .get(path)
+        .set('X-Forwarded-For', '10.0.0.6')
+        .set('Authorization', `Bearer ${token}`);
+
+    // Cria o paciente; essa chamada também soma 1 no balde global do cliente.
+    await request(app.getHttpServer())
+      .post('/v1/auth/sync-user')
+      .set('X-Forwarded-For', '10.0.0.6')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ role: UserRole.PATIENT })
+      .expect(200);
+
+    // Duas rotas GET baratas, sem @Throttle próprio, que um PATIENT lê: cada
+    // uma tem seu balde 'route' isolado (bem abaixo de 120), mas as duas
+    // somam no MESMO balde 'global' por cliente — é essa soma que este teste
+    // prova.
+    const routes = ['/v1/auth/me', '/v1/me/consent'];
+    // 1 já foi gasto no sync-user acima; faltam RATE_LIMITS.global - 1 para
+    // completar o orçamento global de 120 do cliente.
+    for (let i = 0; i < RATE_LIMITS.global - 1; i++) {
+      await authGet(routes[i % routes.length]).expect(200);
+    }
+    const res = await authGet(routes[0]).expect(429);
+    expect(res.body).toMatchObject({ statusCode: 429, code: 'RATE_LIMITED' });
   });
 });

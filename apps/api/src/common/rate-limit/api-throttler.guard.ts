@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { ExecutionContext, Injectable } from '@nestjs/common';
 import { ThrottlerGuard } from '@nestjs/throttler';
 import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator';
@@ -40,5 +41,17 @@ export class ApiThrottlerGuard extends ThrottlerGuard {
 
   protected async throwThrottlingException(): Promise<void> {
     throw new RateLimitedException();
+  }
+
+  // A implementação padrão inclui classe+handler na chave (ver
+  // throttler.guard.js), então cada rota ganharia seu próprio balde de 120 —
+  // o 'global' precisa ser um balde só por cliente em toda a API (spec:
+  // "120 requisições por minuto por chave"). 'route' continua com a chave
+  // padrão (por handler), que é o que os limites por rota sobrescrevem.
+  // `suffix` é o tracker (o retorno de getTracker); mantemos o mesmo hash
+  // sha256 da base só para manter o formato das chaves uniforme.
+  protected generateKey(context: ExecutionContext, suffix: string, name: string): string {
+    if (name !== 'global') return super.generateKey(context, suffix, name);
+    return createHash('sha256').update(`${name}-${suffix}`).digest('hex');
   }
 }
