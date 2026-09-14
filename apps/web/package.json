@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
+    "@marsidev/react-turnstile": "^1.6.0",
     "@nutri-plus/shared-types": "workspace:^",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",

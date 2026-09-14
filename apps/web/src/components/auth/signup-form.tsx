@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { createSignupClient } from '@/lib/supabase/client';
 import { signupSchema, type SignupValues } from '@/lib/validation/auth';
 import { mapAuthError } from '@/lib/auth/errors';
 import { parseSignupPlan } from '@/lib/billing/signup-plan';
 import { trackCompleteRegistration } from '@/lib/analytics/meta-conversions';
+import { CAPTCHA_FAILED_MESSAGE, turnstileSiteKey, verifySignupGate } from '@/lib/auth/signup-gate';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -28,6 +30,18 @@ export function SignupForm() {
   const chosenPlan = parseSignupPlan(searchParams.get('plan'));
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Gate de cadastro (CONTEXT.md): sem site key o widget não existe e o fluxo é
+  // o de sempre. Com site key, o botão só libera com token, e o token é
+  // verificado no servidor antes do signUp.
+  const siteKey = turnstileSiteKey();
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance | null>(null);
+
+  function resetCaptcha() {
+    setCaptchaToken(null);
+    turnstileRef.current?.reset();
+  }
+
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: { name: '', email: '', password: '', confirmPassword: '' },
@@ -35,6 +49,19 @@ export function SignupForm() {
 
   async function onSubmit(values: SignupValues) {
     setFormError(null);
+    if (siteKey) {
+      const gate = await verifySignupGate(captchaToken ?? '');
+      // Token do Turnstile é de uso único: qualquer resultado exige novo desafio.
+      resetCaptcha();
+      if (gate === 'captcha_failed') {
+        setFormError(CAPTCHA_FAILED_MESSAGE);
+        return;
+      }
+      if (gate === 'error') {
+        setFormError(mapAuthError(null));
+        return;
+      }
+    }
     // Client de cadastro (flowType implicit): faz o token do e-mail sair sem
     // prefixo pkce_, para a confirmação funcionar em qualquer navegador.
     const supabase = createSignupClient();
@@ -73,6 +100,10 @@ export function SignupForm() {
       </div>
 
       <Form {...form}>
+        {/* eslint-disable-next-line react-hooks/refs -- react-hook-form's handleSubmit only
+            invokes onSubmit later, from the DOM submit event, never during this render call;
+            the lint rule can't see that library detail and flags it as an over-conservative
+            ref-during-render risk because onSubmit reads turnstileRef via resetCaptcha. */}
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
           <FormField
             control={form.control}
@@ -127,12 +158,23 @@ export function SignupForm() {
             )}
           />
 
+          {siteKey && (
+            <Turnstile
+              ref={turnstileRef}
+              siteKey={siteKey}
+              options={{ appearance: 'interaction-only', language: 'pt-BR' }}
+              onSuccess={setCaptchaToken}
+              onExpire={() => setCaptchaToken(null)}
+              onError={() => setCaptchaToken(null)}
+            />
+          )}
+
           {formError && <p className="text-sm text-destructive">{formError}</p>}
 
           <Button
             type="submit"
             className="w-full rounded-full"
-            disabled={form.formState.isSubmitting}
+            disabled={form.formState.isSubmitting || (Boolean(siteKey) && !captchaToken)}
           >
             {form.formState.isSubmitting ? 'Criando…' : 'Criar conta'}
           </Button>
