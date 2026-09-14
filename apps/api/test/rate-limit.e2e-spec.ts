@@ -50,10 +50,12 @@ describe('Rate limit (e2e)', () => {
       code: 'RATE_LIMITED',
       message: 'Muitas solicitações. Aguarde um minuto e tente de novo.',
     });
-    // Com dois throttlers nomeados, o header ganha o sufixo do throttler que
-    // estourou — aqui é o 'route' (limite de 5 de /v1/signals), não o
-    // 'global' (120, nem perto de estourar com só 6 chamadas).
+    // Com dois throttlers nomeados, a lib só emite o header com sufixo do
+    // throttler que estourou (aqui, 'route'); o guard também emite a versão
+    // sem sufixo, para clientes que só olham o `Retry-After` padrão.
     expect(res.headers['retry-after-route']).toBeDefined();
+    expect(res.headers['retry-after']).toBeDefined();
+    expect(res.headers['retry-after']).toMatch(/^[1-9]\d*$/);
   });
 
   it('rota pública: outro IP tem contador próprio', async () => {

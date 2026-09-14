@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { ExecutionContext, Injectable } from '@nestjs/common';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerLimitDetail } from '@nestjs/throttler';
 import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator';
 import { RateLimitedException } from './rate-limited.exception';
 
@@ -39,7 +39,16 @@ export class ApiThrottlerGuard extends ThrottlerGuard {
     return `ip:${req.ip ?? 'unknown'}`;
   }
 
-  protected async throwThrottlingException(): Promise<void> {
+  // A base só emite `Retry-After-<nome>` (ver throttler.guard.js), sufixado
+  // pelo throttler nomeado que estourou ('route' ou 'global'). A maioria dos
+  // clientes HTTP só olha o cabeçalho padrão sem sufixo, então repetimos o
+  // mesmo valor (segundos até o bloqueio expirar) em `Retry-After` puro.
+  protected async throwThrottlingException(
+    context: ExecutionContext,
+    throttlerLimitDetail: ThrottlerLimitDetail,
+  ): Promise<void> {
+    const { res } = this.getRequestResponse(context);
+    res.header('Retry-After', String(throttlerLimitDetail.timeToBlockExpire));
     throw new RateLimitedException();
   }
 
