@@ -142,7 +142,7 @@ describe('MealPlansSection', () => {
       'true',
     );
     expect(
-      screen.getByText('Para gerar com IA, complete a ficha: falta peso (última avaliação) e altura.'),
+      screen.getByText('Para gerar com IA, complete a ficha: falta peso (última bioimpedância) e altura.'),
     ).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: /registrar peso/i }));
@@ -175,7 +175,7 @@ describe('MealPlansSection', () => {
     const dialog = await screen.findByRole('dialog');
     expect(
       within(dialog).getByText(
-        'Para gerar com IA, complete a ficha: falta peso (última avaliação) e altura.',
+        'Para gerar com IA, complete a ficha: falta peso (última bioimpedância) e altura.',
       ),
     ).toBeInTheDocument();
   });
@@ -189,7 +189,7 @@ describe('MealPlansSection', () => {
 
     const tip = await screen.findByRole('tooltip');
     expect(tip).toHaveTextContent(
-      'Para gerar com IA, complete a ficha: falta peso (última avaliação) e altura.',
+      'Para gerar com IA, complete a ficha: falta peso (última bioimpedância) e altura.',
     );
   });
 

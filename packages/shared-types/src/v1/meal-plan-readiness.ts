@@ -2,7 +2,7 @@ export type PlanInputKey = 'weight' | 'height' | 'birthDate' | 'gender' | 'objec
 
 // Rótulos em pt-BR, na ordem em que a nutricionista preenche.
 export const PLAN_INPUT_LABELS: Record<PlanInputKey, string> = {
-  weight: 'peso (última avaliação)',
+  weight: 'peso (última bioimpedância)',
   height: 'altura',
   birthDate: 'data de nascimento',
   gender: 'sexo',
@@ -18,7 +18,7 @@ export interface PlanInputsSource {
   activityLevel: string | null;
 }
 
-/** O que falta para gerar um plano. Vazio = pode gerar. `latestWeight` é o peso da última avaliação. */
+/** O que falta para gerar um plano. Vazio = pode gerar. `latestWeight` é o peso da última bioimpedância. */
 export function missingPlanInputs(patient: PlanInputsSource, latestWeight: number | null | undefined): PlanInputKey[] {
   const missing: PlanInputKey[] = [];
   if (latestWeight == null) missing.push('weight');
@@ -30,7 +30,7 @@ export function missingPlanInputs(patient: PlanInputsSource, latestWeight: numbe
   return missing;
 }
 
-/** Ex.: "Não dá para gerar o plano: falta peso (última avaliação), altura e objetivo." */
+/** Ex.: "Não dá para gerar o plano: falta peso (última bioimpedância), altura e objetivo." */
 export function missingPlanInputsMessage(missing: PlanInputKey[]): string {
   const labels = missing.map((k) => PLAN_INPUT_LABELS[k]);
   const list = labels.length <= 1 ? labels.join('') : `${labels.slice(0, -1).join(', ')} e ${labels[labels.length - 1]}`;

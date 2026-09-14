@@ -113,7 +113,7 @@ describe('MealGenerationService', () => {
     const err = await service.generate(ctx, 'p1').catch((e) => e);
     expect(err).toBeInstanceOf(UnprocessableEntityException);
     expect(err.message).toMatch(/^Não dá para gerar o plano: falta /);
-    expect(err.message).toMatch(/peso \(última avaliação\)/);
+    expect(err.message).toMatch(/peso \(última bioimpedância\)/);
     expect(err.message).toMatch(/altura/);
     expect(err.message).toMatch(/data de nascimento/);
     expect(err.message).toMatch(/sexo/);
@@ -130,7 +130,7 @@ describe('MealGenerationService', () => {
 
     const err = await service.generate(ctx, 'p1').catch((e) => e);
     expect(err).toBeInstanceOf(UnprocessableEntityException);
-    expect(err.message).toBe('Não dá para gerar o plano: falta peso (última avaliação).');
+    expect(err.message).toBe('Não dá para gerar o plano: falta peso (última bioimpedância).');
     expect(provider.generateStructured).not.toHaveBeenCalled();
   });
 

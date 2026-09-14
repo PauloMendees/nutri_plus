@@ -27,13 +27,13 @@ describe('missingPlanInputs', () => {
 describe('missingPlanInputsMessage', () => {
   it('names a single missing field without "e"', () => {
     expect(missingPlanInputsMessage(['weight'])).toBe(
-      'Não dá para gerar o plano: falta peso (última avaliação).',
+      'Não dá para gerar o plano: falta peso (última bioimpedância).',
     );
   });
 
   it('joins three missing fields as "a, b e c"', () => {
     expect(missingPlanInputsMessage(['weight', 'height', 'objective'])).toBe(
-      'Não dá para gerar o plano: falta peso (última avaliação), altura e objetivo.',
+      'Não dá para gerar o plano: falta peso (última bioimpedância), altura e objetivo.',
     );
   });
 });

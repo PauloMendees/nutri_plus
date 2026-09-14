@@ -335,7 +335,7 @@ describe('PatientDetail', () => {
       'aria-disabled',
       'true',
     );
-    expect(screen.getByText(/peso \(última avaliação\)/)).toBeInTheDocument();
+    expect(screen.getByText(/peso \(última bioimpedância\)/)).toBeInTheDocument();
   });
 
   it('enables "Gerar com IA" when the patient record is complete, including the latest weight', async () => {
