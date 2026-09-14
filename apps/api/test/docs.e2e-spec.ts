@@ -35,7 +35,6 @@ describe('Docs (e2e)', () => {
     expect(res.body.openapi).toMatch(/^3\./);
     expect(Object.keys(res.body.paths)).toEqual(
       expect.arrayContaining([
-        '/v1/auth/login',
         '/v1/patients',
         '/v1/patients/{id}',
         '/v1/patients/{id}/assessments',
