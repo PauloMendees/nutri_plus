@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, Loader2, Send, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
-import { whatsappMeUrl } from '@nutri-plus/shared-types';
+import { missingPlanInputs, whatsappMeUrl } from '@nutri-plus/shared-types';
 import { ApiError } from '@/lib/api/client';
 import {
   usePatient,
@@ -51,6 +51,7 @@ export function PatientDetail({
   const photoPending = uploadPhoto.isPending || deletePhoto.isPending;
   const assessments = useAssessments(id);
   const [exporting, setExporting] = useState(false);
+  const [tab, setTab] = useState('dados');
 
   async function onExport() {
     setExporting(true);
@@ -109,6 +110,7 @@ export function PatientDetail({
   }
 
   const patient = query.data;
+  const missingInputs = missingPlanInputs(patient, patient.assessments[0]?.weight);
 
   return (
     <div className="mx-auto max-w-6xl space-y-4">
@@ -233,7 +235,7 @@ export function PatientDetail({
         <p className="text-lg font-bold">{formatImc(patient.imc)}</p>
       </div>
 
-      <Tabs defaultValue="dados">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="dados" data-tour="patients.tab.dados">
             Dados
@@ -290,7 +292,12 @@ export function PatientDetail({
         <TabsContent value="planos">
           <div className="space-y-6">
             <AiJobsPanel patientId={patient.id} />
-            <MealPlansSection patientId={patient.id} canEdit={canEdit} />
+            <MealPlansSection
+              patientId={patient.id}
+              canEdit={canEdit}
+              missingInputs={missingInputs}
+              onGoToTab={setTab}
+            />
           </div>
         </TabsContent>
         <TabsContent value="recordatorio">

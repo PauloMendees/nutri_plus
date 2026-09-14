@@ -124,4 +124,45 @@ describe('MealPlansSection', () => {
     render(<MealPlansSection patientId="p1" canEdit />);
     expect(screen.queryByTestId('plan-adjusting-m1')).not.toBeInTheDocument();
   });
+
+  it('disables "Gerar com IA" and offers both shortcuts when weight and height are missing', async () => {
+    useMealPlans.mockReturnValue({ isLoading: false, isError: false, data: [] });
+    const onGoToTab = vi.fn();
+    render(
+      <MealPlansSection
+        patientId="p1"
+        canEdit
+        missingInputs={['weight', 'height']}
+        onGoToTab={onGoToTab}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /gerar com ia/i })).toBeDisabled();
+    expect(
+      screen.getByText('Para gerar com IA, complete a ficha: falta peso (última avaliação) e altura.'),
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /registrar peso/i }));
+    expect(onGoToTab).toHaveBeenCalledWith('bioimpedancia');
+
+    await userEvent.click(screen.getByRole('button', { name: /completar dados/i }));
+    expect(onGoToTab).toHaveBeenCalledWith('dados');
+  });
+
+  it('shows only "Completar dados" when the missing field is not weight', () => {
+    useMealPlans.mockReturnValue({ isLoading: false, isError: false, data: [] });
+    render(<MealPlansSection patientId="p1" canEdit missingInputs={['objective']} />);
+
+    expect(screen.getByRole('button', { name: /gerar com ia/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /completar dados/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /registrar peso/i })).not.toBeInTheDocument();
+  });
+
+  it('stays as before with no missing inputs: enabled button, no warning', () => {
+    useMealPlans.mockReturnValue({ isLoading: false, isError: false, data: [] });
+    render(<MealPlansSection patientId="p1" canEdit missingInputs={[]} />);
+
+    expect(screen.getByRole('button', { name: /gerar com ia/i })).toBeEnabled();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
 });
