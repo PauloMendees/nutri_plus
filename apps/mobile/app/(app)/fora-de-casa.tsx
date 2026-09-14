@@ -5,10 +5,17 @@ import { BrandHeader } from '../../components/brand/brand-header';
 import { TextField } from '../../components/ui/text-field';
 import { Button } from '../../components/ui/button';
 import { useOutsideHome } from '../../lib/queries/outside-home';
+import { ApiError } from '../../lib/api';
 
 export default function ForaDeCasa() {
   const [message, setMessage] = useState('');
   const outside = useOutsideHome();
+
+  const RATE_LIMITED_FALLBACK = 'Muitas solicitações. Aguarde um minuto e tente de novo.';
+  const errorMessage =
+    outside.error instanceof ApiError && outside.error.status === 429
+      ? ((outside.error.body as { message?: string } | null)?.message ?? RATE_LIMITED_FALLBACK)
+      : 'Não foi possível gerar a sugestão. Tente novamente.';
 
   return (
     <Screen header={<BrandHeader />} contentContainerClassName="grow p-6">
@@ -38,7 +45,7 @@ export default function ForaDeCasa() {
 
         {outside.isError ? (
           <Text className="font-sans text-sm text-destructive">
-            Não foi possível gerar a sugestão. Tente novamente.
+            {errorMessage}
           </Text>
         ) : null}
 
