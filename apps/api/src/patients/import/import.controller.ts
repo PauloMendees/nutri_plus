@@ -11,12 +11,14 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { UserRole } from '../../generated/prisma/client';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { AuthContext } from '../../auth/types/auth-context';
 import { resolveScopeNutritionistId } from '../../auth/auth-scope';
 import { MetaCtx, type MetaContext } from '../../meta/meta-context';
+import { RATE_LIMITS, perMinute } from '../../common/rate-limit/rate-limit.policy';
 import { ImportService, type ImportFile } from './import.service';
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -39,6 +41,7 @@ export class ImportController {
   }
 
   @Post('preview')
+  @Throttle(perMinute(RATE_LIMITS.importPreview))
   @HttpCode(200)
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_FILE_BYTES } }))

@@ -10,12 +10,14 @@ import {
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { UserRole } from '../generated/prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AuthContext } from '../auth/types/auth-context';
 import { UploadedImage } from '../supabase/image-upload';
 import { RequiresFeature } from '../billing/decorators';
+import { RATE_LIMITS, perMinute } from '../common/rate-limit/rate-limit.policy';
 import { SilhuetaService } from './silhueta.service';
 import { CreateSilhuetaScanDto } from './dto/create-silhueta-scan.dto';
 
@@ -28,6 +30,7 @@ export class SilhuetaController {
 
   @Post()
   @RequiresFeature('silhueta')
+  @Throttle(perMinute(RATE_LIMITS.silhueta))
   @UseInterceptors(
     FileFieldsInterceptor(
       [

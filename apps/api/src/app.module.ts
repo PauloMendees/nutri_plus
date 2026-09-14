@@ -1,7 +1,10 @@
 import { Module, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_PIPE } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { validateEnv } from './config/env.schema';
+import { ApiThrottlerGuard } from './common/rate-limit/api-throttler.guard';
+import { RATE_LIMITS, RATE_LIMIT_WINDOW_MS } from './common/rate-limit/rate-limit.policy';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { PatientsModule } from './patients/patients.module';
@@ -39,6 +42,9 @@ import { MetaModule } from './meta/meta.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    ThrottlerModule.forRoot({
+      throttlers: [{ name: 'default', ttl: RATE_LIMIT_WINDOW_MS, limit: RATE_LIMITS.global }],
+    }),
     PrismaModule,
     AuthModule,
     PatientsModule,
@@ -71,9 +77,10 @@ import { MetaModule } from './meta/meta.module';
   ],
   // Global pipe/filter/guards are registered as providers (not imperatively in
   // main.ts) so any bootstrap of AppModule — including e2e Test modules —
-  // inherits identical behavior. Guard order matters: SupabaseAuthGuard
-  // populates request.user before RolesGuard reads the role, and SubscriptionGuard
-  // (billing) runs last since it depends on both request.user and the resolved role.
+  // inherits identical behavior. Guard order matters: ApiThrottlerGuard runs
+  // first so a flood is rejected before any JWKS or database work;
+  // SupabaseAuthGuard populates request.user before RolesGuard reads the role,
+  // and SubscriptionGuard (billing) runs last since it depends on both.
   providers: [
     {
       provide: APP_PIPE,
@@ -84,6 +91,7 @@ import { MetaModule } from './meta/meta.module';
       }),
     },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    { provide: APP_GUARD, useClass: ApiThrottlerGuard },
     { provide: APP_GUARD, useClass: SupabaseAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: SubscriptionGuard },

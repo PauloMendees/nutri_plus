@@ -1,11 +1,13 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { AuthContext, LocalUser } from './types/auth-context';
 import { SyncUserDto } from './dto/sync-user.dto';
 import { LoginDto, LoginResponse } from './dto/login.dto';
+import { RATE_LIMITS, perMinute } from '../common/rate-limit/rate-limit.policy';
 
 @ApiTags('auth')
 @ApiBearerAuth()
@@ -21,6 +23,7 @@ export class AuthController {
   }
 
   @Post('sync-user')
+  @Throttle(perMinute(RATE_LIMITS.syncUser))
   @HttpCode(HttpStatus.OK)
   syncUser(
     @CurrentUser() ctx: AuthContext,

@@ -4,11 +4,13 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { UserRole } from '../../generated/prisma/client';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { AuthContext } from '../../auth/types/auth-context';
 import { RequiresFeature } from '../../billing/decorators';
+import { RATE_LIMITS, perMinute } from '../../common/rate-limit/rate-limit.policy';
 import { AudiosService } from './audios.service';
 import { CreateAudioDto } from './dto/create-audio.dto';
 
@@ -25,6 +27,7 @@ export class AudiosController {
   constructor(private readonly service: AudiosService) {}
 
   @Post()
+  @Throttle(perMinute(RATE_LIMITS.audio))
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_AUDIO } }))
   create(
     @CurrentUser() ctx: AuthContext,
@@ -47,6 +50,7 @@ export class AudiosController {
 
   @Post(':audioId/transcribe')
   @RequiresFeature('transcription')
+  @Throttle(perMinute(RATE_LIMITS.audio))
   transcribe(@CurrentUser() ctx: AuthContext, @Param('id') id: string, @Param('audioId') audioId: string) {
     return this.service.transcribe(ctx, id, audioId);
   }

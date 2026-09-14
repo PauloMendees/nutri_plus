@@ -1,9 +1,11 @@
 import { Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { UserRole } from '../generated/prisma/client';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthContext } from '../auth/types/auth-context';
+import { RATE_LIMITS, perMinute } from '../common/rate-limit/rate-limit.policy';
 import { AiJobsService } from './ai-jobs.service';
 import { ListAiJobsDto } from './dto/list-ai-jobs.dto';
 
@@ -25,6 +27,7 @@ export class AiJobsController {
   }
 
   @Post(':id/retry')
+  @Throttle(perMinute(RATE_LIMITS.aiJob))
   @HttpCode(202)
   retry(@CurrentUser() ctx: AuthContext, @Param('id', ParseUUIDPipe) id: string) {
     return this.jobs.retry(ctx, id);
