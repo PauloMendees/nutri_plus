@@ -21,7 +21,7 @@ describe('AiUsageCapService.assertWithinDailyCaps', () => {
     ).resolves.toBeUndefined();
     const where = count.mock.calls[0][0].where;
     expect(where.nutritionistId).toBe('n1');
-    expect(where.type).toBeUndefined(); // todos os tipos
+    expect(where.type).toEqual({ not: 'OUTSIDE_HOME_SUGGESTION' }); // todos os tipos, exceto o Fora de casa
     expect(where.success).toBeUndefined(); // sucesso e falha
     expect(where.createdAt.gte.getTime()).toBe(saoPauloDayStart(new Date()).getTime());
   });
@@ -35,6 +35,19 @@ describe('AiUsageCapService.assertWithinDailyCaps', () => {
     expect(err.getStatus()).toBe(429);
     expect(err.getResponse()).toMatchObject({ code: 'AI_DAILY_CAP_EXCEEDED', scope: 'nutritionist' });
     expect(err.message).toBe('Limite diário de IA atingido. Tente amanhã.');
+  });
+
+  it('Fora de casa de um paciente cujo nutricionista já tem 60 linhas de Fora de casa hoje: teto do nutricionista não conta essas linhas (query já as exclui)', async () => {
+    // O mock do count devolve 0 porque a query em si exclui
+    // OUTSIDE_HOME_SUGGESTION — as 60 linhas de Fora de casa do dia nunca
+    // entram nessa contagem, então não há como o resultado do mock refletir
+    // "60 menos as excluídas". O que este teste prova é o filtro, não o número.
+    const { svc, count } = makeService([0, 0]);
+    await expect(
+      svc.assertWithinDailyCaps({ nutritionistId: 'n1', patientId: 'p1', type: AIInteractionType.OUTSIDE_HOME_SUGGESTION }),
+    ).resolves.toBeUndefined();
+    const nutritionistWhere = count.mock.calls[0][0].where;
+    expect(nutritionistWhere.type).toEqual({ not: AIInteractionType.OUTSIDE_HOME_SUGGESTION });
   });
 
   it('paciente no Fora de casa: teto próprio de 10 por dia', async () => {

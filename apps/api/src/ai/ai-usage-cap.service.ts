@@ -29,8 +29,16 @@ export class AiUsageCapService {
     const since = saoPauloDayStart(new Date());
 
     if (owner.nutritionistId) {
+      // Exclui OUTSIDE_HOME_SUGGESTION: essas chamadas do paciente carregam o
+      // nutritionistId da ficha, e um nutricionista com muitos pacientes
+      // trancaria a própria conta com o uso legítimo deles (20 pacientes × 3
+      // chamadas já estoura os 60). O tipo já tem teto próprio por paciente.
       const used = await this.prisma.aIInteraction.count({
-        where: { nutritionistId: owner.nutritionistId, createdAt: { gte: since } },
+        where: {
+          nutritionistId: owner.nutritionistId,
+          type: { not: AIInteractionType.OUTSIDE_HOME_SUGGESTION },
+          createdAt: { gte: since },
+        },
       });
       if (used >= AI_DAILY_CAPS.nutritionist) throw new AiDailyCapExceededException('nutritionist');
     }

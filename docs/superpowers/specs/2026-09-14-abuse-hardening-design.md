@@ -63,7 +63,7 @@ Fora do código, um checklist de painel: criar o widget Turnstile, configurar as
 ### Teto diário de IA (API)
 
 - Novo serviço de teto de uso no módulo de IA, consultado pelo gateway da OpenAI antes de qualquer chamada (texto, visão e transcrição). O gateway continua sem conhecer números: ele garante que a checagem acontece; a política mora no serviço.
-- Contagem: linhas de `AIInteraction` do dia corrente em America/Sao_Paulo, sucesso ou falha. Nutricionista: todos os tipos, 60 por dia. Paciente: tipo `OUTSIDE_HOME_SUGGESTION`, 10 por dia. O início do dia reaproveita a mesma lógica de fuso do início do mês da política de planos.
+- Contagem: linhas de `AIInteraction` do dia corrente em America/Sao_Paulo, sucesso ou falha. Nutricionista: todos os tipos, exceto o Fora de casa, que tem teto próprio por paciente, 60 por dia. Paciente: tipo `OUTSIDE_HOME_SUGGESTION`, 10 por dia. O início do dia reaproveita a mesma lógica de fuso do início do mês da política de planos.
 - Chamada sem `nutritionistId` e sem `patientId` não é limitada (não existe hoje; se surgir, o serviço avisa em log).
 - Estouro: exceção HTTP 429 com corpo `{ statusCode: 429, code: 'AI_DAILY_CAP_EXCEEDED', scope: 'nutritionist' | 'patient', message: 'Limite diário de IA atingido. Tente amanhã.' }`. Nada é gravado em `AIInteraction` nem enviado à OpenAI.
 - Em jobs em segundo plano, a exceção vira `FAILED` com essa mensagem no campo de erro, pelo caminho que já existe no runner.

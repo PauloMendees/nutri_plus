@@ -21,7 +21,7 @@ Entrada em lote de fichas a partir de planilha (modelo iNutri ou qualquer Excel/
 _Avoid_: migração de sistema, sync, integração Dietbox
 
 **Teto diário de IA**:
-Rede de segurança abaixo das cotas mensais de plano: máximo de chamadas à OpenAI por dia (America/Sao_Paulo) por nutricionista, todos os tipos, e por paciente no "Fora de casa". Conta sucesso e falha. Aplicado no gateway único da OpenAI, então cobre qualquer tipo de chamada, atual ou futuro.
+Rede de segurança abaixo das cotas mensais de plano: máximo de chamadas à OpenAI por dia (America/Sao_Paulo) por nutricionista, todos os tipos, exceto o Fora de casa, que tem teto próprio por paciente. Conta sucesso e falha. Aplicado no gateway único da OpenAI, então cobre qualquer tipo de chamada, atual ou futuro.
 _Avoid_: cota (que é a mensal, por plano), rate limit (que é por requisição HTTP)
 
 **Gate de cadastro**:

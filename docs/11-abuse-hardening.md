@@ -12,7 +12,7 @@ Spec: `docs/superpowers/specs/2026-09-14-abuse-hardening-design.md`. Glossário 
 ## Teto diário de IA (API)
 
 - `AiUsageCapService` consultado pelo `OpenAIProvider` antes de qualquer chamada (texto, visão, transcrição).
-- Conta `AIInteraction` do dia em São Paulo, sucesso e falha. Números em `apps/api/src/ai/ai-usage-cap.policy.ts`.
+- Conta `AIInteraction` do dia em São Paulo, sucesso e falha. Nutricionista: todos os tipos, exceto o Fora de casa, que tem teto próprio por paciente. Números em `apps/api/src/ai/ai-usage-cap.policy.ts`.
 - Resposta: 429 `{ code: 'AI_DAILY_CAP_EXCEEDED', scope }`. Em job de fundo, vira `FAILED` com a mensagem.
 - Cotas mensais por plano continuam em `EntitlementsService`.
 
