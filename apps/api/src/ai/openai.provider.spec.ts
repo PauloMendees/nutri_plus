@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { OpenAIProvider } from './openai.provider';
 import { AiInteractionsService } from './ai-interactions.service';
 import { AIInteractionType } from '../generated/prisma/client';
+import { AiDailyCapExceededException } from './ai-daily-cap.exception';
 
 const ENV: Record<string, string> = {
   OPENAI_API_KEY: 'sk-test',
@@ -22,10 +23,11 @@ function makeProvider(env: Record<string, string> = ENV) {
     },
   } as any;
   const interactions = mockDeep<AiInteractionsService>();
-  const provider = new OpenAIProvider(config, interactions);
+  const caps = { assertWithinDailyCaps: jest.fn().mockResolvedValue(undefined) };
+  const provider = new OpenAIProvider(config, interactions, caps as any);
   const create = jest.fn();
   (provider as any).client = { chat: { completions: { create } } };
-  return { provider, interactions, create };
+  return { provider, interactions, caps, create };
 }
 
 function completion(content: string | null, refusal: string | null = null) {
@@ -223,6 +225,28 @@ describe('OpenAIProvider.generateStructured', () => {
     const msg = create.mock.calls[0][0].messages[1];
     expect(msg.content).toBe(baseOpts.user);
   });
+
+  it('consulta o teto diário com o dono da chamada antes de chamar a OpenAI', async () => {
+    const { provider, caps, create } = makeProvider();
+    create.mockResolvedValue(completion(JSON.stringify({ title: 'Plan' })));
+    await provider.generateStructured({ ...baseOpts, nutritionistId: 'n1' });
+    expect(caps.assertWithinDailyCaps).toHaveBeenCalledWith({
+      nutritionistId: 'n1',
+      patientId: 'p1',
+      type: AIInteractionType.MEAL_PLAN_GENERATION,
+    });
+    expect(caps.assertWithinDailyCaps.mock.invocationCallOrder[0]).toBeLessThan(create.mock.invocationCallOrder[0]);
+  });
+
+  it('com o teto estourado não chama a OpenAI nem grava interação', async () => {
+    const { provider, caps, create, interactions } = makeProvider();
+    caps.assertWithinDailyCaps.mockRejectedValue(new AiDailyCapExceededException('nutritionist'));
+    await expect(provider.generateStructured({ ...baseOpts, nutritionistId: 'n1' })).rejects.toBeInstanceOf(
+      AiDailyCapExceededException,
+    );
+    expect(create).not.toHaveBeenCalled();
+    expect(interactions.record).not.toHaveBeenCalled();
+  });
 });
 
 describe('OpenAIProvider.transcribeAudio', () => {
@@ -238,7 +262,8 @@ describe('OpenAIProvider.transcribeAudio', () => {
       },
     } as any;
     const interactions = mockDeep<AiInteractionsService>();
-    const provider = new OpenAIProvider(config, interactions);
+    const caps = { assertWithinDailyCaps: jest.fn().mockResolvedValue(undefined) } as any;
+    const provider = new OpenAIProvider(config, interactions, caps);
     const create = jest.fn();
     (provider as any).client = { audio: { transcriptions: { create } } };
     return { provider, interactions, create };
@@ -270,5 +295,22 @@ describe('OpenAIProvider.transcribeAudio', () => {
       provider.transcribeAudio(Buffer.from('x'), 'audio.webm', { patientId: 'p1', durationSec: 600 }),
     ).rejects.toBeInstanceOf(BadGatewayException);
     expect(interactions.record).toHaveBeenCalledWith(expect.objectContaining({ success: false }));
+  });
+
+  it('com o teto estourado não transcreve nem grava interação', async () => {
+    const { provider, caps, interactions } = makeProvider();
+    const create = jest.fn();
+    (provider as any).client = { audio: { transcriptions: { create } } };
+    caps.assertWithinDailyCaps.mockRejectedValue(new AiDailyCapExceededException('nutritionist'));
+    await expect(
+      provider.transcribeAudio(Buffer.from('x'), 'a.m4a', { patientId: 'p1', nutritionistId: 'n1', durationSec: 10 }),
+    ).rejects.toBeInstanceOf(AiDailyCapExceededException);
+    expect(create).not.toHaveBeenCalled();
+    expect(interactions.record).not.toHaveBeenCalled();
+    expect(caps.assertWithinDailyCaps).toHaveBeenCalledWith({
+      nutritionistId: 'n1',
+      patientId: 'p1',
+      type: AIInteractionType.CONSULTATION_TRANSCRIPTION,
+    });
   });
 });

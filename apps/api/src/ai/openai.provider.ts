@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import OpenAI, { toFile } from 'openai';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { AiInteractionsService } from './ai-interactions.service';
+import { AiUsageCapService } from './ai-usage-cap.service';
 import { AIInteractionType } from '../generated/prisma/client';
 import { estimateCostUsd, estimateTranscriptionCostUsd } from './pricing';
 import { GenerateStructuredOptions, ModelTier } from './types/ai.types';
@@ -31,6 +32,10 @@ export class OpenAIProvider {
   constructor(
     config: ConfigService,
     private readonly interactions: AiInteractionsService,
+    // Teto diário: o gateway garante que a checagem acontece antes de qualquer
+    // chamada; os números moram em ai-usage-cap.policy.ts. É a exceção
+    // deliberada ao "mecanismo-só": um ponto cobre todo tipo de chamada.
+    private readonly caps: AiUsageCapService,
   ) {
     // Explícitos de propósito: AI_JOB_STUCK_AFTER_MS (35 min, em shared-types)
     // é dimensionado sobre o PIOR CASO daqui — timeout x (1 + maxRetries). Se
@@ -49,6 +54,11 @@ export class OpenAIProvider {
   }
 
   async generateStructured<T>(opts: GenerateStructuredOptions<T>): Promise<T> {
+    await this.caps.assertWithinDailyCaps({
+      nutritionistId: opts.nutritionistId,
+      patientId: opts.patientId,
+      type: opts.type,
+    });
     const model = this.models[opts.tier];
     const input = { system: opts.system, user: opts.user };
     const startedAt = Date.now();
@@ -153,6 +163,11 @@ export class OpenAIProvider {
     filename: string,
     opts: { patientId?: string; durationSec?: number | null; nutritionistId?: string },
   ): Promise<string> {
+    await this.caps.assertWithinDailyCaps({
+      nutritionistId: opts.nutritionistId,
+      patientId: opts.patientId,
+      type: AIInteractionType.CONSULTATION_TRANSCRIPTION,
+    });
     const model = this.transcribeModel;
     const startedAt = Date.now();
     const meta = { system: 'transcription', user: `audio ${opts.durationSec ?? '?'}s` };

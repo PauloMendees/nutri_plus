@@ -1,5 +1,6 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { AiJobsService } from './ai-jobs.service';
+import { AiDailyCapExceededException } from '../ai/ai-daily-cap.exception';
 
 // AuthContext real: { authProviderId, email, name, user }. O id do nutricionista
 // sai de user.nutritionistProfile.id via resolveScopeNutritionistId.
@@ -111,6 +112,18 @@ describe('AiJobsService.runJob', () => {
     const last = prisma.aiJob.update.mock.calls.at(-1)![0];
     expect(last.data.status).toBe('FAILED');
     expect(last.data.error).toContain('AI provider unavailable');
+  });
+
+  it('teto diário de IA vira FAILED com a mensagem em português', async () => {
+    const { svc, prisma, generation } = deps({
+      id: 'j1', type: 'MEAL_PLAN_GENERATION', status: 'PENDING',
+      nutritionistId: 'n1', patientId: 'p1', input: {},
+    });
+    generation.generate.mockRejectedValue(new AiDailyCapExceededException('nutritionist'));
+    await svc.runJob('j1');
+    const last = prisma.aiJob.update.mock.calls.at(-1)![0];
+    expect(last.data.status).toBe('FAILED');
+    expect(last.data.error).toBe('Limite diário de IA atingido. Tente amanhã.');
   });
 
   it('não executa quando o claim atômico perde a corrida (reentrância)', async () => {
