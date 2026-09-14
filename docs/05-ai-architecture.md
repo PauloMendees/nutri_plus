@@ -48,6 +48,7 @@ Responsibilities:
 - handle responses
 - validate JSON output
 - log token usage
+- enforce the daily AI cap before every call (AiUsageCapService)
 
 ---
 

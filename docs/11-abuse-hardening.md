@@ -8,6 +8,8 @@ Spec: `docs/superpowers/specs/2026-09-14-abuse-hardening-design.md`. Glossário 
 - Chave: `user:<sub>` em rota autenticada (sub lido do JWT sem verificar; forjar leva 401), `ip:<req.ip>` em rota pública.
 - Números em `apps/api/src/common/rate-limit/rate-limit.policy.ts`.
 - Resposta: 429 `{ code: 'RATE_LIMITED' }` + `Retry-After`.
+- Armazenamento do throttler é em memória, uma instância no Render: os contadores zeram a cada deploy.
+- Limitação conhecida (aceita pela spec): numa rota autenticada, um Bearer forjado com `sub` rotativo ganha um balde próprio a cada valor de `sub` — o limite por identidade só é caro pelo custo de verificar o JWT (sem consulta ao banco), não pela contagem em si.
 
 ## Teto diário de IA (API)
 
@@ -31,3 +33,4 @@ Spec: `docs/superpowers/specs/2026-09-14-abuse-hardening-design.md`. Glossário 
 4. Supabase → Authentication → Attack protection: revisar limites de envio de e-mail e de tentativas de senha; confirmar "Confirm email" ligado.
 5. OpenAI → Billing: limite mensal e alerta; a chave do iNutri só no Render do iNutri.
 6. Render: nada a configurar (o rate limit não usa variável).
+7. Logo após o primeiro deploy em produção: de uma máquina, mandar 6 `POST /v1/signals` com um valor diferente de `X-Forwarded-For` em cada (corpo válido `{ "name": "CompleteRegistration", "email": "teste@example.com" }`) e confirmar que a 6ª responde 429. Se não responder, o Render não está sobrescrevendo o header e o tracker precisa trocar para `CF-Connecting-IP`, com `req.ip` como fallback.
