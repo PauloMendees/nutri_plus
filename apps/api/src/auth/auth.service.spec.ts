@@ -1,5 +1,4 @@
 import { ConflictException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { UserRole } from '../generated/prisma/client';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
@@ -14,10 +13,7 @@ describe('AuthService', () => {
       createWithProfile: jest.fn(),
       updateBasics: jest.fn(),
     } as any;
-    service = new AuthService(
-      users as unknown as UsersService,
-      {} as ConfigService,
-    );
+    service = new AuthService(users as unknown as UsersService);
   });
 
   const newCtx: AuthContext = Object.freeze({
