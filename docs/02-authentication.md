@@ -8,7 +8,7 @@ Integrate Supabase Auth.
 
 The backend does not implement:
 
-- login
+- login proxy (não existe `POST /auth/login`; web e app usam o SDK do Supabase)
 - registration
 - password reset
 
