@@ -97,7 +97,7 @@ describe('MealGenerationService', () => {
     expect(provider.generateStructured).not.toHaveBeenCalled();
   });
 
-  it('throws 422 naming each missing required field', async () => {
+  it('throws 422 naming each missing required field, in Portuguese', async () => {
     prisma.patientProfile.findFirst.mockResolvedValue({
       id: 'p1',
       height: null,
@@ -112,12 +112,25 @@ describe('MealGenerationService', () => {
 
     const err = await service.generate(ctx, 'p1').catch((e) => e);
     expect(err).toBeInstanceOf(UnprocessableEntityException);
-    expect(err.message).toMatch(/weight/);
-    expect(err.message).toMatch(/height/);
-    expect(err.message).toMatch(/birthDate/);
-    expect(err.message).toMatch(/gender/);
-    expect(err.message).toMatch(/objective/);
-    expect(err.message).toMatch(/activityLevel/);
+    expect(err.message).toMatch(/^Não dá para gerar o plano: falta /);
+    expect(err.message).toMatch(/peso \(última avaliação\)/);
+    expect(err.message).toMatch(/altura/);
+    expect(err.message).toMatch(/data de nascimento/);
+    expect(err.message).toMatch(/sexo/);
+    expect(err.message).toMatch(/objetivo/);
+    expect(err.message).toMatch(/nível de atividade/);
+    expect(provider.generateStructured).not.toHaveBeenCalled();
+  });
+
+  it('throws 422 naming only the weight when it is the sole missing field', async () => {
+    prisma.patientProfile.findFirst.mockResolvedValue({
+      ...completePatient(),
+      assessments: [], // no weight
+    } as any);
+
+    const err = await service.generate(ctx, 'p1').catch((e) => e);
+    expect(err).toBeInstanceOf(UnprocessableEntityException);
+    expect(err.message).toBe('Não dá para gerar o plano: falta peso (última avaliação).');
     expect(provider.generateStructured).not.toHaveBeenCalled();
   });
 
