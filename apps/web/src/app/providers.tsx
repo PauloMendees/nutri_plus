@@ -13,7 +13,7 @@ function handle(err: unknown) {
   // Rate limit e teto diário de IA: aviso único, no lugar do erro genérico de
   // cada tela. O <Toaster> vive no layout autenticado.
   const rl = rateLimitMessageFrom(err);
-  if (rl) toast.error(rl);
+  if (rl) toast.error(rl, { id: 'rate-limit' });
 }
 
 export function Providers({ children }: { children: ReactNode }) {
