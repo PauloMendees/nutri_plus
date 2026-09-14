@@ -10,6 +10,7 @@ export * from './appointment-category';
 export * from './employee';
 export * from './assessment';
 export * from './meal-plan';
+export * from './meal-plan-readiness';
 export * from './nutritionist-settings';
 export * from './outside-home';
 export * from './nutritionist-contact';
