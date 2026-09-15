@@ -150,4 +150,11 @@ describe('Auth (e2e)', () => {
       .send({ role: UserRole.EMPLOYEE })
       .expect(400);
   });
+
+  it('não expõe proxy de login: POST /v1/auth/login responde 404', async () => {
+    await request(app.getHttpServer())
+      .post('/v1/auth/login')
+      .send({ email: 'a@x.com', password: 'secret' })
+      .expect(404);
+  });
 });

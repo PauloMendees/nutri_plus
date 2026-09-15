@@ -1,7 +1,9 @@
 import { Body, Controller, HttpCode, Post } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { MetaSignalResponse } from '@nutri-plus/shared-types';
 import { Public } from '../auth/decorators/public.decorator';
+import { RATE_LIMITS, perMinute } from '../common/rate-limit/rate-limit.policy';
 import { MetaCtx, type MetaContext } from './meta-context';
 import { MetaPublicSignalDto } from './dto/meta-signal.dto';
 import { MetaSignalsService } from './meta-signals.service';
@@ -25,6 +27,7 @@ export class MetaSignalsController {
 
   @Post()
   @Public()
+  @Throttle(perMinute(RATE_LIMITS.publicSignals))
   @HttpCode(202)
   track(@Body() dto: MetaPublicSignalDto, @MetaCtx() ctx: MetaContext): MetaSignalResponse {
     return { fired: this.signals.registration({ email: dto.email, name: dto.name_full }, ctx) };

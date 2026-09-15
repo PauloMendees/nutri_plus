@@ -16,6 +16,20 @@ export function saoPauloMonthStart(now: Date): Date {
   return new Date(Date.UTC(year, month - 1, 1, 3, 0, 0));
 }
 
+// Início do dia em America/Sao_Paulo (UTC-3, sem DST) expresso em instante UTC.
+// Usado pelo teto diário de IA (AiUsageCapService).
+export function saoPauloDayStart(now: Date): Date {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)!.value);
+  // 00:00 em São Paulo == 03:00 UTC.
+  return new Date(Date.UTC(get('year'), get('month') - 1, get('day'), 3, 0, 0));
+}
+
 /**
  * O trial pode ser iniciado a qualquer momento, desde que a pessoa ainda não o
  * tenha usado E não seja nem tenha sido assinante.

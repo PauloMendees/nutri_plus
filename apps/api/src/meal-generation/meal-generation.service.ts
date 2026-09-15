@@ -18,6 +18,8 @@ import {
   PatientObjective,
   ActivityLevel,
   macrosForPortion,
+  missingPlanInputs,
+  missingPlanInputsMessage,
 } from '@nutri-plus/shared-types';
 import { matchFood } from './food-matcher';
 import { mealPlanResponseSchema, MealPlanResponse } from './schema/meal-plan-response.schema';
@@ -233,17 +235,9 @@ export class MealGenerationService {
     assessments: { weight: number | null; basalMetabolicRate: number | null }[];
   }): NutritionInputs {
     const latest = patient.assessments[0];
-    const missing: string[] = [];
-    if (latest?.weight == null) missing.push('weight (latest assessment)');
-    if (patient.height == null) missing.push('height');
-    if (patient.birthDate == null) missing.push('birthDate');
-    if (patient.gender == null) missing.push('gender');
-    if (patient.objective == null) missing.push('objective');
-    if (patient.activityLevel == null) missing.push('activityLevel');
+    const missing = missingPlanInputs(patient, latest?.weight);
     if (missing.length > 0) {
-      throw new UnprocessableEntityException(
-        `Cannot generate a plan: missing ${missing.join(', ')}`,
-      );
+      throw new UnprocessableEntityException(missingPlanInputsMessage(missing));
     }
 
     return {

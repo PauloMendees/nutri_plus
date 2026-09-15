@@ -30,6 +30,13 @@ vi.mock('@/lib/api/assessments', () => ({
 vi.mock('@/lib/queries/meal-plans', () => ({
   useMealPlans: () => ({ data: [], isLoading: false, isError: false }),
   useGenerateMealPlan: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSetMealPlanVisibility: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+// Mock parcial: adjustmentInFlightFor é lógica pura, exercitada de verdade.
+vi.mock('@/lib/queries/ai-jobs', async (orig) => ({
+  ...(await orig<typeof import('@/lib/queries/ai-jobs')>()),
+  useAiJobs: () => ({ data: [], isLoading: false }),
+  useRetryAiJob: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock('@/lib/queries/meal-logs', () => ({
   usePatientMealLogs: () => ({ data: [], isLoading: false, isError: false }),
@@ -316,5 +323,32 @@ describe('PatientDetail', () => {
     render(<PatientDetail id="p1" created={false} />);
     await userEvent.click(screen.getByRole('button', { name: 'Enviar convite para o app' }));
     expect(inviteMut).not.toHaveBeenCalled();
+  });
+
+  it('disables "Gerar com IA" and names the missing weight when the patient has no assessment', async () => {
+    // Fixture: height/birthDate/gender/objective/activityLevel are all set, but
+    // assessments is empty — weight is the only thing missing.
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} canEdit />);
+    await userEvent.click(screen.getByRole('tab', { name: /planos alimentares/i }));
+    expect(await screen.findByRole('button', { name: /gerar com ia/i })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(screen.getByText(/peso \(última bioimpedância\)/)).toBeInTheDocument();
+  });
+
+  it('enables "Gerar com IA" when the patient record is complete, including the latest weight', async () => {
+    usePatient.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        ...patient,
+        assessments: [{ id: 'a1', patientId: 'p1', weight: 70, assessmentDate: '2026-06-01T00:00:00.000Z' }],
+      },
+    });
+    render(<PatientDetail id="p1" created={false} canEdit />);
+    await userEvent.click(screen.getByRole('tab', { name: /planos alimentares/i }));
+    expect(await screen.findByRole('button', { name: /gerar com ia/i })).toBeEnabled();
   });
 });
