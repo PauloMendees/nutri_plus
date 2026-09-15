@@ -38,6 +38,7 @@ import { SupportModule } from './support/support.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { MetaModule } from './meta/meta.module';
+import { LifecycleEmailsModule } from './lifecycle-emails/lifecycle-emails.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { MetaModule } from './meta/meta.module';
     FeedbackModule,
     OnboardingModule,
     MetaModule,
+    LifecycleEmailsModule,
   ],
   // Global pipe/filter/guards are registered as providers (not imperatively in
   // main.ts) so any bootstrap of AppModule — including e2e Test modules —
