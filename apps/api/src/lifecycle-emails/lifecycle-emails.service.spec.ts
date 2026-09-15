@@ -125,7 +125,7 @@ describe('LifecycleEmailsService.dispatch', () => {
     expect(resend.sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: 'ana@example.com',
-        subject: 'Seu Pix do iNutri venceu antes da hora',
+        subject: 'Faltou um passo para ativar o seu plano',
       }),
     );
     expect(prisma.lifecycleEmail.create).toHaveBeenCalledWith({
@@ -156,7 +156,7 @@ describe('LifecycleEmailsService.dispatch', () => {
     expect(resend.sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: 'sem-trial@example.com',
-        subject: 'Seu Pix do iNutri venceu antes da hora',
+        subject: 'Faltou um passo para ativar o seu plano',
         text: expect.stringContaining('este é o único lembrete que enviamos.'),
       }),
     );

@@ -95,7 +95,7 @@ describe('buildCheckoutAbandonedEmail', () => {
       trialEndsAt: TRIAL_ENDS_AT,
       webOrigin: WEB_ORIGIN,
     });
-    expect(mail.subject).toBe('Seu Pix do iNutri venceu antes da hora');
+    expect(mail.subject).toBe('Faltou um passo para ativar o seu plano');
   });
 
   it('sem nome, saúda com "Olá, tudo bem."', () => {
@@ -187,7 +187,7 @@ describe('buildCheckoutAbandonedEmail', () => {
       webOrigin: WEB_ORIGIN,
     });
     expect(mail.html).toContain(
-      'O Pix venceu no mesmo dia em que foi gerado. Nada foi cobrado, e você pode gerar outro quando quiser.',
+      'A cobrança foi gerada, mas o pagamento não chegou. Quando quiser, é só gerar outra.',
     );
     expect(mail.html).toContain(
       'Você recebe este e-mail porque iniciou uma assinatura no iNutri. Para não receber avisos como este, responda com &quot;não quero&quot;.',
@@ -202,7 +202,7 @@ describe('buildCheckoutAbandonedEmail', () => {
       trialEndsAt: TRIAL_ENDS_AT,
       webOrigin: WEB_ORIGIN,
     });
-    expect(mail.html).toContain('<h1 style="margin:0 0 12px;font-size:20px;line-height:1.3;font-weight:700;color:#0f1714;">Seu Pix venceu antes da hora</h1>');
+    expect(mail.html).toContain('<h1 style="margin:0 0 12px;font-size:20px;line-height:1.3;font-weight:700;color:#0f1714;">Faltou um passo para ativar o seu plano</h1>');
   });
 
   it('sem trialEndsAt (checkout sem trial), a frase de acesso vem sem data', () => {

@@ -137,8 +137,8 @@ function accessSentence(trialEndsAt: Date | null): string {
 }
 
 export function buildCheckoutAbandonedEmail(input: CheckoutAbandonedEmailInput): LifecycleEmailOutput {
-  const subject = 'Seu Pix do iNutri venceu antes da hora';
-  const preheader = 'O Pix venceu no mesmo dia em que foi gerado. Nada foi cobrado, e você pode gerar outro quando quiser.';
+  const subject = 'Faltou um passo para ativar o seu plano';
+  const preheader = 'A cobrança foi gerada, mas o pagamento não chegou. Quando quiser, é só gerar outra.';
   const hello = greeting(input.name);
   const plan = planPhrase(input.plan, input.period);
   const access = accessSentence(input.trialEndsAt);
@@ -147,30 +147,30 @@ export function buildCheckoutAbandonedEmail(input: CheckoutAbandonedEmailInput):
   const text = [
     hello,
     '',
-    `Você gerou uma cobrança do plano ${plan} no iNutri e o pagamento não foi concluído. Ao conferir, vimos que o Pix venceu no mesmo dia em que foi gerado, o que deixou pouco tempo para pagar. Pedimos desculpas pelo transtorno.`,
+    `Você começou a assinatura do plano ${plan} no iNutri, mas o pagamento não foi concluído. Pode ter sido o prazo do Pix, uma dúvida no meio do caminho ou só a rotina do consultório.`,
     '',
-    'Nada foi cobrado, e sua conta continua ativa. Quando quiser assinar, gere uma nova cobrança em Assinatura: o Pix aparece na hora e o plano é liberado assim que o pagamento é confirmado.',
+    'Nada foi cobrado, e sua conta continua ativa. Quando quiser, gere uma nova cobrança em Assinatura: o Pix aparece na hora e o plano é liberado assim que o pagamento é confirmado.',
     '',
     `Assinar o plano ${plan}: ${link}`,
     '',
     access,
     '',
-    'Se houve algum problema no pagamento, responda a este e-mail e eu resolvo com você.',
+    'Se ficou alguma dúvida sobre o plano, o valor ou o que está incluído, responda a este e-mail. Eu respondo pessoalmente.',
     '',
     'Paulo Mendes',
     'iNutri',
   ].join('\n');
 
   const bodyHtml = `<p style="${BODY_P}">${escapeHtml(hello)}</p>
-    <p style="${BODY_P}">Você gerou uma cobrança do plano ${escapeHtml(plan)} no iNutri e o pagamento não foi concluído. Ao conferir, vimos que o Pix venceu no mesmo dia em que foi gerado, o que deixou pouco tempo para pagar. Pedimos desculpas pelo transtorno.</p>
-    <p style="${BODY_P}">Nada foi cobrado, e sua conta continua ativa. Quando quiser assinar, gere uma nova cobrança em Assinatura: o Pix aparece na hora e o plano é liberado assim que o pagamento é confirmado.</p>
+    <p style="${BODY_P}">Você começou a assinatura do plano ${escapeHtml(plan)} no iNutri, mas o pagamento não foi concluído. Pode ter sido o prazo do Pix, uma dúvida no meio do caminho ou só a rotina do consultório.</p>
+    <p style="${BODY_P}">Nada foi cobrado, e sua conta continua ativa. Quando quiser, gere uma nova cobrança em Assinatura: o Pix aparece na hora e o plano é liberado assim que o pagamento é confirmado.</p>
     ${ctaButtonHtml(link, `Assinar o plano ${plan}`)}
     <p style="${BODY_P}">${access}</p>
-    <p style="${BODY_P}">Se houve algum problema no pagamento, responda a este e-mail e eu resolvo com você.</p>
+    <p style="${BODY_P}">Se ficou alguma dúvida sobre o plano, o valor ou o que está incluído, responda a este e-mail. Eu respondo pessoalmente.</p>
     <p style="${BODY_P}">Paulo Mendes<br>iNutri</p>`;
 
   const html = wrapTransactionalEmail({
-    title: 'Seu Pix venceu antes da hora',
+    title: 'Faltou um passo para ativar o seu plano',
     preheader,
     bodyHtml,
     footer:
