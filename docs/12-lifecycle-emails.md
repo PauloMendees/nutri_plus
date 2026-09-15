@@ -5,7 +5,7 @@ Rotina diária que dispara, no máximo uma vez por nutricionista, e-mails transa
 ## As duas regras
 
 1. **`TRIAL_NO_PATIENT`** — trial ativo há 3 dias ou mais e nenhum paciente cadastrado. Elegível quando `Subscription.status = 'TRIALING'`, `trialEndsAt` ainda não venceu mas já se passaram pelo menos 3 dos `TRIAL_DAYS` do trial, `isComp = false`, e o nutricionista não tem nenhum `PatientProfile` real (`isDemo = false`).
-2. **`CHECKOUT_ABANDONED`** — gerou uma cobrança e não pagou, um dia depois. Elegível quando `Subscription.status = 'PAST_DUE'`, `onboardedAt` foi marcado há pelo menos 1 dia, e nenhum `SubscriptionPayment` da assinatura tem `paidAt` preenchido.
+2. **`CHECKOUT_ABANDONED`** — gerou uma cobrança e não pagou, um dia depois. Elegível quando `Subscription.status = 'PAST_DUE'`, `onboardedAt` foi marcado há pelo menos 1 dia, e nenhum `SubscriptionPayment` da assinatura tem `paidAt` preenchido. Se a conta chegou ao checkout sem nunca ter passado pelo trial (`trialEndsAt` nulo), o e-mail é enviado do mesmo jeito, só que sem a data: a frase de acesso vira "Se preferiu não assinar agora, tudo bem: este é o único lembrete que enviamos." em vez de citar "seu acesso segue até {data}".
 
 Contas de teste do dono não são excluídas por código (não há como distinguir); ele recebe também, e isso é aceitável.
 

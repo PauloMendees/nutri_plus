@@ -1,5 +1,7 @@
+import { Logger } from '@nestjs/common';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ResendService } from '../support/resend.service';
 import { LifecycleEmailsService } from './lifecycle-emails.service';
@@ -190,6 +192,69 @@ describe('LifecycleEmailsService.dispatch', () => {
 
     expect(prisma.lifecycleEmail.create).toHaveBeenCalledTimes(1);
     expect(out.trialNoPatient).toEqual({ eligible: 2, sent: 1 });
+  });
+
+  it('grava LifecycleEmail falha com erro genérico: e-mail já enviado ainda conta como sent, segue pro próximo candidato', async () => {
+    (prisma.subscription.findMany as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.status === 'TRIALING') {
+        return [
+          {
+            id: 'sub-1',
+            nutritionistId: 'nutri-1',
+            trialEndsAt: new Date('2026-09-20T12:00:00Z'),
+            nutritionist: nutritionistRow({ id: 'nutri-1', email: 'a@example.com' }),
+          } as any,
+          {
+            id: 'sub-2',
+            nutritionistId: 'nutri-2',
+            trialEndsAt: new Date('2026-09-20T12:00:00Z'),
+            nutritionist: nutritionistRow({ id: 'nutri-2', email: 'b@example.com' }),
+          } as any,
+        ];
+      }
+      return [];
+    });
+    prisma.lifecycleEmail.create.mockRejectedValueOnce(new Error('db indisponível')).mockResolvedValueOnce({} as any);
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+    const result = await service.dispatch();
+
+    expect(resend.sendEmail).toHaveBeenCalledTimes(2);
+    expect(prisma.lifecycleEmail.create).toHaveBeenCalledTimes(2);
+    expect(result.trialNoPatient).toEqual({ eligible: 2, sent: 2 });
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('nutri-1'));
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('TRIAL_NO_PATIENT'));
+    warnSpy.mockRestore();
+  });
+
+  it('grava LifecycleEmail falha com P2002 (corrida com outra execução): conta como sent, sem warn', async () => {
+    (prisma.subscription.findMany as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.status === 'TRIALING') {
+        return [
+          {
+            id: 'sub-1',
+            nutritionistId: 'nutri-1',
+            trialEndsAt: new Date('2026-09-20T12:00:00Z'),
+            nutritionist: nutritionistRow({ id: 'nutri-1', email: 'a@example.com' }),
+          } as any,
+        ];
+      }
+      return [];
+    });
+    const p2002 = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+      code: 'P2002',
+      clientVersion: 'test',
+      meta: { target: ['nutritionistId', 'kind'] },
+    });
+    prisma.lifecycleEmail.create.mockRejectedValueOnce(p2002);
+    const warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+
+    const result = await service.dispatch();
+
+    expect(resend.sendEmail).toHaveBeenCalled();
+    expect(result.trialNoPatient).toEqual({ eligible: 1, sent: 1 });
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 
   it('sem SUPPORT_FROM_EMAIL: não consulta nem envia nada e retorna zeros', async () => {

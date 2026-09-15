@@ -1,11 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma, LifecycleEmailKind } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ResendService } from '../support/resend.service';
 import { TRIAL_DAYS } from '../billing/plan-policy';
 import { buildTrialNoPatientEmail, buildCheckoutAbandonedEmail } from './lifecycle-email-templates';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Reaproveitado nas duas consultas de elegibilidade — mesmo padrão do
+// NUTRI_USER em billing/subscription.service.ts. Sem `id`: nada abaixo usa
+// user.id, só name/email.
+const NUTRI_USER = {
+  nutritionist: { include: { user: { select: { name: true, email: true } } } },
+} as const;
 
 export interface LifecycleEmailsDispatchResult {
   trialNoPatient: { eligible: number; sent: number };
@@ -56,7 +64,7 @@ export class LifecycleEmailsService {
           lifecycleEmails: { none: { kind: 'TRIAL_NO_PATIENT' } },
         },
       },
-      include: { nutritionist: { include: { user: { select: { id: true, name: true, email: true } } } } },
+      include: NUTRI_USER,
     });
 
     let sent = 0;
@@ -88,9 +96,7 @@ export class LifecycleEmailsService {
         continue;
       }
 
-      await this.prisma.lifecycleEmail.create({
-        data: { nutritionistId: sub.nutritionistId, kind: 'TRIAL_NO_PATIENT' },
-      });
+      await this.recordLifecycleEmail(sub.nutritionistId, 'TRIAL_NO_PATIENT');
       sent++;
     }
     return { eligible: candidates.length, sent };
@@ -112,7 +118,7 @@ export class LifecycleEmailsService {
           lifecycleEmails: { none: { kind: 'CHECKOUT_ABANDONED' } },
         },
       },
-      include: { nutritionist: { include: { user: { select: { id: true, name: true, email: true } } } } },
+      include: NUTRI_USER,
     });
 
     let sent = 0;
@@ -145,11 +151,26 @@ export class LifecycleEmailsService {
         continue;
       }
 
-      await this.prisma.lifecycleEmail.create({
-        data: { nutritionistId: sub.nutritionistId, kind: 'CHECKOUT_ABANDONED' },
-      });
+      await this.recordLifecycleEmail(sub.nutritionistId, 'CHECKOUT_ABANDONED');
       sent++;
     }
     return { eligible: candidates.length, sent };
+  }
+
+  // O e-mail já saiu quando isto roda — uma falha aqui não pode derrubar o
+  // resto do lote nem contar o envio como não feito (o destinatário já
+  // recebeu). P2002 é uma corrida legítima (cron + workflow_dispatch
+  // sobrepostos gravando a mesma linha) e não um erro: nada a fazer além de
+  // um debug, o registro já existe.
+  private async recordLifecycleEmail(nutritionistId: string, kind: LifecycleEmailKind): Promise<void> {
+    try {
+      await this.prisma.lifecycleEmail.create({ data: { nutritionistId, kind } });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        this.logger.debug(`${kind}: LifecycleEmail já registrado para ${nutritionistId} (corrida com outra execução).`);
+        return;
+      }
+      this.logger.warn(`${kind}: falha ao gravar LifecycleEmail para ${nutritionistId}: ${err}`);
+    }
   }
 }
