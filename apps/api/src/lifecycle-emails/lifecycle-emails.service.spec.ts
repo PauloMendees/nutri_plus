@@ -1,0 +1,187 @@
+import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../prisma/prisma.service';
+import { ResendService } from '../support/resend.service';
+import { LifecycleEmailsService } from './lifecycle-emails.service';
+
+const ENV: Record<string, string> = {
+  SUPPORT_FROM_EMAIL: 'oi@inutri.com.br',
+  SUPPORT_INBOX_EMAIL: 'suporte@inutri.com.br',
+  WEB_ORIGIN: 'https://app.inutri.com.br',
+};
+
+function configWith(overrides: Record<string, string | undefined> = {}): ConfigService {
+  const env = { ...ENV, ...overrides };
+  return {
+    get: (key: string) => env[key],
+    getOrThrow: (key: string) => {
+      const value = env[key];
+      if (!value) throw new Error(`missing ${key}`);
+      return value;
+    },
+  } as unknown as ConfigService;
+}
+
+function nutritionistRow(overrides: Partial<{ id: string; name: string | null; email: string }> = {}) {
+  return {
+    id: overrides.id ?? 'nutri-1',
+    user: { id: 'user-1', name: overrides.name ?? 'Elizabeth Fonseca', email: overrides.email ?? 'eli@example.com' },
+  };
+}
+
+describe('LifecycleEmailsService.dispatch', () => {
+  let prisma: DeepMockProxy<PrismaService>;
+  let resend: DeepMockProxy<ResendService>;
+  let service: LifecycleEmailsService;
+
+  beforeEach(() => {
+    prisma = mockDeep<PrismaService>();
+    resend = mockDeep<ResendService>();
+    prisma.subscription.findMany.mockResolvedValue([]);
+    prisma.lifecycleEmail.create.mockResolvedValue({} as any);
+    resend.sendEmail.mockResolvedValue(undefined);
+    service = new LifecycleEmailsService(prisma, resend, configWith());
+  });
+
+  it('consulta trial com os filtros corretos (status, janela de trialEndsAt, sem paciente real, sem envio anterior)', async () => {
+    await service.dispatch();
+    const calls = prisma.subscription.findMany.mock.calls as any[];
+    const trialCall = calls.find((c) => c[0]?.where?.status === 'TRIALING');
+    expect(trialCall).toBeDefined();
+    const where = trialCall[0].where;
+    expect(where.status).toBe('TRIALING');
+    expect(where.isComp).toBe(false);
+    expect(where.trialEndsAt.gt).toBeInstanceOf(Date);
+    expect(where.trialEndsAt.lte).toBeInstanceOf(Date);
+    expect(where.trialEndsAt.gt.getTime()).toBeLessThan(where.trialEndsAt.lte.getTime());
+    expect(where.nutritionist.patients).toEqual({ none: { isDemo: false } });
+    expect(where.nutritionist.lifecycleEmails).toEqual({ none: { kind: 'TRIAL_NO_PATIENT' } });
+  });
+
+  it('consulta cobrança não paga com os filtros corretos (status, onboardedAt, sem pagamento confirmado, sem envio anterior)', async () => {
+    await service.dispatch();
+    const calls = prisma.subscription.findMany.mock.calls as any[];
+    const checkoutCall = calls.find((c) => c[0]?.where?.status === 'PAST_DUE');
+    expect(checkoutCall).toBeDefined();
+    const where = checkoutCall[0].where;
+    expect(where.status).toBe('PAST_DUE');
+    expect(where.onboardedAt.lte).toBeInstanceOf(Date);
+    expect(where.payments).toEqual({ none: { paidAt: { not: null } } });
+    expect(where.nutritionist.lifecycleEmails).toEqual({ none: { kind: 'CHECKOUT_ABANDONED' } });
+  });
+
+  it('elegível de trial: envia o e-mail e grava LifecycleEmail com o kind certo', async () => {
+    (prisma.subscription.findMany as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.status === 'TRIALING') {
+        return [
+          {
+            id: 'sub-1',
+            nutritionistId: 'nutri-1',
+            trialEndsAt: new Date('2026-09-20T12:00:00Z'),
+            nutritionist: nutritionistRow(),
+          } as any,
+        ];
+      }
+      return [];
+    });
+
+    const out = await service.dispatch();
+
+    expect(resend.sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'eli@example.com',
+        from: ENV.SUPPORT_FROM_EMAIL,
+        replyTo: ENV.SUPPORT_INBOX_EMAIL,
+        subject: 'Seu teste do iNutri está esperando o primeiro paciente',
+      }),
+    );
+    expect(prisma.lifecycleEmail.create).toHaveBeenCalledWith({
+      data: { nutritionistId: 'nutri-1', kind: 'TRIAL_NO_PATIENT' },
+    });
+    expect(out.trialNoPatient).toEqual({ eligible: 1, sent: 1 });
+  });
+
+  it('elegível de cobrança não paga: envia o e-mail e grava LifecycleEmail com o kind certo', async () => {
+    (prisma.subscription.findMany as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.status === 'PAST_DUE') {
+        return [
+          {
+            id: 'sub-2',
+            nutritionistId: 'nutri-2',
+            plan: 'PRO',
+            billingPeriod: 'MONTHLY',
+            trialEndsAt: new Date('2026-09-20T12:00:00Z'),
+            nutritionist: nutritionistRow({ id: 'nutri-2', email: 'ana@example.com' }),
+          } as any,
+        ];
+      }
+      return [];
+    });
+
+    const out = await service.dispatch();
+
+    expect(resend.sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'ana@example.com',
+        subject: 'Seu Pix do iNutri venceu antes da hora',
+      }),
+    );
+    expect(prisma.lifecycleEmail.create).toHaveBeenCalledWith({
+      data: { nutritionistId: 'nutri-2', kind: 'CHECKOUT_ABANDONED' },
+    });
+    expect(out.checkoutAbandoned).toEqual({ eligible: 1, sent: 1 });
+  });
+
+  it('falha no envio: não grava e segue para o próximo, sent menor que eligible', async () => {
+    (prisma.subscription.findMany as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.status === 'TRIALING') {
+        return [
+          {
+            id: 'sub-1',
+            nutritionistId: 'nutri-1',
+            trialEndsAt: new Date('2026-09-20T12:00:00Z'),
+            nutritionist: nutritionistRow({ id: 'nutri-1', email: 'a@example.com' }),
+          } as any,
+          {
+            id: 'sub-2',
+            nutritionistId: 'nutri-2',
+            trialEndsAt: new Date('2026-09-20T12:00:00Z'),
+            nutritionist: nutritionistRow({ id: 'nutri-2', email: 'b@example.com' }),
+          } as any,
+        ];
+      }
+      return [];
+    });
+    resend.sendEmail.mockRejectedValueOnce(new Error('resend indisponível')).mockResolvedValueOnce(undefined);
+
+    const out = await service.dispatch();
+
+    expect(prisma.lifecycleEmail.create).toHaveBeenCalledTimes(1);
+    expect(out.trialNoPatient).toEqual({ eligible: 2, sent: 1 });
+  });
+
+  it('sem SUPPORT_FROM_EMAIL: não consulta nem envia nada e retorna zeros', async () => {
+    service = new LifecycleEmailsService(prisma, resend, configWith({ SUPPORT_FROM_EMAIL: undefined }));
+
+    const out = await service.dispatch();
+
+    expect(prisma.subscription.findMany).not.toHaveBeenCalled();
+    expect(resend.sendEmail).not.toHaveBeenCalled();
+    expect(out).toEqual({
+      trialNoPatient: { eligible: 0, sent: 0 },
+      checkoutAbandoned: { eligible: 0, sent: 0 },
+    });
+  });
+
+  it('sem SUPPORT_INBOX_EMAIL: não consulta nem envia nada e retorna zeros', async () => {
+    service = new LifecycleEmailsService(prisma, resend, configWith({ SUPPORT_INBOX_EMAIL: undefined }));
+
+    const out = await service.dispatch();
+
+    expect(prisma.subscription.findMany).not.toHaveBeenCalled();
+    expect(out).toEqual({
+      trialNoPatient: { eligible: 0, sent: 0 },
+      checkoutAbandoned: { eligible: 0, sent: 0 },
+    });
+  });
+});
