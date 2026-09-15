@@ -1,0 +1,32 @@
+name: Dispatch lifecycle emails
+
+# Gatilho periódico dos e-mails de ciclo de vida (trial sem paciente, cobrança
+# não paga): faz POST no endpoint interno protegido da API uma vez por dia
+# útil. '0 12 * * 1-5' é 12:00 UTC = 09:00 em Brasília, de segunda a sexta —
+# fim de semana não vale a pena (o público-alvo é o consultório, que não abre
+# sábado/domingo) e quem ficou elegível no sábado simplesmente recebe na
+# segunda seguinte, já que a tabela LifecycleEmail garante envio único (não
+# duplica, só atrasa).
+on:
+  schedule:
+    - cron: '0 12 * * 1-5' # 09:00 em Brasília, segunda a sexta (UTC)
+  workflow_dispatch: {} # permite disparar manualmente pela aba Actions
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST /v1/internal/lifecycle-emails/dispatch
+        env:
+          REMINDER_DISPATCH_KEY: ${{ secrets.REMINDER_DISPATCH_KEY }}
+        run: |
+          code=$(curl -sS -o /tmp/body -w '%{http_code}' -X POST \
+            "https://nutri-plus-mfzt.onrender.com/v1/internal/lifecycle-emails/dispatch" \
+            -H "x-reminder-key: ${REMINDER_DISPATCH_KEY}")
+          echo "HTTP ${code}"
+          cat /tmp/body || true
+          # Sucesso = qualquer 2xx (o Nest retorna 201 Created por padrão em POST).
+          case "${code}" in
+            2*) ;;
+            *) echo "dispatch failed (HTTP ${code})" >&2; exit 1 ;;
+          esac
