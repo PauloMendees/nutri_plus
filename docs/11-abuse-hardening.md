@@ -33,4 +33,8 @@ Spec: `docs/superpowers/specs/2026-09-14-abuse-hardening-design.md`. Glossário 
 4. Supabase → Authentication → Attack protection: revisar limites de envio de e-mail e de tentativas de senha; confirmar "Confirm email" ligado.
 5. OpenAI → Billing: limite mensal e alerta; a chave do iNutri só no Render do iNutri.
 6. Render: nada a configurar (o rate limit não usa variável).
-7. Logo após o primeiro deploy em produção: de uma máquina, mandar 6 `POST /v1/signals` com um valor diferente de `X-Forwarded-For` em cada (corpo válido `{ "name": "CompleteRegistration", "email": "teste@example.com" }`) e confirmar que a 6ª responde 429. Se não responder, o Render não está sobrescrevendo o header e o tracker precisa trocar para `CF-Connecting-IP`, com `req.ip` como fallback.
+7. Logo após o primeiro deploy em produção: de uma máquina, mandar 121 `GET /v1/auth/me` **sem** token, com um valor diferente de `X-Forwarded-For` em cada. As primeiras 120 respondem 401; a 121ª precisa responder 429. Se responder 401, o Render está honrando o header que o cliente mandou (cada valor falso ganhou contador próprio) e o tracker precisa trocar para `CF-Connecting-IP`, com `req.ip` como fallback. Não usar `POST /v1/signals` para isso: cada chamada dispara um `CompleteRegistration` na campanha do Meta.
+
+   ```bash
+   for i in $(seq 1 121); do curl -s -o /dev/null -w "%{http_code}\n" -H "X-Forwarded-For: 10.0.$((i/256)).$((i%256))" https://<api-do-render>/v1/auth/me; done | tail -3
+   ```
