@@ -75,6 +75,15 @@ describe('buildTrialNoPatientEmail', () => {
       'Você recebe este e-mail porque ativou um teste no iNutri. Para não receber avisos como este, responda com &quot;não quero&quot;.',
     );
   });
+
+  it('título do HTML exato', () => {
+    const mail = buildTrialNoPatientEmail({
+      name: 'Elizabeth Fonseca',
+      trialEndsAt: TRIAL_ENDS_AT,
+      webOrigin: WEB_ORIGIN,
+    });
+    expect(mail.html).toContain('<h1 style="margin:0 0 12px;font-size:20px;line-height:1.3;font-weight:700;color:#0f1714;">Seu teste está esperando o primeiro paciente</h1>');
+  });
 });
 
 describe('buildCheckoutAbandonedEmail', () => {
@@ -182,6 +191,48 @@ describe('buildCheckoutAbandonedEmail', () => {
     );
     expect(mail.html).toContain(
       'Você recebe este e-mail porque iniciou uma assinatura no iNutri. Para não receber avisos como este, responda com &quot;não quero&quot;.',
+    );
+  });
+
+  it('título do HTML exato', () => {
+    const mail = buildCheckoutAbandonedEmail({
+      name: 'Elizabeth Fonseca',
+      plan: 'PRO',
+      period: 'MONTHLY',
+      trialEndsAt: TRIAL_ENDS_AT,
+      webOrigin: WEB_ORIGIN,
+    });
+    expect(mail.html).toContain('<h1 style="margin:0 0 12px;font-size:20px;line-height:1.3;font-weight:700;color:#0f1714;">Seu Pix venceu antes da hora</h1>');
+  });
+
+  it('sem trialEndsAt (checkout sem trial), a frase de acesso vem sem data', () => {
+    const mail = buildCheckoutAbandonedEmail({
+      name: 'Elizabeth Fonseca',
+      plan: 'PRO',
+      period: 'MONTHLY',
+      trialEndsAt: null,
+      webOrigin: WEB_ORIGIN,
+    });
+    expect(mail.text).toContain(
+      'Se preferiu não assinar agora, tudo bem: este é o único lembrete que enviamos.',
+    );
+    expect(mail.text).not.toContain('seu acesso segue até');
+    expect(mail.html).toContain(
+      'Se preferiu não assinar agora, tudo bem: este é o único lembrete que enviamos.',
+    );
+    expect(mail.html).not.toContain('seu acesso segue até');
+  });
+
+  it('com trialEndsAt, a frase de acesso mantém a data', () => {
+    const mail = buildCheckoutAbandonedEmail({
+      name: 'Elizabeth Fonseca',
+      plan: 'PRO',
+      period: 'MONTHLY',
+      trialEndsAt: TRIAL_ENDS_AT,
+      webOrigin: WEB_ORIGIN,
+    });
+    expect(mail.text).toContain(
+      'Se preferiu não assinar agora, tudo bem: seu acesso segue até 20/09/2026, e este é o único lembrete que enviamos.',
     );
   });
 });

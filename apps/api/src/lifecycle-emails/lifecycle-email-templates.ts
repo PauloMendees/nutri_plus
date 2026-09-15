@@ -120,8 +120,20 @@ export interface CheckoutAbandonedEmailInput {
   name: string | null | undefined;
   plan: 'ESSENCIAL' | 'PRO' | null;
   period: 'MONTHLY' | 'YEARLY' | null;
-  trialEndsAt: Date;
+  // Nulo quando a cobrança foi gerada sem a pessoa nunca ter passado pelo
+  // trial (checkout direto) — nesse caso não há data de "acesso até" para
+  // mostrar, e a frase correspondente sai sem ela (ver `accessSentence`).
+  trialEndsAt: Date | null;
   webOrigin: string;
+}
+
+// "seu acesso segue até {data}, e este é o único lembrete que enviamos." —
+// sem data (checkout sem trial), vira só "este é o único lembrete que enviamos.".
+function accessSentence(trialEndsAt: Date | null): string {
+  if (!trialEndsAt) {
+    return 'Se preferiu não assinar agora, tudo bem: este é o único lembrete que enviamos.';
+  }
+  return `Se preferiu não assinar agora, tudo bem: seu acesso segue até ${formatBrDate(trialEndsAt)}, e este é o único lembrete que enviamos.`;
 }
 
 export function buildCheckoutAbandonedEmail(input: CheckoutAbandonedEmailInput): LifecycleEmailOutput {
@@ -129,7 +141,7 @@ export function buildCheckoutAbandonedEmail(input: CheckoutAbandonedEmailInput):
   const preheader = 'O Pix venceu no mesmo dia em que foi gerado. Nada foi cobrado, e você pode gerar outro quando quiser.';
   const hello = greeting(input.name);
   const plan = planPhrase(input.plan, input.period);
-  const trialEndsAt = formatBrDate(input.trialEndsAt);
+  const access = accessSentence(input.trialEndsAt);
   const link = `${input.webOrigin}/assinatura`;
 
   const text = [
@@ -141,7 +153,7 @@ export function buildCheckoutAbandonedEmail(input: CheckoutAbandonedEmailInput):
     '',
     `Assinar o plano ${plan}: ${link}`,
     '',
-    `Se preferiu não assinar agora, tudo bem: seu acesso segue até ${trialEndsAt}, e este é o único lembrete que enviamos.`,
+    access,
     '',
     'Se houve algum problema no pagamento, responda a este e-mail e eu resolvo com você.',
     '',
@@ -153,7 +165,7 @@ export function buildCheckoutAbandonedEmail(input: CheckoutAbandonedEmailInput):
     <p style="${BODY_P}">Você gerou uma cobrança do plano ${escapeHtml(plan)} no iNutri e o pagamento não foi concluído. Ao conferir, vimos que o Pix venceu no mesmo dia em que foi gerado, o que deixou pouco tempo para pagar. Pedimos desculpas pelo transtorno.</p>
     <p style="${BODY_P}">Nada foi cobrado, e sua conta continua ativa. Quando quiser assinar, gere uma nova cobrança em Assinatura: o Pix aparece na hora e o plano é liberado assim que o pagamento é confirmado.</p>
     ${ctaButtonHtml(link, `Assinar o plano ${plan}`)}
-    <p style="${BODY_P}">Se preferiu não assinar agora, tudo bem: seu acesso segue até ${trialEndsAt}, e este é o único lembrete que enviamos.</p>
+    <p style="${BODY_P}">${access}</p>
     <p style="${BODY_P}">Se houve algum problema no pagamento, responda a este e-mail e eu resolvo com você.</p>
     <p style="${BODY_P}">Paulo Mendes<br>iNutri</p>`;
 

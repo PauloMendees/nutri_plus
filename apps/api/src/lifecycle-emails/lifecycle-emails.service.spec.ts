@@ -132,6 +132,38 @@ describe('LifecycleEmailsService.dispatch', () => {
     expect(out.checkoutAbandoned).toEqual({ eligible: 1, sent: 1 });
   });
 
+  it('cobrança não paga sem trialEndsAt (checkout sem trial): envia mesmo assim e grava', async () => {
+    (prisma.subscription.findMany as jest.Mock).mockImplementation(async (args: any) => {
+      if (args?.where?.status === 'PAST_DUE') {
+        return [
+          {
+            id: 'sub-3',
+            nutritionistId: 'nutri-3',
+            plan: 'PRO',
+            billingPeriod: 'MONTHLY',
+            trialEndsAt: null,
+            nutritionist: nutritionistRow({ id: 'nutri-3', email: 'sem-trial@example.com' }),
+          } as any,
+        ];
+      }
+      return [];
+    });
+
+    const out = await service.dispatch();
+
+    expect(resend.sendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'sem-trial@example.com',
+        subject: 'Seu Pix do iNutri venceu antes da hora',
+        text: expect.stringContaining('este é o único lembrete que enviamos.'),
+      }),
+    );
+    expect(prisma.lifecycleEmail.create).toHaveBeenCalledWith({
+      data: { nutritionistId: 'nutri-3', kind: 'CHECKOUT_ABANDONED' },
+    });
+    expect(out.checkoutAbandoned).toEqual({ eligible: 1, sent: 1 });
+  });
+
   it('falha no envio: não grava e segue para o próximo, sent menor que eligible', async () => {
     (prisma.subscription.findMany as jest.Mock).mockImplementation(async (args: any) => {
       if (args?.where?.status === 'TRIALING') {

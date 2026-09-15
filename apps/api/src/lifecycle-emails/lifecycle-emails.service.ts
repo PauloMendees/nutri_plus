@@ -122,14 +122,8 @@ export class LifecycleEmailsService {
         this.logger.warn(`CHECKOUT_ABANDONED: nutricionista ${sub.nutritionistId} sem e-mail, pulando.`);
         continue;
       }
-      if (!sub.trialEndsAt) {
-        // Assinatura foi para checkout sem nunca ter passado pelo trial (fica
-        // sem uma data de "acesso até" para o texto do e-mail); pula sem
-        // gravar para tentar de novo quando/se essa informação existir.
-        this.logger.warn(`CHECKOUT_ABANDONED: nutricionista ${sub.nutritionistId} sem trialEndsAt, pulando.`);
-        continue;
-      }
-
+      // trialEndsAt pode ser nulo (checkout sem nunca ter passado pelo trial);
+      // buildCheckoutAbandonedEmail lida com isso trocando a frase de acesso.
       const mail = buildCheckoutAbandonedEmail({
         name: user.name,
         plan: sub.plan,
