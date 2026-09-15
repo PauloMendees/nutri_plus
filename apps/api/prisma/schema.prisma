@@ -70,6 +70,11 @@ enum FeedbackSource {
   MOBILE
 }
 
+enum LifecycleEmailKind {
+  TRIAL_NO_PATIENT
+  CHECKOUT_ABANDONED
+}
+
 enum AiJobType {
   MEAL_PLAN_GENERATION
   MEAL_PLAN_ADJUSTMENT
@@ -126,6 +131,7 @@ model NutritionistProfile {
   subscription          Subscription?
   aiInteractions        AIInteraction[]
   aiJobs                AiJob[]
+  lifecycleEmails       LifecycleEmail[]
 }
 
 model EmployeeProfile {
@@ -612,6 +618,18 @@ model SubscriptionPayment {
   createdAt      DateTime @default(now())
 
   @@index([subscriptionId, createdAt])
+}
+
+// Registro de envio único por nutricionista e tipo: a rotina diária consulta
+// esta tabela para nunca repetir uma mensagem.
+model LifecycleEmail {
+  id             String              @id @default(uuid())
+  nutritionistId String
+  nutritionist   NutritionistProfile @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  kind           LifecycleEmailKind
+  sentAt         DateTime            @default(now())
+
+  @@unique([nutritionistId, kind])
 }
 
 model Food {
