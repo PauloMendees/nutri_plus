@@ -16,7 +16,7 @@ import {
 } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import type { Food, MealPlan, MealPlanDraft } from '@nutri-plus/shared-types';
+import type { AiJobDetail, Food, MealPlan, MealPlanDraft } from '@nutri-plus/shared-types';
 import { macrosForPortion } from '@nutri-plus/shared-types';
 import { mealPlanSchema, type MealPlanFormValues } from '@/lib/validation/meal-plan';
 import { registerFixture } from '@/lib/onboarding/fixtures';
@@ -231,6 +231,10 @@ export function MealPlanEditor({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
+  // Fica true do início do fetch do detalhe até o fim do consumo — cobre a
+  // janela em que o job já virou DONE mas o rascunho ainda não chegou ao
+  // formulário, para o usuário não conseguir salvar valores antigos por cima.
+  const [applying, setApplying] = useState(false);
   const aiJobs = useAiJobs(patientId);
   const consume = useConsumeAiJob();
   // Preferência por nutricionista: o editor é reaberto dezenas de vezes por dia,
@@ -284,25 +288,54 @@ export function MealPlanEditor({
   // reaplicaria o mesmo rascunho — e cada aplicação dispara reset() + toast.
   const appliedJobIdRef = useRef<string | null>(null);
 
+  // Verdadeiro enquanto existir um ajuste pronto para este plano que ainda não
+  // foi aplicado ao formulário — cobre o intervalo entre o polling detectar o
+  // DONE e o efeito abaixo terminar de buscar o detalhe e resetar o form. Uma
+  // vez aplicado (ref marcado), um job que ficou DONE mas não pôde ser
+  // marcado como consumido (falha de rede) deixa de travar a tela: o rascunho
+  // já está na tela e reaplicá-lo de novo seria pior, não travar é o correto.
+  // Só entra em jogo com canEdit — sem permissão de edição a aplicação
+  // automática nunca roda (o efeito abaixo sai cedo), então não há o que
+  // proteger e travar a tela (inclusive Exportar PDF) seria só confuso.
+  const readyAdjustUnapplied =
+    canEdit && Boolean(readyAdjust) && appliedJobIdRef.current !== readyAdjust?.id;
+
   async function applyReadyAdjust(jobId: string) {
+    setApplying(true);
     try {
-      const detail = await getAiJob(jobId);
+      let detail: AiJobDetail;
+      try {
+        detail = await getAiJob(jobId);
+      } catch {
+        // Falhou ao buscar o detalhe: não marca como aplicado, para o
+        // polling poder tentar de novo no próximo ciclo.
+        appliedJobIdRef.current = null;
+        toast.error('Não foi possível carregar o ajuste.');
+        return;
+      }
       if (detail.result) {
         // isDirty precisa ser lido ANTES do reset — reset() zera o dirty flag.
         const overwritingDirty = form.formState.isDirty;
         form.reset(draftToDefaults(detail.result));
-        toast.success(
-          overwritingDirty
-            ? 'Ajuste da IA aplicado por cima das suas alterações não salvas.'
-            : 'Ajuste da IA aplicado. Revise e salve.',
-        );
+        if (overwritingDirty) {
+          toast.success('Ajuste da IA aplicado por cima das suas alterações não salvas.', {
+            duration: 8000,
+          });
+        } else {
+          toast.success('Ajuste da IA aplicado. Revise e salve.');
+        }
       }
-      await consume.mutateAsync(jobId);
-    } catch {
-      // Falhou ao buscar o detalhe: não marca como aplicado, para o polling
-      // poder tentar de novo no próximo ciclo.
-      appliedJobIdRef.current = null;
-      toast.error('Não foi possível carregar o ajuste.');
+      try {
+        await consume.mutateAsync(jobId);
+      } catch {
+        // O rascunho já está na tela e o ref já foi marcado (o efeito que
+        // chamou esta função marca antes de chamar) — reaplicar no próximo
+        // poll seria pior: apagaria em silêncio qualquer edição feita em
+        // cima do rascunho recém-aplicado. Só avisamos.
+        toast.info('Ajuste aplicado, mas não foi possível marcá-lo como concluído.');
+      }
+    } finally {
+      setApplying(false);
     }
   }
 
@@ -315,6 +348,10 @@ export function MealPlanEditor({
     void applyReadyAdjust(readyAdjust.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCreate, canEdit, readyAdjust]);
+
+  // Trava o formulário: ajuste em voo (PENDING/RUNNING), ajuste pronto ainda
+  // não aplicado, ou aplicação em andamento (fetch do detalhe + consumo).
+  const locked = Boolean(adjustInFlight) || readyAdjustUnapplied || applying;
 
   useEffect(() => {
     if (!isCreate && query.data) form.reset(toDefaults(query.data));
@@ -453,7 +490,7 @@ export function MealPlanEditor({
                 size="sm"
                 className="rounded-full shadow-sm shadow-primary/30"
                 onClick={() => setAdjusting(true)}
-                disabled={Boolean(adjustInFlight)}
+                disabled={locked}
               >
                 <Sparkles className="h-4 w-4" aria-hidden="true" />
                 Solicitar ajustes à IA
@@ -465,7 +502,7 @@ export function MealPlanEditor({
               size="sm"
               className="rounded-full"
               onClick={onExport}
-              disabled={exporting || Boolean(adjustInFlight)}
+              disabled={exporting || locked}
               data-tour="patients.plan.pdf"
             >
               {exporting ? 'Exportando…' : 'Exportar PDF'}
@@ -475,7 +512,7 @@ export function MealPlanEditor({
       </div>
       <div className="relative">
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="space-y-4">
-        <fieldset disabled={!canEdit || Boolean(adjustInFlight)} className="m-0 min-w-0 space-y-4 border-0 p-0">
+        <fieldset disabled={!canEdit || locked} className="m-0 min-w-0 space-y-4 border-0 p-0">
           {/* Header */}
           <div className="space-y-2">
             <label className="block text-sm font-medium" htmlFor="mp-title">Título</label>
@@ -576,7 +613,7 @@ export function MealPlanEditor({
                     type="button"
                     className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     onClick={onDelete}
-                    disabled={remove.isPending || Boolean(adjustInFlight)}
+                    disabled={remove.isPending || locked}
                   >
                     Excluir
                   </Button>
@@ -587,7 +624,7 @@ export function MealPlanEditor({
                   variant="outline"
                   className="mr-auto rounded-full text-destructive"
                   onClick={() => setConfirmingDelete(true)}
-                  disabled={Boolean(adjustInFlight)}
+                  disabled={locked}
                 >
                   Excluir
                 </Button>
@@ -595,7 +632,7 @@ export function MealPlanEditor({
             <Button
               type="submit"
               className="rounded-full"
-              disabled={pending || Boolean(adjustInFlight)}
+              disabled={pending || locked}
               data-tour="patients.plan.save"
             >
               {pending ? 'Salvando…' : 'Salvar'}
@@ -604,7 +641,7 @@ export function MealPlanEditor({
         )}
       </form>
 
-      {canEdit && adjustInFlight && (
+      {canEdit && locked && (
         <div
           data-testid="adjust-lock-overlay"
           role="status"
