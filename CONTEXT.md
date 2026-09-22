@@ -23,7 +23,3 @@ _Avoid_: migração de sistema, sync, integração Dietbox
 **Teto diário de IA**:
 Rede de segurança abaixo das cotas mensais de plano: máximo de chamadas à OpenAI por dia (America/Sao_Paulo) por nutricionista, todos os tipos, exceto o Fora de casa, que tem teto próprio por paciente. Conta sucesso e falha. Aplicado no gateway único da OpenAI, então cobre qualquer tipo de chamada, atual ou futuro.
 _Avoid_: cota (que é a mensal, por plano), rate limit (que é por requisição HTTP)
-
-**Gate de cadastro**:
-Verificação no servidor do token do Cloudflare Turnstile antes do `signUp` no Supabase. Sem token válido não há conta nem `CompleteRegistration`. Desligado quando a site key não está configurada (dev e testes).
-_Avoid_: captcha do Supabase (vale para o projeto inteiro e quebraria o login do app da paciente)

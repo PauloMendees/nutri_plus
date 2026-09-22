@@ -21,25 +21,6 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => currentSearchParams,
 }));
 
-const verifySignupGate = vi.fn();
-let currentSiteKey: string | undefined;
-vi.mock('@/lib/auth/signup-gate', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/auth/signup-gate')>();
-  return {
-    ...actual,
-    turnstileSiteKey: () => currentSiteKey,
-    verifySignupGate: (...a: unknown[]) => verifySignupGate(...a),
-  };
-});
-// Widget falso: um botão que entrega o token, como o Turnstile real faria.
-vi.mock('@marsidev/react-turnstile', () => ({
-  Turnstile: ({ onSuccess }: { onSuccess: (t: string) => void }) => (
-    <button type="button" onClick={() => onSuccess('tok-1')}>
-      resolver captcha
-    </button>
-  ),
-}));
-
 import { SignupForm } from './signup-form';
 
 beforeEach(() => {
@@ -47,8 +28,6 @@ beforeEach(() => {
   push.mockReset();
   trackCompleteRegistration.mockReset();
   currentSearchParams = new URLSearchParams();
-  verifySignupGate.mockReset();
-  currentSiteKey = undefined;
 });
 
 async function fillValid() {
@@ -108,58 +87,5 @@ describe('SignupForm', () => {
     expect(await screen.findByText(/já existe/i)).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
     expect(trackCompleteRegistration).not.toHaveBeenCalled();
-  });
-
-  it('sem site key não renderiza o widget nem chama o gate', async () => {
-    signUp.mockResolvedValue({ error: null });
-    render(<SignupForm />);
-    expect(screen.queryByText(/resolver captcha/i)).not.toBeInTheDocument();
-    await fillValid();
-    await userEvent.click(screen.getByRole('button', { name: /criar conta/i }));
-    await waitFor(() => expect(signUp).toHaveBeenCalledTimes(1));
-    expect(verifySignupGate).not.toHaveBeenCalled();
-  });
-
-  it('com site key o botão só libera depois do token, e o gate roda antes do signUp', async () => {
-    currentSiteKey = 'site-1';
-    verifySignupGate.mockResolvedValue('ok');
-    signUp.mockResolvedValue({ error: null });
-    render(<SignupForm />);
-    await fillValid();
-    expect(screen.getByRole('button', { name: /criar conta/i })).toBeDisabled();
-    await userEvent.click(screen.getByText(/resolver captcha/i));
-    expect(screen.getByRole('button', { name: /criar conta/i })).toBeEnabled();
-    await userEvent.click(screen.getByRole('button', { name: /criar conta/i }));
-    await waitFor(() => expect(signUp).toHaveBeenCalledTimes(1));
-    expect(verifySignupGate).toHaveBeenCalledWith('tok-1');
-    expect(verifySignupGate.mock.invocationCallOrder[0]).toBeLessThan(signUp.mock.invocationCallOrder[0]);
-    expect(trackCompleteRegistration).toHaveBeenCalledWith('ana@clinica.com', 'Dra. Ana');
-  });
-
-  it('gate reprovado: mostra a mensagem de robô e não cria conta nem dispara conversão', async () => {
-    currentSiteKey = 'site-1';
-    verifySignupGate.mockResolvedValue('captcha_failed');
-    render(<SignupForm />);
-    await fillValid();
-    await userEvent.click(screen.getByText(/resolver captcha/i));
-    await userEvent.click(screen.getByRole('button', { name: /criar conta/i }));
-    expect(
-      await screen.findByText('Não conseguimos confirmar que você não é um robô. Recarregue a página e tente de novo.'),
-    ).toBeInTheDocument();
-    expect(signUp).not.toHaveBeenCalled();
-    expect(trackCompleteRegistration).not.toHaveBeenCalled();
-    // Token consumido: o botão volta a ficar bloqueado até novo desafio.
-    expect(screen.getByRole('button', { name: /criar conta/i })).toBeDisabled();
-  });
-
-  it('gate indisponível: mensagem genérica e nenhuma conta criada', async () => {
-    currentSiteKey = 'site-1';
-    verifySignupGate.mockResolvedValue('error');
-    render(<SignupForm />);
-    await fillValid();
-    await userEvent.click(screen.getByText(/resolver captcha/i));
-    await userEvent.click(screen.getByRole('button', { name: /criar conta/i }));
-    expect(await screen.findByText(/algo deu errado/i)).toBeInTheDocument();
-    expect(signUp).not.toHaveBeenCalled();
   });
 });

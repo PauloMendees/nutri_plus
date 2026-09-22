@@ -2,6 +2,9 @@
 
 **Date:** 2026-09-14
 **Status:** Approved for planning (forense + entrevista 2026-09-14)
+
+> **Nota de 22/09/2026:** a barreira 3 (gate de cadastro com Turnstile) foi removida do produto sem nunca ter sido ligada. Ver `docs/11-abuse-hardening.md`. As outras três barreiras continuam valendo.
+
 **Related:** `docs/05-ai-architecture.md` (gateway único da OpenAI), `docs/09-observability.md` (uso de IA auditado em `AIInteraction`), `docs/superpowers/specs/2026-08-28-ai-background-jobs-design.md` (cota mensal e jobs).
 
 ## Problem Statement
