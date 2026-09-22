@@ -1,4 +1,4 @@
-# Step 11 - Anti-abuso (rate limit, teto diário de IA, gate de cadastro)
+# Step 11 - Anti-abuso (rate limit, teto diário de IA)
 
 Spec: `docs/superpowers/specs/2026-09-14-abuse-hardening-design.md`. Glossário em `CONTEXT.md`.
 
