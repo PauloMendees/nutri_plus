@@ -96,6 +96,8 @@ export class AsaasService {
         method: 'POST',
         body: {
           customer: input.customerId, billingType: 'CREDIT_CARD', value: input.value, cycle: input.cycle,
+          // Cartão cobra na hora e o status (ACTIVE/PENDING) é resolvido logo
+          // em seguida — sem a espera do Pix, vencimento hoje está correto.
           nextDueDate: this.todaySaoPaulo(), description: input.description,
           creditCard: {
             holderName: input.card.holderName, number: input.card.number,

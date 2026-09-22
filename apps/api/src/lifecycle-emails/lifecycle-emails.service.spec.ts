@@ -290,7 +290,7 @@ describe('LifecycleEmailsService.dispatch', () => {
   });
 
   describe('dispatchTrialNotStarted', () => {
-    it('consulta trial não iniciado com os filtros corretos (trialEndsAt nulo, isComp false, conta criada há >=1 dia, sem envio anterior)', async () => {
+    it('consulta trial não iniciado com os filtros corretos (trialEndsAt nulo, isComp false, conta criada há >=1 dia, nunca assinou, nunca pagou, sem envio anterior)', async () => {
       await service.dispatch();
       const calls = prisma.subscription.findMany.mock.calls as any[];
       const call = calls.find((c) => c[0]?.where?.trialEndsAt === null);
@@ -298,8 +298,76 @@ describe('LifecycleEmailsService.dispatch', () => {
       const where = call[0].where;
       expect(where.trialEndsAt).toBeNull();
       expect(where.isComp).toBe(false);
+      // Mesmas condições de isTrialEligible (plan-policy.ts): sem elas, quem
+      // fechou checkout com cartão confirmado na hora (status ACTIVE,
+      // currentPeriodEnd preenchido, trialEndsAt nunca setado) seria tratado
+      // como se nunca tivesse começado o teste.
+      expect(where.currentPeriodEnd).toBeNull();
+      expect(where.payments).toEqual({ none: {} });
       expect(where.nutritionist.user.createdAt.lte).toBeInstanceOf(Date);
       expect(where.nutritionist.lifecycleEmails).toEqual({ none: { kind: 'TRIAL_NOT_STARTED' } });
+    });
+
+    it('assinante ativo/ex-assinante (currentPeriodEnd preenchido) não é elegível, mesmo com trialEndsAt nulo', async () => {
+      const payer = {
+        id: 'sub-payer',
+        nutritionistId: 'nutri-payer',
+        trialEndsAt: null,
+        currentPeriodEnd: new Date('2026-10-22T00:00:00Z'),
+        nutritionist: nutritionistRow({ id: 'nutri-payer', email: 'payer@example.com' }),
+      };
+      const neverStarted = {
+        id: 'sub-never-started',
+        nutritionistId: 'nutri-never-started',
+        trialEndsAt: null,
+        currentPeriodEnd: null,
+        nutritionist: nutritionistRow({ id: 'nutri-never-started', email: 'never-started@example.com' }),
+      };
+      (prisma.subscription.findMany as jest.Mock).mockImplementation(async (args: any) => {
+        if (args?.where?.trialEndsAt === null) {
+          // Simula o filtro currentPeriodEnd: null da query real: só a linha
+          // sem currentPeriodEnd volta, exatamente como o Postgres faria.
+          const requiresNullCurrentPeriodEnd = args.where.currentPeriodEnd === null;
+          return [payer, neverStarted].filter((s) => (requiresNullCurrentPeriodEnd ? s.currentPeriodEnd === null : true));
+        }
+        return [];
+      });
+
+      await service.dispatch();
+
+      expect(resend.sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'never-started@example.com' }));
+      expect(resend.sendEmail).not.toHaveBeenCalledWith(expect.objectContaining({ to: 'payer@example.com' }));
+    });
+
+    it('quem já tem pagamento registrado não é elegível, mesmo com trialEndsAt nulo', async () => {
+      const paidBefore = {
+        id: 'sub-paid',
+        nutritionistId: 'nutri-paid',
+        trialEndsAt: null,
+        hasPayment: true,
+        nutritionist: nutritionistRow({ id: 'nutri-paid', email: 'paid@example.com' }),
+      };
+      const neverPaid = {
+        id: 'sub-never-paid',
+        nutritionistId: 'nutri-never-paid',
+        trialEndsAt: null,
+        hasPayment: false,
+        nutritionist: nutritionistRow({ id: 'nutri-never-paid', email: 'never-paid@example.com' }),
+      };
+      (prisma.subscription.findMany as jest.Mock).mockImplementation(async (args: any) => {
+        if (args?.where?.trialEndsAt === null) {
+          // Simula o filtro payments: { none: {} } da query real: só a linha
+          // sem pagamento volta.
+          const requiresNoPayments = args.where.payments && 'none' in args.where.payments;
+          return [paidBefore, neverPaid].filter((s) => (requiresNoPayments ? !s.hasPayment : true));
+        }
+        return [];
+      });
+
+      await service.dispatch();
+
+      expect(resend.sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'never-paid@example.com' }));
+      expect(resend.sendEmail).not.toHaveBeenCalledWith(expect.objectContaining({ to: 'paid@example.com' }));
     });
 
     it('elegível: envia o e-mail e grava LifecycleEmail com o kind certo', async () => {

@@ -136,6 +136,30 @@ describe('AsaasService', () => {
       expect(body.nextDueDate).toBe('2026-09-11');
     });
 
+    it('createPixSubscription: Pix gerado 30/09 23:50 (São Paulo) vence 01/10, virada de mês', async () => {
+      // 30/09 23:50 em America/Sao_Paulo (UTC-3) = 01/10 02:50 UTC.
+      jest.useFakeTimers().setSystemTime(new Date('2026-10-01T02:50:00Z'));
+      const fetchMock = jest.spyOn(global, 'fetch' as any)
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ id: 'sub_1' }) } as any)
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ data: [{ id: 'pay_1' }] }) } as any)
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ encodedImage: 'B', payload: 'p' }) } as any);
+      await new AsaasService(config(CFG)).createPixSubscription({ customerId: 'cus_1', value: 49, cycle: 'MONTHLY', description: 'x' });
+      const body = JSON.parse((fetchMock.mock.calls[0][1] as any).body);
+      expect(body.nextDueDate).toBe('2026-10-01');
+    });
+
+    it('createPixSubscription: Pix gerado 31/12 23:50 (São Paulo) vence 01/01, virada de ano', async () => {
+      // 31/12/2026 23:50 em America/Sao_Paulo (UTC-3) = 01/01/2027 02:50 UTC.
+      jest.useFakeTimers().setSystemTime(new Date('2027-01-01T02:50:00Z'));
+      const fetchMock = jest.spyOn(global, 'fetch' as any)
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ id: 'sub_1' }) } as any)
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ data: [{ id: 'pay_1' }] }) } as any)
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ encodedImage: 'B', payload: 'p' }) } as any);
+      await new AsaasService(config(CFG)).createPixSubscription({ customerId: 'cus_1', value: 49, cycle: 'MONTHLY', description: 'x' });
+      const body = JSON.parse((fetchMock.mock.calls[0][1] as any).body);
+      expect(body.nextDueDate).toBe('2027-01-01');
+    });
+
     it('createOneOffCharge (PIX): cobrança avulsa em Pix também vence D+1', async () => {
       jest.useFakeTimers().setSystemTime(new Date('2026-09-11T02:26:00Z'));
       const fetchMock = jest.spyOn(global, 'fetch' as any)

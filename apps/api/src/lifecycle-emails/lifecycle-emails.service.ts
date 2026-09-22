@@ -174,6 +174,14 @@ export class LifecycleEmailsService {
       where: {
         trialEndsAt: null,
         isComp: false,
+        // Mesmas condições de isTrialEligible (billing/plan-policy.ts) além de
+        // trialEndsAt/isComp: sem elas, um checkout com cartão confirmado na
+        // hora (status ACTIVE, currentPeriodEnd preenchido, mas trialEndsAt
+        // nunca setado porque nunca passou por startTrial()) seria tratado
+        // como "teste não iniciado" e receberia este e-mail mesmo já pagando.
+        // As duas regras precisam continuar concordando.
+        currentPeriodEnd: null,
+        payments: { none: {} },
         nutritionist: {
           user: { createdAt: { lte: oneDayAgo } },
           lifecycleEmails: { none: { kind: 'TRIAL_NOT_STARTED' } },
