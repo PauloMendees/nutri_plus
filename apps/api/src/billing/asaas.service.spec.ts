@@ -108,4 +108,65 @@ describe('AsaasService', () => {
     expect((fetchMock.mock.calls[0][1] as any).method).toBe('PUT');
     expect((fetchMock.mock.calls[0][1] as any).body).toContain('"billingType":"PIX"');
   });
+
+  describe('vencimento do Pix (D+1)', () => {
+    afterEach(() => jest.useRealTimers());
+
+    it('createPixSubscription: Pix gerado 10/09 23:26 (São Paulo) vence 11/09, não no mesmo dia', async () => {
+      // 10/09 23:26 em America/Sao_Paulo (UTC-3) = 11/09 02:26 UTC.
+      jest.useFakeTimers().setSystemTime(new Date('2026-09-11T02:26:00Z'));
+      const fetchMock = jest.spyOn(global, 'fetch' as any)
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ id: 'sub_1' }) } as any)
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ data: [{ id: 'pay_1' }] }) } as any)
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ encodedImage: 'B', payload: 'p' }) } as any);
+      await new AsaasService(config(CFG)).createPixSubscription({ customerId: 'cus_1', value: 49, cycle: 'MONTHLY', description: 'x' });
+      const body = JSON.parse((fetchMock.mock.calls[0][1] as any).body);
+      expect(body.nextDueDate).toBe('2026-09-11');
+    });
+
+    it('createPixSubscription: Pix gerado 10/09 00:10 (São Paulo) também vence 11/09', async () => {
+      // 10/09 00:10 em America/Sao_Paulo (UTC-3) = 10/09 03:10 UTC.
+      jest.useFakeTimers().setSystemTime(new Date('2026-09-10T03:10:00Z'));
+      const fetchMock = jest.spyOn(global, 'fetch' as any)
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ id: 'sub_1' }) } as any)
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ data: [{ id: 'pay_1' }] }) } as any)
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ encodedImage: 'B', payload: 'p' }) } as any);
+      await new AsaasService(config(CFG)).createPixSubscription({ customerId: 'cus_1', value: 49, cycle: 'MONTHLY', description: 'x' });
+      const body = JSON.parse((fetchMock.mock.calls[0][1] as any).body);
+      expect(body.nextDueDate).toBe('2026-09-11');
+    });
+
+    it('createOneOffCharge (PIX): cobrança avulsa em Pix também vence D+1', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-09-11T02:26:00Z'));
+      const fetchMock = jest.spyOn(global, 'fetch' as any)
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ id: 'pay_9', status: 'PENDING' }) } as any)
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ encodedImage: 'B64', payload: 'p' }) } as any);
+      await new AsaasService(config(CFG)).createOneOffCharge({ customerId: 'cus_1', value: 25, billingType: 'PIX', description: 'Upgrade' });
+      const body = JSON.parse((fetchMock.mock.calls[0][1] as any).body);
+      expect(body.dueDate).toBe('2026-09-11');
+    });
+
+    it('createCardSubscription: cartão não é Pix, nextDueDate continua no mesmo dia', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-09-11T02:26:00Z'));
+      const fetchMock = jest.spyOn(global, 'fetch' as any)
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ id: 'sub_2', creditCard: {} }) } as any)
+        .mockResolvedValueOnce({ ok: true, status: 200, text: async () => JSON.stringify({ data: [{ status: 'CONFIRMED' }] }) } as any);
+      await new AsaasService(config(CFG)).createCardSubscription({
+        customerId: 'cus_1', value: 99, cycle: 'MONTHLY', description: 'x',
+        card: { holderName: 'A B', number: '5162306219378829', expiryMonth: '12', expiryYear: '2030', ccv: '123' },
+        holderInfo: { postalCode: '01310000', addressNumber: '100', phone: '11999999999' },
+        holder: { name: 'A B', email: 'a@x.com', cpfCnpj: '12345678901' }, remoteIp: '1.2.3.4',
+      });
+      const body = JSON.parse((fetchMock.mock.calls[0][1] as any).body);
+      expect(body.nextDueDate).toBe('2026-09-10');
+    });
+
+    it('createOneOffCharge (CREDIT_CARD): não é Pix, dueDate continua no mesmo dia', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-09-11T02:26:00Z'));
+      const fetchMock = jest.spyOn(global, 'fetch' as any).mockResolvedValue({ ok: true, status: 200, text: async () => JSON.stringify({ id: 'pay_10', status: 'CONFIRMED' }) } as any);
+      await new AsaasService(config(CFG)).createOneOffCharge({ customerId: 'cus_1', value: 25, billingType: 'CREDIT_CARD', description: 'Upgrade', creditCardToken: 'tok_1' });
+      const body = JSON.parse((fetchMock.mock.calls[0][1] as any).body);
+      expect(body.dueDate).toBe('2026-09-10');
+    });
+  });
 });

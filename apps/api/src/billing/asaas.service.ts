@@ -6,6 +6,12 @@ class AsaasRequestError extends Error {
   constructor(readonly status: number, readonly body: unknown) { super(`Asaas ${status}`); }
 }
 
+// Quantos dias à frente o vencimento de um Pix é gerado. Um Pix criado à
+// noite com nextDueDate = hoje vencia poucos minutos depois (ex.: gerado
+// 23:26, vencido 23:59), e o webhook PAYMENT_OVERDUE marcava a assinatura
+// como atrasada antes de a pessoa sequer conseguir pagar.
+export const PIX_DUE_DAYS = 1;
+
 @Injectable()
 export class AsaasService {
   private readonly logger = new Logger(AsaasService.name);
@@ -42,11 +48,23 @@ export class AsaasService {
     }
   }
 
-  // Data de hoje (America/Sao_Paulo) em 'YYYY-MM-DD' para nextDueDate.
+  // Data de hoje (America/Sao_Paulo) em 'YYYY-MM-DD' para nextDueDate/dueDate.
   private todaySaoPaulo(): string {
     return new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
     }).format(new Date());
+  }
+
+  // Vencimento do Pix: hoje (America/Sao_Paulo) + PIX_DUE_DAYS dia(s), em
+  // 'YYYY-MM-DD'. Somamos o dia sobre a data já formatada em São Paulo (não
+  // sobre o instante UTC) para não errar perto da meia-noite: um Pix gerado
+  // à noite vencia no mesmo dia e o webhook PAYMENT_OVERDUE marcava atraso
+  // antes de a pessoa conseguir pagar.
+  private pixDueDate(): string {
+    const [year, month, day] = this.todaySaoPaulo().split('-').map(Number);
+    const due = new Date(Date.UTC(year, month - 1, day));
+    due.setUTCDate(due.getUTCDate() + PIX_DUE_DAYS);
+    return due.toISOString().slice(0, 10);
   }
 
   async ensureCustomer(input: { name: string; email: string; cpfCnpj: string }): Promise<string> {
@@ -59,7 +77,7 @@ export class AsaasService {
   }): Promise<{ subscriptionId: string; pixQrCode: PixQrCode }> {
     const sub = await this.callOrGateway<{ id: string }>('/subscriptions', {
       method: 'POST',
-      body: { customer: input.customerId, billingType: 'PIX', value: input.value, cycle: input.cycle, nextDueDate: this.todaySaoPaulo(), description: input.description },
+      body: { customer: input.customerId, billingType: 'PIX', value: input.value, cycle: input.cycle, nextDueDate: this.pixDueDate(), description: input.description },
     });
     const payments = await this.callOrGateway<{ data: { id: string }[] }>(`/subscriptions/${sub.id}/payments`, { method: 'GET' });
     const paymentId = payments.data[0]?.id;
@@ -157,7 +175,9 @@ export class AsaasService {
         method: 'POST',
         body: {
           customer: input.customerId, billingType: input.billingType, value: input.value,
-          dueDate: this.todaySaoPaulo(), description: input.description,
+          // Cobrança avulsa em Pix sofre o mesmo problema de vencimento no
+          // mesmo dia; no cartão a cobrança é imediata e dueDate = hoje é ok.
+          dueDate: input.billingType === 'PIX' ? this.pixDueDate() : this.todaySaoPaulo(), description: input.description,
           ...(input.billingType === 'CREDIT_CARD' ? { creditCardToken: input.creditCardToken } : {}),
         },
       });
