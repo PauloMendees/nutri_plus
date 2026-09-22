@@ -31,6 +31,13 @@ describe('decideRedirect', () => {
     expect(decideRedirect(true, '/verify-email')).toBeNull();
   });
 
+  it('lets the signup gate route through for unauthenticated visitors', () => {
+    // Quem se cadastra ainda não tem sessão: um 307 aqui quebraria o cadastro
+    // inteiro assim que o Turnstile for ligado.
+    expect(decideRedirect(false, '/api/signup-gate')).toBeNull();
+    expect(decideRedirect(true, '/api/signup-gate')).toBeNull();
+  });
+
   it('lets unauthenticated users reach /forgot-password', () => {
     expect(decideRedirect(false, '/forgot-password')).toBeNull();
   });

@@ -10,6 +10,10 @@ const PUBLIC_ROUTES = [
   '/download-app',
   '/privacy',
   '/suporte',
+  // Rota do gate de cadastro (Turnstile): é chamada pelo formulário de quem
+  // ainda NÃO tem sessão. Sem ela aqui, o middleware devolve 307 para /login,
+  // o gate nunca responde 204/403 e nenhuma conta é criada.
+  '/api/signup-gate',
 ];
 
 /** Routes an authenticated user should be bounced away from (into the app). */
