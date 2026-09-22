@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Loader2, Sparkles } from 'lucide-react';
+import { ChevronLeft, Loader2, Lock, Sparkles } from 'lucide-react';
 import {
   useFieldArray,
   useForm,
@@ -263,6 +263,11 @@ export function MealPlanEditor({
     defaultValues: blankDefaults(),
   });
   const meals = useFieldArray({ control: form.control, name: 'meals' });
+  // O RHF só mantém `formState.isDirty` atualizado depois que ele é lido durante
+  // o render pelo menos uma vez — sem isto, ler isDirty só dentro do handler de
+  // aplicação do ajuste (mais abaixo) sempre devolveria `false`.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { isDirty: _isDirtyTracked } = form.formState;
 
   // Só o ajuste DESTE plano. listForPatient devolve jobs do paciente inteiro, e
   // carregar o rascunho de outro plano aqui substituiria a árvore errada ao salvar.
@@ -275,18 +280,41 @@ export function MealPlanEditor({
       )
     : undefined;
 
+  // Um job só pode ser aplicado uma vez. Sem essa trava, o polling (a cada 2s)
+  // reaplicaria o mesmo rascunho — e cada aplicação dispara reset() + toast.
+  const appliedJobIdRef = useRef<string | null>(null);
+
   async function applyReadyAdjust(jobId: string) {
     try {
       const detail = await getAiJob(jobId);
       if (detail.result) {
+        // isDirty precisa ser lido ANTES do reset — reset() zera o dirty flag.
+        const overwritingDirty = form.formState.isDirty;
         form.reset(draftToDefaults(detail.result));
-        toast.success('Ajuste carregado — revise e salve.');
+        toast.success(
+          overwritingDirty
+            ? 'Ajuste da IA aplicado por cima das suas alterações não salvas.'
+            : 'Ajuste da IA aplicado. Revise e salve.',
+        );
       }
       await consume.mutateAsync(jobId);
     } catch {
+      // Falhou ao buscar o detalhe: não marca como aplicado, para o polling
+      // poder tentar de novo no próximo ciclo.
+      appliedJobIdRef.current = null;
       toast.error('Não foi possível carregar o ajuste.');
     }
   }
+
+  // Carrega o rascunho pronto sozinho, sem esperar clique. Em modo criação
+  // (sem planId) e sem permissão de edição, nunca aplica.
+  useEffect(() => {
+    if (isCreate || !canEdit || !readyAdjust) return;
+    if (appliedJobIdRef.current === readyAdjust.id) return;
+    appliedJobIdRef.current = readyAdjust.id;
+    void applyReadyAdjust(readyAdjust.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCreate, canEdit, readyAdjust]);
 
   useEffect(() => {
     if (!isCreate && query.data) form.reset(toDefaults(query.data));
@@ -425,6 +453,7 @@ export function MealPlanEditor({
                 size="sm"
                 className="rounded-full shadow-sm shadow-primary/30"
                 onClick={() => setAdjusting(true)}
+                disabled={Boolean(adjustInFlight)}
               >
                 <Sparkles className="h-4 w-4" aria-hidden="true" />
                 Solicitar ajustes à IA
@@ -436,7 +465,7 @@ export function MealPlanEditor({
               size="sm"
               className="rounded-full"
               onClick={onExport}
-              disabled={exporting}
+              disabled={exporting || Boolean(adjustInFlight)}
               data-tour="patients.plan.pdf"
             >
               {exporting ? 'Exportando…' : 'Exportar PDF'}
@@ -444,8 +473,9 @@ export function MealPlanEditor({
           </div>
         )}
       </div>
+      <div className="relative">
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="space-y-4">
-        <fieldset disabled={!canEdit} className="m-0 min-w-0 space-y-4 border-0 p-0">
+        <fieldset disabled={!canEdit || Boolean(adjustInFlight)} className="m-0 min-w-0 space-y-4 border-0 p-0">
           {/* Header */}
           <div className="space-y-2">
             <label className="block text-sm font-medium" htmlFor="mp-title">Título</label>
@@ -479,31 +509,6 @@ export function MealPlanEditor({
               ))}
             </div>
           </div>
-
-          {adjustInFlight && (
-    <div
-      className="flex items-center gap-2 rounded-xl border bg-card p-3 text-sm text-muted-foreground"
-      data-testid="adjust-in-flight"
-    >
-      <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />
-      Ajuste em andamento. Avisamos aqui quando estiver pronto para revisar.
-    </div>
-  )}
-
-  {canEdit && readyAdjust && (
-            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/40 bg-card p-3 text-sm">
-              <span>Ajuste pronto para este plano.</span>
-              <Button
-                type="button"
-                size="sm"
-                className="rounded-full"
-                onClick={() => applyReadyAdjust(readyAdjust.id)}
-                disabled={consume.isPending}
-              >
-                Revisar ajuste
-              </Button>
-            </div>
-          )}
 
           {/* Totals bar (first option per meal) */}
           <div className="sticky top-0 z-10 flex flex-wrap items-center gap-4 rounded-xl border bg-card p-3">
@@ -571,7 +576,7 @@ export function MealPlanEditor({
                     type="button"
                     className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     onClick={onDelete}
-                    disabled={remove.isPending}
+                    disabled={remove.isPending || Boolean(adjustInFlight)}
                   >
                     Excluir
                   </Button>
@@ -582,6 +587,7 @@ export function MealPlanEditor({
                   variant="outline"
                   className="mr-auto rounded-full text-destructive"
                   onClick={() => setConfirmingDelete(true)}
+                  disabled={Boolean(adjustInFlight)}
                 >
                   Excluir
                 </Button>
@@ -589,7 +595,7 @@ export function MealPlanEditor({
             <Button
               type="submit"
               className="rounded-full"
-              disabled={pending}
+              disabled={pending || Boolean(adjustInFlight)}
               data-tour="patients.plan.save"
             >
               {pending ? 'Salvando…' : 'Salvar'}
@@ -597,6 +603,27 @@ export function MealPlanEditor({
           </div>
         )}
       </form>
+
+      {canEdit && adjustInFlight && (
+        <div
+          data-testid="adjust-lock-overlay"
+          role="status"
+          aria-live="polite"
+          className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-background/70 backdrop-blur-[2px]"
+        >
+          <div className="flex flex-col items-center gap-2 rounded-xl border bg-card px-6 py-5 text-center shadow-lg">
+            <span className="relative flex h-10 w-10 items-center justify-center">
+              <Loader2 className="absolute h-10 w-10 animate-spin text-primary/40" aria-hidden="true" />
+              <Lock className="h-5 w-5 text-primary" aria-hidden="true" />
+            </span>
+            <p className="text-sm font-semibold">Ajuste em andamento</p>
+            <p className="text-xs text-muted-foreground">
+              A IA está reescrevendo este plano. O formulário fica bloqueado até terminar.
+            </p>
+          </div>
+        </div>
+      )}
+      </div>
 
       {!isCreate && (
         <AiAdjustDialog
