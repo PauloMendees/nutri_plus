@@ -4,7 +4,7 @@ import { Prisma, LifecycleEmailKind } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ResendService } from '../support/resend.service';
 import { TRIAL_DAYS } from '../billing/plan-policy';
-import { buildTrialNoPatientEmail, buildCheckoutAbandonedEmail } from './lifecycle-email-templates';
+import { buildTrialNoPatientEmail, buildCheckoutAbandonedEmail, buildTrialNotStartedEmail } from './lifecycle-email-templates';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -18,6 +18,7 @@ const NUTRI_USER = {
 export interface LifecycleEmailsDispatchResult {
   trialNoPatient: { eligible: number; sent: number };
   checkoutAbandoned: { eligible: number; sent: number };
+  trialNotStarted: { eligible: number; sent: number };
 }
 
 @Injectable()
@@ -37,13 +38,18 @@ export class LifecycleEmailsService {
       this.logger.warn(
         'E-mails de ciclo de vida não enviados: SUPPORT_FROM_EMAIL / SUPPORT_INBOX_EMAIL não configurados.',
       );
-      return { trialNoPatient: { eligible: 0, sent: 0 }, checkoutAbandoned: { eligible: 0, sent: 0 } };
+      return {
+        trialNoPatient: { eligible: 0, sent: 0 },
+        checkoutAbandoned: { eligible: 0, sent: 0 },
+        trialNotStarted: { eligible: 0, sent: 0 },
+      };
     }
     const webOrigin = this.config.getOrThrow<string>('WEB_ORIGIN');
 
     const trialNoPatient = await this.dispatchTrialNoPatient(from, replyTo, webOrigin);
     const checkoutAbandoned = await this.dispatchCheckoutAbandoned(from, replyTo, webOrigin);
-    return { trialNoPatient, checkoutAbandoned };
+    const trialNotStarted = await this.dispatchTrialNotStarted(from, replyTo, webOrigin);
+    return { trialNoPatient, checkoutAbandoned, trialNotStarted };
   }
 
   private async dispatchTrialNoPatient(
@@ -152,6 +158,54 @@ export class LifecycleEmailsService {
       }
 
       await this.recordLifecycleEmail(sub.nutritionistId, 'CHECKOUT_ABANDONED');
+      sent++;
+    }
+    return { eligible: candidates.length, sent };
+  }
+
+  private async dispatchTrialNotStarted(
+    from: string,
+    replyTo: string,
+    webOrigin: string,
+  ): Promise<{ eligible: number; sent: number }> {
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - DAY_MS);
+    const candidates = await this.prisma.subscription.findMany({
+      where: {
+        trialEndsAt: null,
+        isComp: false,
+        nutritionist: {
+          user: { createdAt: { lte: oneDayAgo } },
+          lifecycleEmails: { none: { kind: 'TRIAL_NOT_STARTED' } },
+        },
+      },
+      include: NUTRI_USER,
+    });
+
+    let sent = 0;
+    for (const sub of candidates) {
+      const user = sub.nutritionist?.user;
+      if (!user?.email) {
+        this.logger.warn(`TRIAL_NOT_STARTED: nutricionista ${sub.nutritionistId} sem e-mail, pulando.`);
+        continue;
+      }
+
+      const mail = buildTrialNotStartedEmail({ name: user.name, webOrigin });
+      try {
+        await this.resend.sendEmail({
+          to: user.email,
+          from,
+          replyTo,
+          subject: mail.subject,
+          text: mail.text,
+          html: mail.html,
+        });
+      } catch (err) {
+        this.logger.warn(`TRIAL_NOT_STARTED: falha ao enviar para ${user.email}: ${err}`);
+        continue;
+      }
+
+      await this.recordLifecycleEmail(sub.nutritionistId, 'TRIAL_NOT_STARTED');
       sent++;
     }
     return { eligible: candidates.length, sent };

@@ -24,10 +24,15 @@ function configWith(overrides: Record<string, string | undefined> = {}): ConfigS
   } as unknown as ConfigService;
 }
 
-function nutritionistRow(overrides: Partial<{ id: string; name: string | null; email: string }> = {}) {
+function nutritionistRow(overrides: Partial<{ id: string; name: string | null; email: string; createdAt: Date }> = {}) {
   return {
     id: overrides.id ?? 'nutri-1',
-    user: { id: 'user-1', name: overrides.name ?? 'Elizabeth Fonseca', email: overrides.email ?? 'eli@example.com' },
+    user: {
+      id: 'user-1',
+      name: overrides.name ?? 'Elizabeth Fonseca',
+      email: overrides.email ?? 'eli@example.com',
+      createdAt: overrides.createdAt ?? new Date('2026-09-01T12:00:00Z'),
+    },
   };
 }
 
@@ -267,6 +272,7 @@ describe('LifecycleEmailsService.dispatch', () => {
     expect(out).toEqual({
       trialNoPatient: { eligible: 0, sent: 0 },
       checkoutAbandoned: { eligible: 0, sent: 0 },
+      trialNotStarted: { eligible: 0, sent: 0 },
     });
   });
 
@@ -279,6 +285,85 @@ describe('LifecycleEmailsService.dispatch', () => {
     expect(out).toEqual({
       trialNoPatient: { eligible: 0, sent: 0 },
       checkoutAbandoned: { eligible: 0, sent: 0 },
+      trialNotStarted: { eligible: 0, sent: 0 },
+    });
+  });
+
+  describe('dispatchTrialNotStarted', () => {
+    it('consulta trial não iniciado com os filtros corretos (trialEndsAt nulo, isComp false, conta criada há >=1 dia, sem envio anterior)', async () => {
+      await service.dispatch();
+      const calls = prisma.subscription.findMany.mock.calls as any[];
+      const call = calls.find((c) => c[0]?.where?.trialEndsAt === null);
+      expect(call).toBeDefined();
+      const where = call[0].where;
+      expect(where.trialEndsAt).toBeNull();
+      expect(where.isComp).toBe(false);
+      expect(where.nutritionist.user.createdAt.lte).toBeInstanceOf(Date);
+      expect(where.nutritionist.lifecycleEmails).toEqual({ none: { kind: 'TRIAL_NOT_STARTED' } });
+    });
+
+    it('elegível: envia o e-mail e grava LifecycleEmail com o kind certo', async () => {
+      (prisma.subscription.findMany as jest.Mock).mockImplementation(async (args: any) => {
+        if (args?.where?.trialEndsAt === null) {
+          return [
+            {
+              id: 'sub-4',
+              nutritionistId: 'nutri-4',
+              nutritionist: nutritionistRow({ id: 'nutri-4', email: 'nova@example.com' }),
+            } as any,
+          ];
+        }
+        return [];
+      });
+
+      const out = await service.dispatch();
+
+      expect(resend.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'nova@example.com',
+          from: ENV.SUPPORT_FROM_EMAIL,
+          replyTo: ENV.SUPPORT_INBOX_EMAIL,
+          subject: 'Seu teste do iNutri ainda não começou',
+        }),
+      );
+      expect(prisma.lifecycleEmail.create).toHaveBeenCalledWith({
+        data: { nutritionistId: 'nutri-4', kind: 'TRIAL_NOT_STARTED' },
+      });
+      expect(out.trialNotStarted).toEqual({ eligible: 1, sent: 1 });
+    });
+
+    it('falha no envio: não grava e segue para o próximo, sent menor que eligible', async () => {
+      (prisma.subscription.findMany as jest.Mock).mockImplementation(async (args: any) => {
+        if (args?.where?.trialEndsAt === null) {
+          return [
+            {
+              id: 'sub-4',
+              nutritionistId: 'nutri-4',
+              nutritionist: nutritionistRow({ id: 'nutri-4', email: 'a@example.com' }),
+            } as any,
+            {
+              id: 'sub-5',
+              nutritionistId: 'nutri-5',
+              nutritionist: nutritionistRow({ id: 'nutri-5', email: 'b@example.com' }),
+            } as any,
+          ];
+        }
+        return [];
+      });
+      resend.sendEmail.mockRejectedValueOnce(new Error('resend indisponível')).mockResolvedValueOnce(undefined);
+
+      const out = await service.dispatch();
+
+      expect(prisma.lifecycleEmail.create).toHaveBeenCalledTimes(1);
+      expect(out.trialNotStarted).toEqual({ eligible: 2, sent: 1 });
+    });
+
+    it('sem SUPPORT_FROM_EMAIL: retorna zero também para trial não iniciado', async () => {
+      service = new LifecycleEmailsService(prisma, resend, configWith({ SUPPORT_FROM_EMAIL: undefined }));
+
+      const out = await service.dispatch();
+
+      expect(out.trialNotStarted).toEqual({ eligible: 0, sent: 0 });
     });
   });
 });

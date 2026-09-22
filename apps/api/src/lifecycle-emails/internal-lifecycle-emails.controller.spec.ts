@@ -24,6 +24,7 @@ describe('InternalLifecycleEmailsController', () => {
     lifecycleEmails.dispatch.mockResolvedValue({
       trialNoPatient: { eligible: 0, sent: 0 },
       checkoutAbandoned: { eligible: 0, sent: 0 },
+      trialNotStarted: { eligible: 0, sent: 0 },
     });
     await make('s3cret').dispatch('s3cret');
     expect(lifecycleEmails.dispatch).toHaveBeenCalled();
