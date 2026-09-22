@@ -475,7 +475,7 @@ describe('MealPlanEditor (edit mode)', () => {
     expect(screen.getByDisplayValue('Plano ajustado')).toBeInTheDocument();
   });
 
-  it('tenta de novo no próximo poll quando falha ao buscar o detalhe do ajuste', async () => {
+  it('falha ao carregar o ajuste não tranca o editor: mostra a faixa, e "Tentar de novo" reaplica', async () => {
     useAiJobsMock.mockReturnValue({
       data: [{
         id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'DONE', patientId: 'p1',
@@ -486,16 +486,35 @@ describe('MealPlanEditor (edit mode)', () => {
     });
     getAiJobMock.mockRejectedValueOnce(new Error('network'));
 
-    const { rerender } = render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('Não foi possível carregar o ajuste.'),
     );
-    expect(consumeMut).not.toHaveBeenCalled();
 
-    // Próximo poll: nova referência, mesmo job — como o fetch anterior falhou
-    // (ref não foi marcado), a aplicação é tentada de novo.
+    // Nada fica "em andamento": sem overlay, campos e Salvar continuam
+    // habilitados. Esse é o ponto central do bug relatado — travar aqui
+    // não tem mais volta (o job DONE não gera mais polling automático).
+    expect(screen.queryByTestId('adjust-lock-overlay')).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue('Plano A')).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: /^salvar$/i })).not.toBeDisabled();
+
+    const banner = screen.getByTestId('adjust-load-failed');
+    expect(banner).toHaveTextContent('Não foi possível carregar o ajuste da IA.');
+
     getAiJobMock.mockResolvedValue({ result: { title: 'Plano ajustado', meals: [] } });
+    await userEvent.click(within(banner).getByRole('button', { name: /tentar de novo/i }));
+
+    expect(await screen.findByDisplayValue('Plano ajustado')).toBeInTheDocument();
+    expect(getAiJobMock).toHaveBeenCalledTimes(2);
+    expect(consumeMut).toHaveBeenCalledWith('j1');
+    // Corrigido: a faixa de erro some e a tela não volta a travar.
+    expect(screen.queryByTestId('adjust-load-failed')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('adjust-lock-overlay')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^salvar$/i })).not.toBeDisabled();
+  });
+
+  it('trata resultado vazio do ajuste como falha de carga: não consome e mostra a faixa', async () => {
     useAiJobsMock.mockReturnValue({
       data: [{
         id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'DONE', patientId: 'p1',
@@ -504,10 +523,16 @@ describe('MealPlanEditor (edit mode)', () => {
       }],
       isLoading: false,
     });
-    rerender(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    getAiJobMock.mockResolvedValue({ result: null });
 
-    expect(await screen.findByDisplayValue('Plano ajustado')).toBeInTheDocument();
-    expect(consumeMut).toHaveBeenCalledWith('j1');
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('Não foi possível carregar o ajuste.'),
+    );
+    expect(consumeMut).not.toHaveBeenCalled();
+    expect(screen.getByTestId('adjust-load-failed')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^salvar$/i })).not.toBeDisabled();
   });
 
   it('não aplica nada em modo leitura (EMPLOYEE sem permissão), mesmo com ajuste pronto para este plano', () => {

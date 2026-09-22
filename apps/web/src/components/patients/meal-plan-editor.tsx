@@ -288,17 +288,39 @@ export function MealPlanEditor({
   // reaplicaria o mesmo rascunho — e cada aplicação dispara reset() + toast.
   const appliedJobIdRef = useRef<string | null>(null);
 
+  // Job cujo carregamento falhou (getAiJob rejeitou, ou voltou sem `result`).
+  // Existe para o formulário NUNCA ficar travado à toa: `useAiJobs` só faz
+  // polling enquanto há job PENDING/RUNNING — um job DONE não gera mais
+  // refetch automático, e mesmo que gerasse, o structuralSharing do React
+  // Query preservaria a mesma referência (o efeito abaixo depende de
+  // `readyAdjust` por identidade e não reexecutaria). Ou seja: sem esta
+  // marca, uma falha de carga travaria a tela até a pessoa navegar para
+  // outra página e voltar. Com ela, o job falho é excluído do cálculo de
+  // `readyAdjustUnapplied` (destrava na hora) e uma faixa com "Tentar de
+  // novo" assume a recuperação manualmente.
+  const loadFailedJobIdRef = useRef<string | null>(null);
+
   // Verdadeiro enquanto existir um ajuste pronto para este plano que ainda não
   // foi aplicado ao formulário — cobre o intervalo entre o polling detectar o
   // DONE e o efeito abaixo terminar de buscar o detalhe e resetar o form. Uma
   // vez aplicado (ref marcado), um job que ficou DONE mas não pôde ser
   // marcado como consumido (falha de rede) deixa de travar a tela: o rascunho
   // já está na tela e reaplicá-lo de novo seria pior, não travar é o correto.
-  // Só entra em jogo com canEdit — sem permissão de edição a aplicação
-  // automática nunca roda (o efeito abaixo sai cedo), então não há o que
-  // proteger e travar a tela (inclusive Exportar PDF) seria só confuso.
+  // O mesmo vale para um job cujo CARREGAMENTO falhou (loadFailedJobIdRef):
+  // nada foi aplicado, mas travar sem chance de recuperação automática seria
+  // pior — a faixa de erro assume esse papel. Só entra em jogo com canEdit —
+  // sem permissão de edição a aplicação automática nunca roda (o efeito
+  // abaixo sai cedo), então não há o que proteger e travar a tela (inclusive
+  // Exportar PDF) seria só confuso.
   const readyAdjustUnapplied =
-    canEdit && Boolean(readyAdjust) && appliedJobIdRef.current !== readyAdjust?.id;
+    canEdit &&
+    Boolean(readyAdjust) &&
+    appliedJobIdRef.current !== readyAdjust?.id &&
+    loadFailedJobIdRef.current !== readyAdjust?.id;
+
+  // Verdadeiro quando o ajuste pronto deste plano é exatamente o que falhou
+  // ao carregar — controla a faixa de erro com "Tentar de novo".
+  const loadFailed = Boolean(readyAdjust) && loadFailedJobIdRef.current === readyAdjust?.id;
 
   async function applyReadyAdjust(jobId: string) {
     setApplying(true);
@@ -307,23 +329,35 @@ export function MealPlanEditor({
       try {
         detail = await getAiJob(jobId);
       } catch {
-        // Falhou ao buscar o detalhe: não marca como aplicado, para o
-        // polling poder tentar de novo no próximo ciclo.
+        // Falhou ao buscar o detalhe: não marca como aplicado (para uma
+        // eventual repetição automática poder funcionar) e marca como
+        // falho, para destravar a tela e oferecer "Tentar de novo".
         appliedJobIdRef.current = null;
+        loadFailedJobIdRef.current = jobId;
         toast.error('Não foi possível carregar o ajuste.');
         return;
       }
-      if (detail.result) {
-        // isDirty precisa ser lido ANTES do reset — reset() zera o dirty flag.
-        const overwritingDirty = form.formState.isDirty;
-        form.reset(draftToDefaults(detail.result));
-        if (overwritingDirty) {
-          toast.success('Ajuste da IA aplicado por cima das suas alterações não salvas.', {
-            duration: 8000,
-          });
-        } else {
-          toast.success('Ajuste da IA aplicado. Revise e salve.');
-        }
+      if (!detail.result) {
+        // Job DONE mas sem rascunho para aplicar — sem isto não haveria o
+        // que consumir, e o job ficaria pendurado sem toast, sem consumo e
+        // sem chance de nova tentativa. Tratamos como falha de carga.
+        appliedJobIdRef.current = null;
+        loadFailedJobIdRef.current = jobId;
+        toast.error('Não foi possível carregar o ajuste.');
+        return;
+      }
+      // Uma tentativa anterior deste MESMO job pode ter falhado; carregou
+      // agora, então a marca de falha não vale mais.
+      loadFailedJobIdRef.current = null;
+      // isDirty precisa ser lido ANTES do reset — reset() zera o dirty flag.
+      const overwritingDirty = form.formState.isDirty;
+      form.reset(draftToDefaults(detail.result));
+      if (overwritingDirty) {
+        toast.success('Ajuste da IA aplicado por cima das suas alterações não salvas.', {
+          duration: 8000,
+        });
+      } else {
+        toast.success('Ajuste da IA aplicado. Revise e salve.');
       }
       try {
         await consume.mutateAsync(jobId);
@@ -339,18 +373,36 @@ export function MealPlanEditor({
     }
   }
 
+  // Ação do botão "Tentar de novo" na faixa de erro: limpa a marca de falha
+  // e dispara a aplicação de novo, desta vez por escolha explícita do
+  // usuário. Marca appliedJobIdRef como o efeito automático faria — sem
+  // isso, um retry BEM-SUCEDIDO deixaria `readyAdjustUnapplied` voltando a
+  // `true` no render seguinte (nenhum ref bateria com o id do job) e a tela
+  // travaria de novo logo depois de ter sido corrigida.
+  function retryReadyAdjust() {
+    if (!readyAdjust) return;
+    loadFailedJobIdRef.current = null;
+    appliedJobIdRef.current = readyAdjust.id;
+    void applyReadyAdjust(readyAdjust.id);
+  }
+
   // Carrega o rascunho pronto sozinho, sem esperar clique. Em modo criação
-  // (sem planId) e sem permissão de edição, nunca aplica.
+  // (sem planId) e sem permissão de edição, nunca aplica. Um job já marcado
+  // como falho não é retomado automaticamente — só pelo clique em "Tentar de
+  // novo" (evita reaplicar escondido logo depois que o usuário acabou de ver
+  // o erro).
   useEffect(() => {
     if (isCreate || !canEdit || !readyAdjust) return;
     if (appliedJobIdRef.current === readyAdjust.id) return;
+    if (loadFailedJobIdRef.current === readyAdjust.id) return;
     appliedJobIdRef.current = readyAdjust.id;
     void applyReadyAdjust(readyAdjust.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCreate, canEdit, readyAdjust]);
 
   // Trava o formulário: ajuste em voo (PENDING/RUNNING), ajuste pronto ainda
-  // não aplicado, ou aplicação em andamento (fetch do detalhe + consumo).
+  // não aplicado, ou aplicação em andamento (fetch do detalhe + consumo). Um
+  // ajuste cujo carregamento falhou nunca trava — ver loadFailedJobIdRef.
   const locked = Boolean(adjustInFlight) || readyAdjustUnapplied || applying;
 
   useEffect(() => {
@@ -546,6 +598,25 @@ export function MealPlanEditor({
               ))}
             </div>
           </div>
+
+          {canEdit && loadFailed && (
+            <div
+              className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3 text-sm text-muted-foreground"
+              data-testid="adjust-load-failed"
+            >
+              <span>Não foi possível carregar o ajuste da IA.</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                onClick={retryReadyAdjust}
+                disabled={applying}
+              >
+                Tentar de novo
+              </Button>
+            </div>
+          )}
 
           {/* Totals bar (first option per meal) */}
           <div className="sticky top-0 z-10 flex flex-wrap items-center gap-4 rounded-xl border bg-card p-3">
