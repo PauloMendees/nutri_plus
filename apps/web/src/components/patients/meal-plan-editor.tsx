@@ -405,6 +405,18 @@ export function MealPlanEditor({
   // ajuste cujo carregamento falhou nunca trava — ver loadFailedJobIdRef.
   const locked = Boolean(adjustInFlight) || readyAdjustUnapplied || applying;
 
+  // Com o overlay fixo cobrindo a janela, rolar a página por trás dele só
+  // confunde: não dá para editar nada mesmo. Trava a rolagem enquanto durar e
+  // devolve o valor anterior ao sair (inclusive se o componente desmontar).
+  useEffect(() => {
+    if (!canEdit || !locked) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [canEdit, locked]);
+
   useEffect(() => {
     if (!isCreate && query.data) form.reset(toDefaults(query.data));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -717,7 +729,11 @@ export function MealPlanEditor({
           data-testid="adjust-lock-overlay"
           role="status"
           aria-live="polite"
-          className="absolute inset-0 z-20 flex items-center justify-center rounded-xl bg-background/70 backdrop-blur-[2px]"
+          // `fixed`, não `absolute`: num plano longo o container do formulário fica
+          // muito mais alto que a tela, e um overlay absoluto centraliza o cartão no
+          // meio do formulário — longe da vista de quem está no topo. Fixo, ele fica
+          // sempre no centro da janela.
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-[2px]"
         >
           <div className="flex flex-col items-center gap-2 rounded-xl border bg-card px-6 py-5 text-center shadow-lg">
             <span className="relative flex h-10 w-10 items-center justify-center">

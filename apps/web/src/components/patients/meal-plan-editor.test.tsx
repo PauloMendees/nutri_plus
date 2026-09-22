@@ -300,6 +300,49 @@ describe('MealPlanEditor (edit mode)', () => {
     expect(screen.getByRole('button', { name: /^salvar$/i })).toBeDisabled();
   });
 
+  it('centraliza o overlay na janela e trava a rolagem da página', async () => {
+    // Num plano longo o formulário é bem mais alto que a tela: um overlay
+    // absoluto cairia no meio do formulário, fora da vista.
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'RUNNING',
+        patientId: 'p1', patientName: 'Maria', mealPlanId: 'm1',
+        error: null, createdAt: '2026-08-29T12:00:00.000Z',
+        startedAt: '2026-08-29T12:00:00.000Z', finishedAt: null, isStuck: false,
+      }],
+      isLoading: false,
+    });
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+
+    const overlay = await screen.findByTestId('adjust-lock-overlay');
+    expect(overlay).toHaveClass('fixed');
+    expect(overlay).not.toHaveClass('absolute');
+    expect(document.body.style.overflow).toBe('hidden');
+  });
+
+  it('devolve a rolagem quando o ajuste termina', async () => {
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'RUNNING',
+        patientId: 'p1', patientName: 'Maria', mealPlanId: 'm1',
+        error: null, createdAt: '2026-08-29T12:00:00.000Z',
+        startedAt: '2026-08-29T12:00:00.000Z', finishedAt: null, isStuck: false,
+      }],
+      isLoading: false,
+    });
+    const { rerender } = render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    await screen.findByTestId('adjust-lock-overlay');
+    expect(document.body.style.overflow).toBe('hidden');
+
+    useAiJobsMock.mockReturnValue({ data: [], isLoading: false });
+    rerender(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+
+    await waitFor(() =>
+      expect(screen.queryByTestId('adjust-lock-overlay')).not.toBeInTheDocument(),
+    );
+    expect(document.body.style.overflow).not.toBe('hidden');
+  });
+
   it('sem ajuste em voo, não há overlay e os campos ficam habilitados', () => {
     render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
 
