@@ -93,6 +93,13 @@ beforeEach(() => {
   useAiJobsMock.mockReset().mockReturnValue({ data: [], isLoading: false });
   consumeMut.mockReset().mockResolvedValue(undefined);
   getAiJobMock.mockReset();
+  // O mock de `sonner` é criado uma vez (hoisted) e reusado por todos os
+  // testes — sem limpar o histórico de chamadas aqui, um `toast.error`/`info`
+  // disparado por um teste anterior (ex.: falha ao salvar o ajuste) faz
+  // `not.toHaveBeenCalled()` de um teste seguinte falhar por engano.
+  vi.mocked(toast.success).mockReset();
+  vi.mocked(toast.error).mockReset();
+  vi.mocked(toast.info).mockReset();
 });
 
 describe('MealPlanEditor (edit mode)', () => {
@@ -343,6 +350,31 @@ describe('MealPlanEditor (edit mode)', () => {
     expect(document.body.style.overflow).not.toBe('hidden');
   });
 
+  it('o overlay oferece um botão para voltar ao paciente, que navega e libera a rolagem ao desmontar', async () => {
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'RUNNING',
+        patientId: 'p1', patientName: 'Maria', mealPlanId: 'm1',
+        error: null, createdAt: '2026-08-29T12:00:00.000Z',
+        startedAt: '2026-08-29T12:00:00.000Z', finishedAt: null, isStuck: false,
+      }],
+      isLoading: false,
+    });
+
+    const { unmount } = render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+
+    const overlay = await screen.findByTestId('adjust-lock-overlay');
+    expect(document.body.style.overflow).toBe('hidden');
+    const backButton = within(overlay).getByRole('button', { name: /voltar para o paciente/i });
+    await userEvent.click(backButton);
+    expect(push).toHaveBeenCalledWith('/patients/p1');
+
+    // Simula a navegação de verdade saindo da página: o cleanup do efeito de
+    // trava de rolagem precisa devolver o overflow do body ao normal.
+    unmount();
+    expect(document.body.style.overflow).not.toBe('hidden');
+  });
+
   it('sem ajuste em voo, não há overlay e os campos ficam habilitados', () => {
     render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
 
@@ -368,7 +400,7 @@ describe('MealPlanEditor (edit mode)', () => {
     expect(screen.getByDisplayValue('Plano A')).not.toBeDisabled();
   });
 
-  it('aplica sozinho o rascunho pronto deste plano e avisa por toast, sem nenhum clique', async () => {
+  it('aplica sozinho o rascunho pronto deste plano, salva e avisa por toast, sem nenhum clique', async () => {
     useAiJobsMock.mockReturnValue({
       data: [{
         id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'DONE', patientId: 'p1',
@@ -383,13 +415,17 @@ describe('MealPlanEditor (edit mode)', () => {
 
     expect(await screen.findByDisplayValue('Plano ajustado')).toBeInTheDocument();
     expect(getAiJobMock).toHaveBeenCalledWith('j1');
-    expect(consumeMut).toHaveBeenCalledWith('j1');
-    expect(toast.success).toHaveBeenCalledWith('Ajuste da IA aplicado. Revise e salve.');
-    // Aplicar não salva sozinho: o usuário ainda precisa revisar e confirmar.
-    expect(updateMut).not.toHaveBeenCalled();
+    // Salva com os MESMOS valores do rascunho, pelo mesmo caminho do onSubmit
+    // de um plano existente.
+    await waitFor(() => expect(updateMut).toHaveBeenCalledTimes(1));
+    const arg = updateMut.mock.calls[0][0];
+    expect(arg.id).toBe('m1');
+    expect(arg.body.title).toBe('Plano ajustado');
+    await waitFor(() => expect(consumeMut).toHaveBeenCalledWith('j1'));
+    expect(toast.success).toHaveBeenCalledWith('Ajuste da IA aplicado e salvo.');
   });
 
-  it('avisa que sobrescreveu alterações não salvas quando o formulário já estava sujo', async () => {
+  it('avisa que sobrescreveu alterações não salvas quando o formulário já estava sujo, e salva por cima', async () => {
     const { rerender } = render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
 
     await userEvent.type(screen.getByDisplayValue('Plano A'), ' extra');
@@ -405,11 +441,40 @@ describe('MealPlanEditor (edit mode)', () => {
     });
     rerender(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
 
+    await waitFor(() => expect(updateMut).toHaveBeenCalledTimes(1));
+    expect(updateMut.mock.calls[0][0].body.title).toBe('Plano ajustado');
     await waitFor(() => expect(consumeMut).toHaveBeenCalledWith('j1'));
     expect(toast.success).toHaveBeenCalledWith(
-      'Ajuste da IA aplicado por cima das suas alterações não salvas.',
+      'Ajuste da IA aplicado e salvo por cima das suas alterações não salvas.',
       { duration: 8000 },
     );
+  });
+
+  it('quando salvar o rascunho falha, mostra o toast de erro, mantém o rascunho na tela e ainda consome o job', async () => {
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'DONE', patientId: 'p1',
+        mealPlanId: 'm1', error: null, createdAt: '2026-08-28T12:00:00.000Z',
+        startedAt: null, finishedAt: '2026-08-28T12:01:00.000Z', isStuck: false,
+      }],
+      isLoading: false,
+    });
+    getAiJobMock.mockResolvedValue({ result: { title: 'Plano ajustado', meals: [] } });
+    updateMut.mockRejectedValueOnce(new Error('network'));
+
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+
+    expect(await screen.findByDisplayValue('Plano ajustado')).toBeInTheDocument();
+    await waitFor(() => expect(updateMut).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'Ajuste aplicado na tela, mas não foi possível salvar. Revise e salve.',
+      ),
+    );
+    // O rascunho continua na tela: uma falha ao salvar não desfaz o reset.
+    expect(screen.getByDisplayValue('Plano ajustado')).toBeInTheDocument();
+    // O job ainda é marcado como consumido mesmo quando salvar falha.
+    await waitFor(() => expect(consumeMut).toHaveBeenCalledWith('j1'));
   });
 
   it('mantém a trava enquanto o rascunho pronto ainda está sendo aplicado, e destrava ao terminar', async () => {

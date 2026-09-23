@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, Loader2, Send, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { missingPlanInputs, whatsappMeUrl } from '@nutri-plus/shared-types';
@@ -34,6 +35,29 @@ import { Button } from '@/components/ui/button';
 import { INVITE_STATUS_LABELS } from '@/lib/patients/labels';
 import { formatImc } from '@/lib/health/imc';
 
+const TAB_VALUES = [
+  'dados',
+  'anamnese',
+  'bioimpedancia',
+  'metas',
+  'planos',
+  'recordatorio',
+  'diario',
+  'silhueta',
+] as const;
+type TabValue = (typeof TAB_VALUES)[number];
+
+// A aba controla o que aparece na URL (?tab=), para um F5 não voltar sempre
+// para "Dados". "metas" e "silhueta" só existem com canEdit — sem permissão,
+// mesmo um link direto para elas cai em "Dados" em vez de tentar ativar um
+// TabsTrigger que não foi renderizado.
+function resolveTab(raw: string | null, canEdit: boolean): TabValue {
+  const match = TAB_VALUES.find((v) => v === raw);
+  if (!match) return 'dados';
+  if ((match === 'metas' || match === 'silhueta') && !canEdit) return 'dados';
+  return match;
+}
+
 export function PatientDetail({
   id,
   created,
@@ -51,7 +75,21 @@ export function PatientDetail({
   const photoPending = uploadPhoto.isPending || deletePhoto.isPending;
   const assessments = useAssessments(id);
   const [exporting, setExporting] = useState(false);
-  const [tab, setTab] = useState('dados');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // Deriva direto de searchParams em vez de useState: nenhum efeito precisa
+  // sincronizar os dois sentidos, e um F5 já chega na aba certa.
+  const tab = resolveTab(searchParams.get('tab'), canEdit);
+
+  // Escreve a aba com replace (não push): trocar de aba não deve empilhar
+  // histórico — o botão voltar do navegador precisa sair da ficha, não
+  // percorrer abas. Preserva os demais parâmetros da query (ex.: `created=1`).
+  function goToTab(next: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', next);
+    router.replace(`${pathname}?${params.toString()}`);
+  }
 
   async function onExport() {
     setExporting(true);
@@ -235,7 +273,7 @@ export function PatientDetail({
         <p className="text-lg font-bold">{formatImc(patient.imc)}</p>
       </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={goToTab}>
         <TabsList>
           <TabsTrigger value="dados" data-tour="patients.tab.dados">
             Dados
@@ -296,7 +334,7 @@ export function PatientDetail({
               patientId={patient.id}
               canEdit={canEdit}
               missingInputs={missingInputs}
-              onGoToTab={setTab}
+              onGoToTab={goToTab}
             />
           </div>
         </TabsContent>

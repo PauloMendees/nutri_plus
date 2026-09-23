@@ -351,14 +351,42 @@ export function MealPlanEditor({
       loadFailedJobIdRef.current = null;
       // isDirty precisa ser lido ANTES do reset — reset() zera o dirty flag.
       const overwritingDirty = form.formState.isDirty;
-      form.reset(draftToDefaults(detail.result));
-      if (overwritingDirty) {
-        toast.success('Ajuste da IA aplicado por cima das suas alterações não salvas.', {
-          duration: 8000,
-        });
-      } else {
-        toast.success('Ajuste da IA aplicado. Revise e salve.');
+      const draftValues = draftToDefaults(detail.result);
+      form.reset(draftValues);
+
+      // O ajuste só existe para um plano já salvo (nunca há faixa em modo
+      // criação) — a guarda é redundante com o efeito que dispara esta
+      // função (que já checa isCreate), mas fica explícita aqui também.
+      if (!isCreate && planId) {
+        try {
+          // Usa os MESMOS valores do rascunho (não form.getValues() logo
+          // após o reset) para não depender do momento em que o RHF propaga
+          // o novo estado. Mesmo caminho de salvamento do onSubmit para um
+          // plano existente.
+          await update.mutateAsync({ id: planId, body: draftValues as unknown as MealPlanFormValues });
+          // Reseta de novo com os MESMOS valores: se algo tiver disparado um
+          // form.reset() concorrente durante o await acima (ex.: o efeito
+          // que observa query.data, caso o cache seja invalidado), a tela
+          // não pode divergir do que acabou de ser persistido — o que está
+          // na tela precisa continuar sendo exatamente o que está salvo,
+          // sem ficar "sujo" (isDirty).
+          form.reset(draftValues);
+          if (overwritingDirty) {
+            toast.success(
+              'Ajuste da IA aplicado e salvo por cima das suas alterações não salvas.',
+              { duration: 8000 },
+            );
+          } else {
+            toast.success('Ajuste da IA aplicado e salvo.');
+          }
+        } catch {
+          // O rascunho fica na tela (não desfazemos o reset): desfazer
+          // devolveria valores antigos sem aviso, pior do que deixar o
+          // rascunho visível para revisão e salvamento manual.
+          toast.error('Ajuste aplicado na tela, mas não foi possível salvar. Revise e salve.');
+        }
       }
+
       try {
         await consume.mutateAsync(jobId);
       } catch {
@@ -744,6 +772,15 @@ export function MealPlanEditor({
             <p className="text-xs text-muted-foreground">
               A IA está reescrevendo este plano. O formulário fica bloqueado até terminar.
             </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={() => router.push(`/patients/${patientId}`)}
+            >
+              Voltar para o paciente
+            </Button>
           </div>
         </div>
       )}
