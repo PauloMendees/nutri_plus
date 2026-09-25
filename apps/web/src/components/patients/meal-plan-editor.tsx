@@ -358,18 +358,24 @@ export function MealPlanEditor({
       // criação) — a guarda é redundante com o efeito que dispara esta
       // função (que já checa isCreate), mas fica explícita aqui também.
       if (!isCreate && planId) {
+        // O corpo PRECISA passar pelo schema antes de ir para a API. O
+        // formulário guarda tudo como texto ('350', ''), e o mealPlanSchema é
+        // quem converte para número e transforma vazio em undefined — no fluxo
+        // normal isso acontece porque o zodResolver entrega ao onSubmit a saída
+        // já parseada, não os valores crus do formulário. Mandar draftValues
+        // direto (com um cast que só calava o TypeScript) fazia a API rejeitar
+        // por tipo: o rascunho aparecia na tela, o job era consumido, e o plano
+        // nunca era gravado.
+        const parsed = mealPlanSchema.safeParse(draftValues);
         try {
-          // Usa os MESMOS valores do rascunho (não form.getValues() logo
-          // após o reset) para não depender do momento em que o RHF propaga
-          // o novo estado. Mesmo caminho de salvamento do onSubmit para um
-          // plano existente.
-          await update.mutateAsync({ id: planId, body: draftValues as unknown as MealPlanFormValues });
+          if (!parsed.success) throw new Error('rascunho não passou no schema do formulário');
+          await update.mutateAsync({ id: planId, body: parsed.data as MealPlanFormValues });
           // Reseta de novo com os MESMOS valores: se algo tiver disparado um
-          // form.reset() concorrente durante o await acima (ex.: o efeito
-          // que observa query.data, caso o cache seja invalidado), a tela
-          // não pode divergir do que acabou de ser persistido — o que está
-          // na tela precisa continuar sendo exatamente o que está salvo,
-          // sem ficar "sujo" (isDirty).
+          // form.reset() concorrente durante o await acima (ex.: o efeito que
+          // observa query.data, caso o cache seja invalidado), a tela não pode
+          // divergir do que acabou de ser persistido — o que está na tela
+          // precisa continuar sendo exatamente o que está salvo, sem ficar
+          // "sujo" (isDirty).
           form.reset(draftValues);
           if (overwritingDirty) {
             toast.success(

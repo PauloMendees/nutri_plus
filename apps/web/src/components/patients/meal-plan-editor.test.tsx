@@ -443,6 +443,20 @@ describe('MealPlanEditor (edit mode)', () => {
 
     await waitFor(() => expect(updateMut).toHaveBeenCalledTimes(1));
     expect(updateMut.mock.calls[0][0].body.title).toBe('Plano ajustado');
+    // O corpo precisa ir PARSEADO pelo schema: o formulário guarda tudo como
+    // texto, e a API valida por tipo. Mandar as strings cruas fazia o save
+    // falhar em silêncio — o rascunho aparecia na tela e o plano nunca era
+    // gravado. Este teste é o que teria pego aquele bug.
+    const body = updateMut.mock.calls[0][0].body;
+    for (const campo of ['targetCalories', 'targetProtein', 'targetCarbs', 'targetFats']) {
+      if (body[campo] !== undefined) expect(typeof body[campo]).toBe('number');
+    }
+    const primeiroItem = body.meals?.[0]?.options?.[0]?.items?.[0];
+    if (primeiroItem) {
+      for (const campo of ['grams', 'calories', 'protein', 'carbs', 'fats']) {
+        if (primeiroItem[campo] !== undefined) expect(typeof primeiroItem[campo]).toBe('number');
+      }
+    }
     await waitFor(() => expect(consumeMut).toHaveBeenCalledWith('j1'));
     expect(toast.success).toHaveBeenCalledWith(
       'Ajuste da IA aplicado e salvo por cima das suas alterações não salvas.',
