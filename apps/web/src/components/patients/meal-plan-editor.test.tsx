@@ -307,6 +307,34 @@ describe('MealPlanEditor (edit mode)', () => {
     expect(screen.getByRole('button', { name: /^salvar$/i })).toBeDisabled();
   });
 
+  it('mostra "Salvando o ajuste" enquanto aplica o rascunho, não "Ajuste em andamento"', async () => {
+    // Com um texto só, a fase de salvar parecia que a IA tinha voltado a
+    // trabalhar logo depois do aviso verde de sucesso.
+    useAiJobsMock.mockReturnValue({
+      data: [{
+        id: 'j1', type: 'MEAL_PLAN_ADJUSTMENT', status: 'DONE',
+        patientId: 'p1', patientName: 'Maria', mealPlanId: 'm1',
+        error: null, createdAt: '2026-08-29T12:00:00.000Z',
+        startedAt: '2026-08-29T12:00:00.000Z', finishedAt: '2026-08-29T12:01:00.000Z',
+        consumedAt: null, isStuck: false,
+      }],
+      isLoading: false,
+    });
+    let liberar: (v: unknown) => void = () => {};
+    getAiJobMock.mockReturnValue(new Promise((res) => { liberar = res; }));
+
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+
+    const overlay = await screen.findByTestId('adjust-lock-overlay');
+    expect(overlay).toHaveTextContent('Salvando o ajuste');
+    expect(overlay).not.toHaveTextContent('A IA está reescrevendo este plano');
+
+    liberar({ result: { title: 'Plano ajustado', meals: [] } });
+    await waitFor(() =>
+      expect(screen.queryByTestId('adjust-lock-overlay')).not.toBeInTheDocument(),
+    );
+  });
+
   it('centraliza o overlay na janela e trava a rolagem da página', async () => {
     // Num plano longo o formulário é bem mais alto que a tela: um overlay
     // absoluto cairia no meio do formulário, fora da vista.

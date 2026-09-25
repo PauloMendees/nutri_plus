@@ -774,9 +774,17 @@ export function MealPlanEditor({
               <Loader2 className="absolute h-10 w-10 animate-spin text-primary/40" aria-hidden="true" />
               <Lock className="h-5 w-5 text-primary" aria-hidden="true" />
             </span>
-            <p className="text-sm font-semibold">Ajuste em andamento</p>
+            {/* Duas fases, dois textos: enquanto a IA escreve, e depois, enquanto
+                o rascunho é carregado e salvo. Com um texto só, a segunda fase
+                parecia que a IA tinha voltado a trabalhar logo depois do aviso de
+                sucesso. */}
+            <p className="text-sm font-semibold">
+              {applying ? 'Salvando o ajuste' : 'Ajuste em andamento'}
+            </p>
             <p className="text-xs text-muted-foreground">
-              A IA está reescrevendo este plano. O formulário fica bloqueado até terminar.
+              {applying
+                ? 'Aplicando a nova versão ao plano e salvando. Só um instante.'
+                : 'A IA está reescrevendo este plano. O formulário fica bloqueado até terminar.'}
             </p>
             <Button
               type="button"
