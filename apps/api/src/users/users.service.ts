@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
-import { canonicalizeWhatsappNumber } from '@nutri-plus/shared-types';
+import { tryCanonicalizeWhatsappNumber } from '@nutri-plus/shared-types';
 import { Prisma, UserRole } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { DEMO_PROVIDER, SUPABASE_PROVIDER } from '../auth/auth.constants';
@@ -43,17 +43,6 @@ function isReferralCodeCollision(
   return text.includes('referralCode');
 }
 
-// The signup number arrives via client-controlled auth metadata. The form
-// already enforces it; here an absent or invalid value becomes null so it can
-// never block account creation.
-function signupWhatsapp(raw: string | undefined): string | null {
-  try {
-    return canonicalizeWhatsappNumber(raw);
-  } catch {
-    return null;
-  }
-}
-
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
@@ -72,7 +61,10 @@ export class UsersService {
     };
 
     if (input.role === UserRole.NUTRITIONIST) {
-      return this.createNutritionist(base, signupWhatsapp(input.whatsapp));
+      // The signup number arrives via client-controlled auth metadata. The form
+      // already enforces it; an absent or invalid value becomes null here so it
+      // can never block account creation.
+      return this.createNutritionist(base, tryCanonicalizeWhatsappNumber(input.whatsapp));
     }
 
     let nutritionistId: string | undefined;

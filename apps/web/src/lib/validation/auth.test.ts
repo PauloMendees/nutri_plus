@@ -25,11 +25,8 @@ describe('signupSchema', () => {
     const r = signupSchema.safeParse({ ...base, confirmPassword: 'different' });
     expect(r.success).toBe(false);
   });
-  it('rejects a missing WhatsApp', () => {
-    expect(signupSchema.safeParse({ ...base, whatsapp: '' }).success).toBe(false);
-  });
-  it('rejects an invalid WhatsApp', () => {
-    expect(signupSchema.safeParse({ ...base, whatsapp: '123' }).success).toBe(false);
+  it.each(['', '   ', '123'])('rejects WhatsApp %j', (whatsapp) => {
+    expect(signupSchema.safeParse({ ...base, whatsapp }).success).toBe(false);
   });
   it('rejects a short password', () => {
     expect(

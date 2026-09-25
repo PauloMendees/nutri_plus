@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { canonicalizeWhatsappNumber } from '@nutri-plus/shared-types';
 import { createSignupClient } from '@/lib/supabase/client';
 import { signupSchema, type SignupValues } from '@/lib/validation/auth';
 import { mapAuthError } from '@/lib/auth/errors';
@@ -43,8 +42,9 @@ export function SignupForm() {
       email: values.email,
       password: values.password,
       options: {
-        // O WhatsApp vira o contato dos pacientes no perfil criado pelo sync-user.
-        data: { name: values.name, whatsapp: canonicalizeWhatsappNumber(values.whatsapp) },
+        // O WhatsApp vira o contato dos pacientes no perfil criado pelo sync-user,
+        // que canonicaliza o número (os metadados vêm do cliente).
+        data: { name: values.name, whatsapp: values.whatsapp },
         // `?plan=` sempre presente (vazio quando não houve escolha): o template
         // de e-mail do Supabase concatena `&token_hash=…&type=signup` nesta
         // URL, e sem query string a concatenação viraria parte do path.

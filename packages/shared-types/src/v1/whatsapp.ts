@@ -8,6 +8,15 @@ export function canonicalizeWhatsappNumber(input: string | null | undefined): st
   throw new Error('invalid');
 }
 
+// Non-throwing variant: null for empty *or* invalid input.
+export function tryCanonicalizeWhatsappNumber(input: string | null | undefined): string | null {
+  try {
+    return canonicalizeWhatsappNumber(input);
+  } catch {
+    return null;
+  }
+}
+
 export function whatsappMeUrl(canonicalDigits: string): string {
   return `https://wa.me/${canonicalDigits}`;
 }
