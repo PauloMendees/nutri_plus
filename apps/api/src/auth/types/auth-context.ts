@@ -15,5 +15,6 @@ export interface AuthContext {
   authProviderId: string;
   email: string;
   name: string;
+  whatsapp?: string;
   user: LocalUser | null;
 }

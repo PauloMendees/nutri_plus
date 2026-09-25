@@ -14,6 +14,8 @@ describe('signupSchema', () => {
   const base = {
     name: 'Dra. Ana',
     email: 'ana@clinica.com',
+    countryCode: '+55',
+    whatsapp: '11999998888',
     password: 'supersecret',
     confirmPassword: 'supersecret',
   };
@@ -23,6 +25,17 @@ describe('signupSchema', () => {
   it('rejects when passwords do not match', () => {
     const r = signupSchema.safeParse({ ...base, confirmPassword: 'different' });
     expect(r.success).toBe(false);
+  });
+  it.each(['', '   ', '123', '119999'])('rejects WhatsApp %j', (whatsapp) => {
+    expect(signupSchema.safeParse({ ...base, whatsapp }).success).toBe(false);
+  });
+  it.each(['', '+', '55', '+1234'])('rejects country code %j', (countryCode) => {
+    expect(signupSchema.safeParse({ ...base, countryCode }).success).toBe(false);
+  });
+  it('accepts a foreign number with its country code', () => {
+    expect(
+      signupSchema.safeParse({ ...base, countryCode: '+1', whatsapp: '2025550123' }).success,
+    ).toBe(true);
   });
   it('rejects a short password', () => {
     expect(

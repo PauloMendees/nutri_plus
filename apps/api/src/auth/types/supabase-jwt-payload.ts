@@ -4,6 +4,8 @@ export interface SupabaseJwtPayload {
   user_metadata?: {
     name?: string;
     full_name?: string;
+    // Preenchido pelo formulário de cadastro da nutricionista.
+    whatsapp?: string;
   };
   // Standard JWT claims present on every Supabase token (validated by
   // passport-jwt for expiry; declared here for accurate typing).

@@ -89,6 +89,29 @@ describe('UsersService', () => {
     );
   });
 
+  // Metadados vêm do cliente: ausente ou inválido vira null, nunca trava a conta.
+  it.each([
+    ['(11) 99999-8888', '5511999998888'],
+    ['+55 (11) 99999-8888', '5511999998888'],
+    // DDI explícito é respeitado: não vira "55" + 11 dígitos.
+    ['+1 2025550123', '12025550123'],
+    [undefined, null],
+    ['123', null],
+  ])('stores signup WhatsApp %j as %j on the profile', async (whatsapp, expected) => {
+    prisma.user.create.mockResolvedValue({ id: 'user-w' } as any);
+
+    await service.createWithProfile({
+      authProviderId: 'sub-w',
+      email: 'w@x.com',
+      name: 'NutW',
+      role: UserRole.NUTRITIONIST,
+      whatsapp,
+    });
+
+    const createArg = prisma.user.create.mock.calls[0][0] as any;
+    expect(createArg.data.nutritionistProfile.create.whatsappNumber).toBe(expected);
+  });
+
   it('retries referral code generation on a unique collision', async () => {
     const collision = new Prisma.PrismaClientKnownRequestError(
       'Unique constraint failed',

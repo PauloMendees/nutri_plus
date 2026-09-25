@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { tryCanonicalizeWhatsappNumber } from '@nutri-plus/shared-types';
 import { Prisma, UserRole } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { DEMO_PROVIDER, SUPABASE_PROVIDER } from '../auth/auth.constants';
@@ -13,6 +14,7 @@ interface CreateWithProfileInput {
   name: string;
   role: UserRole;
   referralCode?: string;
+  whatsapp?: string;
 }
 
 type UserBaseData = {
@@ -59,7 +61,10 @@ export class UsersService {
     };
 
     if (input.role === UserRole.NUTRITIONIST) {
-      return this.createNutritionist(base);
+      // The signup number arrives via client-controlled auth metadata. The form
+      // already enforces it; an absent or invalid value becomes null here so it
+      // can never block account creation.
+      return this.createNutritionist(base, tryCanonicalizeWhatsappNumber(input.whatsapp));
     }
 
     let nutritionistId: string | undefined;
@@ -198,7 +203,10 @@ export class UsersService {
     }
   }
 
-  private async createNutritionist(base: UserBaseData): Promise<LocalUser> {
+  private async createNutritionist(
+    base: UserBaseData,
+    whatsappNumber: string | null,
+  ): Promise<LocalUser> {
     for (let attempt = 1; attempt <= MAX_REFERRAL_ATTEMPTS; attempt++) {
       try {
         return await this.prisma.user.create({
@@ -207,6 +215,7 @@ export class UsersService {
             nutritionistProfile: {
               create: {
                 referralCode: generateReferralCode(),
+                whatsappNumber,
                 subscription: {
                   create: { status: 'TRIALING' },
                 },
