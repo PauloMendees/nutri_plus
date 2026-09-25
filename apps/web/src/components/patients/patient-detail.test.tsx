@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { useSyncExternalStore } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApiError } from '@/lib/api/client';
@@ -48,7 +49,32 @@ vi.mock('@/lib/queries/nutrition-targets', () => ({
   useNutritionTargets: () => ({ data: [], isLoading: false }),
   useCreateNutritionTarget: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+const push = vi.fn();
+const replace = vi.fn();
+// Fake router: `replace` de verdade "navega" (atualiza os search params e
+// notifica quem está inscrito), igual ao App Router faria — sem isso, clicar
+// numa aba não re-renderiza o componente e o conteúdo da aba nunca aparece,
+// já que a aba passou a ser derivada só de searchParams (sem useState local).
+let currentSearchParams = new URLSearchParams();
+const searchParamsListeners = new Set<() => void>();
+replace.mockImplementation((url: string) => {
+  const qIndex = url.indexOf('?');
+  currentSearchParams = new URLSearchParams(qIndex >= 0 ? url.slice(qIndex + 1) : '');
+  searchParamsListeners.forEach((listener) => listener());
+});
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push, replace }),
+  usePathname: () => '/patients/p1',
+  useSearchParams: () =>
+    useSyncExternalStore(
+      (listener) => {
+        searchParamsListeners.add(listener);
+        return () => searchParamsListeners.delete(listener);
+      },
+      () => currentSearchParams,
+      () => currentSearchParams,
+    ),
+}));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('@/lib/queries/subscription', () => ({
   useSubscription: () => ({ data: { entitlements: { features: { silhueta: true } } } }),
@@ -94,6 +120,12 @@ beforeEach(() => {
   uploadPhotoPending = false;
   useAssessments.mockReset().mockReturnValue({ data: [], isLoading: false, isError: false });
   vi.spyOn(window, 'confirm').mockReturnValue(true);
+  push.mockReset();
+  // mockClear, não mockReset: reset apagaria a implementação que faz o
+  // `replace` de fato "navegar" (atualizar os search params), e a partir do
+  // segundo teste clicar numa aba deixaria de trocar de aba.
+  replace.mockClear();
+  currentSearchParams = new URLSearchParams();
 });
 
 describe('PatientDetail', () => {
@@ -350,5 +382,65 @@ describe('PatientDetail', () => {
     render(<PatientDetail id="p1" created={false} canEdit />);
     await userEvent.click(screen.getByRole('tab', { name: /planos alimentares/i }));
     expect(await screen.findByRole('button', { name: /gerar com ia/i })).toBeEnabled();
+  });
+});
+
+describe('PatientDetail — aba persiste na URL', () => {
+  it('sem parâmetro na URL, a aba ativa é Dados', () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} />);
+    expect(screen.getByRole('tab', { name: /^dados$/i })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('com ?tab=planos, a aba de planos alimentares já vem ativa na montagem', () => {
+    currentSearchParams = new URLSearchParams({ tab: 'planos' });
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} canEdit />);
+    expect(screen.getByRole('tab', { name: /planos alimentares/i })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  it('clicar em outra aba chama router.replace com a URL contendo tab=<novo>, sem empilhar histórico', async () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} canEdit />);
+    // Bioimpedância de propósito: o conteúdo da aba de anamnese depende de um
+    // QueryClientProvider que este arquivo de teste não monta.
+    await userEvent.click(screen.getByRole('tab', { name: /bioimpedância/i }));
+    expect(replace).toHaveBeenCalledWith('/patients/p1?tab=bioimpedancia');
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('preserva outros parâmetros da query ao trocar de aba', async () => {
+    currentSearchParams = new URLSearchParams({ created: '1' });
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} canEdit />);
+    await userEvent.click(screen.getByRole('tab', { name: /bioimpedância/i }));
+    const url = replace.mock.calls[0][0] as string;
+    expect(url).toContain('created=1');
+    expect(url).toContain('tab=bioimpedancia');
+  });
+
+  it('um valor de aba desconhecido na URL cai em Dados', () => {
+    currentSearchParams = new URLSearchParams({ tab: 'inexistente' });
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} />);
+    expect(screen.getByRole('tab', { name: /^dados$/i })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('?tab=metas sem canEdit cai em Dados', () => {
+    currentSearchParams = new URLSearchParams({ tab: 'metas' });
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} canEdit={false} />);
+    expect(screen.getByRole('tab', { name: /^dados$/i })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('o atalho "Registrar peso" da seção de planos continua levando à aba de bioimpedância', async () => {
+    currentSearchParams = new URLSearchParams({ tab: 'planos' });
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} canEdit />);
+    await userEvent.click(await screen.findByRole('button', { name: /registrar peso/i }));
+    expect(replace).toHaveBeenCalledWith('/patients/p1?tab=bioimpedancia');
   });
 });

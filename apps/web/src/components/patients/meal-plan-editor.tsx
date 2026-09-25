@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Loader2, Sparkles } from 'lucide-react';
+import { ChevronLeft, Loader2, Lock, Sparkles } from 'lucide-react';
 import {
   useFieldArray,
   useForm,
@@ -16,7 +16,7 @@ import {
 } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import type { Food, MealPlan, MealPlanDraft } from '@nutri-plus/shared-types';
+import type { AiJobDetail, Food, MealPlan, MealPlanDraft } from '@nutri-plus/shared-types';
 import { macrosForPortion } from '@nutri-plus/shared-types';
 import { mealPlanSchema, type MealPlanFormValues } from '@/lib/validation/meal-plan';
 import { registerFixture } from '@/lib/onboarding/fixtures';
@@ -231,6 +231,10 @@ export function MealPlanEditor({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [adjusting, setAdjusting] = useState(false);
+  // Fica true do início do fetch do detalhe até o fim do consumo — cobre a
+  // janela em que o job já virou DONE mas o rascunho ainda não chegou ao
+  // formulário, para o usuário não conseguir salvar valores antigos por cima.
+  const [applying, setApplying] = useState(false);
   const aiJobs = useAiJobs(patientId);
   const consume = useConsumeAiJob();
   // Preferência por nutricionista: o editor é reaberto dezenas de vezes por dia,
@@ -263,6 +267,11 @@ export function MealPlanEditor({
     defaultValues: blankDefaults(),
   });
   const meals = useFieldArray({ control: form.control, name: 'meals' });
+  // O RHF só mantém `formState.isDirty` atualizado depois que ele é lido durante
+  // o render pelo menos uma vez — sem isto, ler isDirty só dentro do handler de
+  // aplicação do ajuste (mais abaixo) sempre devolveria `false`.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { isDirty: _isDirtyTracked } = form.formState;
 
   // Só o ajuste DESTE plano. listForPatient devolve jobs do paciente inteiro, e
   // carregar o rascunho de outro plano aqui substituiria a árvore errada ao salvar.
@@ -275,18 +284,172 @@ export function MealPlanEditor({
       )
     : undefined;
 
+  // Um job só pode ser aplicado uma vez. Sem essa trava, o polling (a cada 2s)
+  // reaplicaria o mesmo rascunho — e cada aplicação dispara reset() + toast.
+  const appliedJobIdRef = useRef<string | null>(null);
+
+  // Job cujo carregamento falhou (getAiJob rejeitou, ou voltou sem `result`).
+  // Existe para o formulário NUNCA ficar travado à toa: `useAiJobs` só faz
+  // polling enquanto há job PENDING/RUNNING — um job DONE não gera mais
+  // refetch automático, e mesmo que gerasse, o structuralSharing do React
+  // Query preservaria a mesma referência (o efeito abaixo depende de
+  // `readyAdjust` por identidade e não reexecutaria). Ou seja: sem esta
+  // marca, uma falha de carga travaria a tela até a pessoa navegar para
+  // outra página e voltar. Com ela, o job falho é excluído do cálculo de
+  // `readyAdjustUnapplied` (destrava na hora) e uma faixa com "Tentar de
+  // novo" assume a recuperação manualmente.
+  const loadFailedJobIdRef = useRef<string | null>(null);
+
+  // Verdadeiro enquanto existir um ajuste pronto para este plano que ainda não
+  // foi aplicado ao formulário — cobre o intervalo entre o polling detectar o
+  // DONE e o efeito abaixo terminar de buscar o detalhe e resetar o form. Uma
+  // vez aplicado (ref marcado), um job que ficou DONE mas não pôde ser
+  // marcado como consumido (falha de rede) deixa de travar a tela: o rascunho
+  // já está na tela e reaplicá-lo de novo seria pior, não travar é o correto.
+  // O mesmo vale para um job cujo CARREGAMENTO falhou (loadFailedJobIdRef):
+  // nada foi aplicado, mas travar sem chance de recuperação automática seria
+  // pior — a faixa de erro assume esse papel. Só entra em jogo com canEdit —
+  // sem permissão de edição a aplicação automática nunca roda (o efeito
+  // abaixo sai cedo), então não há o que proteger e travar a tela (inclusive
+  // Exportar PDF) seria só confuso.
+  const readyAdjustUnapplied =
+    canEdit &&
+    Boolean(readyAdjust) &&
+    appliedJobIdRef.current !== readyAdjust?.id &&
+    loadFailedJobIdRef.current !== readyAdjust?.id;
+
+  // Verdadeiro quando o ajuste pronto deste plano é exatamente o que falhou
+  // ao carregar — controla a faixa de erro com "Tentar de novo".
+  const loadFailed = Boolean(readyAdjust) && loadFailedJobIdRef.current === readyAdjust?.id;
+
   async function applyReadyAdjust(jobId: string) {
+    setApplying(true);
     try {
-      const detail = await getAiJob(jobId);
-      if (detail.result) {
-        form.reset(draftToDefaults(detail.result));
-        toast.success('Ajuste carregado — revise e salve.');
+      let detail: AiJobDetail;
+      try {
+        detail = await getAiJob(jobId);
+      } catch {
+        // Falhou ao buscar o detalhe: não marca como aplicado (para uma
+        // eventual repetição automática poder funcionar) e marca como
+        // falho, para destravar a tela e oferecer "Tentar de novo".
+        appliedJobIdRef.current = null;
+        loadFailedJobIdRef.current = jobId;
+        toast.error('Não foi possível carregar o ajuste.');
+        return;
       }
-      await consume.mutateAsync(jobId);
-    } catch {
-      toast.error('Não foi possível carregar o ajuste.');
+      if (!detail.result) {
+        // Job DONE mas sem rascunho para aplicar — sem isto não haveria o
+        // que consumir, e o job ficaria pendurado sem toast, sem consumo e
+        // sem chance de nova tentativa. Tratamos como falha de carga.
+        appliedJobIdRef.current = null;
+        loadFailedJobIdRef.current = jobId;
+        toast.error('Não foi possível carregar o ajuste.');
+        return;
+      }
+      // Uma tentativa anterior deste MESMO job pode ter falhado; carregou
+      // agora, então a marca de falha não vale mais.
+      loadFailedJobIdRef.current = null;
+      // isDirty precisa ser lido ANTES do reset — reset() zera o dirty flag.
+      const overwritingDirty = form.formState.isDirty;
+      const draftValues = draftToDefaults(detail.result);
+      form.reset(draftValues);
+
+      // O ajuste só existe para um plano já salvo (nunca há faixa em modo
+      // criação) — a guarda é redundante com o efeito que dispara esta
+      // função (que já checa isCreate), mas fica explícita aqui também.
+      if (!isCreate && planId) {
+        // O corpo PRECISA passar pelo schema antes de ir para a API. O
+        // formulário guarda tudo como texto ('350', ''), e o mealPlanSchema é
+        // quem converte para número e transforma vazio em undefined — no fluxo
+        // normal isso acontece porque o zodResolver entrega ao onSubmit a saída
+        // já parseada, não os valores crus do formulário. Mandar draftValues
+        // direto (com um cast que só calava o TypeScript) fazia a API rejeitar
+        // por tipo: o rascunho aparecia na tela, o job era consumido, e o plano
+        // nunca era gravado.
+        const parsed = mealPlanSchema.safeParse(draftValues);
+        try {
+          if (!parsed.success) throw new Error('rascunho não passou no schema do formulário');
+          await update.mutateAsync({ id: planId, body: parsed.data as MealPlanFormValues });
+          // Reseta de novo com os MESMOS valores: se algo tiver disparado um
+          // form.reset() concorrente durante o await acima (ex.: o efeito que
+          // observa query.data, caso o cache seja invalidado), a tela não pode
+          // divergir do que acabou de ser persistido — o que está na tela
+          // precisa continuar sendo exatamente o que está salvo, sem ficar
+          // "sujo" (isDirty).
+          form.reset(draftValues);
+          if (overwritingDirty) {
+            toast.success(
+              'Ajuste da IA aplicado e salvo por cima das suas alterações não salvas.',
+              { duration: 8000 },
+            );
+          } else {
+            toast.success('Ajuste da IA aplicado e salvo.');
+          }
+        } catch {
+          // O rascunho fica na tela (não desfazemos o reset): desfazer
+          // devolveria valores antigos sem aviso, pior do que deixar o
+          // rascunho visível para revisão e salvamento manual.
+          toast.error('Ajuste aplicado na tela, mas não foi possível salvar. Revise e salve.');
+        }
+      }
+
+      try {
+        await consume.mutateAsync(jobId);
+      } catch {
+        // O rascunho já está na tela e o ref já foi marcado (o efeito que
+        // chamou esta função marca antes de chamar) — reaplicar no próximo
+        // poll seria pior: apagaria em silêncio qualquer edição feita em
+        // cima do rascunho recém-aplicado. Só avisamos.
+        toast.info('Ajuste aplicado, mas não foi possível marcá-lo como concluído.');
+      }
+    } finally {
+      setApplying(false);
     }
   }
+
+  // Ação do botão "Tentar de novo" na faixa de erro: limpa a marca de falha
+  // e dispara a aplicação de novo, desta vez por escolha explícita do
+  // usuário. Marca appliedJobIdRef como o efeito automático faria — sem
+  // isso, um retry BEM-SUCEDIDO deixaria `readyAdjustUnapplied` voltando a
+  // `true` no render seguinte (nenhum ref bateria com o id do job) e a tela
+  // travaria de novo logo depois de ter sido corrigida.
+  function retryReadyAdjust() {
+    if (!readyAdjust) return;
+    loadFailedJobIdRef.current = null;
+    appliedJobIdRef.current = readyAdjust.id;
+    void applyReadyAdjust(readyAdjust.id);
+  }
+
+  // Carrega o rascunho pronto sozinho, sem esperar clique. Em modo criação
+  // (sem planId) e sem permissão de edição, nunca aplica. Um job já marcado
+  // como falho não é retomado automaticamente — só pelo clique em "Tentar de
+  // novo" (evita reaplicar escondido logo depois que o usuário acabou de ver
+  // o erro).
+  useEffect(() => {
+    if (isCreate || !canEdit || !readyAdjust) return;
+    if (appliedJobIdRef.current === readyAdjust.id) return;
+    if (loadFailedJobIdRef.current === readyAdjust.id) return;
+    appliedJobIdRef.current = readyAdjust.id;
+    void applyReadyAdjust(readyAdjust.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCreate, canEdit, readyAdjust]);
+
+  // Trava o formulário: ajuste em voo (PENDING/RUNNING), ajuste pronto ainda
+  // não aplicado, ou aplicação em andamento (fetch do detalhe + consumo). Um
+  // ajuste cujo carregamento falhou nunca trava — ver loadFailedJobIdRef.
+  const locked = Boolean(adjustInFlight) || readyAdjustUnapplied || applying;
+
+  // Com o overlay fixo cobrindo a janela, rolar a página por trás dele só
+  // confunde: não dá para editar nada mesmo. Trava a rolagem enquanto durar e
+  // devolve o valor anterior ao sair (inclusive se o componente desmontar).
+  useEffect(() => {
+    if (!canEdit || !locked) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [canEdit, locked]);
 
   useEffect(() => {
     if (!isCreate && query.data) form.reset(toDefaults(query.data));
@@ -425,6 +588,7 @@ export function MealPlanEditor({
                 size="sm"
                 className="rounded-full shadow-sm shadow-primary/30"
                 onClick={() => setAdjusting(true)}
+                disabled={locked}
               >
                 <Sparkles className="h-4 w-4" aria-hidden="true" />
                 Solicitar ajustes à IA
@@ -436,7 +600,7 @@ export function MealPlanEditor({
               size="sm"
               className="rounded-full"
               onClick={onExport}
-              disabled={exporting}
+              disabled={exporting || locked}
               data-tour="patients.plan.pdf"
             >
               {exporting ? 'Exportando…' : 'Exportar PDF'}
@@ -444,8 +608,9 @@ export function MealPlanEditor({
           </div>
         )}
       </div>
+      <div className="relative">
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="space-y-4">
-        <fieldset disabled={!canEdit} className="m-0 min-w-0 space-y-4 border-0 p-0">
+        <fieldset disabled={!canEdit || locked} className="m-0 min-w-0 space-y-4 border-0 p-0">
           {/* Header */}
           <div className="space-y-2">
             <label className="block text-sm font-medium" htmlFor="mp-title">Título</label>
@@ -480,27 +645,21 @@ export function MealPlanEditor({
             </div>
           </div>
 
-          {adjustInFlight && (
-    <div
-      className="flex items-center gap-2 rounded-xl border bg-card p-3 text-sm text-muted-foreground"
-      data-testid="adjust-in-flight"
-    >
-      <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />
-      Ajuste em andamento. Avisamos aqui quando estiver pronto para revisar.
-    </div>
-  )}
-
-  {canEdit && readyAdjust && (
-            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/40 bg-card p-3 text-sm">
-              <span>Ajuste pronto para este plano.</span>
+          {canEdit && loadFailed && (
+            <div
+              className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3 text-sm text-muted-foreground"
+              data-testid="adjust-load-failed"
+            >
+              <span>Não foi possível carregar o ajuste da IA.</span>
               <Button
                 type="button"
+                variant="outline"
                 size="sm"
                 className="rounded-full"
-                onClick={() => applyReadyAdjust(readyAdjust.id)}
-                disabled={consume.isPending}
+                onClick={retryReadyAdjust}
+                disabled={applying}
               >
-                Revisar ajuste
+                Tentar de novo
               </Button>
             </div>
           )}
@@ -571,7 +730,7 @@ export function MealPlanEditor({
                     type="button"
                     className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     onClick={onDelete}
-                    disabled={remove.isPending}
+                    disabled={remove.isPending || locked}
                   >
                     Excluir
                   </Button>
@@ -582,6 +741,7 @@ export function MealPlanEditor({
                   variant="outline"
                   className="mr-auto rounded-full text-destructive"
                   onClick={() => setConfirmingDelete(true)}
+                  disabled={locked}
                 >
                   Excluir
                 </Button>
@@ -589,7 +749,7 @@ export function MealPlanEditor({
             <Button
               type="submit"
               className="rounded-full"
-              disabled={pending}
+              disabled={pending || locked}
               data-tour="patients.plan.save"
             >
               {pending ? 'Salvando…' : 'Salvar'}
@@ -597,6 +757,48 @@ export function MealPlanEditor({
           </div>
         )}
       </form>
+
+      {canEdit && locked && (
+        <div
+          data-testid="adjust-lock-overlay"
+          role="status"
+          aria-live="polite"
+          // `fixed`, não `absolute`: num plano longo o container do formulário fica
+          // muito mais alto que a tela, e um overlay absoluto centraliza o cartão no
+          // meio do formulário — longe da vista de quem está no topo. Fixo, ele fica
+          // sempre no centro da janela.
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-[2px]"
+        >
+          <div className="flex flex-col items-center gap-2 rounded-xl border bg-card px-6 py-5 text-center shadow-lg">
+            <span className="relative flex h-10 w-10 items-center justify-center">
+              <Loader2 className="absolute h-10 w-10 animate-spin text-primary/40" aria-hidden="true" />
+              <Lock className="h-5 w-5 text-primary" aria-hidden="true" />
+            </span>
+            {/* Duas fases, dois textos: enquanto a IA escreve, e depois, enquanto
+                o rascunho é carregado e salvo. Com um texto só, a segunda fase
+                parecia que a IA tinha voltado a trabalhar logo depois do aviso de
+                sucesso. */}
+            <p className="text-sm font-semibold">
+              {applying ? 'Salvando o ajuste' : 'Ajuste em andamento'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {applying
+                ? 'Aplicando a nova versão ao plano e salvando. Só um instante.'
+                : 'A IA está reescrevendo este plano. O formulário fica bloqueado até terminar.'}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={() => router.push(`/patients/${patientId}`)}
+            >
+              Voltar para o paciente
+            </Button>
+          </div>
+        </div>
+      )}
+      </div>
 
       {!isCreate && (
         <AiAdjustDialog
