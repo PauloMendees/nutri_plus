@@ -73,6 +73,7 @@ enum FeedbackSource {
 enum LifecycleEmailKind {
   TRIAL_NO_PATIENT
   CHECKOUT_ABANDONED
+  TRIAL_NOT_STARTED
 }
 
 enum AiJobType {

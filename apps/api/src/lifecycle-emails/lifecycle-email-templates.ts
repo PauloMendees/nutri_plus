@@ -179,3 +179,47 @@ export function buildCheckoutAbandonedEmail(input: CheckoutAbandonedEmailInput):
 
   return { subject, text, html };
 }
+
+export interface TrialNotStartedEmailInput {
+  name: string | null | undefined;
+  webOrigin: string;
+}
+
+export function buildTrialNotStartedEmail(input: TrialNotStartedEmailInput): LifecycleEmailOutput {
+  const subject = 'Seu teste do iNutri ainda não começou';
+  const preheader = 'Falta um clique para liberar os 7 dias com tudo incluído.';
+  const hello = greeting(input.name);
+  const link = `${input.webOrigin}/assinatura`;
+
+  const text = [
+    hello,
+    '',
+    'Você criou sua conta no iNutri, mas o período de teste ainda não foi iniciado. Sem ele, o sistema abre só para leitura: dá para olhar, não dá para cadastrar paciente nem gerar plano.',
+    '',
+    'São 7 dias com tudo liberado, sem cartão: planos com IA, importação da sua base por planilha, agenda, ficha clínica e o aplicativo do paciente.',
+    '',
+    `Começar meu teste: ${link}`,
+    '',
+    'Se tiver qualquer dúvida antes de começar, responda a este e-mail. Eu respondo pessoalmente.',
+    '',
+    'Paulo Mendes',
+    'iNutri',
+  ].join('\n');
+
+  const bodyHtml = `<p style="${BODY_P}">${escapeHtml(hello)}</p>
+    <p style="${BODY_P}">Você criou sua conta no iNutri, mas o período de teste ainda não foi iniciado. Sem ele, o sistema abre só para leitura: dá para olhar, não dá para cadastrar paciente nem gerar plano.</p>
+    <p style="${BODY_P}">São 7 dias com tudo liberado, sem cartão: planos com IA, importação da sua base por planilha, agenda, ficha clínica e o aplicativo do paciente.</p>
+    ${ctaButtonHtml(link, 'Começar meu teste')}
+    <p style="${BODY_P}">Se tiver qualquer dúvida antes de começar, responda a este e-mail. Eu respondo pessoalmente.</p>
+    <p style="${BODY_P}">Paulo Mendes<br>iNutri</p>`;
+
+  const html = wrapTransactionalEmail({
+    title: 'Falta um clique para começar',
+    preheader,
+    bodyHtml,
+    footer:
+      'Você recebe este e-mail porque criou uma conta no iNutri. Para não receber avisos como este, responda com "não quero".',
+  });
+
+  return { subject, text, html };
+}

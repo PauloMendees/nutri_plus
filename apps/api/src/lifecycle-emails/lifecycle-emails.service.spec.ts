@@ -24,10 +24,15 @@ function configWith(overrides: Record<string, string | undefined> = {}): ConfigS
   } as unknown as ConfigService;
 }
 
-function nutritionistRow(overrides: Partial<{ id: string; name: string | null; email: string }> = {}) {
+function nutritionistRow(overrides: Partial<{ id: string; name: string | null; email: string; createdAt: Date }> = {}) {
   return {
     id: overrides.id ?? 'nutri-1',
-    user: { id: 'user-1', name: overrides.name ?? 'Elizabeth Fonseca', email: overrides.email ?? 'eli@example.com' },
+    user: {
+      id: 'user-1',
+      name: overrides.name ?? 'Elizabeth Fonseca',
+      email: overrides.email ?? 'eli@example.com',
+      createdAt: overrides.createdAt ?? new Date('2026-09-01T12:00:00Z'),
+    },
   };
 }
 
@@ -267,6 +272,7 @@ describe('LifecycleEmailsService.dispatch', () => {
     expect(out).toEqual({
       trialNoPatient: { eligible: 0, sent: 0 },
       checkoutAbandoned: { eligible: 0, sent: 0 },
+      trialNotStarted: { eligible: 0, sent: 0 },
     });
   });
 
@@ -279,6 +285,153 @@ describe('LifecycleEmailsService.dispatch', () => {
     expect(out).toEqual({
       trialNoPatient: { eligible: 0, sent: 0 },
       checkoutAbandoned: { eligible: 0, sent: 0 },
+      trialNotStarted: { eligible: 0, sent: 0 },
+    });
+  });
+
+  describe('dispatchTrialNotStarted', () => {
+    it('consulta trial não iniciado com os filtros corretos (trialEndsAt nulo, isComp false, conta criada há >=1 dia, nunca assinou, nunca pagou, sem envio anterior)', async () => {
+      await service.dispatch();
+      const calls = prisma.subscription.findMany.mock.calls as any[];
+      const call = calls.find((c) => c[0]?.where?.trialEndsAt === null);
+      expect(call).toBeDefined();
+      const where = call[0].where;
+      expect(where.trialEndsAt).toBeNull();
+      expect(where.isComp).toBe(false);
+      // Mesmas condições de isTrialEligible (plan-policy.ts): sem elas, quem
+      // fechou checkout com cartão confirmado na hora (status ACTIVE,
+      // currentPeriodEnd preenchido, trialEndsAt nunca setado) seria tratado
+      // como se nunca tivesse começado o teste.
+      expect(where.currentPeriodEnd).toBeNull();
+      expect(where.payments).toEqual({ none: {} });
+      expect(where.nutritionist.user.createdAt.lte).toBeInstanceOf(Date);
+      expect(where.nutritionist.lifecycleEmails).toEqual({ none: { kind: 'TRIAL_NOT_STARTED' } });
+    });
+
+    it('assinante ativo/ex-assinante (currentPeriodEnd preenchido) não é elegível, mesmo com trialEndsAt nulo', async () => {
+      const payer = {
+        id: 'sub-payer',
+        nutritionistId: 'nutri-payer',
+        trialEndsAt: null,
+        currentPeriodEnd: new Date('2026-10-22T00:00:00Z'),
+        nutritionist: nutritionistRow({ id: 'nutri-payer', email: 'payer@example.com' }),
+      };
+      const neverStarted = {
+        id: 'sub-never-started',
+        nutritionistId: 'nutri-never-started',
+        trialEndsAt: null,
+        currentPeriodEnd: null,
+        nutritionist: nutritionistRow({ id: 'nutri-never-started', email: 'never-started@example.com' }),
+      };
+      (prisma.subscription.findMany as jest.Mock).mockImplementation(async (args: any) => {
+        if (args?.where?.trialEndsAt === null) {
+          // Simula o filtro currentPeriodEnd: null da query real: só a linha
+          // sem currentPeriodEnd volta, exatamente como o Postgres faria.
+          const requiresNullCurrentPeriodEnd = args.where.currentPeriodEnd === null;
+          return [payer, neverStarted].filter((s) => (requiresNullCurrentPeriodEnd ? s.currentPeriodEnd === null : true));
+        }
+        return [];
+      });
+
+      await service.dispatch();
+
+      expect(resend.sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'never-started@example.com' }));
+      expect(resend.sendEmail).not.toHaveBeenCalledWith(expect.objectContaining({ to: 'payer@example.com' }));
+    });
+
+    it('quem já tem pagamento registrado não é elegível, mesmo com trialEndsAt nulo', async () => {
+      const paidBefore = {
+        id: 'sub-paid',
+        nutritionistId: 'nutri-paid',
+        trialEndsAt: null,
+        hasPayment: true,
+        nutritionist: nutritionistRow({ id: 'nutri-paid', email: 'paid@example.com' }),
+      };
+      const neverPaid = {
+        id: 'sub-never-paid',
+        nutritionistId: 'nutri-never-paid',
+        trialEndsAt: null,
+        hasPayment: false,
+        nutritionist: nutritionistRow({ id: 'nutri-never-paid', email: 'never-paid@example.com' }),
+      };
+      (prisma.subscription.findMany as jest.Mock).mockImplementation(async (args: any) => {
+        if (args?.where?.trialEndsAt === null) {
+          // Simula o filtro payments: { none: {} } da query real: só a linha
+          // sem pagamento volta.
+          const requiresNoPayments = args.where.payments && 'none' in args.where.payments;
+          return [paidBefore, neverPaid].filter((s) => (requiresNoPayments ? !s.hasPayment : true));
+        }
+        return [];
+      });
+
+      await service.dispatch();
+
+      expect(resend.sendEmail).toHaveBeenCalledWith(expect.objectContaining({ to: 'never-paid@example.com' }));
+      expect(resend.sendEmail).not.toHaveBeenCalledWith(expect.objectContaining({ to: 'paid@example.com' }));
+    });
+
+    it('elegível: envia o e-mail e grava LifecycleEmail com o kind certo', async () => {
+      (prisma.subscription.findMany as jest.Mock).mockImplementation(async (args: any) => {
+        if (args?.where?.trialEndsAt === null) {
+          return [
+            {
+              id: 'sub-4',
+              nutritionistId: 'nutri-4',
+              nutritionist: nutritionistRow({ id: 'nutri-4', email: 'nova@example.com' }),
+            } as any,
+          ];
+        }
+        return [];
+      });
+
+      const out = await service.dispatch();
+
+      expect(resend.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'nova@example.com',
+          from: ENV.SUPPORT_FROM_EMAIL,
+          replyTo: ENV.SUPPORT_INBOX_EMAIL,
+          subject: 'Seu teste do iNutri ainda não começou',
+        }),
+      );
+      expect(prisma.lifecycleEmail.create).toHaveBeenCalledWith({
+        data: { nutritionistId: 'nutri-4', kind: 'TRIAL_NOT_STARTED' },
+      });
+      expect(out.trialNotStarted).toEqual({ eligible: 1, sent: 1 });
+    });
+
+    it('falha no envio: não grava e segue para o próximo, sent menor que eligible', async () => {
+      (prisma.subscription.findMany as jest.Mock).mockImplementation(async (args: any) => {
+        if (args?.where?.trialEndsAt === null) {
+          return [
+            {
+              id: 'sub-4',
+              nutritionistId: 'nutri-4',
+              nutritionist: nutritionistRow({ id: 'nutri-4', email: 'a@example.com' }),
+            } as any,
+            {
+              id: 'sub-5',
+              nutritionistId: 'nutri-5',
+              nutritionist: nutritionistRow({ id: 'nutri-5', email: 'b@example.com' }),
+            } as any,
+          ];
+        }
+        return [];
+      });
+      resend.sendEmail.mockRejectedValueOnce(new Error('resend indisponível')).mockResolvedValueOnce(undefined);
+
+      const out = await service.dispatch();
+
+      expect(prisma.lifecycleEmail.create).toHaveBeenCalledTimes(1);
+      expect(out.trialNotStarted).toEqual({ eligible: 2, sent: 1 });
+    });
+
+    it('sem SUPPORT_FROM_EMAIL: retorna zero também para trial não iniciado', async () => {
+      service = new LifecycleEmailsService(prisma, resend, configWith({ SUPPORT_FROM_EMAIL: undefined }));
+
+      const out = await service.dispatch();
+
+      expect(out.trialNotStarted).toEqual({ eligible: 0, sent: 0 });
     });
   });
 });
