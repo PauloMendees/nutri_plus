@@ -92,6 +92,9 @@ describe('UsersService', () => {
   // Metadados vêm do cliente: ausente ou inválido vira null, nunca trava a conta.
   it.each([
     ['(11) 99999-8888', '5511999998888'],
+    ['+55 (11) 99999-8888', '5511999998888'],
+    // DDI explícito é respeitado: não vira "55" + 11 dígitos.
+    ['+1 2025550123', '12025550123'],
     [undefined, null],
     ['123', null],
   ])('stores signup WhatsApp %j as %j on the profile', async (whatsapp, expected) => {

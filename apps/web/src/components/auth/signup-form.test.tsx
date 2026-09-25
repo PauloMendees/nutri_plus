@@ -59,8 +59,8 @@ describe('SignupForm', () => {
     const arg = signUp.mock.calls[0][0];
     expect(arg.email).toBe('ana@clinica.com');
     expect(arg.options.data.name).toBe('Dra. Ana');
-    // Vai como digitado; o backend canonicaliza ao criar o perfil no sync-user.
-    expect(arg.options.data.whatsapp).toBe('(11) 99999-8888');
+    // Vai com o DDI (+55 por padrão); o backend canonicaliza no sync-user.
+    expect(arg.options.data.whatsapp).toBe('+55 (11) 99999-8888');
     expect(arg.options.emailRedirectTo).toContain('/auth/callback');
     // Sem plano escolhido o `plan` vai vazio, mas o `?` tem de existir sempre:
     // o template de e-mail do Supabase concatena `&token_hash=…` nesta URL, e
@@ -69,6 +69,31 @@ describe('SignupForm', () => {
     expect(push).toHaveBeenCalledWith('/verify-email?email=ana%40clinica.com');
     // O e-mail vai junto: é dele que o backend tira o SHA-256 do user_data da CAPI.
     expect(trackCompleteRegistration).toHaveBeenCalledWith('ana@clinica.com', 'Dra. Ana');
+  });
+
+  it('masks the WhatsApp input as a Brazilian phone', async () => {
+    render(<SignupForm />);
+    await userEvent.type(screen.getByLabelText(/whatsapp/i), '11999998888');
+    expect(screen.getByLabelText(/whatsapp/i)).toHaveValue('(11) 99999-8888');
+  });
+
+  it('defaults the country code to +55', () => {
+    render(<SignupForm />);
+    expect(screen.getByLabelText(/ddi/i)).toHaveValue('+55');
+  });
+
+  it('accepts another country code without the Brazilian mask', async () => {
+    signUp.mockResolvedValue({ error: null });
+    render(<SignupForm />);
+    await fillValid();
+    await userEvent.clear(screen.getByLabelText(/ddi/i));
+    await userEvent.type(screen.getByLabelText(/ddi/i), '1');
+    await userEvent.clear(screen.getByLabelText(/whatsapp/i));
+    await userEvent.type(screen.getByLabelText(/whatsapp/i), '2025550123');
+    expect(screen.getByLabelText(/whatsapp/i)).toHaveValue('2025550123');
+    await userEvent.click(screen.getByRole('button', { name: /criar conta/i }));
+    await waitFor(() => expect(signUp).toHaveBeenCalledTimes(1));
+    expect(signUp.mock.calls[0][0].options.data.whatsapp).toBe('+1 2025550123');
   });
 
   it.each([

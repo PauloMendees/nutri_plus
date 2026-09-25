@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createSignupClient } from '@/lib/supabase/client';
-import { signupSchema, type SignupValues } from '@/lib/validation/auth';
+import { signupSchema, signupWhatsapp, type SignupValues } from '@/lib/validation/auth';
 import { mapAuthError } from '@/lib/auth/errors';
+import { maskWhatsappNational } from '@/lib/format/phone';
 import { parseSignupPlan } from '@/lib/billing/signup-plan';
 import { trackCompleteRegistration } from '@/lib/analytics/meta-conversions';
 import { Button } from '@/components/ui/button';
@@ -30,8 +31,17 @@ export function SignupForm() {
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { name: '', email: '', whatsapp: '', password: '', confirmPassword: '' },
+    defaultValues: {
+      name: '',
+      email: '',
+      countryCode: '+55',
+      whatsapp: '',
+      password: '',
+      confirmPassword: '',
+    },
   });
+
+  const countryCode = useWatch({ control: form.control, name: 'countryCode' });
 
   async function onSubmit(values: SignupValues) {
     setFormError(null);
@@ -44,7 +54,7 @@ export function SignupForm() {
       options: {
         // O WhatsApp vira o contato dos pacientes no perfil criado pelo sync-user,
         // que canonicaliza o número (os metadados vêm do cliente).
-        data: { name: values.name, whatsapp: values.whatsapp },
+        data: { name: values.name, whatsapp: signupWhatsapp(values) },
         // `?plan=` sempre presente (vazio quando não houve escolha): o template
         // de e-mail do Supabase concatena `&token_hash=…&type=signup` nesta
         // URL, e sem query string a concatenação viraria parte do path.
@@ -102,19 +112,51 @@ export function SignupForm() {
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="whatsapp"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>WhatsApp</FormLabel>
-                <FormControl>
-                  <Input type="tel" autoComplete="tel-national" placeholder="11999998888" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="flex items-start gap-2">
+            <FormField
+              control={form.control}
+              name="countryCode"
+              render={({ field }) => (
+                <FormItem className="w-20 shrink-0">
+                  <FormLabel>DDI</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel-country-code"
+                      {...field}
+                      onChange={(e) =>
+                        field.onChange(`+${e.target.value.replace(/\D/g, '').slice(0, 3)}`)
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="whatsapp"
+              render={({ field }) => (
+                <FormItem className="flex-1">
+                  <FormLabel>WhatsApp</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel-national"
+                      placeholder={countryCode === '+55' ? '(11) 99999-8888' : ''}
+                      {...field}
+                      onChange={(e) =>
+                        field.onChange(maskWhatsappNational(e.target.value, countryCode))
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
           <FormField
             control={form.control}
             name="password"
