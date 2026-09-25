@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-14-abuse-hardening-design.md`
 
+> **Nota de 22/09/2026:** a barreira 3 (gate de cadastro com Turnstile) foi removida do produto sem nunca ter sido ligada. Ver `docs/11-abuse-hardening.md`. As outras três barreiras continuam valendo.
+
 ## Global Constraints
 
 - Branch `feat/abuse-hardening` (já criada a partir de `main`). Não fazer push nem PR dentro das tarefas; nunca commitar `.env`.
