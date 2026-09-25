@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { canonicalizeWhatsappNumber } from '@nutri-plus/shared-types';
 
 export const loginSchema = z.object({
   email: z.string().email('Informe um e-mail válido.'),
@@ -9,6 +10,16 @@ export const signupSchema = z
   .object({
     name: z.string().min(2, 'Informe seu nome.'),
     email: z.string().email('Informe um e-mail válido.'),
+    whatsapp: z
+      .string()
+      .min(1, 'Informe seu WhatsApp.')
+      .refine((v) => {
+        try {
+          return canonicalizeWhatsappNumber(v) !== null;
+        } catch {
+          return false;
+        }
+      }, 'Número de WhatsApp inválido.'),
     password: z.string().min(8, 'A senha deve ter ao menos 8 caracteres.'),
     confirmPassword: z.string(),
   })

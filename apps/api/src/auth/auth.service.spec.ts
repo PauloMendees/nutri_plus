@@ -41,6 +41,16 @@ describe('AuthService', () => {
     expect(result).toEqual({ id: 'u1' });
   });
 
+  it('passes the signup WhatsApp through when creating a user', async () => {
+    users.createWithProfile.mockResolvedValue({ id: 'u2' } as any);
+
+    await service.syncUser({ ...newCtx, whatsapp: '5511999998888' }, { role: UserRole.NUTRITIONIST });
+
+    expect(users.createWithProfile).toHaveBeenCalledWith(
+      expect.objectContaining({ role: UserRole.NUTRITIONIST, whatsapp: '5511999998888' }),
+    );
+  });
+
   it('updates basics when the user already exists (idempotent) and returns it', async () => {
     const existingCtx: AuthContext = {
       ...newCtx,

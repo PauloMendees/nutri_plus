@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { canonicalizeWhatsappNumber } from '@nutri-plus/shared-types';
 import { Prisma, UserRole } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { DEMO_PROVIDER, SUPABASE_PROVIDER } from '../auth/auth.constants';
@@ -13,6 +14,7 @@ interface CreateWithProfileInput {
   name: string;
   role: UserRole;
   referralCode?: string;
+  whatsapp?: string;
 }
 
 type UserBaseData = {
@@ -41,6 +43,17 @@ function isReferralCodeCollision(
   return text.includes('referralCode');
 }
 
+// The signup number arrives via client-controlled auth metadata. The form
+// already enforces it; here an absent or invalid value becomes null so it can
+// never block account creation.
+function signupWhatsapp(raw: string | undefined): string | null {
+  try {
+    return canonicalizeWhatsappNumber(raw);
+  } catch {
+    return null;
+  }
+}
+
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
@@ -59,7 +72,7 @@ export class UsersService {
     };
 
     if (input.role === UserRole.NUTRITIONIST) {
-      return this.createNutritionist(base);
+      return this.createNutritionist(base, signupWhatsapp(input.whatsapp));
     }
 
     let nutritionistId: string | undefined;
@@ -198,7 +211,10 @@ export class UsersService {
     }
   }
 
-  private async createNutritionist(base: UserBaseData): Promise<LocalUser> {
+  private async createNutritionist(
+    base: UserBaseData,
+    whatsappNumber: string | null,
+  ): Promise<LocalUser> {
     for (let attempt = 1; attempt <= MAX_REFERRAL_ATTEMPTS; attempt++) {
       try {
         return await this.prisma.user.create({
@@ -207,6 +223,7 @@ export class UsersService {
             nutritionistProfile: {
               create: {
                 referralCode: generateReferralCode(),
+                whatsappNumber,
                 subscription: {
                   create: { status: 'TRIALING' },
                 },

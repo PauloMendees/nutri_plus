@@ -89,6 +89,51 @@ describe('UsersService', () => {
     );
   });
 
+  it('seeds the patient-facing WhatsApp with the canonical signup number', async () => {
+    prisma.user.create.mockResolvedValue({ id: 'user-w' } as any);
+
+    await service.createWithProfile({
+      authProviderId: 'sub-w',
+      email: 'w@x.com',
+      name: 'NutW',
+      role: UserRole.NUTRITIONIST,
+      whatsapp: '(11) 99999-8888',
+    });
+
+    const createArg = prisma.user.create.mock.calls[0][0] as any;
+    expect(createArg.data.nutritionistProfile.create.whatsappNumber).toBe('5511999998888');
+  });
+
+  it('stores null WhatsApp when the signup number is missing', async () => {
+    prisma.user.create.mockResolvedValue({ id: 'user-x' } as any);
+
+    await service.createWithProfile({
+      authProviderId: 'sub-x',
+      email: 'x@x.com',
+      name: 'NutX',
+      role: UserRole.NUTRITIONIST,
+    });
+
+    const createArg = prisma.user.create.mock.calls[0][0] as any;
+    expect(createArg.data.nutritionistProfile.create.whatsappNumber).toBeNull();
+  });
+
+  // Metadados vêm do cliente: número inválido não pode travar a criação da conta.
+  it('stores null WhatsApp instead of failing when the signup number is invalid', async () => {
+    prisma.user.create.mockResolvedValue({ id: 'user-y' } as any);
+
+    await service.createWithProfile({
+      authProviderId: 'sub-y',
+      email: 'y@x.com',
+      name: 'NutY',
+      role: UserRole.NUTRITIONIST,
+      whatsapp: '123',
+    });
+
+    const createArg = prisma.user.create.mock.calls[0][0] as any;
+    expect(createArg.data.nutritionistProfile.create.whatsappNumber).toBeNull();
+  });
+
   it('retries referral code generation on a unique collision', async () => {
     const collision = new Prisma.PrismaClientKnownRequestError(
       'Unique constraint failed',

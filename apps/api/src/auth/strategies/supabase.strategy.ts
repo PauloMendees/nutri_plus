@@ -44,6 +44,6 @@ export class SupabaseStrategy extends PassportStrategy(Strategy, 'supabase') {
 
     const user = await this.users.findByAuthProviderId(authProviderId);
 
-    return { authProviderId, email, name, user };
+    return { authProviderId, email, name, whatsapp: payload.user_metadata?.whatsapp, user };
   }
 }

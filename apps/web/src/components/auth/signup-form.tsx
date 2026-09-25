@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { canonicalizeWhatsappNumber } from '@nutri-plus/shared-types';
 import { createSignupClient } from '@/lib/supabase/client';
 import { signupSchema, type SignupValues } from '@/lib/validation/auth';
 import { mapAuthError } from '@/lib/auth/errors';
@@ -30,7 +31,7 @@ export function SignupForm() {
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { name: '', email: '', password: '', confirmPassword: '' },
+    defaultValues: { name: '', email: '', whatsapp: '', password: '', confirmPassword: '' },
   });
 
   async function onSubmit(values: SignupValues) {
@@ -42,7 +43,8 @@ export function SignupForm() {
       email: values.email,
       password: values.password,
       options: {
-        data: { name: values.name },
+        // O WhatsApp vira o contato dos pacientes no perfil criado pelo sync-user.
+        data: { name: values.name, whatsapp: canonicalizeWhatsappNumber(values.whatsapp) },
         // `?plan=` sempre presente (vazio quando não houve escolha): o template
         // de e-mail do Supabase concatena `&token_hash=…&type=signup` nesta
         // URL, e sem query string a concatenação viraria parte do path.
@@ -95,6 +97,19 @@ export function SignupForm() {
                 <FormLabel>E-mail</FormLabel>
                 <FormControl>
                   <Input type="email" autoComplete="email" placeholder="voce@clinica.com" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="whatsapp"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>WhatsApp</FormLabel>
+                <FormControl>
+                  <Input type="tel" autoComplete="tel-national" placeholder="11999998888" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

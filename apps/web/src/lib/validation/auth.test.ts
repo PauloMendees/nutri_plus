@@ -14,6 +14,7 @@ describe('signupSchema', () => {
   const base = {
     name: 'Dra. Ana',
     email: 'ana@clinica.com',
+    whatsapp: '11999998888',
     password: 'supersecret',
     confirmPassword: 'supersecret',
   };
@@ -23,6 +24,12 @@ describe('signupSchema', () => {
   it('rejects when passwords do not match', () => {
     const r = signupSchema.safeParse({ ...base, confirmPassword: 'different' });
     expect(r.success).toBe(false);
+  });
+  it('rejects a missing WhatsApp', () => {
+    expect(signupSchema.safeParse({ ...base, whatsapp: '' }).success).toBe(false);
+  });
+  it('rejects an invalid WhatsApp', () => {
+    expect(signupSchema.safeParse({ ...base, whatsapp: '123' }).success).toBe(false);
   });
   it('rejects a short password', () => {
     expect(

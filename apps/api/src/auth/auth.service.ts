@@ -20,6 +20,7 @@ export class AuthService {
       name: ctx.name,
       role: dto.role,
       referralCode: dto.referralCode,
+      whatsapp: ctx.whatsapp,
     });
   }
 
