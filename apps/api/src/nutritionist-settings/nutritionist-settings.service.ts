@@ -19,6 +19,12 @@ const LOGO_BUCKET = 'nutritionist-logos';
 
 export type { UploadedImage } from '../supabase/image-upload';
 
+// undefined = campo não enviado (não mexe); vazio ou só espaços = apagar (null).
+function clearableText(value: string | undefined): string | null | undefined {
+  if (value === undefined) return undefined;
+  return value.trim() || null;
+}
+
 @Injectable()
 export class NutritionistSettingsService {
   constructor(
@@ -46,8 +52,8 @@ export class NutritionistSettingsService {
     return this.prisma.nutritionistProfile.update({
       where: { id: resolveScopeNutritionistId(ctx) },
       data: {
-        displayName: dto.displayName,
-        mealPlanAiInstructions: dto.mealPlanAiInstructions,
+        displayName: clearableText(dto.displayName),
+        mealPlanAiInstructions: clearableText(dto.mealPlanAiInstructions),
         defaultCanLogAssessments: dto.defaultCanLogAssessments,
         defaultShowMealTargetToPatient: dto.defaultShowMealTargetToPatient,
         whatsappNumber,

@@ -68,6 +68,25 @@ describe('SettingsView', () => {
     expect(updateMut.mock.calls[0][0].displayName).toBe('Dra. Ana');
   });
 
+  it('sends an empty display name and instructions when they are cleared', async () => {
+    useNutritionistSettings.mockReturnValue({
+      isLoading: false, isError: false,
+      data: {
+        displayName: 'Dra. Ana', logoUrl: null, mealPlanAiInstructions: 'Sem lactose',
+        defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+        whatsappNumber: null,
+      },
+    });
+    render(<SettingsView />);
+    await userEvent.clear(screen.getByLabelText(/nome de exibição/i));
+    await userEvent.clear(screen.getByLabelText(/instruções padrão/i));
+    await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
+    await waitFor(() => expect(updateMut).toHaveBeenCalledTimes(1));
+    // undefined sairia do PATCH e a API manteria o valor antigo.
+    expect(updateMut.mock.calls[0][0].displayName).toBe('');
+    expect(updateMut.mock.calls[0][0].mealPlanAiInstructions).toBe('');
+  });
+
   it('uploads a logo on file pick', async () => {
     useNutritionistSettings.mockReturnValue({
       isLoading: false, isError: false,

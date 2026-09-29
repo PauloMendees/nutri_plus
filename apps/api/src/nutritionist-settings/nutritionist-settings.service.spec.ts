@@ -90,6 +90,34 @@ describe('NutritionistSettingsService', () => {
     });
   });
 
+  it('stores null when the display name and instructions are cleared or blank', async () => {
+    prisma.nutritionistProfile.update.mockResolvedValue({
+      displayName: null, logoUrl: null, mealPlanAiInstructions: null,
+      defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+      whatsappNumber: null,
+    } as any);
+    await service.updateSettings(ctx, { displayName: '   ', mealPlanAiInstructions: '' });
+    expect(prisma.nutritionistProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ displayName: null, mealPlanAiInstructions: null }),
+      }),
+    );
+  });
+
+  it('trims the display name and instructions', async () => {
+    prisma.nutritionistProfile.update.mockResolvedValue({
+      displayName: 'Dra. Ana', logoUrl: null, mealPlanAiInstructions: 'Sem lactose',
+      defaultCanLogAssessments: false, defaultShowMealTargetToPatient: false,
+      whatsappNumber: null,
+    } as any);
+    await service.updateSettings(ctx, { displayName: '  Dra. Ana ', mealPlanAiInstructions: ' Sem lactose\n' });
+    expect(prisma.nutritionistProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ displayName: 'Dra. Ana', mealPlanAiInstructions: 'Sem lactose' }),
+      }),
+    );
+  });
+
   it('writes the 2 patient-app defaults on update', async () => {
     prisma.nutritionistProfile.update.mockResolvedValue({
       displayName: null, logoUrl: null, mealPlanAiInstructions: null,
