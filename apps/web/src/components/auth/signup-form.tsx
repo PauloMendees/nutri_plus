@@ -14,6 +14,8 @@ import { trackCompleteRegistration } from '@/lib/analytics/meta-conversions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { TERMS_VERSION, TermsOfUseContent } from '@/components/legal/terms-of-use';
 import {
   Form,
   FormControl,
@@ -28,6 +30,7 @@ export function SignupForm() {
   const searchParams = useSearchParams();
   const chosenPlan = parseSignupPlan(searchParams.get('plan'));
   const [formError, setFormError] = useState<string | null>(null);
+  const [termsOpen, setTermsOpen] = useState(false);
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
@@ -38,6 +41,7 @@ export function SignupForm() {
       whatsapp: '',
       password: '',
       confirmPassword: '',
+      acceptTerms: false,
     },
   });
 
@@ -54,7 +58,13 @@ export function SignupForm() {
       options: {
         // O WhatsApp vira o contato dos pacientes no perfil criado pelo sync-user,
         // que canonicaliza o número (os metadados vêm do cliente).
-        data: { name: values.name, whatsapp: signupWhatsapp(values) },
+        // termsVersion/termsAcceptedAt: prova de qual texto dos termos foi aceito.
+        data: {
+          name: values.name,
+          whatsapp: signupWhatsapp(values),
+          termsVersion: TERMS_VERSION,
+          termsAcceptedAt: new Date().toISOString(),
+        },
         // `?plan=` sempre presente (vazio quando não houve escolha): o template
         // de e-mail do Supabase concatena `&token_hash=…&type=signup` nesta
         // URL, e sem query string a concatenação viraria parte do path.
@@ -184,6 +194,41 @@ export function SignupForm() {
             )}
           />
 
+          <FormField
+            control={form.control}
+            name="acceptTerms"
+            render={({ field }) => (
+              <FormItem>
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={field.value}
+                    onChange={(e) => field.onChange(e.target.checked)}
+                    onBlur={field.onBlur}
+                    ref={field.ref}
+                  />
+                  <span>
+                    Eu li e concordo com os{' '}
+                    <button
+                      type="button"
+                      className="font-semibold text-primary hover:underline"
+                      // Dentro do <label>: sem o preventDefault, abrir os termos
+                      // também marcaria o checkbox.
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setTermsOpen(true);
+                      }}
+                    >
+                      termos de uso
+                    </button>
+                  </span>
+                </label>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           {formError && <p className="text-sm text-destructive">{formError}</p>}
 
           <Button
@@ -195,6 +240,15 @@ export function SignupForm() {
           </Button>
         </form>
       </Form>
+
+      <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
+        <DialogContent aria-describedby={undefined} className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Termos de Uso</DialogTitle>
+          </DialogHeader>
+          <TermsOfUseContent />
+        </DialogContent>
+      </Dialog>
 
       <p className="text-center text-sm text-muted-foreground">
         Já tem conta?{' '}

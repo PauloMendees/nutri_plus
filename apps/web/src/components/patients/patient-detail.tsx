@@ -193,11 +193,6 @@ export function PatientDetail({
                 {patient.phone}
               </a>
             ) : null}
-            <p className="mt-1 text-xs text-muted-foreground">
-              {patient.latestConsent
-                ? `Consentimento LGPD: aceito em ${new Date(patient.latestConsent.acceptedAt).toLocaleDateString('pt-BR')}`
-                : 'Consentimento LGPD: pendente'}
-            </p>
             {canEdit && (
               <div className="mt-2 flex flex-wrap gap-2">
                 <label
@@ -311,11 +306,10 @@ export function PatientDetail({
           <EditPatientForm patient={patient} canEdit={canEdit} />
         </TabsContent>
         <TabsContent value="anamnese">
-          {/* Recorder + history live inside the Anamnese tab so the nutritionist can
-              record the consultation while filling the anamnese (switching tabs
-              would unmount the recorder and release the mic). */}
+          {/* A gravação em si vive no RecordingProvider do layout: sair da aba
+              não a interrompe. Aqui ficam o consentimento, o início e o histórico. */}
           <div className="space-y-6">
-            <ConsultationAudioSection patientId={patient.id} canEdit={canEdit} />
+            <ConsultationAudioSection patientId={patient.id} patientName={patient.name} canEdit={canEdit} />
             <AnamneseSection patientId={patient.id} canEdit={canEdit} />
           </div>
         </TabsContent>

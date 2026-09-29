@@ -25,8 +25,8 @@ import {
 type NumField = { name: 'heightCm' | 'weightKg' | 'waistInput' | 'hipInput'; label: string };
 
 const NUMBER_FIELDS: NumField[] = [
-  { name: 'heightCm', label: 'Altura (cm)' },
-  { name: 'weightKg', label: 'Peso (kg)' },
+  { name: 'heightCm', label: 'Altura (cm) *' },
+  { name: 'weightKg', label: 'Peso (kg) *' },
   { name: 'waistInput', label: 'Cintura (cm) — opcional' },
   { name: 'hipInput', label: 'Quadril (cm) — opcional' },
 ];
@@ -34,8 +34,8 @@ const NUMBER_FIELDS: NumField[] = [
 function defaults(): SilhuetaValues {
   return {
     scanDate: localDateInput(),
-    heightCm: '' as unknown as number | undefined,
-    weightKg: '' as unknown as number | undefined,
+    heightCm: '' as unknown as number,
+    weightKg: '' as unknown as number,
     waistInput: '' as unknown as number | undefined,
     hipInput: '' as unknown as number | undefined,
   };
@@ -169,8 +169,8 @@ export function SilhuetaSection({
     formData.append('front', front);
     formData.append('side', side);
     if (back) formData.append('back', back);
-    if (values.heightCm != null) formData.append('heightCm', String(values.heightCm));
-    if (values.weightKg != null) formData.append('weightKg', String(values.weightKg));
+    formData.append('heightCm', String(values.heightCm));
+    formData.append('weightKg', String(values.weightKg));
     if (values.waistInput != null) formData.append('waistInput', String(values.waistInput));
     if (values.hipInput != null) formData.append('hipInput', String(values.hipInput));
     formData.append('consent', String(consent));

@@ -11,5 +11,7 @@ export interface MeResponse {
   name: string;
   role: UserRole;
   nutritionist?: { id: string; referralCode: string; crn: string | null };
+  // /auth/me devolve o LocalUser inteiro; só o que o web lê está tipado aqui.
+  nutritionistProfile?: { displayName: string | null } | null;
   patient?: { id: string; nutritionistId: string | null };
 }

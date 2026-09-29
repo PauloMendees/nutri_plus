@@ -8,8 +8,8 @@ describe('FirstRunDialog', () => {
     render(<FirstRunDialog open onDismiss={() => {}} onStart={() => {}} />);
     expect(screen.getByRole('heading', { name: /primeiros passos no inutri/i })).toBeInTheDocument();
     expect(screen.getByText(/tutoriais guiados/i)).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: /prévia dos primeiros passos/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Ver primeiros passos' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /prévia dos tutoriais/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ver tutoriais' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Agora não' })).toBeInTheDocument();
   });
 
@@ -20,10 +20,10 @@ describe('FirstRunDialog', () => {
     expect(onDismiss).toHaveBeenCalled();
   });
 
-  it('calls onStart from Ver primeiros passos', async () => {
+  it('calls onStart from Ver tutoriais', async () => {
     const onStart = vi.fn();
     render(<FirstRunDialog open onDismiss={() => {}} onStart={onStart} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Ver primeiros passos' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Ver tutoriais' }));
     expect(onStart).toHaveBeenCalled();
   });
 });

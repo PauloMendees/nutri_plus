@@ -8,6 +8,10 @@ const push = vi.fn();
 const refresh = vi.fn();
 const signOut = vi.fn();
 let pathname = '/patients';
+// AppSidebar lê o status da gravação para bloquear o logout; a suíte
+// controla o status diretamente, sem precisar montar um RecordingProvider real.
+let recordingStatus: 'idle' | 'recording' | 'uploading' = 'idle';
+const toastError = vi.fn();
 
 vi.mock('next/navigation', () => ({
   usePathname: () => pathname,
@@ -16,6 +20,10 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({ auth: { signOut } }),
 }));
+vi.mock('@/components/recording/recording-provider', () => ({
+  useRecording: () => ({ state: { status: recordingStatus } }),
+}));
+vi.mock('sonner', () => ({ toast: { error: (...a: unknown[]) => toastError(...a) } }));
 
 import { AppSidebar } from './app-sidebar';
 import { NAV_ITEMS } from './nav-items';
@@ -36,9 +44,11 @@ function renderSidebar(
 
 beforeEach(() => {
   pathname = '/patients';
+  recordingStatus = 'idle';
   push.mockReset();
   refresh.mockReset();
   signOut.mockReset();
+  toastError.mockReset();
 });
 
 describe('AppSidebar', () => {
@@ -76,6 +86,25 @@ describe('AppSidebar', () => {
     await userEvent.click(screen.getByRole('button', { name: /sair/i }));
     expect(signOut).toHaveBeenCalled();
     expect(push).toHaveBeenCalledWith('/login');
+  });
+
+  it('blocks logout while a recording is in progress', async () => {
+    recordingStatus = 'recording';
+    signOut.mockResolvedValue({ error: null });
+    renderSidebar();
+    await userEvent.click(screen.getByRole('button', { name: /sair/i }));
+    expect(signOut).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith('Pare a gravação antes de sair.');
+  });
+
+  it('blocks logout while a recording is uploading', async () => {
+    recordingStatus = 'uploading';
+    signOut.mockResolvedValue({ error: null });
+    renderSidebar();
+    await userEvent.click(screen.getByRole('button', { name: /sair/i }));
+    expect(signOut).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith('Pare a gravação antes de sair.');
   });
 
   it('renders the iNutri logo', () => {
@@ -117,15 +146,15 @@ describe('AppSidebar', () => {
     ).toBe(true);
   });
 
-  it('places Primeiros passos after Contabilidade and before Configurações', () => {
+  it('places Tutoriais after Contabilidade and before Configurações', () => {
     const labels = NAV_ITEMS.map((item) => item.label);
-    expect(labels.indexOf('Primeiros passos')).toBe(labels.indexOf('Contabilidade') + 1);
-    expect(labels.indexOf('Configurações')).toBe(labels.indexOf('Primeiros passos') + 1);
+    expect(labels.indexOf('Tutoriais')).toBe(labels.indexOf('Contabilidade') + 1);
+    expect(labels.indexOf('Configurações')).toBe(labels.indexOf('Tutoriais') + 1);
   });
 
-  it('renders the Primeiros passos item with the hub href', () => {
+  it('renders the Tutoriais item with the hub href', () => {
     renderSidebar();
-    expect(screen.getByRole('link', { name: /primeiros passos/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /tutoriais/i })).toHaveAttribute(
       'href',
       '/primeiros-passos',
     );

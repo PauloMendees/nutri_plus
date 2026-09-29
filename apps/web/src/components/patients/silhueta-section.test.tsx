@@ -31,6 +31,12 @@ const frontFile = new File(['front'], 'frente.png', { type: 'image/png' });
 const sideFile = new File(['side'], 'lado.png', { type: 'image/png' });
 const backFile = new File(['back'], 'costas.png', { type: 'image/png' });
 
+// Altura e peso são obrigatórios para enviar.
+async function fillRequiredMeasures() {
+  await userEvent.type(screen.getByLabelText(/altura \(cm\)/i), '170');
+  await userEvent.type(screen.getByLabelText(/peso \(kg\)/i), '70');
+}
+
 beforeEach(() => {
   // jsdom doesn't implement object URLs — stub them for the photo previews.
   URL.createObjectURL = vi.fn(() => 'blob:preview');
@@ -64,6 +70,7 @@ describe('SilhuetaSection', () => {
     await userEvent.click(
       screen.getByLabelText(/consentimento para processamento das fotos por ia/i),
     );
+    await fillRequiredMeasures();
     await userEvent.click(screen.getByRole('button', { name: /enviar para análise/i }));
 
     await waitFor(() => expect(createMut).toHaveBeenCalledTimes(1));
@@ -72,6 +79,8 @@ describe('SilhuetaSection', () => {
     expect(fd.get('front')).toBe(frontFile);
     expect(fd.get('side')).toBe(sideFile);
     expect(fd.get('consent')).toBe('true');
+    expect(fd.get('heightCm')).toBe('170');
+    expect(fd.get('weightKg')).toBe('70');
     // Back photo is optional — omitted here, so it must not be in the payload.
     expect(fd.get('back')).toBeNull();
   });
@@ -115,6 +124,7 @@ describe('SilhuetaSection', () => {
     await userEvent.click(
       screen.getByLabelText(/consentimento para processamento das fotos por ia/i),
     );
+    await fillRequiredMeasures();
     await userEvent.click(screen.getByRole('button', { name: /enviar para análise/i }));
 
     await waitFor(() => expect(createMut).toHaveBeenCalledTimes(1));
@@ -131,9 +141,42 @@ describe('SilhuetaSection', () => {
     await userEvent.click(
       screen.getByLabelText(/consentimento para processamento das fotos por ia/i),
     );
+    await fillRequiredMeasures();
     await userEvent.click(screen.getByRole('button', { name: /enviar para análise/i }));
 
     expect(await screen.findByText(/estimativa gerada com sucesso/i)).toBeInTheDocument();
     expect(onCreated).toHaveBeenCalledWith({ id: 's1' });
+  });
+
+  it('blocks submission and asks for height and weight when they are empty', async () => {
+    render(<SilhuetaSection patientId="p1" />);
+
+    await userEvent.upload(screen.getByLabelText('Foto frontal'), frontFile);
+    await userEvent.upload(screen.getByLabelText('Foto lateral'), sideFile);
+    await userEvent.click(
+      screen.getByLabelText(/consentimento para processamento das fotos por ia/i),
+    );
+    await userEvent.click(screen.getByRole('button', { name: /enviar para análise/i }));
+
+    expect(await screen.findByText('Informe a altura.')).toBeInTheDocument();
+    expect(screen.getByText('Informe o peso.')).toBeInTheDocument();
+    expect(createMut).not.toHaveBeenCalled();
+  });
+
+  it('blocks submission when height or weight is below the physiological minimum', async () => {
+    render(<SilhuetaSection patientId="p1" />);
+
+    await userEvent.upload(screen.getByLabelText('Foto frontal'), frontFile);
+    await userEvent.upload(screen.getByLabelText('Foto lateral'), sideFile);
+    await userEvent.click(
+      screen.getByLabelText(/consentimento para processamento das fotos por ia/i),
+    );
+    // 0 passa em "obrigatório" mas não é uma altura/peso possível.
+    await userEvent.type(screen.getByLabelText(/altura \(cm\)/i), '0');
+    await userEvent.type(screen.getByLabelText(/peso \(kg\)/i), '0');
+    await userEvent.click(screen.getByRole('button', { name: /enviar para análise/i }));
+
+    expect(await screen.findAllByText('Valor abaixo do mínimo.')).toHaveLength(2);
+    expect(createMut).not.toHaveBeenCalled();
   });
 });

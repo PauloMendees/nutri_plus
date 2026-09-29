@@ -282,23 +282,10 @@ describe('PatientDetail', () => {
     expect(await screen.findByText(/metas nutricionais/i)).toBeInTheDocument();
   });
 
-  it('shows the LGPD consent as accepted with its date when latestConsent is set', () => {
-    usePatient.mockReturnValue({
-      isLoading: false,
-      isError: false,
-      data: {
-        ...patient,
-        latestConsent: { policyVersion: '2026-07-09', acceptedAt: '2026-07-10T00:00:00.000Z' },
-      },
-    });
-    render(<PatientDetail id="p1" created={false} />);
-    expect(screen.getByText(/Consentimento LGPD: aceito em/)).toBeInTheDocument();
-  });
-
-  it('shows the LGPD consent as pending when latestConsent is null', () => {
+  it('does not show the patient app LGPD consent status to the nutritionist', () => {
     usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
     render(<PatientDetail id="p1" created={false} />);
-    expect(screen.getByText(/Consentimento LGPD: pendente/)).toBeInTheDocument();
+    expect(screen.queryByText(/Consentimento LGPD/)).not.toBeInTheDocument();
   });
 
   it('shows a Demo badge when the patient is a demo', () => {

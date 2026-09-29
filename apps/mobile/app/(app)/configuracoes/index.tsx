@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Image, Pressable, Switch, Text, View } from '
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
+import { preferredNutritionistName } from '@nutri-plus/shared-types';
 import { useSession } from '../../../lib/auth';
 import { useTheme, useThemeColor } from '../../../lib/theme';
 import { useMyNutritionist } from '../../../lib/queries/nutritionist';
@@ -125,7 +126,7 @@ export default function ConfiguracoesIndex() {
                   ) : null}
                   <View className="min-w-0 flex-1">
                     <Text className="font-sans-medium text-base text-foreground">
-                      {nutritionist.data.displayName ?? nutritionist.data.name}
+                      {preferredNutritionistName(nutritionist.data.displayName, nutritionist.data.name)}
                     </Text>
                     <Text className="font-sans text-sm text-muted-foreground">{nutritionist.data.email}</Text>
                     {nutritionist.data.crn ? (

@@ -257,7 +257,7 @@ export function HubView({ role }: { role: UserRole | null }) {
   return (
     <div className="space-y-5">
       <div className="space-y-2">
-        <h1 className="font-heading text-2xl font-bold">Primeiros passos</h1>
+        <h1 className="font-heading text-2xl font-bold">Tutoriais</h1>
         <p className="max-w-2xl text-sm text-muted-foreground">
           Tutoriais guiados pelos módulos do iNutri. Cada capítulo destaca a
           tela certa: clique no que está iluminado ou em Próximo. Você pode

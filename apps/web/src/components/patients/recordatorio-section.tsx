@@ -5,6 +5,8 @@ import type { FoodRecallSummary } from '@nutri-plus/shared-types';
 import { useFoodRecalls } from '@/lib/queries/food-recalls';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR');
@@ -23,7 +25,27 @@ export function RecordatorioSection({
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="font-heading text-base font-bold">Recordatórios 24h</h2>
+        <div className="flex items-center gap-1.5">
+          <h2 className="font-heading text-base font-bold">Recordatórios 24h</h2>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Sobre o recordatório 24h"
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Info className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                O recordatório 24h registra tudo o que o paciente comeu e bebeu nas últimas 24 horas,
+                com horários e quantidades. Serve para entender o consumo real e apoiar a montagem do
+                plano alimentar.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
         {canEdit && (
           <Button variant="outline" size="sm" className="rounded-full" asChild>
             <Link href={`/patients/${patientId}/recordatorios/novo`} data-tour="patients.recall.new">

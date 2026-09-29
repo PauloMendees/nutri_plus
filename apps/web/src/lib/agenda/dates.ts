@@ -18,12 +18,16 @@ export function sameDay(a: Date, b: Date): boolean {
   );
 }
 
-// month is 0-based (JS Date convention). 42 cells, Sunday-first.
+// month is 0-based (JS Date convention). Sunday-first, only as many weeks as
+// the month touches (4 to 6): a trailing week made only of next-month days is
+// left out. gridRange derives the fetched range from this, so they stay in sync.
 export function monthGrid(year: number, month: number, today: Date = new Date()): MonthDay[] {
   const first = new Date(year, month, 1);
   const start = new Date(year, month, 1 - first.getDay()); // back up to Sunday
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const weeks = Math.ceil((first.getDay() + daysInMonth) / 7);
   const cells: MonthDay[] = [];
-  for (let i = 0; i < 42; i++) {
+  for (let i = 0; i < weeks * 7; i++) {
     const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
     cells.push({ date, inMonth: date.getMonth() === month, isToday: sameDay(date, today) });
   }

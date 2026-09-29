@@ -46,6 +46,6 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Categorias', href: '/contabilidade/categorias' },
     ],
   },
-  { label: 'Primeiros passos', href: '/primeiros-passos', icon: GraduationCap },
+  { label: 'Tutoriais', href: '/primeiros-passos', icon: GraduationCap },
   { label: 'Configurações', href: '/configuracoes', icon: Settings, canAccess: canManageSettings },
 ];

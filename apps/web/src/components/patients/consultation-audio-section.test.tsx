@@ -1,25 +1,50 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { useState, type ReactNode } from 'react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ConsultationAudio } from '@nutri-plus/shared-types';
+import { installMediaMocks, trackStop } from '@/components/recording/test-media';
 
 const useAudiosMock = vi.fn();
 const mutate = vi.fn();
 const mutateAsync = vi.fn();
 const transcribeMock = vi.fn();
+const uploadAudio = vi.fn();
 
 vi.mock('@/lib/queries/consultation-audio', () => ({
   useAudios: (...args: unknown[]) => useAudiosMock(...args),
-  useUploadAudio: () => ({ mutate, mutateAsync, isPending: false }),
   useDeleteAudio: () => ({ mutate, mutateAsync, isPending: false }),
   useTranscribeAudio: () => ({ mutate: transcribeMock, mutateAsync: transcribeMock, isPending: false }),
+}));
+vi.mock('@/lib/api/consultation-audio', () => ({
+  uploadAudio: (...a: unknown[]) => uploadAudio(...a),
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 vi.mock('@/lib/queries/subscription', () => ({
   useSubscription: () => ({ data: { entitlements: { features: { transcription: true } } } }),
 }));
 
-import { ConsultationAudioSection, fmtElapsed } from './consultation-audio-section';
+import { RecordingProvider } from '@/components/recording/recording-provider';
+import { ConsultationAudioSection } from './consultation-audio-section';
+
+function renderWithRecording(ui: ReactNode) {
+  return render(
+    <QueryClientProvider client={new QueryClient()}>
+      <RecordingProvider>{ui}</RecordingProvider>
+    </QueryClientProvider>,
+  );
+}
+
+function Section(props: { patientId?: string; patientName?: string; canEdit?: boolean }) {
+  return (
+    <ConsultationAudioSection
+      patientId={props.patientId ?? 'p1'}
+      patientName={props.patientName ?? 'Maria'}
+      canEdit={props.canEdit ?? true}
+    />
+  );
+}
 
 function audio(over: Partial<ConsultationAudio> = {}): ConsultationAudio {
   return {
@@ -38,38 +63,12 @@ function audio(over: Partial<ConsultationAudio> = {}): ConsultationAudio {
   };
 }
 
-// jsdom não traz MediaRecorder nem getUserMedia; o dublê expõe só o que o
-// componente usa (start/stop/onstop) para que o fluxo de cancelamento seja testável.
-const recorderOptions: unknown[] = [];
-
-class FakeRecorder {
-  constructor(_stream: unknown, options?: unknown) {
-    recorderOptions.push(options);
-  }
-  state = 'inactive';
-  mimeType = 'audio/webm';
-  ondataavailable: ((e: { data: Blob }) => void) | null = null;
-  onstop: (() => void) | null = null;
-  start() { this.state = 'recording'; }
-  stop() { this.state = 'inactive'; this.onstop?.(); }
-}
-
-const trackStop = vi.fn();
-
-function installMediaMocks() {
-  trackStop.mockReset();
-  recorderOptions.length = 0;
-  Object.defineProperty(navigator, 'mediaDevices', {
-    configurable: true,
-    value: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: trackStop }] }) },
-  });
-  (globalThis as unknown as { MediaRecorder: unknown }).MediaRecorder = FakeRecorder;
-}
-
-async function startRecording() {
-  await userEvent.click(screen.getByRole('checkbox'));
-  await userEvent.click(screen.getByRole('button', { name: /^gravar$/i }));
-  return screen.findByRole('button', { name: /parar gravação/i });
+async function startRecording(
+  scope: Pick<typeof screen, 'getByRole' | 'findByRole'> = screen,
+) {
+  await userEvent.click(scope.getByRole('checkbox'));
+  await userEvent.click(scope.getByRole('button', { name: /^gravar$/i }));
+  return scope.findByRole('button', { name: /parar gravação/i });
 }
 
 beforeEach(() => {
@@ -78,17 +77,18 @@ beforeEach(() => {
   mutate.mockReset();
   mutateAsync.mockReset().mockResolvedValue(audio());
   transcribeMock.mockReset().mockResolvedValue(undefined);
+  uploadAudio.mockReset().mockResolvedValue(audio());
 });
 
 describe('ConsultationAudioSection', () => {
   it('renders the list with an <audio> using the fixture signedUrl', () => {
-    const { container } = render(<ConsultationAudioSection patientId="p1" canEdit />);
+    const { container } = renderWithRecording(<Section />);
     const player = container.querySelector('audio');
     expect(player).toHaveAttribute('src', audio().signedUrl);
   });
 
   it('disables "Gravar" until the consent checkbox is checked', async () => {
-    render(<ConsultationAudioSection patientId="p1" canEdit />);
+    renderWithRecording(<Section />);
     const recordButton = screen.getByRole('button', { name: /gravar/i });
     expect(recordButton).toBeDisabled();
 
@@ -97,14 +97,14 @@ describe('ConsultationAudioSection', () => {
   });
 
   it('hides the recorder and delete controls when canEdit is false', () => {
-    render(<ConsultationAudioSection patientId="p1" canEdit={false} />);
+    renderWithRecording(<Section canEdit={false} />);
     expect(screen.queryByRole('button', { name: /gravar/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /excluir/i })).not.toBeInTheDocument();
   });
 
   it('asks for confirmation before deleting, then calls the delete mutation with the audio id', async () => {
-    render(<ConsultationAudioSection patientId="p1" canEdit />);
+    renderWithRecording(<Section />);
 
     await userEvent.click(screen.getByRole('button', { name: 'Excluir gravação' }));
     expect(mutateAsync).not.toHaveBeenCalled();
@@ -116,13 +116,13 @@ describe('ConsultationAudioSection', () => {
 
   it('shows a "Transcrever" button when the audio has no transcript status', () => {
     useAudiosMock.mockReturnValue({ data: [audio({ transcriptStatus: null })], isLoading: false });
-    render(<ConsultationAudioSection patientId="p1" canEdit />);
+    renderWithRecording(<Section />);
     expect(screen.getByRole('button', { name: /transcrever/i })).toBeInTheDocument();
   });
 
   it('shows "Transcrevendo…" while PROCESSING', () => {
     useAudiosMock.mockReturnValue({ data: [audio({ transcriptStatus: 'PROCESSING' })], isLoading: false });
-    render(<ConsultationAudioSection patientId="p1" canEdit />);
+    renderWithRecording(<Section />);
     expect(screen.getByText(/transcrevendo/i)).toBeInTheDocument();
   });
 
@@ -130,26 +130,26 @@ describe('ConsultationAudioSection', () => {
     useAudiosMock.mockReturnValue({
       data: [audio({ transcriptStatus: 'DONE', transcript: 'paciente relatou dor' })], isLoading: false,
     });
-    render(<ConsultationAudioSection patientId="p1" canEdit />);
+    renderWithRecording(<Section />);
     expect(screen.getByText('paciente relatou dor')).toBeInTheDocument();
   });
 
   it('offers "Tentar de novo" when FAILED and triggers the mutation', async () => {
     useAudiosMock.mockReturnValue({ data: [audio({ transcriptStatus: 'FAILED' })], isLoading: false });
-    render(<ConsultationAudioSection patientId="p1" canEdit />);
+    renderWithRecording(<Section />);
     await userEvent.click(screen.getByRole('button', { name: /tentar de novo/i }));
     expect(transcribeMock).toHaveBeenCalledWith('a1');
   });
 
   it('offers "Tentar de novo" when PROCESSING (stuck row) and triggers the mutation', async () => {
     useAudiosMock.mockReturnValue({ data: [audio({ transcriptStatus: 'PROCESSING' })], isLoading: false });
-    render(<ConsultationAudioSection patientId="p1" canEdit />);
+    renderWithRecording(<Section />);
     await userEvent.click(screen.getByRole('button', { name: /tentar de novo/i }));
     expect(transcribeMock).toHaveBeenCalledWith('a1');
   });
 
   it('mostra cronômetro e medidor de áudio enquanto grava', async () => {
-    render(<ConsultationAudioSection patientId="p1" canEdit />);
+    renderWithRecording(<Section />);
     await startRecording();
 
     expect(screen.getByRole('timer', { name: /tempo de gravação/i })).toHaveTextContent(/^\d{2}:\d{2}$/);
@@ -157,68 +157,89 @@ describe('ConsultationAudioSection', () => {
   });
 
   it('descarta a gravação sem enviar, depois de confirmar no diálogo', async () => {
-    render(<ConsultationAudioSection patientId="p1" canEdit />);
+    renderWithRecording(<Section />);
     await startRecording();
 
     await userEvent.click(screen.getByRole('button', { name: /^cancelar$/i }));
     // Só abrir o diálogo não pode parar nem enviar nada. O modal deixa o fundo
     // inerte, então a checagem é sobre o diálogo, não sobre o botão de trás.
     expect(screen.getByRole('dialog')).toHaveTextContent(/descartar esta gravação/i);
-    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(uploadAudio).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByRole('button', { name: /^descartar$/i }));
 
-    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(uploadAudio).not.toHaveBeenCalled();
     expect(trackStop).toHaveBeenCalled();
     expect(screen.getByRole('button', { name: /^gravar$/i })).toBeInTheDocument();
   });
 
   it('"Continuar gravando" fecha o diálogo e mantém a gravação viva', async () => {
-    render(<ConsultationAudioSection patientId="p1" canEdit />);
+    renderWithRecording(<Section />);
     await startRecording();
 
     await userEvent.click(screen.getByRole('button', { name: /^cancelar$/i }));
     await userEvent.click(screen.getByRole('button', { name: /continuar gravando/i }));
 
     expect(screen.getByRole('button', { name: /parar gravação/i })).toBeInTheDocument();
-    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(uploadAudio).not.toHaveBeenCalled();
   });
 
-  it('parar normalmente envia o áudio', async () => {
-    render(<ConsultationAudioSection patientId="p1" canEdit />);
+  it('parar normalmente envia o áudio do paciente', async () => {
+    renderWithRecording(<Section />);
     const stop = await startRecording();
 
     await userEvent.click(stop);
 
-    expect(mutateAsync).toHaveBeenCalledTimes(1);
-    expect(mutateAsync.mock.calls[0][0]).toMatchObject({ filename: 'consulta.webm' });
-  });
-});
-
-describe('fmtElapsed', () => {
-  it('usa mm:ss antes de uma hora', () => {
-    expect(fmtElapsed(0)).toBe('00:00');
-    expect(fmtElapsed(9)).toBe('00:09');
-    expect(fmtElapsed(75)).toBe('01:15');
-    expect(fmtElapsed(3599)).toBe('59:59');
+    await waitFor(() => expect(uploadAudio).toHaveBeenCalledTimes(1));
+    expect(uploadAudio).toHaveBeenCalledWith('p1', expect.objectContaining({ filename: 'consulta.webm' }));
   });
 
-  it('passa a h:mm:ss a partir de uma hora', () => {
-    expect(fmtElapsed(3600)).toBe('1:00:00');
-    expect(fmtElapsed(3725)).toBe('1:02:05');
-  });
-
-  it('não quebra com entrada inválida', () => {
-    expect(fmtElapsed(-5)).toBe('00:00');
-    expect(fmtElapsed(12.7)).toBe('00:12');
-  });
-
-  it('grava em 32 kbps para caber no limite da transcrição', async () => {
-    render(<ConsultationAudioSection patientId="p1" canEdit />);
+  it('keeps recording when the section unmounts (tab or page change)', async () => {
+    function Harness() {
+      const [show, setShow] = useState(true);
+      return (
+        <>
+          <button type="button" onClick={() => setShow(false)}>sair da aba</button>
+          {show && <Section />}
+        </>
+      );
+    }
+    renderWithRecording(<Harness />);
     await startRecording();
 
-    // No padrão do navegador (~129 kbps) uma consulta de 30 min passa de 25 MB
-    // e a API de transcrição recusa o arquivo inteiro.
-    expect(recorderOptions[0]).toEqual({ audioBitsPerSecond: 32_000 });
+    await userEvent.click(screen.getByRole('button', { name: 'sair da aba' }));
+
+    expect(trackStop).not.toHaveBeenCalled();
+    expect(uploadAudio).not.toHaveBeenCalled();
+  });
+
+  it('hides the consent checkbox while recording and requires it again afterwards', async () => {
+    renderWithRecording(<Section />);
+    const stop = await startRecording();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+
+    await userEvent.click(stop);
+
+    const checkbox = await screen.findByRole('checkbox');
+    expect(checkbox).not.toBeChecked();
+    expect(screen.getByRole('button', { name: /^gravar$/i })).toBeDisabled();
+  });
+
+  it('blocks recording another patient while one recording is running', async () => {
+    renderWithRecording(
+      <>
+        <div data-testid="maria"><Section patientId="p1" patientName="Maria" /></div>
+        <div data-testid="joao"><Section patientId="p2" patientName="João" /></div>
+      </>,
+    );
+    await startRecording(within(screen.getByTestId('maria')));
+
+    const joao = within(screen.getByTestId('joao'));
+    expect(joao.getByText(/há uma gravação em andamento de maria/i)).toBeInTheDocument();
+    expect(joao.getByRole('link', { name: /ir para a gravação/i })).toHaveAttribute(
+      'href',
+      '/patients/p1?tab=anamnese',
+    );
+    expect(joao.queryByRole('button', { name: /^gravar$/i })).not.toBeInTheDocument();
   });
 });

@@ -4,11 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LifeBuoy, LogOut } from "lucide-react";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/brand/logo";
 import { NAV_ITEMS } from "@/components/app/nav-items";
 import { UserRole } from "@nutri-plus/shared-types";
 import { SupportDialog } from "@/components/support/support-dialog";
+import { useRecording } from "@/components/recording/recording-provider";
 import {
   Sidebar,
   SidebarHeader,
@@ -46,6 +48,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
   const [supportOpen, setSupportOpen] = useState(false);
+  const recording = useRecording();
 
   const role = user?.role;
   const items = NAV_ITEMS.filter(
@@ -53,6 +56,14 @@ export function AppSidebar({ user }: AppSidebarProps) {
   );
 
   async function signOut() {
+    // Sair da conta desmonta o layout, e o upload da gravação em andamento
+    // não sobrevive sem sessão (a chamada de upload exige o token do
+    // Supabase). Barra o logout aqui, antes de qualquer chamada, em vez de
+    // deixar o usuário perder a consulta gravada.
+    if (recording.state.status !== "idle") {
+      toast.error("Pare a gravação antes de sair.");
+      return;
+    }
     await createClient().auth.signOut();
     router.push("/login");
     router.refresh();

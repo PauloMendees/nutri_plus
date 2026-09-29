@@ -1,10 +1,9 @@
 import { z } from 'zod';
 import { canonicalizeWhatsappNumber } from '@nutri-plus/shared-types';
 
-const emptyToUndefined = (v: unknown) => (v === '' || v === null ? undefined : v);
-
-const optText = (max: number) =>
-  z.preprocess(emptyToUndefined, z.string().max(max, `Máximo de ${max} caracteres.`).optional());
+// Campo vazio vai como '' (e não undefined): undefined sai do PATCH e a API
+// manteria o valor antigo, sem jeito de apagar. A API grava '' como null.
+const optText = (max: number) => z.string().max(max, `Máximo de ${max} caracteres.`).optional();
 
 export const settingsSchema = z.object({
   displayName: optText(120),

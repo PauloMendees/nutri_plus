@@ -18,10 +18,16 @@ describe('signupSchema', () => {
     whatsapp: '11999998888',
     password: 'supersecret',
     confirmPassword: 'supersecret',
+    acceptTerms: true,
   };
   it('accepts a valid payload', () => {
     expect(signupSchema.safeParse(base).success).toBe(true);
   });
+  it('rejects signup without accepting the terms of use', () => {
+    const r = signupSchema.safeParse({ ...base, acceptTerms: false });
+    expect(r.success).toBe(false);
+  });
+
   it('rejects when passwords do not match', () => {
     const r = signupSchema.safeParse({ ...base, confirmPassword: 'different' });
     expect(r.success).toBe(false);

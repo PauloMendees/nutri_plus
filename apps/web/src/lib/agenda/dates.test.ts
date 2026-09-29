@@ -12,9 +12,8 @@ import {
 } from './dates';
 
 describe('monthGrid', () => {
-  it('returns 42 Sunday-first cells covering June 2026', () => {
+  it('returns Sunday-first cells covering June 2026', () => {
     const grid = monthGrid(2026, 5, new Date(2026, 5, 23));
-    expect(grid).toHaveLength(42);
     // June 1 2026 is a Monday, so cell 0 is Sunday May 31.
     expect(toDateInput(grid[0].date)).toBe('2026-05-31');
     expect(grid[0].inMonth).toBe(false);
@@ -22,14 +21,37 @@ describe('monthGrid', () => {
     const today = grid.find((c) => c.isToday);
     expect(today && toDateInput(today.date)).toBe('2026-06-23');
   });
+
+  it('drops trailing weeks made only of next-month days', () => {
+    // Setembro 2026: a 6ª linha (4–10 de outubro) é toda do mês seguinte.
+    const grid = monthGrid(2026, 8);
+    expect(grid).toHaveLength(35);
+    expect(toDateInput(grid[grid.length - 1].date)).toBe('2026-10-03');
+  });
+
+  it('keeps a trailing week that still has days of the month', () => {
+    // Junho 2026: 27 de junho–4 de julho ainda tem 28, 29 e 30 de junho.
+    const grid = monthGrid(2026, 5);
+    expect(grid).toHaveLength(35);
+    expect(toDateInput(grid[grid.length - 1].date)).toBe('2026-07-04');
+  });
+
+  it('keeps six weeks when the month needs them', () => {
+    // Agosto 2026 começa num sábado: 31 dias ocupam 6 linhas.
+    expect(monthGrid(2026, 7)).toHaveLength(42);
+  });
+
+  it('shows four weeks for a February that starts on Sunday', () => {
+    expect(monthGrid(2026, 1)).toHaveLength(28);
+  });
 });
 
 describe('gridRange', () => {
   it('spans the first visible cell to the day after the last', () => {
     const { from, to } = gridRange(2026, 5);
     expect(toDateInput(from)).toBe('2026-05-31');
-    // Last visible cell is Jul 11 2026; the exclusive end is the day after.
-    expect(toDateInput(to)).toBe('2026-07-12');
+    // Last visible cell is Jul 4 2026; the exclusive end is the day after.
+    expect(toDateInput(to)).toBe('2026-07-05');
   });
 });
 

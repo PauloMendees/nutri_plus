@@ -7,7 +7,7 @@ function FirstRunMockup() {
   return (
     <figure
       role="img"
-      aria-label="Prévia dos primeiros passos"
+      aria-label="Prévia dos tutoriais"
       className="overflow-hidden rounded-xl border bg-muted/40"
     >
       <div className="flex h-40 bg-[#0a5c45]">
@@ -18,7 +18,7 @@ function FirstRunMockup() {
           <div className="h-1.5 w-9 rounded-full bg-white/25" />
         </div>
         <div className="relative m-2 flex-1 rounded-lg bg-background p-3 shadow-sm">
-          <p className="text-[10px] font-semibold text-foreground">Primeiros passos</p>
+          <p className="text-[10px] font-semibold text-foreground">Tutoriais</p>
           <div className="mt-2 grid grid-cols-3 gap-1.5">
             {['Lista', 'Cadastro', 'Ficha'].map((label, i) => (
               <div key={label} className="rounded-md border bg-card px-1.5 py-1.5">
@@ -66,7 +66,7 @@ export function FirstRunDialog({
             Agora não
           </Button>
           <Button type="button" onClick={onStart}>
-            Ver primeiros passos
+            Ver tutoriais
           </Button>
         </DialogFooter>
       </DialogContent>

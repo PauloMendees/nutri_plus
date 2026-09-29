@@ -14,6 +14,7 @@ export const signupSchema = z
     whatsapp: z.string().trim().min(1, 'Informe seu WhatsApp.'),
     password: z.string().min(8, 'A senha deve ter ao menos 8 caracteres.'),
     confirmPassword: z.string(),
+    acceptTerms: z.boolean().refine((v) => v, 'Aceite os termos de uso para continuar.'),
   })
   .refine((v) => v.password === v.confirmPassword, {
     message: 'As senhas não coincidem.',
@@ -25,7 +26,7 @@ export const signupSchema = z
   });
 
 // Número completo enviado nos metadados do cadastro, ex.: "+55 (11) 99999-8888".
-export function signupWhatsapp(v: Pick<SignupValues, 'countryCode' | 'whatsapp'>): string {
+export function signupWhatsapp(v: { countryCode: string; whatsapp: string }): string {
   return `${v.countryCode} ${v.whatsapp}`;
 }
 

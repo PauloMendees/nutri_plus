@@ -98,9 +98,9 @@ describe('FirstRunHost', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('navigates to primeiros passos and also dismisses the prompt', async () => {
+  it('navigates to tutoriais and also dismisses the prompt', async () => {
     render(<FirstRunHost />);
-    await userEvent.click(screen.getByRole('button', { name: 'Ver primeiros passos' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Ver tutoriais' }));
     expect(push).toHaveBeenCalledWith('/primeiros-passos');
     expect(dismiss).toHaveBeenCalledTimes(1);
   });
