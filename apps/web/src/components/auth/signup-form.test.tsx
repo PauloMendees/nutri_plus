@@ -22,6 +22,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 import { SignupForm } from './signup-form';
+import { TERMS_VERSION } from '@/components/legal/terms-of-use';
 
 beforeEach(() => {
   signUp.mockReset();
@@ -36,9 +37,31 @@ async function fillValid() {
   await userEvent.type(screen.getByLabelText(/whatsapp/i), '(11) 99999-8888');
   await userEvent.type(screen.getByLabelText(/^senha$/i), 'supersecret');
   await userEvent.type(screen.getByLabelText(/confirmar senha/i), 'supersecret');
+  await userEvent.click(screen.getByRole('checkbox', { name: /li e concordo com os termos de uso/i }));
 }
 
 describe('SignupForm', () => {
+  it('blocks signup until the terms of use are accepted', async () => {
+    render(<SignupForm />);
+    await fillValid();
+    // desmarca o aceite que o fillValid marcou
+    await userEvent.click(screen.getByRole('checkbox', { name: /li e concordo com os termos de uso/i }));
+    await userEvent.click(screen.getByRole('button', { name: /criar conta/i }));
+    expect(await screen.findByText(/aceite os termos de uso/i)).toBeInTheDocument();
+    expect(signUp).not.toHaveBeenCalled();
+  });
+
+  it('opens the terms of use in a dialog without ticking the checkbox', async () => {
+    render(<SignupForm />);
+    await userEvent.click(screen.getByRole('button', { name: /^termos de uso$/i }));
+    expect(await screen.findByRole('dialog', { name: /termos de uso/i })).toBeInTheDocument();
+    expect(screen.getByText(/46\.894\.998\/0001-16/)).toBeInTheDocument();
+    // O dialog modal tira o resto da página da árvore de acessibilidade.
+    expect(
+      screen.getByRole('checkbox', { name: /li e concordo com os termos de uso/i, hidden: true }),
+    ).not.toBeChecked();
+  });
+
   it('rejects mismatched passwords', async () => {
     render(<SignupForm />);
     await userEvent.type(screen.getByLabelText(/nome/i), 'Dra. Ana');
@@ -62,6 +85,9 @@ describe('SignupForm', () => {
     // Vai com o DDI (+55 por padrão); o backend canonicaliza no sync-user.
     expect(arg.options.data.whatsapp).toBe('+55 (11) 99999-8888');
     expect(arg.options.emailRedirectTo).toContain('/auth/callback');
+    // Aceite dos termos fica registrado nos metadados do usuário no Supabase.
+    expect(arg.options.data.termsVersion).toBe(TERMS_VERSION);
+    expect(Date.parse(arg.options.data.termsAcceptedAt)).not.toBeNaN();
     // Sem plano escolhido o `plan` vai vazio, mas o `?` tem de existir sempre:
     // o template de e-mail do Supabase concatena `&token_hash=…` nesta URL, e
     // sem query string a concatenação viraria parte do path.
