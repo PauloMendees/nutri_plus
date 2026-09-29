@@ -81,6 +81,15 @@ describe('Configurações index', () => {
     expect(screen.queryByText('Conversar com nutricionista')).toBeNull();
   });
 
+  it('falls back to the account name when the display name is blank', async () => {
+    mockNutritionist = {
+      isLoading: false,
+      data: { ...(mockNutritionist.data as object), displayName: '  ' },
+    };
+    await render(<ConfiguracoesIndex />);
+    expect(screen.getByText('Beatriz')).toBeTruthy();
+  });
+
   it('shows Conversar com nutricionista when the nutritionist has a WhatsApp number', async () => {
     mockNutritionist = {
       isLoading: false,

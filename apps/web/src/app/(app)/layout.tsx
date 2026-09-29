@@ -16,6 +16,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/sonner';
 import { isWebDashboardRole } from '@/lib/auth/access';
 import { getCurrentUser } from '@/lib/auth/current-user';
+import { displayNameOf } from '@/lib/auth/display-name';
 import { Providers } from '../providers';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -32,7 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <MetaPixel trackPageView={false} />
       <RecordingProvider>
         <SidebarProvider>
-          <AppSidebar user={me ? { name: me.name, email: me.email, role: me.role } : null} />
+          <AppSidebar user={me ? { name: displayNameOf(me), email: me.email, role: me.role } : null} />
           <SidebarInset>
             <TourProvider role={me?.role ?? null}>
               <BillingGate />
