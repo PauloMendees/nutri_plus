@@ -146,15 +146,15 @@ describe('AppSidebar', () => {
     ).toBe(true);
   });
 
-  it('places Primeiros passos after Contabilidade and before Configurações', () => {
+  it('places Tutoriais after Contabilidade and before Configurações', () => {
     const labels = NAV_ITEMS.map((item) => item.label);
-    expect(labels.indexOf('Primeiros passos')).toBe(labels.indexOf('Contabilidade') + 1);
-    expect(labels.indexOf('Configurações')).toBe(labels.indexOf('Primeiros passos') + 1);
+    expect(labels.indexOf('Tutoriais')).toBe(labels.indexOf('Contabilidade') + 1);
+    expect(labels.indexOf('Configurações')).toBe(labels.indexOf('Tutoriais') + 1);
   });
 
-  it('renders the Primeiros passos item with the hub href', () => {
+  it('renders the Tutoriais item with the hub href', () => {
     renderSidebar();
-    expect(screen.getByRole('link', { name: /primeiros passos/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /tutoriais/i })).toHaveAttribute(
       'href',
       '/primeiros-passos',
     );
