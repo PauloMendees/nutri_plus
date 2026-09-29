@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { deleteAudio, listAudios, transcribeAudio, uploadAudio } from '@/lib/api/consultation-audio';
+import { deleteAudio, listAudios, transcribeAudio } from '@/lib/api/consultation-audio';
 
 export function useAudios(patientId: string) {
   return useQuery({
@@ -10,13 +10,9 @@ export function useAudios(patientId: string) {
   });
 }
 
-export function useUploadAudio(patientId: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (args: { blob: Blob; durationSec: number; filename: string }) => uploadAudio(patientId, args),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['audios', patientId] }),
-  });
-}
+// useUploadAudio (mutation) foi removido: o upload da gravação de consulta
+// passou a viver inteiro no RecordingProvider, que chama uploadAudio direto
+// (ver recording-provider.tsx) — não sobrava chamador deste hook.
 
 export function useDeleteAudio(patientId: string) {
   const qc = useQueryClient();
