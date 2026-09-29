@@ -306,11 +306,10 @@ export function PatientDetail({
           <EditPatientForm patient={patient} canEdit={canEdit} />
         </TabsContent>
         <TabsContent value="anamnese">
-          {/* Recorder + history live inside the Anamnese tab so the nutritionist can
-              record the consultation while filling the anamnese (switching tabs
-              would unmount the recorder and release the mic). */}
+          {/* A gravação em si vive no RecordingProvider do layout: sair da aba
+              não a interrompe. Aqui ficam o consentimento, o início e o histórico. */}
           <div className="space-y-6">
-            <ConsultationAudioSection patientId={patient.id} canEdit={canEdit} />
+            <ConsultationAudioSection patientId={patient.id} patientName={patient.name} canEdit={canEdit} />
             <AnamneseSection patientId={patient.id} canEdit={canEdit} />
           </div>
         </TabsContent>
