@@ -148,6 +148,22 @@ describe('RecordingProvider', () => {
     expect(trackStop).toHaveBeenCalled();
   });
 
+  it('releases the mic and does not resume start if the provider unmounts while getUserMedia is pending', async () => {
+    let resolveGetUserMedia!: (stream: unknown) => void;
+    getUserMedia.mockReset().mockReturnValue(
+      new Promise((resolve) => { resolveGetUserMedia = resolve; }),
+    );
+    const { result, unmount } = setup();
+
+    const startPromise = result.current.start(target);
+    unmount();
+    resolveGetUserMedia({ getTracks: () => [{ stop: trackStop }] });
+
+    expect(await startPromise).toBe(false);
+    expect(trackStop).toHaveBeenCalled();
+    expect(recorderOptions.length).toBe(0);
+  });
+
   it('throws a clear error when used outside the provider', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(() => renderHook(() => useRecording())).toThrow(/RecordingProvider/);

@@ -54,6 +54,12 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
   const busyRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const rafRef = useRef<number | null>(null);
+  // getUserMedia é a única await antes de o provider assumir o stream; se o
+  // componente desmontar enquanto ela está pendente (troca de rota rápida,
+  // por ex.), o resultado chega depois que ninguém mais vai parar o
+  // microfone — daí o dublê some com uma gravação fantasma, presa até a aba
+  // fechar.
+  const mountedRef = useRef(true);
 
   function stopStream() {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -133,6 +139,15 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     busyRef.current = true;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!mountedRef.current) {
+        // Provider já desmontado: não há mais onde guardar o stream nem
+        // quem vai parar o gravador depois. Libera o microfone aqui e sai
+        // sem tocar em estado (setState num provider desmontado só geraria
+        // warning) e sem toast (o usuário já saiu desta tela).
+        stream.getTracks().forEach((t) => t.stop());
+        busyRef.current = false;
+        return false;
+      }
       streamRef.current = stream;
       // 32 kbps opus: adequado para fala e para transcrição automática, e é o
       // que mantém uma consulta longa abaixo dos 25 MB que a API de transcrição
@@ -208,15 +223,18 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [recording]);
 
-  // O layout só desmonta ao sair do app (ex.: logout). Aí o parcial é salvo —
-  // melhor que descartar a consulta inteira.
+  // O AppSidebar já bloqueia o logout enquanto há gravação (signOut não roda
+  // com state !== 'idle'), então o caminho comum de desmonte do layout não
+  // acontece em gravação. Este cleanup é o último recurso para outros
+  // desmontes do provider — tenta salvar o parcial em vez de simplesmente
+  // perder a consulta.
   useEffect(() => {
     return () => {
+      mountedRef.current = false;
       if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
       stopStream();
       stopMeter();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
