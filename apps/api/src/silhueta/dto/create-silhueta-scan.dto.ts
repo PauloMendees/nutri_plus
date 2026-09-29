@@ -4,19 +4,18 @@ import { IsBoolean, IsNumber, IsOptional, Max, Min } from 'class-validator';
 // Multipart text fields arrive as strings, so numeric fields are coerced with
 // @Type(() => Number) and consent (sent as 'true'/'false') via @Transform.
 export class CreateSilhuetaScanDto {
-  @IsOptional()
+  // Altura e peso são obrigatórios: sem eles a estimativa não tem escala.
   @Type(() => Number)
   @IsNumber()
   @Min(0)
   @Max(300)
-  heightCm?: number;
+  heightCm!: number;
 
-  @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
   @Max(500)
-  weightKg?: number;
+  weightKg!: number;
 
   @IsOptional()
   @Type(() => Number)
