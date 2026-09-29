@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { getUserMedia, installMediaMocks, recorderOptions, trackStop } from './test-media';
+import { getUserMedia, installMediaMocks, media, recorderOptions, trackStop } from './test-media';
 
 const uploadAudio = vi.fn();
 vi.mock('@/lib/api/consultation-audio', () => ({
@@ -151,5 +151,22 @@ describe('RecordingProvider', () => {
   it('throws a clear error when used outside the provider', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(() => renderHook(() => useRecording())).toThrow(/RecordingProvider/);
+  });
+
+  it('ignores a stop/discard race after the recorder already stopped', async () => {
+    media.deferStop = true;
+    const { result } = setup();
+    await act(async () => { await result.current.start(target); });
+
+    expect(() => {
+      act(() => {
+        result.current.stopAndSave();
+        result.current.stopAndSave();
+        result.current.discard();
+      });
+    }).not.toThrow();
+
+    await waitFor(() => expect(uploadAudio).toHaveBeenCalledTimes(1));
+    expect(toast.info).not.toHaveBeenCalledWith('Gravação descartada.');
   });
 });

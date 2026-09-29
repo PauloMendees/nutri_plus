@@ -158,13 +158,29 @@ export function RecordingProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // MediaRecorder.stop() vira 'inactive' na hora mas o onstop chega depois
+  // (tarefa enfileirada); recorderRef só é zerado dentro de onstop/finish. Um
+  // segundo clique rápido em "Parar" chamaria .stop() num gravador já
+  // inativo (InvalidStateError). Por isso o ref é lido uma vez e zerado aqui
+  // mesmo, antes do .stop(): a segunda chamada não encontra mais nada para
+  // parar.
   function stopAndSave() {
-    recorderRef.current?.stop();
+    const recorder = recorderRef.current;
+    if (recorder?.state !== 'recording') return;
+    recorderRef.current = null;
+    recorder.stop();
   }
 
   function discard() {
+    const recorder = recorderRef.current;
+    if (recorder?.state !== 'recording') return;
+    recorderRef.current = null;
+    // Só marca como descarte se esta chamada de fato parou o gravador —
+    // senão um discard() que chega depois de um stopAndSave() (já
+    // encerrado) marcaria uma gravação que o usuário pediu para salvar como
+    // descartada.
     cancelledRef.current = true;
-    recorderRef.current?.stop();
+    recorder.stop();
   }
 
   const recording = state.status === 'recording';
