@@ -46,7 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </header>
               {/* pb-32 no mobile: o floater de gravação fica fixo no rodapé e
                   cobriria o fim do conteúdo sem essa folga. */}
-              <main className="flex-1 p-6 pb-32 md:p-8 md:pb-32">{children}</main>
+              <main className="flex-1 p-6 pb-40 md:p-8 md:pb-40">{children}</main>
               <CornerWidgets />
               {/* useSearchParams exige Suspense no App Router. */}
               <Suspense fallback={null}>
