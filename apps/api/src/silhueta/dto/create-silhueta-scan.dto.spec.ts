@@ -22,4 +22,17 @@ describe('CreateSilhuetaScanDto', () => {
     const errs = await errorsFor({ heightCm: '170', weightKg: '70', consent: 'true' });
     expect(errs).toEqual([]);
   });
+
+  // '0' passa em @IsNumber()/obrigatoriedade mas não é uma altura/peso
+  // possível — sem um mínimo fisiológico a estimativa aceitava um corpo de
+  // altura ou peso zero.
+  it('rejects a height of 0', async () => {
+    const errs = await errorsFor({ heightCm: '0', weightKg: '70', consent: 'true' });
+    expect(errs.some((e) => e.property === 'heightCm')).toBe(true);
+  });
+
+  it('rejects a weight of 0', async () => {
+    const errs = await errorsFor({ heightCm: '170', weightKg: '0', consent: 'true' });
+    expect(errs.some((e) => e.property === 'weightKg')).toBe(true);
+  });
 });

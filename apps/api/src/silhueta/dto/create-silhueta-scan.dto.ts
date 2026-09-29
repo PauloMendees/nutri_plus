@@ -5,15 +5,17 @@ import { IsBoolean, IsNumber, IsOptional, Max, Min } from 'class-validator';
 // @Type(() => Number) and consent (sent as 'true'/'false') via @Transform.
 export class CreateSilhuetaScanDto {
   // Altura e peso são obrigatórios: sem eles a estimativa não tem escala.
+  // Min > 0 fecha o buraco de um 0 "presente porém impossível" — passava em
+  // @IsNumber() mesmo não sendo um corpo humano.
   @Type(() => Number)
   @IsNumber()
-  @Min(0)
+  @Min(50)
   @Max(300)
   heightCm!: number;
 
   @Type(() => Number)
   @IsNumber()
-  @Min(0)
+  @Min(2)
   @Max(500)
   weightKg!: number;
 

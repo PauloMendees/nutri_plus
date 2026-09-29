@@ -162,4 +162,21 @@ describe('SilhuetaSection', () => {
     expect(screen.getByText('Informe o peso.')).toBeInTheDocument();
     expect(createMut).not.toHaveBeenCalled();
   });
+
+  it('blocks submission when height or weight is below the physiological minimum', async () => {
+    render(<SilhuetaSection patientId="p1" />);
+
+    await userEvent.upload(screen.getByLabelText('Foto frontal'), frontFile);
+    await userEvent.upload(screen.getByLabelText('Foto lateral'), sideFile);
+    await userEvent.click(
+      screen.getByLabelText(/consentimento para processamento das fotos por ia/i),
+    );
+    // 0 passa em "obrigatório" mas não é uma altura/peso possível.
+    await userEvent.type(screen.getByLabelText(/altura \(cm\)/i), '0');
+    await userEvent.type(screen.getByLabelText(/peso \(kg\)/i), '0');
+    await userEvent.click(screen.getByRole('button', { name: /enviar para análise/i }));
+
+    expect(await screen.findAllByText('Valor abaixo do mínimo.')).toHaveLength(2);
+    expect(createMut).not.toHaveBeenCalled();
+  });
 });
