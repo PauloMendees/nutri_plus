@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { Logo } from '@/components/brand/logo';
 import { MetaPixel } from '@/components/analytics/meta-pixel';
@@ -9,6 +10,8 @@ import { FirstRunHost } from '@/components/onboarding/first-run-host';
 import { TourProvider } from '@/components/onboarding/tour-provider';
 import { MobileNavTrigger } from '@/components/app/mobile-nav-trigger';
 import { CornerWidgets } from '@/components/app/corner-widgets';
+import { RecordingFloater } from '@/components/recording/recording-floater';
+import { RecordingProvider } from '@/components/recording/recording-provider';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { Toaster } from '@/components/ui/sonner';
 import { isWebDashboardRole } from '@/lib/auth/access';
@@ -27,23 +30,29 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {/* Sem PageView: o pixel entra aqui só para o evento TrialAtivado ter
           onde disparar no navegador e poder ser deduplicado com a CAPI. */}
       <MetaPixel trackPageView={false} />
-      <SidebarProvider>
-        <AppSidebar user={me ? { name: me.name, email: me.email, role: me.role } : null} />
-        <SidebarInset>
-          <TourProvider role={me?.role ?? null}>
-            <BillingGate />
-            <OnboardingGate />
-            <FirstRunHost />
-            {me?.role === 'NUTRITIONIST' ? <FeedbackPromptHost enabled /> : null}
-            <header className="flex h-14 items-center justify-between border-b bg-background px-4 md:hidden">
-              <Logo variant="full" className="h-6" />
-              <MobileNavTrigger />
-            </header>
-            <main className="flex-1 p-6 md:p-8 md:pb-32">{children}</main>
-            <CornerWidgets />
-          </TourProvider>
-        </SidebarInset>
-      </SidebarProvider>
+      <RecordingProvider>
+        <SidebarProvider>
+          <AppSidebar user={me ? { name: me.name, email: me.email, role: me.role } : null} />
+          <SidebarInset>
+            <TourProvider role={me?.role ?? null}>
+              <BillingGate />
+              <OnboardingGate />
+              <FirstRunHost />
+              {me?.role === 'NUTRITIONIST' ? <FeedbackPromptHost enabled /> : null}
+              <header className="flex h-14 items-center justify-between border-b bg-background px-4 md:hidden">
+                <Logo variant="full" className="h-6" />
+                <MobileNavTrigger />
+              </header>
+              <main className="flex-1 p-6 md:p-8 md:pb-32">{children}</main>
+              <CornerWidgets />
+              {/* useSearchParams exige Suspense no App Router. */}
+              <Suspense fallback={null}>
+                <RecordingFloater />
+              </Suspense>
+            </TourProvider>
+          </SidebarInset>
+        </SidebarProvider>
+      </RecordingProvider>
       <Toaster position="top-center" richColors />
     </Providers>
   );
