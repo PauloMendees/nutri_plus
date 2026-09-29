@@ -34,8 +34,8 @@ const NUMBER_FIELDS: NumField[] = [
 function defaults(): SilhuetaValues {
   return {
     scanDate: localDateInput(),
-    heightCm: '' as unknown as number | undefined,
-    weightKg: '' as unknown as number | undefined,
+    heightCm: '' as unknown as number,
+    weightKg: '' as unknown as number,
     waistInput: '' as unknown as number | undefined,
     hipInput: '' as unknown as number | undefined,
   };
