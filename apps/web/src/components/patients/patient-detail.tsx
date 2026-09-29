@@ -193,11 +193,6 @@ export function PatientDetail({
                 {patient.phone}
               </a>
             ) : null}
-            <p className="mt-1 text-xs text-muted-foreground">
-              {patient.latestConsent
-                ? `Consentimento LGPD: aceito em ${new Date(patient.latestConsent.acceptedAt).toLocaleDateString('pt-BR')}`
-                : 'Consentimento LGPD: pendente'}
-            </p>
             {canEdit && (
               <div className="mt-2 flex flex-wrap gap-2">
                 <label
