@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 const useFoodRecalls = vi.fn();
 
@@ -26,6 +27,17 @@ beforeEach(() => {
 });
 
 describe('RecordatorioSection', () => {
+  it('explains what the recall tab is for in an info tooltip', async () => {
+    useFoodRecalls.mockReturnValue({ isLoading: false, isError: false, data: [] });
+    render(<RecordatorioSection patientId="p1" canEdit />);
+
+    await userEvent.hover(screen.getByRole('button', { name: /sobre o recordatório 24h/i }));
+
+    expect(
+      (await screen.findAllByText(/tudo o que o paciente comeu e bebeu nas últimas 24 horas/i)).length,
+    ).toBeGreaterThan(0);
+  });
+
   it('lists the dated recalls', () => {
     useFoodRecalls.mockReturnValue({
       isLoading: false,
