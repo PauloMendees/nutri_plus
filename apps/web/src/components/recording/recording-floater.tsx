@@ -29,7 +29,10 @@ export function RecordingFloater() {
     <div
       role="region"
       aria-label="Gravação em andamento"
-      className="fixed inset-x-4 bottom-4 z-50 flex flex-wrap items-center justify-center gap-3 rounded-2xl border bg-card px-4 py-2 shadow-lg md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:rounded-full"
+      // md:bottom-20: entre md e xl o CornerWidgets (bottom-4 right-4) fica
+      // largo o bastante para colidir com o floater centralizado; sobe até o
+      // xl abrir espaço de volta para bottom-4.
+      className="fixed inset-x-4 bottom-4 z-50 flex flex-wrap items-center justify-center gap-3 rounded-2xl border bg-card px-4 py-2 shadow-lg md:inset-x-auto md:left-1/2 md:bottom-20 md:-translate-x-1/2 md:rounded-full xl:bottom-4"
     >
       <span aria-hidden className="h-2.5 w-2.5 animate-pulse rounded-full bg-destructive" />
       {rec.state.status === 'uploading' ? (

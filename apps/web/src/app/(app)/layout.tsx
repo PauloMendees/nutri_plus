@@ -43,7 +43,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 <Logo variant="full" className="h-6" />
                 <MobileNavTrigger />
               </header>
-              <main className="flex-1 p-6 md:p-8 md:pb-32">{children}</main>
+              {/* pb-32 no mobile: o floater de gravação fica fixo no rodapé e
+                  cobriria o fim do conteúdo sem essa folga. */}
+              <main className="flex-1 p-6 pb-32 md:p-8 md:pb-32">{children}</main>
               <CornerWidgets />
               {/* useSearchParams exige Suspense no App Router. */}
               <Suspense fallback={null}>
