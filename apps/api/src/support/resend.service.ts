@@ -6,6 +6,12 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+// Resend: `content` é o arquivo em base64.
+export interface EmailAttachment {
+  filename: string;
+  content: string;
+}
+
 export interface SendEmailInput {
   to: string;
   from: string;
@@ -13,6 +19,7 @@ export interface SendEmailInput {
   text: string;
   html?: string;
   replyTo?: string;
+  attachments?: EmailAttachment[];
 }
 
 export type SendSupportEmailInput = SendEmailInput & { replyTo: string };
@@ -37,6 +44,7 @@ export class ResendService {
     };
     if (input.html) payload.html = input.html;
     if (input.replyTo) payload.reply_to = input.replyTo;
+    if (input.attachments?.length) payload.attachments = input.attachments;
 
     let res: Response;
     try {

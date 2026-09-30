@@ -77,4 +77,21 @@ describe('ResendService', () => {
     });
     expect(body.reply_to).toBeUndefined();
   });
+
+  it('repassa anexos para a API do Resend', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ id: 'email_1' }),
+    } as Response);
+    const svc = new ResendService({ get: () => 're_test_key' } as any);
+
+    await svc.sendEmail({
+      ...input,
+      attachments: [{ filename: 'dados.json', content: 'eyJhIjoxfQ==' }],
+    });
+
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.attachments).toEqual([{ filename: 'dados.json', content: 'eyJhIjoxfQ==' }]);
+  });
 });
