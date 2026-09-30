@@ -182,8 +182,10 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
   // O paciente do tour pode ser um paciente real (use-own-patient). Os dados
   // fictícios só podem ir para o de demonstração: num real, a anamnese seria
   // sobrescrita e a pesagem/plano fictícios apareceriam no app dele. Enquanto
-  // a ficha carrega, trata como real (esconde) — nunca o contrário.
-  const { data: tourPatient } = usePatient(demoPatientId ?? '');
+  // a ficha carrega, trata como real (esconde) — nunca o contrário. Usa o valor
+  // do servidor: o override local só cobre o instante após criar o demo, e o
+  // capítulo seguinte (ficha) não tem dados fictícios.
+  const { data: tourPatient } = usePatient(demoFromQuery ?? '');
   const tourPatientIsDemo = tourPatient?.isDemo === true;
   const entitlements = subscription?.entitlements;
   const entitlementsRef = useRef(entitlements);
