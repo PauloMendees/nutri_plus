@@ -8,6 +8,7 @@ import ExcelJS from 'exceljs';
 import type { ImportCommitResponse, ImportPreviewResponse } from '@nutri-plus/shared-types';
 import { Prisma } from '../../generated/prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { saoPauloCalendarDate } from '../../common/calendar-date';
 import { OpenAIProvider } from '../../ai/openai.provider';
 import { MetaActivationService } from '../../meta/meta-activation.service';
 import { serverOnlyMetaContext, type MetaContext } from '../../meta/meta-context';
@@ -199,7 +200,9 @@ export class ImportService {
               await tx.bodyAssessment.create({
                 data: {
                   patientId: profile.id,
-                  assessmentDate: (assessmentDate as Date | undefined) ?? new Date(),
+                  // Sem data na planilha: o dia de hoje em São Paulo, no formato
+                  // só-data (meia-noite UTC) — `new Date()` à noite viraria amanhã.
+                  assessmentDate: (assessmentDate as Date | undefined) ?? saoPauloCalendarDate(new Date()),
                   ...metrics,
                 },
               });

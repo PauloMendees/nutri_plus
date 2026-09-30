@@ -44,6 +44,25 @@ describe('ImportService', () => {
     });
   });
 
+  it('dates an assessment without a date on the São Paulo calendar day of the import', async () => {
+    // 30/09 22:00 em São Paulo == 01/10 01:00 UTC: a avaliação é do dia 30.
+    jest.useFakeTimers({ now: new Date('2026-10-01T01:00:00.000Z') });
+    try {
+      prisma.patientProfile.create.mockResolvedValue({ id: 'pp1' } as any);
+      prisma.bodyAssessment.create.mockResolvedValue({} as any);
+
+      await service.commitRows('nut-1', [
+        { line: 2, values: { Nome: 'Ana', 'Peso (kg)': '70' } },
+      ], { Nome: 'name', 'Peso (kg)': 'assessment.weight' });
+
+      expect(prisma.bodyAssessment.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ assessmentDate: new Date('2026-09-30T00:00:00.000Z') }),
+      });
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('skips a row without name and continues', async () => {
     prisma.patientProfile.create.mockResolvedValue({ id: 'pp2' } as any);
     prisma.$transaction.mockImplementation(async (fn: any) => fn(prisma));
