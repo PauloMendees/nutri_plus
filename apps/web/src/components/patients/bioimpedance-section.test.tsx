@@ -23,7 +23,8 @@ vi.mock('recharts', () => ({
       {children}
     </div>
   ),
-  Line: () => null,
+  // Expõe o nome da série: é o que o tooltip do gráfico mostra.
+  Line: ({ name }: { name?: string }) => <span data-testid="chart-series-name">{name}</span>,
   XAxis: () => null,
   YAxis: () => null,
   Tooltip: () => null,
@@ -185,5 +186,11 @@ describe('BioimpedanceSection', () => {
       expect(screen.getAllByText('12/05/2026').length).toBeGreaterThan(0);
       expect(screen.queryByText('11/05/2026')).toBeNull();
     });
+  });
+
+  it('names the chart series in Portuguese (tooltip showed "value")', () => {
+    useAssessments.mockReturnValue({ isLoading: false, isError: false, data: [assessment()] });
+    render(<BioimpedanceSection patientId="p1" canEdit />);
+    expect(screen.getByTestId('chart-series-name')).toHaveTextContent('Peso');
   });
 });

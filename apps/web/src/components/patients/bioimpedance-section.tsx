@@ -190,7 +190,15 @@ export function BioimpedanceSection({
                     labelStyle={{ color: 'var(--foreground)' }}
                     itemStyle={{ color: 'var(--foreground)' }}
                   />
-                  <Line type="monotone" dataKey="value" stroke="#14BFA6" strokeWidth={2} dot />
+                  {/* name: rótulo do tooltip; sem ele o recharts mostra "value". */}
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    name={METRICS.find((m) => m.key === metric)?.label}
+                    stroke="#14BFA6"
+                    strokeWidth={2}
+                    dot
+                  />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
