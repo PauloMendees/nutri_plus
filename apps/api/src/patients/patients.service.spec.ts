@@ -1,9 +1,13 @@
 import {
+  BadGatewayException,
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { ResendService } from '../support/resend.service';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -93,6 +97,8 @@ describe('PatientsService', () => {
   let users: DeepMockProxy<UsersService>;
   let supabaseAdmin: DeepMockProxy<SupabaseAdminService>;
   let metaActivation: DeepMockProxy<MetaActivationService>;
+  let resend: DeepMockProxy<ResendService>;
+  let config: DeepMockProxy<ConfigService>;
   let service: PatientsService;
   const ctx = ctxWithNutritionist('nutri-1');
 
@@ -101,7 +107,12 @@ describe('PatientsService', () => {
     users = mockDeep<UsersService>();
     supabaseAdmin = mockDeep<SupabaseAdminService>();
     metaActivation = mockDeep<MetaActivationService>();
-    service = new PatientsService(prisma, users, supabaseAdmin, metaActivation);
+    resend = mockDeep<ResendService>();
+    config = mockDeep<ConfigService>();
+    config.get.mockImplementation((key: string) =>
+      key === 'SUPPORT_FROM_EMAIL' ? 'iNutri <contato@inutri.life>' : undefined,
+    );
+    service = new PatientsService(prisma, users, supabaseAdmin, metaActivation, resend, config);
     // deleteMyAccount reads this before teardown; default to none so the
     // pre-existing deleteMyAccount specs (which don't set this up) don't
     // iterate over an unmocked (undefined) result.
@@ -886,47 +897,99 @@ describe('PatientsService', () => {
     });
   });
 
-  describe('deleteDemoPatient', () => {
-    it('403 when isDemo === false', async () => {
-      prisma.patientProfile.findFirst.mockResolvedValue({
-        id: 'pp1',
-        userId: 'u1',
-        isDemo: false,
+  describe('deletePatient', () => {
+    let purge: jest.SpyInstance;
+
+    beforeEach(() => {
+      purge = jest.spyOn(service, 'purgePatient').mockResolvedValue(undefined);
+      prisma.nutritionistProfile.findUnique.mockResolvedValue({
+        displayName: 'Dra. Ana',
+        user: { name: 'Ana Souza', email: 'ana@clinica.com' },
       } as any);
-      await expect(service.deleteDemoPatient(ctx, 'pp1')).rejects.toMatchObject({ status: 403 });
-      expect(prisma.user.delete).not.toHaveBeenCalled();
     });
 
-    it('deletes the User when isDemo and userId is set', async () => {
+    function patient(over: Record<string, unknown> = {}) {
       prisma.patientProfile.findFirst.mockResolvedValue({
-        id: 'pp-demo',
-        userId: 'u-d',
-        isDemo: true,
+        id: 'pp1', name: 'Maria Silva', email: 'maria@x.com', isDemo: false, ...over,
       } as any);
-      prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
-      prisma.patientProfile.findUnique.mockResolvedValue({
-        userId: 'u-d', photoUrl: null, user: { authProviderId: 'auth-d' },
-      } as any);
-      await service.deleteDemoPatient(ctx, 'pp-demo');
-      expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'u-d' } });
+    }
+
+    it('404 for a patient of another nutritionist, without emailing or deleting', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue(null);
+      await expect(service.deletePatient(ctx, 'pp1', 'Maria Silva')).rejects.toBeInstanceOf(NotFoundException);
+      expect(resend.sendEmail).not.toHaveBeenCalled();
+      expect(purge).not.toHaveBeenCalled();
     });
 
-    it('does not delete a User when isDemo and userId is null', async () => {
-      prisma.patientProfile.findFirst.mockResolvedValue({
-        id: 'pp-demo',
-        userId: null,
-        isDemo: true,
-      } as any);
-      prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
-      prisma.patientProfile.findUnique.mockResolvedValue({
-        userId: null, photoUrl: null, user: null,
-      } as any);
-      await service.deleteDemoPatient(ctx, 'pp-demo');
-      expect(prisma.patientProfile.delete).toHaveBeenCalledWith({ where: { id: 'pp-demo' } });
-      expect(prisma.user.delete).not.toHaveBeenCalled();
+    it('purges a demo patient without confirmation or email', async () => {
+      patient({ isDemo: true });
+      await service.deletePatient(ctx, 'pp1');
+      expect(resend.sendEmail).not.toHaveBeenCalled();
+      expect(purge).toHaveBeenCalledWith('pp1');
+    });
+
+    it('400 when the typed name does not match, deleting nothing', async () => {
+      patient();
+      await expect(service.deletePatient(ctx, 'pp1', 'Maria Souza')).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.deletePatient(ctx, 'pp1')).rejects.toBeInstanceOf(BadRequestException);
+      expect(purge).not.toHaveBeenCalled();
+    });
+
+    it('accepts the name with different case and surrounding spaces', async () => {
+      patient({ email: null });
+      await service.deletePatient(ctx, 'pp1', '  maria SILVA ');
+      expect(purge).toHaveBeenCalledWith('pp1');
+    });
+
+    it('emails the data export as a JSON attachment before purging', async () => {
+      patient();
+      jest.spyOn(service as any, 'buildPatientExport').mockResolvedValue({ profile: { name: 'Maria Silva' } });
+
+      await service.deletePatient(ctx, 'pp1', 'Maria Silva');
+
+      const sent = resend.sendEmail.mock.calls[0][0];
+      expect(sent.to).toBe('maria@x.com');
+      expect(sent.from).toBe('iNutri <contato@inutri.life>');
+      expect(sent.replyTo).toBe('ana@clinica.com');
+      expect(sent.subject).toContain('Dra. Ana');
+      expect(sent.attachments).toHaveLength(1);
+      expect(sent.attachments![0].filename).toMatch(/^dados-maria-silva-\d{4}-\d{2}-\d{2}\.json$/);
+      const json = JSON.parse(Buffer.from(sent.attachments![0].content, 'base64').toString('utf8'));
+      expect(json).toEqual({ profile: { name: 'Maria Silva' } });
+      expect(resend.sendEmail.mock.invocationCallOrder[0]).toBeLessThan(purge.mock.invocationCallOrder[0]);
+    });
+
+    it('502 and nothing deleted when the email fails', async () => {
+      patient();
+      jest.spyOn(service as any, 'buildPatientExport').mockResolvedValue({});
+      resend.sendEmail.mockRejectedValue(new Error('resend down'));
+
+      await expect(service.deletePatient(ctx, 'pp1', 'Maria Silva')).rejects.toBeInstanceOf(BadGatewayException);
+      expect(purge).not.toHaveBeenCalled();
+    });
+
+    it('502 and nothing deleted when SUPPORT_FROM_EMAIL is not configured', async () => {
+      patient();
+      config.get.mockReturnValue(undefined);
+      await expect(service.deletePatient(ctx, 'pp1', 'Maria Silva')).rejects.toBeInstanceOf(BadGatewayException);
+      expect(resend.sendEmail).not.toHaveBeenCalled();
+      expect(purge).not.toHaveBeenCalled();
+    });
+
+    it('purges without emailing a patient who has no e-mail', async () => {
+      patient({ email: null });
+      await service.deletePatient(ctx, 'pp1', 'Maria Silva');
+      expect(resend.sendEmail).not.toHaveBeenCalled();
+      expect(purge).toHaveBeenCalledWith('pp1');
     });
   });
 
+  describe('exportPatientData', () => {
+    it('404 for a patient of another nutritionist', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue(null);
+      await expect(service.exportPatientData(ctx, 'pp1')).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
   describe('getMyNutritionist', () => {
     it('maps the linked nutritionist profile + user fields', async () => {
       prisma.nutritionistProfile.findUnique.mockResolvedValue({

@@ -3,7 +3,7 @@
 export function patientExportFileName(patientName: string, date: Date = new Date()): string {
   const slug = patientName
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');

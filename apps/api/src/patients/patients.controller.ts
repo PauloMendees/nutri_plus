@@ -28,6 +28,7 @@ import { EvolutionPdfService } from './pdf/evolution-pdf.service';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
+import { DeletePatientDto } from './dto/delete-patient.dto';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { ListPatientsQueryDto } from './dto/list-patients-query.dto';
 
@@ -80,8 +81,13 @@ export class PatientsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  removeDemo(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
-    return this.patients.deleteDemoPatient(ctx, id);
+  remove(@CurrentUser() ctx: AuthContext, @Param('id') id: string, @Body() dto: DeletePatientDto) {
+    return this.patients.deletePatient(ctx, id, dto?.confirmName);
+  }
+
+  @Get(':id/export')
+  exportData(@CurrentUser() ctx: AuthContext, @Param('id') id: string) {
+    return this.patients.exportPatientData(ctx, id);
   }
 
   @Post(':id/photo')

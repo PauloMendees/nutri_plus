@@ -1,18 +1,29 @@
 import {
+  BadGatewayException,
   BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { canonicalizeWhatsappNumber, type MealLog, type NutritionistContact } from '@nutri-plus/shared-types';
+import { ConfigService } from '@nestjs/config';
+import {
+  canonicalizeWhatsappNumber,
+  patientExportFileName,
+  preferredNutritionistName,
+  type MealLog,
+  type NutritionistContact,
+} from '@nutri-plus/shared-types';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetaActivationService } from '../meta/meta-activation.service';
 import { serverOnlyMetaContext, type MetaContext } from '../meta/meta-context';
 import { AuthContext } from '../auth/types/auth-context';
 import { resolveScopeNutritionistId, resolveScopePatientId } from '../auth/auth-scope';
+import { ResendService } from '../support/resend.service';
+import { buildPatientDeletedEmail } from './patient-deleted-email';
 import { UsersService } from '../users/users.service';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
 import { EXT_BY_MIME, isSupportedImage, UploadedImage } from '../supabase/image-upload';
@@ -49,11 +60,15 @@ const PATIENT_LIST_INCLUDE = {
 
 @Injectable()
 export class PatientsService {
+  private readonly logger = new Logger(PatientsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
     private readonly supabaseAdmin: SupabaseAdminService,
     private readonly metaActivation: MetaActivationService,
+    private readonly resend: ResendService,
+    private readonly config: ConfigService,
   ) {}
 
   // Creates a ficha only: no Supabase invite and no User. Email is optional.
@@ -389,23 +404,77 @@ export class PatientsService {
     await this.prisma.bodyAssessment.delete({ where: { id: assessmentId } });
   }
 
-  // Demo-only hard delete. Real patients have no nutritionist delete path.
-  // Cascade goes through purgePatient. New demos have no User; older demos may
-  // still have one (purgePatient handles both). OnboardingProgress.demoPatientId SetNulls.
-  async deleteDemoPatient(ctx: AuthContext, id: string): Promise<void> {
-    await this.requireOwned(ctx, id);
+  // Exclusão pela nutricionista. Demo: como antes, sem confirmação nem e-mail.
+  // Paciente real: exige o nome digitado e, se tiver e-mail, envia a cópia dos
+  // dados ANTES de apagar — falha no envio aborta sem remover nada. Irreversível.
+  // OnboardingProgress.demoPatientId SetNulls.
+  async deletePatient(ctx: AuthContext, id: string, confirmName?: string): Promise<void> {
+    const nutritionistId = resolveScopeNutritionistId(ctx);
     const patient = await this.prisma.patientProfile.findFirst({
-      where: { id, nutritionistId: resolveScopeNutritionistId(ctx) },
-      select: { userId: true, isDemo: true },
+      where: { id, nutritionistId },
+      select: { id: true, name: true, email: true, isDemo: true },
     });
     if (!patient) {
       throw new NotFoundException('Patient not found');
     }
-    if (!patient.isDemo) {
-      throw new ForbiddenException('Only demo patients can be deleted this way');
+
+    if (patient.isDemo) {
+      await this.purgePatient(id);
+      return;
+    }
+
+    const norm = (s: string) => s.trim().toLocaleLowerCase('pt-BR');
+    if (!confirmName || norm(confirmName) !== norm(patient.name)) {
+      throw new BadRequestException('O nome digitado não confere.');
+    }
+
+    if (patient.email) {
+      await this.emailPatientData(nutritionistId, { id, name: patient.name, email: patient.email });
     }
 
     await this.purgePatient(id);
+    this.logger.log(
+      `patient deleted by nutritionist ${nutritionistId} (email sent: ${patient.email ? 'yes' : 'no'})`,
+    );
+  }
+
+  private async emailPatientData(
+    nutritionistId: string,
+    patient: { id: string; name: string; email: string },
+  ): Promise<void> {
+    const failure = new BadGatewayException(
+      'Não foi possível enviar o e-mail com os dados; nada foi excluído.',
+    );
+    const from = this.config.get<string>('SUPPORT_FROM_EMAIL');
+    if (!from) throw failure;
+
+    const nutritionist = await this.prisma.nutritionistProfile.findUnique({
+      where: { id: nutritionistId },
+      select: { displayName: true, user: { select: { name: true, email: true } } },
+    });
+    const nutritionistName = preferredNutritionistName(
+      nutritionist?.displayName,
+      nutritionist?.user.name ?? 'sua nutricionista',
+    );
+    const fileName = patientExportFileName(patient.name);
+    const data = await this.buildPatientExport(patient.id);
+    const mail = buildPatientDeletedEmail({ patientName: patient.name, nutritionistName, fileName });
+
+    try {
+      await this.resend.sendEmail({
+        to: patient.email,
+        from,
+        replyTo: nutritionist?.user.email,
+        subject: mail.subject,
+        text: mail.text,
+        html: mail.html,
+        attachments: [
+          { filename: fileName, content: Buffer.from(JSON.stringify(data, null, 2), 'utf8').toString('base64') },
+        ],
+      });
+    } catch {
+      throw failure;
+    }
   }
 
   // Patient-facing: the caller reads their OWN body assessments (evolution).
@@ -524,7 +593,17 @@ export class PatientsService {
   // Patient-facing (LGPD access): the caller exports THEIR OWN data as one JSON
   // object. Scope resolves to the caller's own patientProfile — never another's.
   async exportMyData(ctx: AuthContext) {
-    const patientId = resolveScopePatientId(ctx);
+    return this.buildPatientExport(resolveScopePatientId(ctx));
+  }
+
+  // Nutritionist-facing: o mesmo JSON, para baixar antes de excluir um paciente
+  // sem e-mail.
+  async exportPatientData(ctx: AuthContext, id: string) {
+    await this.requireOwned(ctx, id);
+    return this.buildPatientExport(id);
+  }
+
+  private async buildPatientExport(patientId: string) {
     const p = await this.prisma.patientProfile.findUniqueOrThrow({
       where: { id: patientId },
     });
