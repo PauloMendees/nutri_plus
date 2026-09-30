@@ -30,6 +30,7 @@ import { CreateAssessmentDto } from './dto/create-assessment.dto';
 import { UpdateAssessmentDto } from './dto/update-assessment.dto';
 import { DeletePatientDto } from './dto/delete-patient.dto';
 import { CreatePatientDto } from './dto/create-patient.dto';
+import { BillingExempt } from '../billing/decorators';
 import { ListPatientsQueryDto } from './dto/list-patients-query.dto';
 
 @ApiTags('patients')
@@ -79,8 +80,12 @@ export class PatientsController {
     return this.patients.updatePatient(ctx, id, dto);
   }
 
+  // Sem bloqueio de cobrança: excluir pode atender a um pedido de LGPD do
+  // paciente, e a nutricionista com assinatura vencida (read-only) ainda
+  // precisa conseguir cumprir. A exportação (GET) já passa pelo guard.
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @BillingExempt()
   remove(@CurrentUser() ctx: AuthContext, @Param('id') id: string, @Body() dto: DeletePatientDto) {
     return this.patients.deletePatient(ctx, id, dto?.confirmName);
   }
