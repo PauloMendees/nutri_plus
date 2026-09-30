@@ -1,7 +1,15 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { PrismaService } from '../prisma/prisma.service';
 import { OnboardingService } from './onboarding.service';
+import type { AuthContext } from '../auth/types/auth-context';
+
+const ctx = {
+  authProviderId: 'sub-1',
+  email: 'n@x.com',
+  name: 'Nut',
+  user: { id: 'u1', role: 'NUTRITIONIST', nutritionistProfile: { id: 'nutri-1' }, patientProfile: null },
+} as unknown as AuthContext;
 
 function makePrisma() {
   return mockDeep<PrismaService>();
@@ -36,7 +44,7 @@ describe('OnboardingService', () => {
   });
 
   it('rejects unknown tourId', async () => {
-    await expect(svc.patchTour('u1', 'unknown-tour', { chapterId: 'x' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(svc.patchTour(ctx, 'unknown-tour', { chapterId: 'x' })).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('upserts first chapter write as IN_PROGRESS', async () => {
@@ -47,7 +55,7 @@ describe('OnboardingService', () => {
     prisma.onboardingChapterProgress.upsert.mockResolvedValue({} as any);
     prisma.user.findUniqueOrThrow.mockResolvedValue({ onboardingPromptDismissedAt: null } as any);
     prisma.onboardingProgress.findMany.mockResolvedValue([]);
-    await svc.patchTour('u1', 'patients', { chapterId: 'lista', chapterStatus: 'IN_PROGRESS', furthestStepId: 'search' });
+    await svc.patchTour(ctx, 'patients', { chapterId: 'lista', chapterStatus: 'IN_PROGRESS', furthestStepId: 'search' });
     expect(prisma.onboardingProgress.upsert).toHaveBeenCalled();
   });
 
@@ -57,7 +65,7 @@ describe('OnboardingService', () => {
       chapters: [{ id: 'c1', chapterId: 'lista', status: 'COMPLETED', furthestStepId: 'new', completedAt: new Date() }],
     } as any);
     await expect(
-      svc.patchTour('u1', 'patients', { chapterId: 'lista', chapterStatus: 'IN_PROGRESS' }),
+      svc.patchTour(ctx, 'patients', { chapterId: 'lista', chapterStatus: 'IN_PROGRESS' }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -69,7 +77,7 @@ describe('OnboardingService', () => {
     prisma.user.findUniqueOrThrow.mockResolvedValue({ onboardingPromptDismissedAt: null } as any);
     prisma.onboardingProgress.findMany.mockResolvedValue([]);
     await expect(
-      svc.patchTour('u1', 'patients', { chapterId: 'lista', chapterStatus: 'COMPLETED' }),
+      svc.patchTour(ctx, 'patients', { chapterId: 'lista', chapterStatus: 'COMPLETED' }),
     ).resolves.toBeDefined();
   });
 
@@ -79,7 +87,7 @@ describe('OnboardingService', () => {
       chapters: [],
     } as any);
     await expect(
-      svc.patchTour('u1', 'patients', { chapterId: 'lista', chapterStatus: 'IN_PROGRESS' }),
+      svc.patchTour(ctx, 'patients', { chapterId: 'lista', chapterStatus: 'IN_PROGRESS' }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -93,7 +101,7 @@ describe('OnboardingService', () => {
     prisma.user.findUniqueOrThrow.mockResolvedValue({ onboardingPromptDismissedAt: null } as any);
     prisma.onboardingProgress.findMany.mockResolvedValue([]);
 
-    await svc.patchTour('u1', 'agenda', { demoAppointmentId: 'apt-1' });
+    await svc.patchTour(ctx, 'agenda', { demoAppointmentId: 'apt-1' });
 
     expect(prisma.onboardingProgress.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -113,7 +121,7 @@ describe('OnboardingService', () => {
     prisma.user.findUniqueOrThrow.mockResolvedValue({ onboardingPromptDismissedAt: null } as any);
     prisma.onboardingProgress.findMany.mockResolvedValue([]);
 
-    await svc.patchTour('u1', 'contabilidade', { demoTransactionId: 'tx-1' });
+    await svc.patchTour(ctx, 'contabilidade', { demoTransactionId: 'tx-1' });
 
     expect(prisma.onboardingProgress.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -141,8 +149,49 @@ describe('OnboardingService', () => {
   });
 
   it('still rejects an unknown tourId', async () => {
-    await expect(svc.patchTour('u1', 'funcionarios', { chapterId: 'x' })).rejects.toBeInstanceOf(
+    await expect(svc.patchTour(ctx, 'funcionarios', { chapterId: 'x' })).rejects.toBeInstanceOf(
       BadRequestException,
     );
+  });
+  describe('demoPatientId ownership', () => {
+    beforeEach(() => {
+      prisma.onboardingProgress.findUnique.mockResolvedValue({
+        id: 'pr1', status: 'IN_PROGRESS', completedAt: null, demoPatientId: null,
+        demoAppointmentId: null, demoTransactionId: null, chapters: [],
+      } as any);
+      prisma.user.findUniqueOrThrow.mockResolvedValue({ onboardingPromptDismissedAt: null } as any);
+      prisma.onboardingProgress.findMany.mockResolvedValue([]);
+    });
+
+    it("404 and nothing written when the patient is not in the caller's scope", async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue(null);
+      await expect(svc.patchTour(ctx, 'patients', { demoPatientId: 'other-pp' })).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(prisma.patientProfile.findFirst).toHaveBeenCalledWith({
+        where: { id: 'other-pp', nutritionistId: 'nutri-1' },
+        select: { id: true },
+      });
+      expect(prisma.onboardingProgress.update).not.toHaveBeenCalled();
+      expect(prisma.onboardingProgress.upsert).not.toHaveBeenCalled();
+    });
+
+    it("stores a patient of the caller's own nutritionist", async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue({ id: 'pp1' } as any);
+      await svc.patchTour(ctx, 'patients', { demoPatientId: 'pp1' });
+      expect(prisma.onboardingProgress.update).toHaveBeenCalledWith({
+        where: { id: 'pr1' },
+        data: { demoPatientId: 'pp1' },
+      });
+    });
+
+    it('clears the reference (null) without an ownership lookup', async () => {
+      await svc.patchTour(ctx, 'patients', { demoPatientId: null });
+      expect(prisma.patientProfile.findFirst).not.toHaveBeenCalled();
+      expect(prisma.onboardingProgress.update).toHaveBeenCalledWith({
+        where: { id: 'pr1' },
+        data: { demoPatientId: null },
+      });
+    });
   });
 });
