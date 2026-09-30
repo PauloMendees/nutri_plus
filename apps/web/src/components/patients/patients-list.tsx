@@ -37,7 +37,9 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-end justify-between">
+      {/* flex-wrap: no mobile os botões descem para baixo do título em vez de
+          empurrar a página para o lado. */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-bold" data-tour="patients.list">
             Pacientes
@@ -49,7 +51,7 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
           )}
         </div>
         {canCreate && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               className="rounded-full border-primary text-secondary-foreground hover:bg-primary/10 hover:text-secondary-foreground dark:text-primary dark:hover:text-primary"
@@ -120,30 +122,35 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
           {/* Mobile: stacked cards */}
           <div className="space-y-3 md:hidden">
             {items.map((p) => (
-              <div key={p.id} className="flex items-center gap-3 rounded-xl border bg-card p-4">
-                <Link href={`/patients/${p.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-                  <PatientAvatar name={p.name} photoUrl={p.photoUrl} className="size-11 text-sm" />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="block truncate font-semibold">{p.name}</span>
+              // Duas faixas: nome, selos e e-mail no link; telefone embaixo, fora
+              // do link (âncora dentro de âncora é inválido). Numa linha só o
+              // telefone espremia o nome até "B…" e estourava a largura no mobile.
+              <div key={p.id} data-testid={`patient-card-${p.id}`} className="space-y-2 rounded-xl border bg-card p-4">
+                <Link href={`/patients/${p.id}`} className="flex min-w-0 items-start gap-3">
+                  <PatientAvatar name={p.name} photoUrl={p.photoUrl} className="size-11 shrink-0 text-sm" />
+                  <span className="min-w-0 flex-1 space-y-1">
+                    <span className="block truncate font-semibold">{p.name}</span>
+                    <span className="flex flex-wrap items-center gap-1.5">
                       {p.isDemo ? <Badge>Demo</Badge> : null}
                       <Badge variant="outline">{INVITE_STATUS_LABELS[p.inviteStatus]}</Badge>
+                      {p.objective && <Badge variant="secondary">{OBJECTIVE_LABELS[p.objective]}</Badge>}
                     </span>
                     <span className="block truncate text-sm text-muted-foreground">{p.email ?? '—'}</span>
                   </span>
                 </Link>
                 {p.phone ? (
-                  <a
-                    href={whatsappMeUrl(p.phone)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="WhatsApp"
-                    className="shrink-0 text-sm font-medium text-primary hover:underline"
-                  >
-                    {p.phone}
-                  </a>
+                  <div className="pl-14">
+                    <a
+                      href={whatsappMeUrl(p.phone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="WhatsApp"
+                      className="text-sm font-medium text-primary hover:underline"
+                    >
+                      {p.phone}
+                    </a>
+                  </div>
                 ) : null}
-                {p.objective && <Badge variant="secondary">{OBJECTIVE_LABELS[p.objective]}</Badge>}
               </div>
             ))}
           </div>
