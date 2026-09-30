@@ -45,8 +45,12 @@ export function DeletePatientDialog({
       const a = document.createElement('a');
       a.href = url;
       a.download = patientExportFileName(patient.name);
+      // Alguns navegadores (Firefox, Safari) ignoram o click num <a> fora do
+      // documento, e revogar a URL na hora cancela o download antes de começar.
+      document.body.append(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
       toast.error('Não foi possível baixar os dados.');
     } finally {
@@ -78,7 +82,7 @@ export function DeletePatientDialog({
         <div className="space-y-3 text-sm text-muted-foreground">
           <p>
             Todos os dados do paciente serão apagados definitivamente: ficha, anamnese, avaliações,
-            planos alimentares, recordatórios e gravações. Se ele usa o app, o acesso também será
+            planos alimentares, recordatórios, consultas da agenda e gravações. Se ele usa o app, o acesso também será
             removido. Esta ação não pode ser desfeita.
           </p>
           {patient.email ? (

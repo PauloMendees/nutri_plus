@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useState } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { patientExportFileName } from '@nutri-plus/shared-types';
 import { ApiError } from '@/lib/api/client';
 
 const mutateAsync = vi.fn();
@@ -96,14 +97,33 @@ describe('DeletePatientDialog', () => {
     expect(screen.getByRole('button', { name: /excluir definitivamente/i })).toBeDisabled();
   });
 
+  it('lists the agenda appointments among the deleted data', () => {
+    render(<DeletePatientDialog patient={withEmail} open onOpenChange={() => {}} />);
+    expect(screen.getByRole('dialog')).toHaveTextContent(/consultas da agenda/i);
+  });
+
   it('offers a download when the patient has no e-mail', async () => {
     // jsdom não implementa navegação por <a download>; sem o stub imprime "Not implemented".
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-    render(<DeletePatientDialog patient={noEmail} open onOpenChange={() => {}} />);
-    expect(screen.getByRole('dialog')).toHaveTextContent(/não tem e-mail cadastrado/i);
-    await userEvent.click(screen.getByRole('button', { name: /baixar dados/i }));
-    expect(exportPatientData).toHaveBeenCalledWith('p1');
-    await waitFor(() => expect(URL.createObjectURL).toHaveBeenCalled());
-    click.mockRestore();
+    let clicked: { download: string; attached: boolean } | null = null;
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      clicked = { download: this.download, attached: this.isConnected };
+    });
+    try {
+      render(<DeletePatientDialog patient={noEmail} open onOpenChange={() => {}} />);
+      expect(screen.getByRole('dialog')).toHaveTextContent(/não tem e-mail cadastrado/i);
+      await userEvent.click(screen.getByRole('button', { name: /baixar dados/i }));
+      expect(exportPatientData).toHaveBeenCalledWith('p1');
+      await waitFor(() => expect(click).toHaveBeenCalledTimes(1));
+      // Alguns navegadores só baixam um <a> que está no documento, e revogar a URL
+      // logo após o click cancela o download antes de começar.
+      expect(clicked).toEqual({ download: patientExportFileName('Maria Silva'), attached: true });
+      expect(document.querySelector('a[download]')).toBeNull();
+      expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+      await waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:x'), { timeout: 2000 });
+    } finally {
+      click.mockRestore();
+    }
   });
 });
