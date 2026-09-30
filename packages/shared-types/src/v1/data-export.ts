@@ -30,9 +30,18 @@ export interface MyDataExportProfile {
   updatedAt: string;
 }
 
+// Pedido de sugestão "comendo fora de casa" feito no app, com a resposta da IA.
+export interface OutsideHomeRequestExport {
+  id: string;
+  message: string;
+  aiSuggestion: string;
+  createdAt: string;
+}
+
 // The patient's full data (LGPD access/portability). Dates are ISO strings over
-// the wire. Photos are referenced by URL (profile photoUrl); silhueta scans store
-// no images.
+// the wire. Photos are referenced by URL (profile photoUrl — omitted from the copy
+// e-mailed on deletion, since the purge removes the file); silhueta scans store
+// no images; consultation audio files are not exported, only DONE transcripts.
 export interface MyDataExport {
   exportedAt: string;
   profile: MyDataExportProfile;
@@ -45,5 +54,6 @@ export interface MyDataExport {
   appointments: Appointment[];
   consents: PatientConsent[];
   consultationTranscripts: ConsultationTranscript[];
+  outsideHomeRequests: OutsideHomeRequestExport[];
   mealLogs: MealLog[];
 }

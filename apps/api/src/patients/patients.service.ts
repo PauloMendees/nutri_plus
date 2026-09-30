@@ -430,9 +430,21 @@ export class PatientsService {
 
     if (patient.email) {
       await this.emailPatientData(nutritionistId, { id, name: patient.name, email: patient.email });
+      // O paciente já recebeu o e-mail dizendo que os dados foram apagados: se a
+      // exclusão falhar agora, o erro não pode sumir no 500 genérico — fica no
+      // log para alguém concluir a exclusão à mão.
+      try {
+        await this.purgePatient(id);
+      } catch (err) {
+        this.logger.error(
+          `purge failed after data e-mail was sent (nutritionist ${nutritionistId}, patient ${id})`,
+          err instanceof Error ? err.stack : undefined,
+        );
+        throw err;
+      }
+    } else {
+      await this.purgePatient(id);
     }
-
-    await this.purgePatient(id);
     this.logger.log(
       `patient deleted by nutritionist ${nutritionistId} (email sent: ${patient.email ? 'yes' : 'no'})`,
     );
@@ -457,7 +469,11 @@ export class PatientsService {
       nutritionist?.user.name ?? 'sua nutricionista',
     );
     const fileName = patientExportFileName(patient.name);
-    const data = await this.buildPatientExport(patient.id);
+    // A foto é apagada junto com o paciente: o link no anexo já nasceria
+    // quebrado, e o e-mail avisa que a foto não está incluída.
+    const { profile, ...rest } = await this.buildPatientExport(patient.id);
+    const { photoUrl: _photoUrl, ...profileWithoutPhoto } = profile;
+    const data = { ...rest, profile: profileWithoutPhoto };
     const mail = buildPatientDeletedEmail({ patientName: patient.name, nutritionistName, fileName });
 
     try {
@@ -472,7 +488,16 @@ export class PatientsService {
           { filename: fileName, content: Buffer.from(JSON.stringify(data, null, 2), 'utf8').toString('base64') },
         ],
       });
-    } catch {
+    } catch (err) {
+      // Só a classe e o status HTTP do provedor: a mensagem pode trazer o e-mail
+      // do paciente, e o log não guarda dado pessoal.
+      const status = (err as { statusCode?: unknown; status?: unknown } | null)?.statusCode ??
+        (err as { status?: unknown } | null)?.status;
+      this.logger.warn(
+        `patient data e-mail failed (nutritionist ${nutritionistId}): ${
+          err instanceof Error ? err.constructor.name : typeof err
+        }${status !== undefined ? ` status ${String(status)}` : ''}`,
+      );
       throw failure;
     }
   }
@@ -618,6 +643,7 @@ export class PatientsService {
       consents,
       consultationTranscripts,
       logs,
+      outsideHomeRequests,
     ] =
       await Promise.all([
         this.prisma.patientAnamnese.findUnique({ where: { patientId } }),
@@ -654,6 +680,11 @@ export class PatientsService {
           select: { recordedAt: true, durationSec: true, transcript: true, transcribedAt: true },
         }),
         this.prisma.mealLog.findMany({ where: { patientId }, orderBy: { consumedAt: 'asc' } }),
+        this.prisma.outsideHomeRequest.findMany({
+          where: { patientId },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true, message: true, aiSuggestion: true, createdAt: true },
+        }),
       ]);
 
     return {
@@ -686,6 +717,7 @@ export class PatientsService {
       appointments,
       consents,
       consultationTranscripts,
+      outsideHomeRequests,
       mealLogs: logs.map((row) => ({
         id: row.id,
         patientId: row.patientId,

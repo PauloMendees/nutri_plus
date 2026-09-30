@@ -29,6 +29,14 @@ describe('buildPatientDeletedEmail', () => {
     expect(mail.text).toContain('responda este e-mail');
   });
 
+  it('lists exactly what the copy includes, and says audio and photo are not in it', () => {
+    expect(mail.text).toContain('uma cópia dos seus dados');
+    expect(mail.text).not.toContain('cópia de tudo');
+    expect(mail.text).toContain('pedidos de sugestão fora de casa');
+    expect(mail.text).toContain('transcrições de consultas');
+    expect(mail.text).toMatch(/gravações de áudio[^.]*foto de perfil[^.]*não estão incluídas/);
+  });
+
   it('escapes names in the HTML version', () => {
     expect(mail.html).toContain('Dra. Ana &lt;Souza&gt;');
     expect(mail.html).not.toContain('<Souza>');

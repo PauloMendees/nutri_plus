@@ -961,7 +961,7 @@ describe('PatientsService', () => {
 
     it('502 and nothing deleted when the email fails', async () => {
       patient();
-      jest.spyOn(service as any, 'buildPatientExport').mockResolvedValue({});
+      jest.spyOn(service as any, 'buildPatientExport').mockResolvedValue({ profile: {} });
       resend.sendEmail.mockRejectedValue(new Error('resend down'));
 
       await expect(service.deletePatient(ctx, 'pp1', 'Maria Silva')).rejects.toBeInstanceOf(BadGatewayException);
@@ -974,6 +974,54 @@ describe('PatientsService', () => {
       await expect(service.deletePatient(ctx, 'pp1', 'Maria Silva')).rejects.toBeInstanceOf(BadGatewayException);
       expect(resend.sendEmail).not.toHaveBeenCalled();
       expect(purge).not.toHaveBeenCalled();
+    });
+
+    it('omits the profile photo URL from the attached export (the purge deletes the file)', async () => {
+      patient();
+      jest
+        .spyOn(service as any, 'buildPatientExport')
+        .mockResolvedValue({ profile: { name: 'Maria Silva', photoUrl: 'https://x/photo.jpg' } });
+
+      await service.deletePatient(ctx, 'pp1', 'Maria Silva');
+
+      const sent = resend.sendEmail.mock.calls[0][0];
+      const json = JSON.parse(Buffer.from(sent.attachments![0].content, 'base64').toString('utf8'));
+      expect(json.profile).toEqual({ name: 'Maria Silva' });
+    });
+
+    it('logs a warning without PII when the send fails', async () => {
+      patient();
+      jest.spyOn(service as any, 'buildPatientExport').mockResolvedValue({ profile: {} });
+      class ResendApiError extends Error {
+        statusCode = 429;
+      }
+      resend.sendEmail.mockRejectedValue(new ResendApiError('rate limited for maria@x.com'));
+      const warn = jest.spyOn((service as any).logger, 'warn').mockImplementation(() => undefined);
+
+      await expect(service.deletePatient(ctx, 'pp1', 'Maria Silva')).rejects.toBeInstanceOf(BadGatewayException);
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      const message = String(warn.mock.calls[0][0]);
+      expect(message).toContain('ResendApiError');
+      expect(message).toContain('429');
+      expect(message).not.toContain('maria@x.com');
+      expect(message).not.toContain('Maria');
+    });
+
+    it('logs an error and rethrows when the purge fails after the e-mail was sent', async () => {
+      patient();
+      jest.spyOn(service as any, 'buildPatientExport').mockResolvedValue({ profile: {} });
+      const boom = new Error('tx failed');
+      purge.mockRejectedValue(boom);
+      const error = jest.spyOn((service as any).logger, 'error').mockImplementation(() => undefined);
+
+      await expect(service.deletePatient(ctx, 'pp1', 'Maria Silva')).rejects.toBe(boom);
+
+      expect(resend.sendEmail).toHaveBeenCalled();
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(error.mock.calls[0][0]).toBe(
+        'purge failed after data e-mail was sent (nutritionist nutri-1, patient pp1)',
+      );
     });
 
     it('purges without emailing a patient who has no e-mail', async () => {
@@ -1203,6 +1251,9 @@ describe('PatientsService', () => {
         { recordedAt: new Date('2026-07-20'), durationSec: 600, transcript: 'olá', transcribedAt: new Date('2026-07-21') },
       ] as any);
       const logCreatedAt = new Date('2026-08-01T10:00:00.000Z');
+      prisma.outsideHomeRequest.findMany.mockResolvedValue([
+        { id: 'oh1', message: 'Churrascaria hoje', aiSuggestion: 'Prefira carnes magras', createdAt: new Date('2026-08-02') },
+      ] as any);
       prisma.mealLog.findMany.mockResolvedValue([
         {
           id: 'ml1',
@@ -1253,6 +1304,14 @@ describe('PatientsService', () => {
         where: { patientId: 'pp-1' },
         orderBy: { consumedAt: 'asc' },
       });
+      expect(prisma.outsideHomeRequest.findMany).toHaveBeenCalledWith({
+        where: { patientId: 'pp-1' },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, message: true, aiSuggestion: true, createdAt: true },
+      });
+      expect(out.outsideHomeRequests).toEqual([
+        { id: 'oh1', message: 'Churrascaria hoje', aiSuggestion: 'Prefira carnes magras', createdAt: new Date('2026-08-02') },
+      ]);
       expect(out.mealLogs).toEqual([
         {
           id: 'ml1',
