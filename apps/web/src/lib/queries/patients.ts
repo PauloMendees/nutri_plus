@@ -60,6 +60,10 @@ export function useDeletePatient() {
       qc.removeQueries({ queryKey: ['patient', id] });
       qc.invalidateQueries({ queryKey: ['patients'] });
       qc.invalidateQueries({ queryKey: ONBOARDING_KEY });
+      // A exclusão em cascata leva as consultas e as interações de IA do
+      // paciente: agenda e lista de gerações não podem mostrá-las do cache.
+      qc.invalidateQueries({ queryKey: ['appointments'] });
+      qc.invalidateQueries({ queryKey: ['ai-jobs'] });
     },
   });
 }
