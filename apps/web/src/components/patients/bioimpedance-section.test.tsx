@@ -189,7 +189,12 @@ describe('BioimpedanceSection', () => {
   });
 
   it('names the chart series in Portuguese (tooltip showed "value")', () => {
-    useAssessments.mockReturnValue({ isLoading: false, isError: false, data: [assessment()] });
+    // O gráfico só aparece com duas ou mais avaliações.
+    useAssessments.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: [assessment(), assessment({ id: 'a2', assessmentDate: '2026-04-12T00:00:00.000Z', weight: 80 })],
+    });
     render(<BioimpedanceSection patientId="p1" canEdit />);
     expect(screen.getByTestId('chart-series-name')).toHaveTextContent('Peso');
   });
