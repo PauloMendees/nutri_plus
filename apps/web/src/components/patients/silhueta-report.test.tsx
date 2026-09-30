@@ -22,7 +22,8 @@ vi.mock('sonner', () => ({ toast: { success: (...a: unknown[]) => toastSuccess(.
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   LineChart: ({ children }: { children: ReactNode }) => <div data-testid="chart-data">{children}</div>,
-  Line: () => null,
+  // Expõe o nome da série: é o que o tooltip do gráfico mostra.
+  Line: ({ name }: { name?: string }) => <span data-testid="chart-series-name">{name}</span>,
   XAxis: () => null,
   YAxis: () => null,
   Tooltip: () => null,
@@ -160,5 +161,13 @@ describe('SilhuetaReport', () => {
 
     expect(screen.getByText(/Compare apenas/i)).toBeInTheDocument();
     expect(screen.getByText('Conceitos')).toBeInTheDocument();
+  });
+
+  it('names the history chart series in Portuguese (tooltip showed "value")', () => {
+    useSilhuetaScansMock.mockReturnValue({
+      data: [scan({ id: 's1', scanDate: '2026-05-01T12:00:00.000Z' }), scan({ id: 's2', scanDate: '2026-06-01T12:00:00.000Z' })],
+    });
+    render(<SilhuetaReport patientId="p1" scan={scan()} />);
+    expect(screen.getByTestId('chart-series-name')).toHaveTextContent('Peso');
   });
 });

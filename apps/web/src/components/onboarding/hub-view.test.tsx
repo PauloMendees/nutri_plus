@@ -20,11 +20,14 @@ vi.mock('./tour-provider', () => ({
   }),
 }));
 
-const onboardingState: { data: OnboardingMeView | undefined } = {
+const onboardingState: { data: OnboardingMeView | undefined; isLoading?: boolean } = {
   data: { promptDismissedAt: null, tours: [] },
 };
+const patchTour = vi.fn();
+const patchPendingState = { isPending: false };
 vi.mock('@/lib/queries/onboarding', () => ({
-  useOnboarding: () => ({ data: onboardingState.data }),
+  useOnboarding: () => ({ data: onboardingState.data, isLoading: onboardingState.isLoading ?? false }),
+  usePatchOnboardingTour: () => ({ mutateAsync: patchTour, isPending: patchPendingState.isPending }),
   ONBOARDING_KEY: ['onboarding'],
 }));
 
@@ -43,8 +46,21 @@ const subscriptionState: { data: { entitlements?: Entitlements } | undefined } =
 vi.mock('@/lib/queries/subscription', () => ({
   useSubscription: () => ({ data: subscriptionState.data }),
 }));
+// Pacientes próprios da nutricionista (lista) e o paciente do tour (detalhe).
+const patientsState: {
+  items: { id: string; name: string; email: string | null }[];
+  isLoading?: boolean;
+  isFetching?: boolean;
+} = { items: [] };
+const tourPatientState: { isDemo: boolean } = { isDemo: true };
 vi.mock('@/lib/queries/patients', () => ({
   useDeleteDemoPatient: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  usePatients: () => ({
+    isLoading: patientsState.isLoading ?? false,
+    isFetching: patientsState.isFetching ?? false,
+    data: { items: patientsState.items, total: patientsState.items.length, page: 1, pageSize: 8, totalPages: 1 },
+  }),
+  usePatient: (id: string) => ({ data: { id, isDemo: tourPatientState.isDemo } }),
 }));
 const deleteAppointment = vi.fn();
 vi.mock('@/lib/queries/appointments', () => ({
@@ -92,6 +108,13 @@ function card(id: string) {
 
 beforeEach(() => {
   start.mockReset();
+  patchTour.mockReset().mockResolvedValue(undefined);
+  patientsState.items = [];
+  patientsState.isLoading = false;
+  patientsState.isFetching = false;
+  patchPendingState.isPending = false;
+  onboardingState.isLoading = false;
+  tourPatientState.isDemo = true;
   deleteAppointment.mockReset();
   deleteTransaction.mockReset();
   onboardingState.data = { promptDismissedAt: null, tours: [] };
@@ -327,5 +350,107 @@ describe('HubView', () => {
     };
     renderHub(UserRole.NUTRITIONIST);
     expect(card('contabilidade').getByText('Este é um lançamento de demonstração.')).toBeInTheDocument();
+  });
+
+  describe('with patients of her own and no demo patient', () => {
+    beforeEach(() => {
+      patientsState.items = [{ id: 'p9', name: 'Maria Silva', email: 'maria@x.com' }];
+      onboardingState.data = {
+        promptDismissedAt: null,
+        tours: [tour({ status: 'IN_PROGRESS', demoPatientId: null })],
+      };
+    });
+
+    it('offers to use one of her patients', () => {
+      renderHub(UserRole.NUTRITIONIST);
+      expect(card('patients').getByRole('button', { name: /usar um paciente meu/i })).toBeInTheDocument();
+      const row = screen.getByText('Ficha').closest<HTMLElement>('[data-chapter="ficha"]')!;
+      expect(
+        within(row).getByText('Cadastre o paciente de demonstração ou use um paciente seu.'),
+      ).toBeInTheDocument();
+    });
+
+    it('saves the picked patient as the tour patient', async () => {
+      renderHub(UserRole.NUTRITIONIST);
+      await userEvent.click(card('patients').getByRole('button', { name: /usar um paciente meu/i }));
+      const dialog = await screen.findByRole('dialog');
+      // Os capítulos gravam registros de verdade: o aviso precisa estar à vista.
+      expect(dialog).toHaveTextContent(/ficam salvos neste paciente/i);
+      expect(dialog).toHaveTextContent(/ele vê esses registros no app/i);
+      expect(dialog).toHaveTextContent(/sem a opção de dados fictícios/i);
+      await userEvent.click(within(dialog).getByRole('button', { name: /maria silva/i }));
+      expect(patchTour).toHaveBeenCalledWith('patients', { demoPatientId: 'p9' });
+    });
+  });
+
+  it('does not offer to use a patient of her own when she has none', () => {
+    onboardingState.data = {
+      promptDismissedAt: null,
+      tours: [tour({ status: 'IN_PROGRESS', demoPatientId: null })],
+    };
+    renderHub(UserRole.NUTRITIONIST);
+    expect(card('patients').queryByRole('button', { name: /usar um paciente meu/i })).not.toBeInTheDocument();
+  });
+
+  it('does not offer to use a patient of her own once the tour has a patient', () => {
+    patientsState.items = [{ id: 'p9', name: 'Maria Silva', email: null }];
+    onboardingState.data = {
+      promptDismissedAt: null,
+      tours: [tour({ status: 'IN_PROGRESS', demoPatientId: 'p1' })],
+    };
+    renderHub(UserRole.NUTRITIONIST);
+    expect(card('patients').queryByRole('button', { name: /usar um paciente meu/i })).not.toBeInTheDocument();
+  });
+
+  it('does not offer to delete a real patient used by the tour', () => {
+    tourPatientState.isDemo = false;
+    onboardingState.data = {
+      promptDismissedAt: null,
+      tours: [tour({ status: 'IN_PROGRESS', demoPatientId: 'p9' })],
+    };
+    renderHub(UserRole.NUTRITIONIST);
+    expect(screen.queryByRole('button', { name: 'Apagar paciente de demonstração' })).not.toBeInTheDocument();
+  });
+
+  // QA: a página abria por um instante com textos provisórios ("…demonstração
+  // primeiro.", "Disponível no plano Pro") antes dos dados carregarem.
+  it('shows a loading state instead of provisional lock copy while data loads', () => {
+    onboardingState.isLoading = true;
+    renderHub(UserRole.NUTRITIONIST);
+    expect(screen.getByTestId('tutorials-loading')).toBeInTheDocument();
+    expect(screen.queryByText(/demonstração primeiro/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/disponível no plano pro/i)).not.toBeInTheDocument();
+  });
+
+  it('waits for the patient list before deciding the lock copy', () => {
+    patientsState.isLoading = true;
+    renderHub(UserRole.NUTRITIONIST);
+    expect(screen.getByTestId('tutorials-loading')).toBeInTheDocument();
+  });
+
+  describe('picking one of her patients', () => {
+    beforeEach(() => {
+      patientsState.items = [{ id: 'p9', name: 'Maria Silva', email: null }];
+      onboardingState.data = {
+        promptDismissedAt: null,
+        tours: [tour({ status: 'IN_PROGRESS', demoPatientId: null })],
+      };
+    });
+
+    it('shows a searching indicator while the list refetches', async () => {
+      renderHub(UserRole.NUTRITIONIST);
+      patientsState.isFetching = true;
+      await userEvent.click(card('patients').getByRole('button', { name: /usar um paciente meu/i }));
+      expect(within(await screen.findByRole('dialog')).getByText(/buscando/i)).toBeInTheDocument();
+    });
+
+    it('shows a saving indicator and disables the list while saving', async () => {
+      patchPendingState.isPending = true;
+      renderHub(UserRole.NUTRITIONIST);
+      await userEvent.click(card('patients').getByRole('button', { name: /usar um paciente meu/i }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText(/salvando/i)).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: /maria silva/i })).toBeDisabled();
+    });
   });
 });

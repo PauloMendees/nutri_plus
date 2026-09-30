@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const usePatients = vi.fn();
@@ -185,5 +185,46 @@ describe('PatientsList', () => {
     });
     render(<PatientsList />);
     expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+  });
+
+  it('truncates a long e-mail in the table and keeps the full address on hover', () => {
+    const email = 'nome.muito.comprido.de.paciente.para.estourar@clinica-exemplo.com.br';
+    usePatients.mockReturnValue({
+      isLoading: false, isError: false, isFetching: false,
+      data: envelope({ items: [{ ...patient, email }] }),
+    });
+    render(<PatientsList />);
+    const cell = screen.getByRole('table').querySelector(`[title="${email}"]`);
+    expect(cell).not.toBeNull();
+    // A coluna tem largura máxima e reticências: sem isso a tabela empurra a página.
+    expect(cell).toHaveClass('truncate');
+    expect(cell).toHaveTextContent(email);
+  });
+
+  it('scrolls wide tables inside their own box instead of the page', () => {
+    usePatients.mockReturnValue({ isLoading: false, isError: false, isFetching: false, data: envelope() });
+    render(<PatientsList />);
+    expect(screen.getByRole('table').parentElement).toHaveClass('overflow-x-auto');
+  });
+
+  // QA mobile (~390px): cabeçalho e cards estouravam a largura da tela.
+  it('lets the header actions wrap below the title on narrow screens', () => {
+    usePatients.mockReturnValue({ isLoading: false, isError: false, isFetching: false, data: envelope() });
+    render(<PatientsList />);
+    const actions = screen.getByRole('link', { name: /novo paciente/i }).parentElement!;
+    expect(actions).toHaveClass('flex-wrap');
+    expect(actions.parentElement).toHaveClass('flex-wrap');
+  });
+
+  it('puts the phone on its own row in the mobile card, outside the patient link', () => {
+    usePatients.mockReturnValue({ isLoading: false, isError: false, isFetching: false, data: envelope() });
+    render(<PatientsList />);
+    const card = screen.getByTestId('patient-card-p1');
+    const patientLink = within(card).getByRole('link', { name: /maria silva/i });
+    const phone = within(card).getByRole('link', { name: 'WhatsApp' });
+    expect(patientLink.contains(phone)).toBe(false);
+    expect(phone.parentElement).not.toBe(patientLink.parentElement);
+    // Nome, selo de convite e objetivo continuam no card.
+    expect(within(card).getByText('Perda de peso')).toBeInTheDocument();
   });
 });

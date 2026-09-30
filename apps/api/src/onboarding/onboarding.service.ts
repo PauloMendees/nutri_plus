@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   isOnboardingTourId,
   type OnboardingMeView,
@@ -7,6 +7,8 @@ import {
 } from '@nutri-plus/shared-types';
 import type { OnboardingChapterProgress, OnboardingProgress } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { resolveScopeNutritionistId } from '../auth/auth-scope';
+import type { AuthContext } from '../auth/types/auth-context';
 
 type ProgressWithChapters = OnboardingProgress & { chapters: OnboardingChapterProgress[] };
 
@@ -50,12 +52,24 @@ export class OnboardingService {
   }
 
   async patchTour(
-    userId: string,
+    ctx: AuthContext,
     tourId: string,
     dto: PatchOnboardingTourRequest,
   ): Promise<OnboardingMeView> {
+    const userId = ctx.user!.id;
     if (!isOnboardingTourId(tourId)) {
       throw new BadRequestException('Unknown tour');
+    }
+
+    // O tour usa o paciente guardado aqui para ler e ESCREVER dados (fixtures,
+    // agenda): só aceita um paciente da própria nutricionista. 404, como no
+    // resto da API, para não revelar que o id existe em outra conta.
+    if (typeof dto.demoPatientId === 'string') {
+      const owned = await this.prisma.patientProfile.findFirst({
+        where: { id: dto.demoPatientId, nutritionistId: resolveScopeNutritionistId(ctx) },
+        select: { id: true },
+      });
+      if (!owned) throw new NotFoundException('Patient not found');
     }
 
     let progress = await this.prisma.onboardingProgress.findUnique({

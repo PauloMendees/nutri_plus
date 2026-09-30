@@ -37,7 +37,9 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-end justify-between">
+      {/* flex-wrap: no mobile os botões descem para baixo do título em vez de
+          empurrar a página para o lado. */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-heading text-2xl font-bold" data-tour="patients.list">
             Pacientes
@@ -49,7 +51,7 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
           )}
         </div>
         {canCreate && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               className="rounded-full border-primary text-secondary-foreground hover:bg-primary/10 hover:text-secondary-foreground dark:text-primary dark:hover:text-primary"
@@ -120,36 +122,43 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
           {/* Mobile: stacked cards */}
           <div className="space-y-3 md:hidden">
             {items.map((p) => (
-              <div key={p.id} className="flex items-center gap-3 rounded-xl border bg-card p-4">
-                <Link href={`/patients/${p.id}`} className="flex min-w-0 flex-1 items-center gap-3">
-                  <PatientAvatar name={p.name} photoUrl={p.photoUrl} className="size-11 text-sm" />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span className="block truncate font-semibold">{p.name}</span>
+              // Duas faixas: nome, selos e e-mail no link; telefone embaixo, fora
+              // do link (âncora dentro de âncora é inválido). Numa linha só o
+              // telefone espremia o nome até "B…" e estourava a largura no mobile.
+              <div key={p.id} data-testid={`patient-card-${p.id}`} className="space-y-2 rounded-xl border bg-card p-4">
+                <Link href={`/patients/${p.id}`} className="flex min-w-0 items-start gap-3">
+                  <PatientAvatar name={p.name} photoUrl={p.photoUrl} className="size-11 shrink-0 text-sm" />
+                  <span className="min-w-0 flex-1 space-y-1">
+                    <span className="block truncate font-semibold">{p.name}</span>
+                    <span className="flex flex-wrap items-center gap-1.5">
                       {p.isDemo ? <Badge>Demo</Badge> : null}
                       <Badge variant="outline">{INVITE_STATUS_LABELS[p.inviteStatus]}</Badge>
+                      {p.objective && <Badge variant="secondary">{OBJECTIVE_LABELS[p.objective]}</Badge>}
                     </span>
                     <span className="block truncate text-sm text-muted-foreground">{p.email ?? '—'}</span>
                   </span>
                 </Link>
                 {p.phone ? (
-                  <a
-                    href={whatsappMeUrl(p.phone)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="WhatsApp"
-                    className="shrink-0 text-sm font-medium text-primary hover:underline"
-                  >
-                    {p.phone}
-                  </a>
+                  <div className="pl-14">
+                    <a
+                      href={whatsappMeUrl(p.phone)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="WhatsApp"
+                      className="text-sm font-medium text-primary hover:underline"
+                    >
+                      {p.phone}
+                    </a>
+                  </div>
                 ) : null}
-                {p.objective && <Badge variant="secondary">{OBJECTIVE_LABELS[p.objective]}</Badge>}
               </div>
             ))}
           </div>
 
           {/* Desktop: table */}
-          <div className="hidden overflow-hidden rounded-xl border bg-card md:block">
+          {/* overflow-x-auto: se alguma coluna ainda estourar, a rolagem fica na
+              tabela e não empurra a página inteira. */}
+          <div className="hidden overflow-x-auto rounded-xl border bg-card md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -169,8 +178,10 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
                     <td className="px-4 py-3">
                       <Link href={`/patients/${p.id}`} className="flex items-center gap-3 font-semibold">
                         <PatientAvatar name={p.name} photoUrl={p.photoUrl} className="size-10 text-sm" />
-                        <span className="flex items-center gap-2">
-                          {p.name}
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="max-w-[14rem] truncate" title={p.name}>
+                            {p.name}
+                          </span>
                           {p.isDemo ? <Badge>Demo</Badge> : null}
                         </span>
                       </Link>
@@ -190,7 +201,17 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
                         '—'
                       )}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{p.email ?? '—'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {p.email ? (
+                        // Largura máxima + reticências: um e-mail longo alargava a
+                        // tabela e criava rolagem lateral na página.
+                        <span className="block max-w-[14rem] truncate" title={p.email}>
+                          {p.email}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge variant="outline">{INVITE_STATUS_LABELS[p.inviteStatus]}</Badge>
                     </td>

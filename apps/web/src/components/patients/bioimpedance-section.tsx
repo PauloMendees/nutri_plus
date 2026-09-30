@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import type { BodyAssessment } from '@nutri-plus/shared-types';
 import { Camera, Smartphone } from 'lucide-react';
+import { formatIsoDateUtc, formatIsoDayMonthUtc } from '@/lib/format/date';
 import { useAssessments } from '@/lib/queries/assessments';
 import { kgFromPercent } from '@/lib/health/imc';
 import { cn } from '@/lib/utils';
@@ -66,12 +67,6 @@ function fmtKg(weight: number | null, pct: number | null): string | null {
   const kg = kgFromPercent(weight, pct);
   return kg == null ? null : `≈ ${kg.toLocaleString('pt-BR')} kg`;
 }
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR');
-}
-function fmtShort(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-}
 
 export function BioimpedanceSection({
   patientId,
@@ -94,7 +89,7 @@ export function BioimpedanceSection({
       [...data]
         .reverse()
         .filter((a) => a[metric] != null)
-        .map((a) => ({ date: fmtShort(a.assessmentDate), value: a[metric] as number })),
+        .map((a) => ({ date: formatIsoDayMonthUtc(a.assessmentDate), value: a[metric] as number })),
     [data, metric],
   );
 
@@ -195,7 +190,15 @@ export function BioimpedanceSection({
                     labelStyle={{ color: 'var(--foreground)' }}
                     itemStyle={{ color: 'var(--foreground)' }}
                   />
-                  <Line type="monotone" dataKey="value" stroke="#14BFA6" strokeWidth={2} dot />
+                  {/* name: rótulo do tooltip; sem ele o recharts mostra "value". */}
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    name={METRICS.find((m) => m.key === metric)?.label}
+                    stroke="#14BFA6"
+                    strokeWidth={2}
+                    dot
+                  />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
@@ -254,7 +257,7 @@ export function BioimpedanceSection({
                             </UiTooltip>
                           </TooltipProvider>
                         )}
-                        {fmtDate(a.assessmentDate)}
+                        {formatIsoDateUtc(a.assessmentDate)}
                       </span>
                     </td>
                     <td className="px-4 py-3">{fmt(a.weight)}</td>

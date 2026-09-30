@@ -1,9 +1,13 @@
 import {
+  BadGatewayException,
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { ResendService } from '../support/resend.service';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -93,6 +97,8 @@ describe('PatientsService', () => {
   let users: DeepMockProxy<UsersService>;
   let supabaseAdmin: DeepMockProxy<SupabaseAdminService>;
   let metaActivation: DeepMockProxy<MetaActivationService>;
+  let resend: DeepMockProxy<ResendService>;
+  let config: DeepMockProxy<ConfigService>;
   let service: PatientsService;
   const ctx = ctxWithNutritionist('nutri-1');
 
@@ -101,7 +107,12 @@ describe('PatientsService', () => {
     users = mockDeep<UsersService>();
     supabaseAdmin = mockDeep<SupabaseAdminService>();
     metaActivation = mockDeep<MetaActivationService>();
-    service = new PatientsService(prisma, users, supabaseAdmin, metaActivation);
+    resend = mockDeep<ResendService>();
+    config = mockDeep<ConfigService>();
+    config.get.mockImplementation((key: string) =>
+      key === 'SUPPORT_FROM_EMAIL' ? 'iNutri <contato@inutri.life>' : undefined,
+    );
+    service = new PatientsService(prisma, users, supabaseAdmin, metaActivation, resend, config);
     // deleteMyAccount reads this before teardown; default to none so the
     // pre-existing deleteMyAccount specs (which don't set this up) don't
     // iterate over an unmocked (undefined) result.
@@ -818,39 +829,215 @@ describe('PatientsService', () => {
     });
   });
 
-  describe('deleteDemoPatient', () => {
-    it('403 when isDemo === false', async () => {
-      prisma.patientProfile.findFirst.mockResolvedValue({
-        id: 'pp1',
+  describe('purgePatient', () => {
+    beforeEach(() => {
+      prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
+    });
+
+    it('deletes Restrict children, then the profile, then the user, in one transaction', async () => {
+      prisma.patientProfile.findUnique.mockResolvedValue({
         userId: 'u1',
-        isDemo: false,
+        photoUrl: null,
+        user: { authProviderId: 'auth-1' },
       } as any);
-      await expect(service.deleteDemoPatient(ctx, 'pp1')).rejects.toMatchObject({ status: 403 });
+
+      await service.purgePatient('pp1');
+
+      for (const m of [
+        prisma.outsideHomeRequest.deleteMany,
+        prisma.aIInteraction.deleteMany,
+        prisma.appointment.deleteMany,
+        prisma.bodyAssessment.deleteMany,
+        prisma.nutritionTarget.deleteMany,
+        prisma.silhuetaScan.deleteMany,
+        prisma.mealPlan.deleteMany,
+      ]) {
+        expect(m).toHaveBeenCalledWith({ where: { patientId: 'pp1' } });
+      }
+      expect(prisma.patientProfile.delete).toHaveBeenCalledWith({ where: { id: 'pp1' } });
+      expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'u1' } });
+      const order = (m: { mock: { invocationCallOrder: number[] } }) => m.mock.invocationCallOrder[0];
+      expect(order(prisma.mealPlan.deleteMany)).toBeLessThan(order(prisma.patientProfile.delete));
+      expect(order(prisma.patientProfile.delete)).toBeLessThan(order(prisma.user.delete));
+    });
+
+    it('removes the app account, the photo and the audios after the transaction', async () => {
+      prisma.patientProfile.findUnique.mockResolvedValue({
+        userId: 'u1',
+        photoUrl: 'https://x.supabase.co/storage/v1/object/public/patient-photos/pp1.png',
+        user: { authProviderId: 'auth-1' },
+      } as any);
+      prisma.consultationAudio.findMany.mockResolvedValue([{ storagePath: 'nutri-1/pp1/a1.webm' }] as any);
+
+      await service.purgePatient('pp1');
+
+      expect(supabaseAdmin.deleteUser).toHaveBeenCalledWith('auth-1');
+      expect(supabaseAdmin.removeObject).toHaveBeenCalledWith('patient-photos', 'pp1.png');
+      expect(supabaseAdmin.removeObject).toHaveBeenCalledWith('consultation-audio', 'nutri-1/pp1/a1.webm');
+    });
+
+    it('skips the user and the app account for a ficha without login', async () => {
+      prisma.patientProfile.findUnique.mockResolvedValue({ userId: null, photoUrl: null, user: null } as any);
+
+      await service.purgePatient('pp1');
+
       expect(prisma.user.delete).not.toHaveBeenCalled();
+      expect(supabaseAdmin.deleteUser).not.toHaveBeenCalled();
     });
 
-    it('deletes the User when isDemo and userId is set', async () => {
-      prisma.patientProfile.findFirst.mockResolvedValue({
-        id: 'pp-demo',
-        userId: 'u-d',
-        isDemo: true,
-      } as any);
-      await service.deleteDemoPatient(ctx, 'pp-demo');
-      expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'u-d' } });
-    });
-
-    it('does not delete a User when isDemo and userId is null', async () => {
-      prisma.patientProfile.findFirst.mockResolvedValue({
-        id: 'pp-demo',
+    it('does not throw when removing the photo fails', async () => {
+      prisma.patientProfile.findUnique.mockResolvedValue({
         userId: null,
-        isDemo: true,
+        photoUrl: 'https://x/patient-photos/pp1.png',
+        user: null,
       } as any);
-      await service.deleteDemoPatient(ctx, 'pp-demo');
-      expect(prisma.patientProfile.delete).toHaveBeenCalledWith({ where: { id: 'pp-demo' } });
-      expect(prisma.user.delete).not.toHaveBeenCalled();
+      supabaseAdmin.removeObject.mockRejectedValue(new Error('storage down'));
+
+      await expect(service.purgePatient('pp1')).resolves.toBeUndefined();
     });
   });
 
+  describe('deletePatient', () => {
+    let purge: jest.SpyInstance;
+
+    beforeEach(() => {
+      purge = jest.spyOn(service, 'purgePatient').mockResolvedValue(undefined);
+      prisma.nutritionistProfile.findUnique.mockResolvedValue({
+        displayName: 'Dra. Ana',
+        user: { name: 'Ana Souza', email: 'ana@clinica.com' },
+      } as any);
+    });
+
+    function patient(over: Record<string, unknown> = {}) {
+      prisma.patientProfile.findFirst.mockResolvedValue({
+        id: 'pp1', name: 'Maria Silva', email: 'maria@x.com', isDemo: false, ...over,
+      } as any);
+    }
+
+    it('404 for a patient of another nutritionist, without emailing or deleting', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue(null);
+      await expect(service.deletePatient(ctx, 'pp1', 'Maria Silva')).rejects.toBeInstanceOf(NotFoundException);
+      expect(resend.sendEmail).not.toHaveBeenCalled();
+      expect(purge).not.toHaveBeenCalled();
+    });
+
+    it('purges a demo patient without confirmation or email', async () => {
+      patient({ isDemo: true });
+      await service.deletePatient(ctx, 'pp1');
+      expect(resend.sendEmail).not.toHaveBeenCalled();
+      expect(purge).toHaveBeenCalledWith('pp1');
+    });
+
+    it('400 when the typed name does not match, deleting nothing', async () => {
+      patient();
+      await expect(service.deletePatient(ctx, 'pp1', 'Maria Souza')).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.deletePatient(ctx, 'pp1')).rejects.toBeInstanceOf(BadRequestException);
+      expect(purge).not.toHaveBeenCalled();
+    });
+
+    it('accepts the name with different case and surrounding spaces', async () => {
+      patient({ email: null });
+      await service.deletePatient(ctx, 'pp1', '  maria SILVA ');
+      expect(purge).toHaveBeenCalledWith('pp1');
+    });
+
+    it('emails the data export as a JSON attachment before purging', async () => {
+      patient();
+      jest.spyOn(service as any, 'buildPatientExport').mockResolvedValue({ profile: { name: 'Maria Silva' } });
+
+      await service.deletePatient(ctx, 'pp1', 'Maria Silva');
+
+      const sent = resend.sendEmail.mock.calls[0][0];
+      expect(sent.to).toBe('maria@x.com');
+      expect(sent.from).toBe('iNutri <contato@inutri.life>');
+      expect(sent.replyTo).toBe('ana@clinica.com');
+      expect(sent.subject).toContain('Dra. Ana');
+      expect(sent.attachments).toHaveLength(1);
+      expect(sent.attachments![0].filename).toMatch(/^dados-maria-silva-\d{4}-\d{2}-\d{2}\.json$/);
+      const json = JSON.parse(Buffer.from(sent.attachments![0].content, 'base64').toString('utf8'));
+      expect(json).toEqual({ profile: { name: 'Maria Silva' } });
+      expect(resend.sendEmail.mock.invocationCallOrder[0]).toBeLessThan(purge.mock.invocationCallOrder[0]);
+    });
+
+    it('502 and nothing deleted when the email fails', async () => {
+      patient();
+      jest.spyOn(service as any, 'buildPatientExport').mockResolvedValue({ profile: {} });
+      resend.sendEmail.mockRejectedValue(new Error('resend down'));
+
+      await expect(service.deletePatient(ctx, 'pp1', 'Maria Silva')).rejects.toBeInstanceOf(BadGatewayException);
+      expect(purge).not.toHaveBeenCalled();
+    });
+
+    it('502 and nothing deleted when SUPPORT_FROM_EMAIL is not configured', async () => {
+      patient();
+      config.get.mockReturnValue(undefined);
+      await expect(service.deletePatient(ctx, 'pp1', 'Maria Silva')).rejects.toBeInstanceOf(BadGatewayException);
+      expect(resend.sendEmail).not.toHaveBeenCalled();
+      expect(purge).not.toHaveBeenCalled();
+    });
+
+    it('omits the profile photo URL from the attached export (the purge deletes the file)', async () => {
+      patient();
+      jest
+        .spyOn(service as any, 'buildPatientExport')
+        .mockResolvedValue({ profile: { name: 'Maria Silva', photoUrl: 'https://x/photo.jpg' } });
+
+      await service.deletePatient(ctx, 'pp1', 'Maria Silva');
+
+      const sent = resend.sendEmail.mock.calls[0][0];
+      const json = JSON.parse(Buffer.from(sent.attachments![0].content, 'base64').toString('utf8'));
+      expect(json.profile).toEqual({ name: 'Maria Silva' });
+    });
+
+    it('logs a warning without PII when the send fails', async () => {
+      patient();
+      jest.spyOn(service as any, 'buildPatientExport').mockResolvedValue({ profile: {} });
+      class ResendApiError extends Error {
+        statusCode = 429;
+      }
+      resend.sendEmail.mockRejectedValue(new ResendApiError('rate limited for maria@x.com'));
+      const warn = jest.spyOn((service as any).logger, 'warn').mockImplementation(() => undefined);
+
+      await expect(service.deletePatient(ctx, 'pp1', 'Maria Silva')).rejects.toBeInstanceOf(BadGatewayException);
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      const message = String(warn.mock.calls[0][0]);
+      expect(message).toContain('ResendApiError');
+      expect(message).toContain('429');
+      expect(message).not.toContain('maria@x.com');
+      expect(message).not.toContain('Maria');
+    });
+
+    it('logs an error and rethrows when the purge fails after the e-mail was sent', async () => {
+      patient();
+      jest.spyOn(service as any, 'buildPatientExport').mockResolvedValue({ profile: {} });
+      const boom = new Error('tx failed');
+      purge.mockRejectedValue(boom);
+      const error = jest.spyOn((service as any).logger, 'error').mockImplementation(() => undefined);
+
+      await expect(service.deletePatient(ctx, 'pp1', 'Maria Silva')).rejects.toBe(boom);
+
+      expect(resend.sendEmail).toHaveBeenCalled();
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(error.mock.calls[0][0]).toBe(
+        'purge failed after data e-mail was sent (nutritionist nutri-1, patient pp1)',
+      );
+    });
+
+    it('purges without emailing a patient who has no e-mail', async () => {
+      patient({ email: null });
+      await service.deletePatient(ctx, 'pp1', 'Maria Silva');
+      expect(resend.sendEmail).not.toHaveBeenCalled();
+      expect(purge).toHaveBeenCalledWith('pp1');
+    });
+  });
+
+  describe('exportPatientData', () => {
+    it('404 for a patient of another nutritionist', async () => {
+      prisma.patientProfile.findFirst.mockResolvedValue(null);
+      await expect(service.exportPatientData(ctx, 'pp1')).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
   describe('getMyNutritionist', () => {
     it('maps the linked nutritionist profile + user fields', async () => {
       prisma.nutritionistProfile.findUnique.mockResolvedValue({
@@ -948,6 +1135,9 @@ describe('PatientsService', () => {
   describe('deleteMyAccount', () => {
     it('tears down patient rows in Restrict-safe order, then the auth user', async () => {
       prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
+      prisma.patientProfile.findUnique.mockResolvedValue({
+        userId: 'user-p', photoUrl: null, user: { authProviderId: 'auth-p' },
+      } as any);
 
       await service.deleteMyAccount(ctxPatient('pp-1', 'nutri-1'));
 
@@ -969,7 +1159,7 @@ describe('PatientsService', () => {
       expect(order(prisma.mealPlan.deleteMany)).toBeLessThan(order(prisma.patientProfile.delete));
       expect(order(prisma.patientProfile.delete)).toBeLessThan(order(prisma.user.delete));
 
-      // frees the email; reads the id off ctx.user, not the top-level sub
+      // frees the email; reads the auth id from the patient's user
       expect(supabaseAdmin.deleteUser).toHaveBeenCalledWith('auth-p');
     });
 
@@ -984,7 +1174,9 @@ describe('PatientsService', () => {
     it('reads the profile photo before teardown and removes it best-effort after', async () => {
       prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
       prisma.patientProfile.findUnique.mockResolvedValue({
+        userId: 'user-p',
         photoUrl: 'https://x.supabase.co/storage/v1/object/public/patient-photos/pp-1.png',
+        user: { authProviderId: 'auth-p' },
       } as any);
 
       await service.deleteMyAccount(ctxPatient('pp-1', 'nutri-1'));
@@ -998,7 +1190,9 @@ describe('PatientsService', () => {
     it('still resolves when the photo removal fails (best-effort)', async () => {
       prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
       prisma.patientProfile.findUnique.mockResolvedValue({
+        userId: 'user-p',
         photoUrl: 'https://x/patient-photos/pp-1.png',
+        user: { authProviderId: 'auth-p' },
       } as any);
       supabaseAdmin.removeObject.mockRejectedValue(new Error('storage down'));
 
@@ -1057,6 +1251,9 @@ describe('PatientsService', () => {
         { recordedAt: new Date('2026-07-20'), durationSec: 600, transcript: 'olá', transcribedAt: new Date('2026-07-21') },
       ] as any);
       const logCreatedAt = new Date('2026-08-01T10:00:00.000Z');
+      prisma.outsideHomeRequest.findMany.mockResolvedValue([
+        { id: 'oh1', message: 'Churrascaria hoje', aiSuggestion: 'Prefira carnes magras', createdAt: new Date('2026-08-02') },
+      ] as any);
       prisma.mealLog.findMany.mockResolvedValue([
         {
           id: 'ml1',
@@ -1107,6 +1304,14 @@ describe('PatientsService', () => {
         where: { patientId: 'pp-1' },
         orderBy: { consumedAt: 'asc' },
       });
+      expect(prisma.outsideHomeRequest.findMany).toHaveBeenCalledWith({
+        where: { patientId: 'pp-1' },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, message: true, aiSuggestion: true, createdAt: true },
+      });
+      expect(out.outsideHomeRequests).toEqual([
+        { id: 'oh1', message: 'Churrascaria hoje', aiSuggestion: 'Prefira carnes magras', createdAt: new Date('2026-08-02') },
+      ]);
       expect(out.mealLogs).toEqual([
         {
           id: 'ml1',

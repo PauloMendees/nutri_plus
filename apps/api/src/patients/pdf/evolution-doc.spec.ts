@@ -55,4 +55,21 @@ describe('buildEvolutionDocDefinition', () => {
     expect(pbb({ headlineLevel: 1 }, [{}])).toBe(false);     // content follows → keep
     expect(pbb({}, [])).toBe(false);                          // non-heading → never force-break
   });
+
+  it('prints the saved calendar day even when the server runs in a Brazilian zone', () => {
+    const originalTz = process.env.TZ;
+    process.env.TZ = 'America/Sao_Paulo';
+    try {
+      const doc = buildEvolutionDocDefinition({
+        patientName: 'Ana', height: 170,
+        assessments: [{ ...rows[0], assessmentDate: '2026-01-10T00:00:00.000Z' }],
+        branding: { displayName: 'X', logoDataUrl: null },
+      });
+      const json = JSON.stringify(contentArray(doc));
+      expect(json).toContain('10/01/2026');
+      expect(json).not.toContain('09/01/2026');
+    } finally {
+      process.env.TZ = originalTz;
+    }
+  });
 });

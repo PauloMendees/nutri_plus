@@ -333,7 +333,15 @@ export function SilhuetaReport({ patientId, scan }: { patientId: string; scan: S
                   labelStyle={{ color: 'var(--foreground)' }}
                   itemStyle={{ color: 'var(--foreground)' }}
                 />
-                <Line type="monotone" dataKey="value" stroke="#14BFA6" strokeWidth={2} dot />
+                {/* name: rótulo do tooltip; sem ele o recharts mostra "value". */}
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  name={HISTORY_METRICS.find((m) => m.key === chartMetric)?.label}
+                  stroke="#14BFA6"
+                  strokeWidth={2}
+                  dot
+                />
               </LineChart>
             </ResponsiveContainer>
           ) : (

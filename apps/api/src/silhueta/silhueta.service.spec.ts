@@ -216,7 +216,8 @@ describe('SilhuetaService', () => {
     const scan = {
       id: 'scan1',
       patientId: 'p1',
-      scanDate: new Date('2026-01-01T00:00:00.000Z'),
+      // 31/12 23:30 em São Paulo: já é 01/01 em UTC.
+      scanDate: new Date('2026-01-01T02:30:00.000Z'),
       weightKg: 80,
       bodyFatPercentage: 20.3,
       muscleMassPercentage: 40,
@@ -249,7 +250,7 @@ describe('SilhuetaService', () => {
       expect(prisma.bodyAssessment.create).not.toHaveBeenCalled();
     });
 
-    it('creates a BodyAssessment with estimatedFromPhoto: true, mapping scan metrics + assessmentDate = scanDate', async () => {
+    it('creates a BodyAssessment with estimatedFromPhoto: true, mapping scan metrics + the São Paulo day of scanDate', async () => {
       prisma.patientProfile.findFirst.mockResolvedValue({ id: 'p1' } as any);
       prisma.silhuetaScan.findFirst.mockResolvedValue(scan as any);
       const createdAssessment = { id: 'a1' };
@@ -260,7 +261,8 @@ describe('SilhuetaService', () => {
       expect(prisma.bodyAssessment.create).toHaveBeenCalledWith({
         data: {
           patientId: 'p1',
-          assessmentDate: scan.scanDate,
+          // Data de calendário (meia-noite UTC), como as avaliações digitadas.
+          assessmentDate: new Date('2025-12-31T00:00:00.000Z'),
           weight: scan.weightKg,
           bodyFatPercentage: scan.bodyFatPercentage,
           muscleMassPercentage: scan.muscleMassPercentage,

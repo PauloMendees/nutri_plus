@@ -37,6 +37,12 @@ vi.mock('@/lib/queries/subscription', () => ({
   useSubscription: () => ({ data: subscriptionState.data }),
 }));
 
+// Paciente do tour: por padrão o de demonstração; um teste troca por um real.
+const tourPatientState: { isDemo: boolean } = { isDemo: true };
+vi.mock('@/lib/queries/patients', () => ({
+  usePatient: (id: string) => ({ data: id ? { id, isDemo: tourPatientState.isDemo } : undefined }),
+}));
+
 const replace = vi.fn();
 const push = vi.fn();
 let pathname = '/patients';
@@ -900,6 +906,29 @@ describe('TourProvider', () => {
     expect(fill).toHaveBeenCalled();
     expect(screen.getByRole('dialog', { name: 'Salvar recordatório' })).toBeInTheDocument();
     dispose();
+  });
+
+  it('hides the fictitious-data fill when the tour patient is a real patient', async () => {
+    tourPatientState.isDemo = false;
+    onboardingState.data = {
+      promptDismissedAt: null,
+      tours: [{ tourId: 'patients', demoPatientId: 'real-1', chapters: [] }],
+    };
+    const fill = vi.fn();
+    const dispose = registerFixture('food-recall', fill);
+    try {
+      renderTour();
+      fireEvent.click(screen.getByText('start-recordatorio'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Recordatório' }));
+      expect(await screen.findByRole('dialog', { name: 'Novo recordatório' })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('link', { name: 'Novo recordatório' }));
+      expect(await screen.findByRole('dialog', { name: 'Salvar recordatório' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Preencher com dados fictícios' })).not.toBeInTheDocument();
+      expect(fill).not.toHaveBeenCalled();
+    } finally {
+      dispose();
+      tourPatientState.isDemo = true;
+    }
   });
 
   it('replaying a completed cadastro with the demo gone runs in play mode and recreates', async () => {

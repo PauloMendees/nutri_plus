@@ -3,7 +3,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const browserApiFetch = vi.fn();
 vi.mock('@/lib/api/browser', () => ({ browserApiFetch: (...a: unknown[]) => browserApiFetch(...a) }));
 
-import { createPatient, getPatient, invitePatient, listPatients, updatePatient } from './patients';
+import {
+  createPatient,
+  deletePatient,
+  exportPatientData,
+  getPatient,
+  invitePatient,
+  listPatients,
+  updatePatient,
+} from './patients';
 
 beforeEach(() => browserApiFetch.mockReset());
 
@@ -34,5 +42,16 @@ describe('patients API', () => {
   it('invites a patient via POST /patients/:id/invite', async () => {
     await invitePatient('p1');
     expect(browserApiFetch).toHaveBeenCalledWith('/patients/p1/invite', { method: 'POST' });
+  });
+  it('deletes a patient via DELETE with the typed name as confirmation', async () => {
+    await deletePatient('p1', 'Maria Silva');
+    expect(browserApiFetch).toHaveBeenCalledWith('/patients/p1', {
+      method: 'DELETE',
+      body: { confirmName: 'Maria Silva' },
+    });
+  });
+  it('exports the patient data via GET /patients/:id/export', async () => {
+    await exportPatientData('p1');
+    expect(browserApiFetch).toHaveBeenCalledWith('/patients/p1/export');
   });
 });

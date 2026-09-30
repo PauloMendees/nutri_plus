@@ -143,9 +143,12 @@ export function AppointmentDialog({
     return registerFixture("appointment", () => {
       const category =
         categories.data?.find((c) => c.isDefault) ?? categories.data?.[0];
+      // Só vincula o paciente do tour se ele for o de demonstração: um paciente
+      // real escolhido para o tour receberia o lembrete (push) desta consulta
+      // fictícia e a veria no app.
       const hasDemoPatient =
         demoPatientId != null &&
-        (patients.data?.items ?? []).some((p) => p.id === demoPatientId);
+        (patients.data?.items ?? []).some((p) => p.id === demoPatientId && p.isDemo);
       const day = new Date();
       day.setDate(day.getDate() + 1);
       form.reset({

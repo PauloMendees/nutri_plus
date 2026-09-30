@@ -3,6 +3,7 @@ import type { CreatePatientRequest, ListPatientsParams, UpdatePatientRequest } f
 import {
   createPatient,
   deleteDemoPatient,
+  deletePatient,
   deletePatientPhoto,
   getPatient,
   invitePatient,
@@ -11,6 +12,7 @@ import {
   uploadPatientPhoto,
 } from '@/lib/api/patients';
 import { ONBOARDING_KEY } from '@/lib/queries/onboarding';
+import { ApiError } from '@/lib/api/client';
 import { trackTrialAtivadoIfReady } from '@/lib/analytics/meta-conversions';
 
 export function usePatients(params: ListPatientsParams = {}) {
@@ -21,8 +23,16 @@ export function usePatients(params: ListPatientsParams = {}) {
   });
 }
 
+// 404 é definitivo (paciente excluído ou de outra nutricionista): sem as 3
+// tentativas padrão, a ficha mostra "não encontrado" na hora.
 export function usePatient(id: string) {
-  return useQuery({ queryKey: ['patient', id], queryFn: () => getPatient(id), enabled: Boolean(id) });
+  return useQuery({
+    queryKey: ['patient', id],
+    queryFn: () => getPatient(id),
+    enabled: Boolean(id),
+    retry: (failureCount, error) =>
+      !(error instanceof ApiError && error.status === 404) && failureCount < 3,
+  });
 }
 
 export function useCreatePatient() {
@@ -47,6 +57,24 @@ export function useDeleteDemoPatient() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['patients'] });
       qc.invalidateQueries({ queryKey: ONBOARDING_KEY });
+    },
+  });
+}
+
+export function useDeletePatient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, confirmName }: { id: string; confirmName: string }) => deletePatient(id, confirmName),
+    onSuccess: () => {
+      // Sem removeQueries(['patient', id]): a ficha ainda está aberta e
+      // buscaria de novo o paciente apagado; o diálogo navega para a lista e o
+      // cache órfão expira sozinho.
+      qc.invalidateQueries({ queryKey: ['patients'] });
+      qc.invalidateQueries({ queryKey: ONBOARDING_KEY });
+      // A exclusão em cascata leva as consultas e as interações de IA do
+      // paciente: agenda e lista de gerações não podem mostrá-las do cache.
+      qc.invalidateQueries({ queryKey: ['appointments'] });
+      qc.invalidateQueries({ queryKey: ['ai-jobs'] });
     },
   });
 }

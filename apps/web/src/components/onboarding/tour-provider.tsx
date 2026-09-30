@@ -27,6 +27,7 @@ import { runFixture } from '@/lib/onboarding/fixtures';
 import { chapterView, isAiChapterLocked, isDemoPlayRecovery } from '@/lib/onboarding/progress';
 import { buildTourSearch, parseTourSearch } from '@/lib/onboarding/session';
 import { useOnboarding, usePatchOnboardingTour } from '@/lib/queries/onboarding';
+import { usePatient } from '@/lib/queries/patients';
 import { useSubscription } from '@/lib/queries/subscription';
 import { TourMissingAnchor, TourTooltip } from './tour-tooltip';
 
@@ -178,6 +179,14 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
   const demoPatientId = demoFromQuery ?? demoPatientOverrideRef.current;
   const demoPatientIdRef = useRef(demoPatientId);
   demoPatientIdRef.current = demoPatientId;
+  // O paciente do tour pode ser um paciente real (use-own-patient). Os dados
+  // fictícios só podem ir para o de demonstração: num real, a anamnese seria
+  // sobrescrita e a pesagem/plano fictícios apareceriam no app dele. Enquanto
+  // a ficha carrega, trata como real (esconde) — nunca o contrário. Usa o valor
+  // do servidor: o override local só cobre o instante após criar o demo, e o
+  // capítulo seguinte (ficha) não tem dados fictícios.
+  const { data: tourPatient } = usePatient(demoFromQuery ?? '');
+  const tourPatientIsDemo = tourPatient?.isDemo === true;
   const entitlements = subscription?.entitlements;
   const entitlementsRef = useRef(entitlements);
   entitlementsRef.current = entitlements;
@@ -191,6 +200,11 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
   roleRef.current = role;
 
   const step = currentStepOf(session);
+  const stepChapter = session
+    ? getTour(session.tourId)?.chapters.find((c) => c.id === session.chapterId)
+    : undefined;
+  const stepFixture =
+    step?.fixture && (!stepChapter?.requiresDemo || tourPatientIsDemo) ? step.fixture : undefined;
 
   const teardownDriver = useCallback(() => {
     driverRef.current?.destroy();
@@ -659,14 +673,14 @@ export function TourProvider({ children, role }: { children: ReactNode; role: Us
           title={step.title}
           body={step.body}
           rect={rect}
-          fixture={step.fixture}
+          fixture={stepFixture}
           advance={step.advance}
           onSkipChapter={skipChapter}
           onExit={exit}
           onFillFixture={
-            step.fixture
+            stepFixture
               ? () => {
-                  runFixture(step.fixture as string);
+                  runFixture(stepFixture);
                   if (step.advance === 'next') advance();
                 }
               : undefined

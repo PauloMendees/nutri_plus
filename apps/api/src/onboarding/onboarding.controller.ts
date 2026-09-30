@@ -35,6 +35,6 @@ export class OnboardingController {
     @Param('tourId') tourId: string,
     @Body() dto: PatchTourDto,
   ): Promise<OnboardingMeView> {
-    return this.onboarding.patchTour(ctx.user!.id, tourId, dto);
+    return this.onboarding.patchTour(ctx, tourId, dto);
   }
 }

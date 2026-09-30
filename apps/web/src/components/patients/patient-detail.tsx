@@ -15,6 +15,7 @@ import {
 } from '@/lib/queries/patients';
 import { useAssessments } from '@/lib/queries/assessments';
 import { downloadAssessmentsPdf } from '@/lib/api/assessments';
+import { DeletePatientDialog } from '@/components/patients/delete-patient-dialog';
 import { EditPatientForm } from '@/components/patients/edit-patient-form';
 import { AiJobsPanel } from '@/components/patients/ai-jobs-panel';
 import { AnamneseSection } from '@/components/patients/anamnese-section';
@@ -75,6 +76,7 @@ export function PatientDetail({
   const photoPending = uploadPhoto.isPending || deletePhoto.isPending;
   const assessments = useAssessments(id);
   const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -223,7 +225,23 @@ export function PatientDetail({
                     Remover foto
                   </Button>
                 )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full text-destructive"
+                  onClick={() => setDeleting(true)}
+                >
+                  Excluir paciente
+                </Button>
               </div>
+            )}
+            {canEdit && (
+              <DeletePatientDialog
+                patient={{ id: patient.id, name: patient.name, email: patient.email }}
+                open={deleting}
+                onOpenChange={setDeleting}
+              />
             )}
           </div>
         </div>

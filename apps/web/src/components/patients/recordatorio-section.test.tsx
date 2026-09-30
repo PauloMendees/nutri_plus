@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -83,5 +83,23 @@ describe('RecordatorioSection', () => {
     useFoodRecalls.mockReturnValue({ isLoading: false, isError: false, data: [] });
     render(<RecordatorioSection patientId="p1" canEdit />);
     expect(screen.getByText(/nenhum recordatório ainda/i)).toBeInTheDocument();
+  });
+
+  // Datas de calendário chegam como meia-noite UTC; no fuso do Brasil o
+  // toLocaleDateString local recuava um dia (bug reportado por usuária).
+  describe('in America/Sao_Paulo', () => {
+    const originalTz = process.env.TZ;
+    beforeEach(() => { process.env.TZ = 'America/Sao_Paulo'; });
+    afterEach(() => { process.env.TZ = originalTz; });
+
+    it('shows the saved calendar day, not the day before', () => {
+      useFoodRecalls.mockReturnValue({
+        isLoading: false, isError: false,
+        data: [recall({ id: 'r1', recallDate: '2026-06-01T00:00:00.000Z' })],
+      });
+      render(<RecordatorioSection patientId="p1" canEdit />);
+      expect(screen.getByText('01/06/2026')).toBeInTheDocument();
+      expect(screen.queryByText('31/05/2026')).toBeNull();
+    });
   });
 });

@@ -187,7 +187,7 @@ export const PATIENTS_TOUR: TourDefinition = {
           route: patientRoute,
           anchor: '[data-tour="patients.anamnese.save"]',
           title: 'Salvar anamnese',
-          body: 'Preencha e salve a anamnese do paciente de demonstração.',
+          body: 'Preencha e salve a anamnese deste paciente.',
           advance: 'click',
           fixture: 'anamnese',
           awaitAction: true,

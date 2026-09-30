@@ -1,18 +1,29 @@
 import {
+  BadGatewayException,
   BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { canonicalizeWhatsappNumber, type MealLog, type NutritionistContact } from '@nutri-plus/shared-types';
+import { ConfigService } from '@nestjs/config';
+import {
+  canonicalizeWhatsappNumber,
+  patientExportFileName,
+  preferredNutritionistName,
+  type MealLog,
+  type NutritionistContact,
+} from '@nutri-plus/shared-types';
 import { Prisma } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MetaActivationService } from '../meta/meta-activation.service';
 import { serverOnlyMetaContext, type MetaContext } from '../meta/meta-context';
 import { AuthContext } from '../auth/types/auth-context';
 import { resolveScopeNutritionistId, resolveScopePatientId } from '../auth/auth-scope';
+import { ResendService } from '../support/resend.service';
+import { buildPatientDeletedEmail } from './patient-deleted-email';
 import { UsersService } from '../users/users.service';
 import { SupabaseAdminService } from '../supabase/supabase-admin.service';
 import { EXT_BY_MIME, isSupportedImage, UploadedImage } from '../supabase/image-upload';
@@ -49,11 +60,15 @@ const PATIENT_LIST_INCLUDE = {
 
 @Injectable()
 export class PatientsService {
+  private readonly logger = new Logger(PatientsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
     private readonly supabaseAdmin: SupabaseAdminService,
     private readonly metaActivation: MetaActivationService,
+    private readonly resend: ResendService,
+    private readonly config: ConfigService,
   ) {}
 
   // Creates a ficha only: no Supabase invite and no User. Email is optional.
@@ -389,36 +404,102 @@ export class PatientsService {
     await this.prisma.bodyAssessment.delete({ where: { id: assessmentId } });
   }
 
-  // Demo-only hard delete. Real patients have no nutritionist delete path.
-  // Restrict children match deleteMyAccount so the profile can go. New demos
-  // have no User; older demos may still have one — delete it only if userId is set.
+  // Exclusão pela nutricionista. Demo: como antes, sem confirmação nem e-mail.
+  // Paciente real: exige o nome digitado e, se tiver e-mail, envia a cópia dos
+  // dados ANTES de apagar — falha no envio aborta sem remover nada. Irreversível.
   // OnboardingProgress.demoPatientId SetNulls.
-  async deleteDemoPatient(ctx: AuthContext, id: string): Promise<void> {
-    await this.requireOwned(ctx, id);
+  async deletePatient(ctx: AuthContext, id: string, confirmName?: string): Promise<void> {
+    const nutritionistId = resolveScopeNutritionistId(ctx);
     const patient = await this.prisma.patientProfile.findFirst({
-      where: { id, nutritionistId: resolveScopeNutritionistId(ctx) },
-      select: { userId: true, isDemo: true },
+      where: { id, nutritionistId },
+      select: { id: true, name: true, email: true, isDemo: true },
     });
     if (!patient) {
       throw new NotFoundException('Patient not found');
     }
-    if (!patient.isDemo) {
-      throw new ForbiddenException('Only demo patients can be deleted this way');
+
+    if (patient.isDemo) {
+      await this.purgePatient(id);
+      return;
     }
 
-    await this.prisma.$transaction([
-      this.prisma.outsideHomeRequest.deleteMany({ where: { patientId: id } }),
-      this.prisma.aIInteraction.deleteMany({ where: { patientId: id } }),
-      this.prisma.appointment.deleteMany({ where: { patientId: id } }),
-      this.prisma.bodyAssessment.deleteMany({ where: { patientId: id } }),
-      this.prisma.nutritionTarget.deleteMany({ where: { patientId: id } }),
-      this.prisma.silhuetaScan.deleteMany({ where: { patientId: id } }),
-      this.prisma.mealPlan.deleteMany({ where: { patientId: id } }),
-      this.prisma.patientProfile.delete({ where: { id } }),
-      ...(patient.userId
-        ? [this.prisma.user.delete({ where: { id: patient.userId } })]
-        : []),
-    ]);
+    const norm = (s: string) => s.trim().toLocaleLowerCase('pt-BR');
+    if (!confirmName || norm(confirmName) !== norm(patient.name)) {
+      throw new BadRequestException('O nome digitado não confere.');
+    }
+
+    if (patient.email) {
+      await this.emailPatientData(nutritionistId, { id, name: patient.name, email: patient.email });
+      // O paciente já recebeu o e-mail dizendo que os dados foram apagados: se a
+      // exclusão falhar agora, o erro não pode sumir no 500 genérico — fica no
+      // log para alguém concluir a exclusão à mão.
+      try {
+        await this.purgePatient(id);
+      } catch (err) {
+        this.logger.error(
+          `purge failed after data e-mail was sent (nutritionist ${nutritionistId}, patient ${id})`,
+          err instanceof Error ? err.stack : undefined,
+        );
+        throw err;
+      }
+    } else {
+      await this.purgePatient(id);
+    }
+    this.logger.log(
+      `patient deleted by nutritionist ${nutritionistId} (email sent: ${patient.email ? 'yes' : 'no'})`,
+    );
+  }
+
+  private async emailPatientData(
+    nutritionistId: string,
+    patient: { id: string; name: string; email: string },
+  ): Promise<void> {
+    const failure = new BadGatewayException(
+      'Não foi possível enviar o e-mail com os dados; nada foi excluído.',
+    );
+    const from = this.config.get<string>('SUPPORT_FROM_EMAIL');
+    if (!from) throw failure;
+
+    const nutritionist = await this.prisma.nutritionistProfile.findUnique({
+      where: { id: nutritionistId },
+      select: { displayName: true, user: { select: { name: true, email: true } } },
+    });
+    const nutritionistName = preferredNutritionistName(
+      nutritionist?.displayName,
+      nutritionist?.user.name ?? 'sua nutricionista',
+    );
+    const fileName = patientExportFileName(patient.name);
+    // A foto é apagada junto com o paciente: o link no anexo já nasceria
+    // quebrado, e o e-mail avisa que a foto não está incluída.
+    const { profile, ...rest } = await this.buildPatientExport(patient.id);
+    const { photoUrl: _photoUrl, ...profileWithoutPhoto } = profile;
+    const data = { ...rest, profile: profileWithoutPhoto };
+    const mail = buildPatientDeletedEmail({ patientName: patient.name, nutritionistName, fileName });
+
+    try {
+      await this.resend.sendEmail({
+        to: patient.email,
+        from,
+        replyTo: nutritionist?.user.email,
+        subject: mail.subject,
+        text: mail.text,
+        html: mail.html,
+        attachments: [
+          { filename: fileName, content: Buffer.from(JSON.stringify(data, null, 2), 'utf8').toString('base64') },
+        ],
+      });
+    } catch (err) {
+      // Só a classe e o status HTTP do provedor: a mensagem pode trazer o e-mail
+      // do paciente, e o log não guarda dado pessoal.
+      const status = (err as { statusCode?: unknown; status?: unknown } | null)?.statusCode ??
+        (err as { status?: unknown } | null)?.status;
+      this.logger.warn(
+        `patient data e-mail failed (nutritionist ${nutritionistId}): ${
+          err instanceof Error ? err.constructor.name : typeof err
+        }${status !== undefined ? ` status ${String(status)}` : ''}`,
+      );
+      throw failure;
+    }
   }
 
   // Patient-facing: the caller reads their OWN body assessments (evolution).
@@ -473,32 +554,26 @@ export class PatientsService {
     };
   }
 
-  // Permanently deletes the calling patient's account. Every patient-owned child
-  // with onDelete: Restrict is removed first, in one transaction, before the
-  // profile: OutsideHomeRequest, AIInteraction, Appointment, BodyAssessment,
-  // NutritionTarget, SilhuetaScan, MealPlan (its own children cascade). Then the
-  // profile, then the local user. PatientConsent and ConsultationAudio cascade
-  // with the profile (onDelete: Cascade) — no deleteMany needed for either.
-  // Only after the tx commits do we remove the Supabase auth user (frees the
-  // email for a future invite) and then, best-effort, the profile photo object
-  // and each consultation-audio object: all are best-effort (deleteUser and
-  // removeObject log/never throw; the photo removal is additionally wrapped)
-  // so a provider hiccup leaves an orphan to clean up rather than resurrecting
-  // the now-deleted local data.
+  // Permanently deletes the calling patient's account (patient-facing, app).
   async deleteMyAccount(ctx: AuthContext): Promise<void> {
-    const patientId = resolveScopePatientId(ctx);
-    const userId = ctx.user!.id;
-    const authProviderId = ctx.user!.authProviderId;
+    await this.purgePatient(resolveScopePatientId(ctx));
+  }
 
-    // Read the photo path before teardown (the row is gone after the tx).
+  // Única exclusão em cascata de um paciente (conta do app, demo e exclusão pela
+  // nutricionista). Every patient-owned child with onDelete: Restrict is removed
+  // first, in one transaction, before the profile: OutsideHomeRequest,
+  // AIInteraction, Appointment, BodyAssessment, NutritionTarget, SilhuetaScan,
+  // MealPlan (its own children cascade). Then the profile, then the local user
+  // (fichas sem login não têm). PatientConsent and ConsultationAudio cascade with
+  // the profile. Only after the tx commits: the Supabase auth user, the photo and
+  // each consultation-audio object — all best-effort, so a provider hiccup leaves
+  // an orphan rather than resurrecting the now-deleted local data.
+  async purgePatient(patientId: string): Promise<void> {
+    // Read before teardown: these rows are gone after the tx.
     const profile = await this.prisma.patientProfile.findUnique({
       where: { id: patientId },
-      select: { photoUrl: true },
+      select: { userId: true, photoUrl: true, user: { select: { authProviderId: true } } },
     });
-
-    // Same reason: ConsultationAudio rows cascade with patientProfile.delete
-    // (onDelete: Cascade), so read their storage paths before the tx removes
-    // the rows.
     const audios = await this.prisma.consultationAudio.findMany({
       where: { patientId },
       select: { storagePath: true },
@@ -513,33 +588,47 @@ export class PatientsService {
       await tx.silhuetaScan.deleteMany({ where: { patientId } });
       await tx.mealPlan.deleteMany({ where: { patientId } });
       await tx.patientProfile.delete({ where: { id: patientId } });
-      await tx.user.delete({ where: { id: userId } });
+      if (profile?.userId) await tx.user.delete({ where: { id: profile.userId } });
     });
 
-    await this.supabaseAdmin.deleteUser(authProviderId);
+    if (profile?.user?.authProviderId) {
+      await this.supabaseAdmin.deleteUser(profile.user.authProviderId);
+    }
 
-    // Best-effort: the account is already deleted; a failed object removal must
-    // not surface as an error (an orphan file is acceptable).
     if (profile?.photoUrl) {
       const path = profile.photoUrl.split('/').pop();
       if (path) {
         try {
           await this.supabaseAdmin.removeObject(PHOTO_BUCKET, path);
         } catch {
-          // ignore
+          // ignore — orphan file is acceptable
         }
       }
     }
 
     for (const a of audios) {
-      await this.supabaseAdmin.removeObject('consultation-audio', a.storagePath);
+      try {
+        await this.supabaseAdmin.removeObject('consultation-audio', a.storagePath);
+      } catch {
+        // ignore — orphan file is acceptable
+      }
     }
   }
 
   // Patient-facing (LGPD access): the caller exports THEIR OWN data as one JSON
   // object. Scope resolves to the caller's own patientProfile — never another's.
   async exportMyData(ctx: AuthContext) {
-    const patientId = resolveScopePatientId(ctx);
+    return this.buildPatientExport(resolveScopePatientId(ctx));
+  }
+
+  // Nutritionist-facing: o mesmo JSON, para baixar antes de excluir um paciente
+  // sem e-mail.
+  async exportPatientData(ctx: AuthContext, id: string) {
+    await this.requireOwned(ctx, id);
+    return this.buildPatientExport(id);
+  }
+
+  private async buildPatientExport(patientId: string) {
     const p = await this.prisma.patientProfile.findUniqueOrThrow({
       where: { id: patientId },
     });
@@ -554,6 +643,7 @@ export class PatientsService {
       consents,
       consultationTranscripts,
       logs,
+      outsideHomeRequests,
     ] =
       await Promise.all([
         this.prisma.patientAnamnese.findUnique({ where: { patientId } }),
@@ -590,6 +680,11 @@ export class PatientsService {
           select: { recordedAt: true, durationSec: true, transcript: true, transcribedAt: true },
         }),
         this.prisma.mealLog.findMany({ where: { patientId }, orderBy: { consumedAt: 'asc' } }),
+        this.prisma.outsideHomeRequest.findMany({
+          where: { patientId },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true, message: true, aiSuggestion: true, createdAt: true },
+        }),
       ]);
 
     return {
@@ -622,6 +717,7 @@ export class PatientsService {
       appointments,
       consents,
       consultationTranscripts,
+      outsideHomeRequests,
       mealLogs: logs.map((row) => ({
         id: row.id,
         patientId: row.patientId,

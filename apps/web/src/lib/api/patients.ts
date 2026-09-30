@@ -49,3 +49,11 @@ export function deletePatientPhoto(id: string): Promise<PatientDetail> {
 export function deleteDemoPatient(id: string): Promise<void> {
   return browserApiFetch<void>(`/patients/${id}`, { method: 'DELETE' });
 }
+
+export function deletePatient(id: string, confirmName: string): Promise<void> {
+  return browserApiFetch<void>(`/patients/${id}`, { method: 'DELETE', body: { confirmName } });
+}
+
+export function exportPatientData(id: string): Promise<unknown> {
+  return browserApiFetch<unknown>(`/patients/${id}/export`);
+}
