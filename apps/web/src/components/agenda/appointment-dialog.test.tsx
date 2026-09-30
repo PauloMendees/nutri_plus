@@ -13,8 +13,12 @@ vi.mock('@/lib/queries/appointments', () => ({
   useUpdateAppointment: () => ({ mutateAsync: updateMut, isPending: false }),
   useDeleteAppointment: () => ({ mutateAsync: deleteMut, isPending: false }),
 }));
+let patientItems: { id: string; name: string; isDemo: boolean }[] = [];
 vi.mock('@/lib/queries/patients', () => ({
-  usePatients: () => ({ data: { items: [], total: 0, page: 1, pageSize: 100, totalPages: 0 }, isLoading: false }),
+  usePatients: () => ({
+    data: { items: patientItems, total: patientItems.length, page: 1, pageSize: 100, totalPages: 1 },
+    isLoading: false,
+  }),
 }));
 
 const categoriesQuery = vi.fn();
@@ -22,8 +26,9 @@ vi.mock("@/lib/queries/appointment-categories", () => ({
   useAppointmentCategories: () => categoriesQuery(),
 }));
 
+let onboardingData: { promptDismissedAt: null; tours: { tourId: string; demoPatientId: string | null }[] } | undefined;
 vi.mock('@/lib/queries/onboarding', () => ({
-  useOnboarding: () => ({ data: undefined }),
+  useOnboarding: () => ({ data: onboardingData }),
 }));
 
 import { AppointmentDialog } from './appointment-dialog';
@@ -34,6 +39,8 @@ beforeEach(() => {
   deleteMut.mockReset().mockResolvedValue(undefined);
   onOpenChange.mockReset();
   categoriesQuery.mockReset().mockReturnValue({ data: [] });
+  patientItems = [];
+  onboardingData = undefined;
 });
 
 const onOpenChange = vi.fn();
@@ -83,6 +90,35 @@ describe('AppointmentDialog (create)', () => {
     );
     act(() => runFixture('appointment'));
     expect(screen.getByLabelText('Título *')).toHaveValue('Consulta de demonstração');
+  });
+});
+
+describe('AppointmentDialog (tour patient)', () => {
+  const TOUR_PATIENT = '00000000-0000-4000-8000-0000000000aa';
+
+  function withTourPatient(isDemo: boolean) {
+    patientItems = [{ id: TOUR_PATIENT, name: 'Paciente do tour', isDemo }];
+    onboardingData = { promptDismissedAt: null, tours: [{ tourId: 'patients', demoPatientId: TOUR_PATIENT }] };
+  }
+
+  async function fillFixtureAndSave() {
+    render(
+      <AppointmentDialog open onOpenChange={onOpenChange} mode="create" initialDate={new Date(2026, 5, 23)} />,
+    );
+    act(() => runFixture('appointment'));
+    await userEvent.click(screen.getByRole('button', { name: /salvar/i }));
+    await waitFor(() => expect(createMut).toHaveBeenCalledTimes(1));
+    return createMut.mock.calls[0][0];
+  }
+
+  it('links the demonstration appointment to a demo tour patient', async () => {
+    withTourPatient(true);
+    expect((await fillFixtureAndSave()).patientId).toBe(TOUR_PATIENT);
+  });
+
+  it('does not pre-select a real patient used in the tour (would send them a reminder)', async () => {
+    withTourPatient(false);
+    expect((await fillFixtureAndSave()).patientId).toBeUndefined();
   });
 });
 

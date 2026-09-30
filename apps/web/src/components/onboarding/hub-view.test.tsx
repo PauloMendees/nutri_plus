@@ -366,6 +366,8 @@ describe('HubView', () => {
       const dialog = await screen.findByRole('dialog');
       // Os capítulos gravam registros de verdade: o aviso precisa estar à vista.
       expect(dialog).toHaveTextContent(/ficam salvos neste paciente/i);
+      expect(dialog).toHaveTextContent(/ele vê esses registros no app/i);
+      expect(dialog).toHaveTextContent(/sem a opção de dados fictícios/i);
       await userEvent.click(within(dialog).getByRole('button', { name: /maria silva/i }));
       expect(patchTour).toHaveBeenCalledWith('patients', { demoPatientId: 'p9' });
     });

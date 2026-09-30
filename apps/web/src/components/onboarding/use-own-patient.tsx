@@ -52,7 +52,8 @@ function PickPatientDialog({ open, onOpenChange }: { open: boolean; onOpenChange
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
           Os registros criados nos próximos capítulos (anamnese, bioimpedância, recordatório e plano
-          alimentar) ficam salvos neste paciente.
+          alimentar) ficam salvos neste paciente, e ele vê esses registros no app. Por isso o tutorial
+          segue sem a opção de dados fictícios: preencha com os dados reais dele.
         </p>
         <Input
           placeholder="Buscar paciente"
