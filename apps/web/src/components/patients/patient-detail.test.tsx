@@ -17,6 +17,10 @@ vi.mock('@/lib/queries/patients', () => ({
   useInvitePatient: () => ({ mutateAsync: inviteMut, isPending: false }),
   useUploadPatientPhoto: () => ({ mutateAsync: uploadPhotoMut, isPending: uploadPhotoPending }),
   useDeletePatientPhoto: () => ({ mutateAsync: deletePhotoMut, isPending: false }),
+  useDeletePatient: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+vi.mock('@/lib/api/patients', () => ({
+  exportPatientData: vi.fn(),
 }));
 const useAssessments = vi.fn();
 vi.mock('@/lib/queries/assessments', () => ({
@@ -215,6 +219,19 @@ describe('PatientDetail', () => {
     render(<PatientDetail id="p1" created={false} />);
     await userEvent.click(screen.getByRole('button', { name: /salvar alterações/i }));
     await waitFor(() => expect(mutateAsync).toHaveBeenCalled());
+  });
+
+  it('offers "Excluir paciente" to the nutritionist (canEdit)', async () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} canEdit />);
+    await userEvent.click(screen.getByRole('button', { name: /excluir paciente/i }));
+    expect(await screen.findByRole('dialog')).toHaveTextContent(/excluir/i);
+  });
+
+  it('hides "Excluir paciente" without edit permission (employee)', () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created={false} canEdit={false} />);
+    expect(screen.queryByRole('button', { name: /excluir paciente/i })).not.toBeInTheDocument();
   });
 
   it('hides Save when canEdit is false', () => {

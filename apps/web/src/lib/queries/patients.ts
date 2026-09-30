@@ -3,6 +3,7 @@ import type { CreatePatientRequest, ListPatientsParams, UpdatePatientRequest } f
 import {
   createPatient,
   deleteDemoPatient,
+  deletePatient,
   deletePatientPhoto,
   getPatient,
   invitePatient,
@@ -45,6 +46,18 @@ export function useDeleteDemoPatient() {
   return useMutation({
     mutationFn: (id: string) => deleteDemoPatient(id),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['patients'] });
+      qc.invalidateQueries({ queryKey: ONBOARDING_KEY });
+    },
+  });
+}
+
+export function useDeletePatient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, confirmName }: { id: string; confirmName: string }) => deletePatient(id, confirmName),
+    onSuccess: (_data, { id }) => {
+      qc.removeQueries({ queryKey: ['patient', id] });
       qc.invalidateQueries({ queryKey: ['patients'] });
       qc.invalidateQueries({ queryKey: ONBOARDING_KEY });
     },
