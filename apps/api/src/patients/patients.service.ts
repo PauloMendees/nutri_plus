@@ -390,9 +390,8 @@ export class PatientsService {
   }
 
   // Demo-only hard delete. Real patients have no nutritionist delete path.
-  // Restrict children match deleteMyAccount so the profile can go. New demos
-  // have no User; older demos may still have one — delete it only if userId is set.
-  // OnboardingProgress.demoPatientId SetNulls.
+  // Cascade goes through purgePatient. New demos have no User; older demos may
+  // still have one (purgePatient handles both). OnboardingProgress.demoPatientId SetNulls.
   async deleteDemoPatient(ctx: AuthContext, id: string): Promise<void> {
     await this.requireOwned(ctx, id);
     const patient = await this.prisma.patientProfile.findFirst({
@@ -406,19 +405,7 @@ export class PatientsService {
       throw new ForbiddenException('Only demo patients can be deleted this way');
     }
 
-    await this.prisma.$transaction([
-      this.prisma.outsideHomeRequest.deleteMany({ where: { patientId: id } }),
-      this.prisma.aIInteraction.deleteMany({ where: { patientId: id } }),
-      this.prisma.appointment.deleteMany({ where: { patientId: id } }),
-      this.prisma.bodyAssessment.deleteMany({ where: { patientId: id } }),
-      this.prisma.nutritionTarget.deleteMany({ where: { patientId: id } }),
-      this.prisma.silhuetaScan.deleteMany({ where: { patientId: id } }),
-      this.prisma.mealPlan.deleteMany({ where: { patientId: id } }),
-      this.prisma.patientProfile.delete({ where: { id } }),
-      ...(patient.userId
-        ? [this.prisma.user.delete({ where: { id: patient.userId } })]
-        : []),
-    ]);
+    await this.purgePatient(id);
   }
 
   // Patient-facing: the caller reads their OWN body assessments (evolution).
@@ -473,32 +460,26 @@ export class PatientsService {
     };
   }
 
-  // Permanently deletes the calling patient's account. Every patient-owned child
-  // with onDelete: Restrict is removed first, in one transaction, before the
-  // profile: OutsideHomeRequest, AIInteraction, Appointment, BodyAssessment,
-  // NutritionTarget, SilhuetaScan, MealPlan (its own children cascade). Then the
-  // profile, then the local user. PatientConsent and ConsultationAudio cascade
-  // with the profile (onDelete: Cascade) — no deleteMany needed for either.
-  // Only after the tx commits do we remove the Supabase auth user (frees the
-  // email for a future invite) and then, best-effort, the profile photo object
-  // and each consultation-audio object: all are best-effort (deleteUser and
-  // removeObject log/never throw; the photo removal is additionally wrapped)
-  // so a provider hiccup leaves an orphan to clean up rather than resurrecting
-  // the now-deleted local data.
+  // Permanently deletes the calling patient's account (patient-facing, app).
   async deleteMyAccount(ctx: AuthContext): Promise<void> {
-    const patientId = resolveScopePatientId(ctx);
-    const userId = ctx.user!.id;
-    const authProviderId = ctx.user!.authProviderId;
+    await this.purgePatient(resolveScopePatientId(ctx));
+  }
 
-    // Read the photo path before teardown (the row is gone after the tx).
+  // Única exclusão em cascata de um paciente (conta do app, demo e exclusão pela
+  // nutricionista). Every patient-owned child with onDelete: Restrict is removed
+  // first, in one transaction, before the profile: OutsideHomeRequest,
+  // AIInteraction, Appointment, BodyAssessment, NutritionTarget, SilhuetaScan,
+  // MealPlan (its own children cascade). Then the profile, then the local user
+  // (fichas sem login não têm). PatientConsent and ConsultationAudio cascade with
+  // the profile. Only after the tx commits: the Supabase auth user, the photo and
+  // each consultation-audio object — all best-effort, so a provider hiccup leaves
+  // an orphan rather than resurrecting the now-deleted local data.
+  async purgePatient(patientId: string): Promise<void> {
+    // Read before teardown: these rows are gone after the tx.
     const profile = await this.prisma.patientProfile.findUnique({
       where: { id: patientId },
-      select: { photoUrl: true },
+      select: { userId: true, photoUrl: true, user: { select: { authProviderId: true } } },
     });
-
-    // Same reason: ConsultationAudio rows cascade with patientProfile.delete
-    // (onDelete: Cascade), so read their storage paths before the tx removes
-    // the rows.
     const audios = await this.prisma.consultationAudio.findMany({
       where: { patientId },
       select: { storagePath: true },
@@ -513,26 +494,30 @@ export class PatientsService {
       await tx.silhuetaScan.deleteMany({ where: { patientId } });
       await tx.mealPlan.deleteMany({ where: { patientId } });
       await tx.patientProfile.delete({ where: { id: patientId } });
-      await tx.user.delete({ where: { id: userId } });
+      if (profile?.userId) await tx.user.delete({ where: { id: profile.userId } });
     });
 
-    await this.supabaseAdmin.deleteUser(authProviderId);
+    if (profile?.user?.authProviderId) {
+      await this.supabaseAdmin.deleteUser(profile.user.authProviderId);
+    }
 
-    // Best-effort: the account is already deleted; a failed object removal must
-    // not surface as an error (an orphan file is acceptable).
     if (profile?.photoUrl) {
       const path = profile.photoUrl.split('/').pop();
       if (path) {
         try {
           await this.supabaseAdmin.removeObject(PHOTO_BUCKET, path);
         } catch {
-          // ignore
+          // ignore — orphan file is acceptable
         }
       }
     }
 
     for (const a of audios) {
-      await this.supabaseAdmin.removeObject('consultation-audio', a.storagePath);
+      try {
+        await this.supabaseAdmin.removeObject('consultation-audio', a.storagePath);
+      } catch {
+        // ignore — orphan file is acceptable
+      }
     }
   }
 

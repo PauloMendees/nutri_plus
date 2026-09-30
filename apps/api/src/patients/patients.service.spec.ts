@@ -818,6 +818,74 @@ describe('PatientsService', () => {
     });
   });
 
+  describe('purgePatient', () => {
+    beforeEach(() => {
+      prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
+    });
+
+    it('deletes Restrict children, then the profile, then the user, in one transaction', async () => {
+      prisma.patientProfile.findUnique.mockResolvedValue({
+        userId: 'u1',
+        photoUrl: null,
+        user: { authProviderId: 'auth-1' },
+      } as any);
+
+      await service.purgePatient('pp1');
+
+      for (const m of [
+        prisma.outsideHomeRequest.deleteMany,
+        prisma.aIInteraction.deleteMany,
+        prisma.appointment.deleteMany,
+        prisma.bodyAssessment.deleteMany,
+        prisma.nutritionTarget.deleteMany,
+        prisma.silhuetaScan.deleteMany,
+        prisma.mealPlan.deleteMany,
+      ]) {
+        expect(m).toHaveBeenCalledWith({ where: { patientId: 'pp1' } });
+      }
+      expect(prisma.patientProfile.delete).toHaveBeenCalledWith({ where: { id: 'pp1' } });
+      expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'u1' } });
+      const order = (m: { mock: { invocationCallOrder: number[] } }) => m.mock.invocationCallOrder[0];
+      expect(order(prisma.mealPlan.deleteMany)).toBeLessThan(order(prisma.patientProfile.delete));
+      expect(order(prisma.patientProfile.delete)).toBeLessThan(order(prisma.user.delete));
+    });
+
+    it('removes the app account, the photo and the audios after the transaction', async () => {
+      prisma.patientProfile.findUnique.mockResolvedValue({
+        userId: 'u1',
+        photoUrl: 'https://x.supabase.co/storage/v1/object/public/patient-photos/pp1.png',
+        user: { authProviderId: 'auth-1' },
+      } as any);
+      prisma.consultationAudio.findMany.mockResolvedValue([{ storagePath: 'nutri-1/pp1/a1.webm' }] as any);
+
+      await service.purgePatient('pp1');
+
+      expect(supabaseAdmin.deleteUser).toHaveBeenCalledWith('auth-1');
+      expect(supabaseAdmin.removeObject).toHaveBeenCalledWith('patient-photos', 'pp1.png');
+      expect(supabaseAdmin.removeObject).toHaveBeenCalledWith('consultation-audio', 'nutri-1/pp1/a1.webm');
+    });
+
+    it('skips the user and the app account for a ficha without login', async () => {
+      prisma.patientProfile.findUnique.mockResolvedValue({ userId: null, photoUrl: null, user: null } as any);
+
+      await service.purgePatient('pp1');
+
+      expect(prisma.user.delete).not.toHaveBeenCalled();
+      expect(supabaseAdmin.deleteUser).not.toHaveBeenCalled();
+    });
+
+    it('does not throw when removing the photo fails', async () => {
+      prisma.patientProfile.findUnique.mockResolvedValue({
+        userId: null,
+        photoUrl: 'https://x/patient-photos/pp1.png',
+        user: null,
+      } as any);
+      supabaseAdmin.removeObject.mockRejectedValue(new Error('storage down'));
+
+      await expect(service.purgePatient('pp1')).resolves.toBeUndefined();
+    });
+  });
+
   describe('deleteDemoPatient', () => {
     it('403 when isDemo === false', async () => {
       prisma.patientProfile.findFirst.mockResolvedValue({
@@ -835,6 +903,10 @@ describe('PatientsService', () => {
         userId: 'u-d',
         isDemo: true,
       } as any);
+      prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
+      prisma.patientProfile.findUnique.mockResolvedValue({
+        userId: 'u-d', photoUrl: null, user: { authProviderId: 'auth-d' },
+      } as any);
       await service.deleteDemoPatient(ctx, 'pp-demo');
       expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 'u-d' } });
     });
@@ -844,6 +916,10 @@ describe('PatientsService', () => {
         id: 'pp-demo',
         userId: null,
         isDemo: true,
+      } as any);
+      prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
+      prisma.patientProfile.findUnique.mockResolvedValue({
+        userId: null, photoUrl: null, user: null,
       } as any);
       await service.deleteDemoPatient(ctx, 'pp-demo');
       expect(prisma.patientProfile.delete).toHaveBeenCalledWith({ where: { id: 'pp-demo' } });
@@ -948,6 +1024,9 @@ describe('PatientsService', () => {
   describe('deleteMyAccount', () => {
     it('tears down patient rows in Restrict-safe order, then the auth user', async () => {
       prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
+      prisma.patientProfile.findUnique.mockResolvedValue({
+        userId: 'user-p', photoUrl: null, user: { authProviderId: 'auth-p' },
+      } as any);
 
       await service.deleteMyAccount(ctxPatient('pp-1', 'nutri-1'));
 
@@ -969,7 +1048,7 @@ describe('PatientsService', () => {
       expect(order(prisma.mealPlan.deleteMany)).toBeLessThan(order(prisma.patientProfile.delete));
       expect(order(prisma.patientProfile.delete)).toBeLessThan(order(prisma.user.delete));
 
-      // frees the email; reads the id off ctx.user, not the top-level sub
+      // frees the email; reads the auth id from the patient's user
       expect(supabaseAdmin.deleteUser).toHaveBeenCalledWith('auth-p');
     });
 
@@ -984,7 +1063,9 @@ describe('PatientsService', () => {
     it('reads the profile photo before teardown and removes it best-effort after', async () => {
       prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
       prisma.patientProfile.findUnique.mockResolvedValue({
+        userId: 'user-p',
         photoUrl: 'https://x.supabase.co/storage/v1/object/public/patient-photos/pp-1.png',
+        user: { authProviderId: 'auth-p' },
       } as any);
 
       await service.deleteMyAccount(ctxPatient('pp-1', 'nutri-1'));
@@ -998,7 +1079,9 @@ describe('PatientsService', () => {
     it('still resolves when the photo removal fails (best-effort)', async () => {
       prisma.$transaction.mockImplementation(async (cb: any) => cb(prisma));
       prisma.patientProfile.findUnique.mockResolvedValue({
+        userId: 'user-p',
         photoUrl: 'https://x/patient-photos/pp-1.png',
+        user: { authProviderId: 'auth-p' },
       } as any);
       supabaseAdmin.removeObject.mockRejectedValue(new Error('storage down'));
 
