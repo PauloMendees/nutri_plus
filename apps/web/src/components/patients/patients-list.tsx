@@ -149,7 +149,9 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
           </div>
 
           {/* Desktop: table */}
-          <div className="hidden overflow-hidden rounded-xl border bg-card md:block">
+          {/* overflow-x-auto: se alguma coluna ainda estourar, a rolagem fica na
+              tabela e não empurra a página inteira. */}
+          <div className="hidden overflow-x-auto rounded-xl border bg-card md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
@@ -169,8 +171,10 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
                     <td className="px-4 py-3">
                       <Link href={`/patients/${p.id}`} className="flex items-center gap-3 font-semibold">
                         <PatientAvatar name={p.name} photoUrl={p.photoUrl} className="size-10 text-sm" />
-                        <span className="flex items-center gap-2">
-                          {p.name}
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className="max-w-[14rem] truncate" title={p.name}>
+                            {p.name}
+                          </span>
                           {p.isDemo ? <Badge>Demo</Badge> : null}
                         </span>
                       </Link>
@@ -190,7 +194,17 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
                         '—'
                       )}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{p.email ?? '—'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {p.email ? (
+                        // Largura máxima + reticências: um e-mail longo alargava a
+                        // tabela e criava rolagem lateral na página.
+                        <span className="block max-w-[14rem] truncate" title={p.email}>
+                          {p.email}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <Badge variant="outline">{INVITE_STATUS_LABELS[p.inviteStatus]}</Badge>
                     </td>

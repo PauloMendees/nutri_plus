@@ -186,4 +186,24 @@ describe('PatientsList', () => {
     render(<PatientsList />);
     expect(screen.getAllByText(label).length).toBeGreaterThan(0);
   });
+
+  it('truncates a long e-mail in the table and keeps the full address on hover', () => {
+    const email = 'nome.muito.comprido.de.paciente.para.estourar@clinica-exemplo.com.br';
+    usePatients.mockReturnValue({
+      isLoading: false, isError: false, isFetching: false,
+      data: envelope({ items: [{ ...patient, email }] }),
+    });
+    render(<PatientsList />);
+    const cell = screen.getByRole('table').querySelector(`[title="${email}"]`);
+    expect(cell).not.toBeNull();
+    // A coluna tem largura máxima e reticências: sem isso a tabela empurra a página.
+    expect(cell).toHaveClass('truncate');
+    expect(cell).toHaveTextContent(email);
+  });
+
+  it('scrolls wide tables inside their own box instead of the page', () => {
+    usePatients.mockReturnValue({ isLoading: false, isError: false, isFetching: false, data: envelope() });
+    render(<PatientsList />);
+    expect(screen.getByRole('table').parentElement).toHaveClass('overflow-x-auto');
+  });
 });
