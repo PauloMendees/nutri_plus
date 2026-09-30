@@ -29,6 +29,14 @@ export function DeletePatientDialog({
   const [downloading, setDownloading] = useState(false);
   const matches = norm(typed) !== '' && norm(typed) === norm(patient.name);
 
+  // Fecha por qualquer caminho (Cancelar, Esc, overlay, sucesso) e zera o nome:
+  // o diálogo continua montado na ficha, e reabrir com o nome já digitado
+  // deixaria "Excluir definitivamente" habilitado de cara.
+  function handleOpenChange(next: boolean) {
+    if (!next) setTyped('');
+    onOpenChange(next);
+  }
+
   async function download() {
     setDownloading(true);
     try {
@@ -50,7 +58,7 @@ export function DeletePatientDialog({
     try {
       await del.mutateAsync({ id: patient.id, confirmName: typed });
       toast.success('Paciente excluído.');
-      onOpenChange(false);
+      handleOpenChange(false);
       router.push('/patients');
     } catch (err) {
       toast.error(
@@ -62,7 +70,7 @@ export function DeletePatientDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>Excluir {patient.name}?</DialogTitle>
@@ -94,7 +102,7 @@ export function DeletePatientDialog({
           </label>
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" className="rounded-full" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" className="rounded-full" onClick={() => handleOpenChange(false)}>
             Cancelar
           </Button>
           <Button

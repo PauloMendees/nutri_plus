@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { useState } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ApiError } from '@/lib/api/client';
@@ -67,10 +68,32 @@ describe('DeletePatientDialog', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('disables the delete button while the request is pending', () => {
+  it('disables the delete button while the request is pending', async () => {
+    const { rerender } = render(<DeletePatientDialog patient={withEmail} open onOpenChange={() => {}} />);
+    await userEvent.type(screen.getByLabelText(/digite o nome do paciente/i), 'Maria Silva');
+    expect(screen.getByRole('button', { name: /excluir definitivamente/i })).toBeEnabled();
     pendingState.isPending = true;
-    render(<DeletePatientDialog patient={withEmail} open onOpenChange={() => {}} />);
+    rerender(<DeletePatientDialog patient={withEmail} open onOpenChange={() => {}} />);
     expect(screen.getByRole('button', { name: /excluindo/i })).toBeDisabled();
+  });
+
+  it('clears the typed name when the dialog is closed and reopened', async () => {
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>reabrir</button>
+          <DeletePatientDialog patient={withEmail} open={open} onOpenChange={setOpen} />
+        </>
+      );
+    }
+    render(<Harness />);
+    await userEvent.type(screen.getByLabelText(/digite o nome do paciente/i), 'Maria Silva');
+    await userEvent.click(screen.getByRole('button', { name: /cancelar/i }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await userEvent.click(screen.getByRole('button', { name: /reabrir/i }));
+    expect(screen.getByLabelText(/digite o nome do paciente/i)).toHaveValue('');
+    expect(screen.getByRole('button', { name: /excluir definitivamente/i })).toBeDisabled();
   });
 
   it('offers a download when the patient has no e-mail', async () => {
