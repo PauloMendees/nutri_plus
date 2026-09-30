@@ -14,6 +14,7 @@ import {
   primaryCta,
 } from "@/lib/onboarding/progress";
 import { useOnboarding } from "@/lib/queries/onboarding";
+import { usePatient, usePatients } from "@/lib/queries/patients";
 import { useSubscription } from "@/lib/queries/subscription";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import {
   DeleteDemoTransactionBanner,
 } from "./delete-demo-banner";
 import { useTour } from "./tour-provider";
+import { UseOwnPatientBanner } from "./use-own-patient";
 
 const CHAPTER_STATUS_LABEL = {
   todo: "A fazer",
@@ -54,23 +56,39 @@ function aiLockCopy(entitlements: Entitlements | undefined): string {
 function lockReasonText(
   lockReason: "ai" | "demo" | null,
   entitlements: Entitlements | undefined,
+  hasOwnPatients: boolean,
 ): string {
   if (lockReason === "ai") return aiLockCopy(entitlements);
   if (lockReason === "demo")
-    return "Cadastre o paciente de demonstração primeiro.";
+    return hasOwnPatients
+      ? "Cadastre o paciente de demonstração ou use um paciente seu."
+      : "Cadastre o paciente de demonstração primeiro.";
   return "Este capítulo está bloqueado.";
+}
+
+// O paciente do tour pode ser um paciente real escolhido pela nutricionista:
+// o convite para apagar só aparece para o de demonstração.
+function TourPatientBanner({ patientId }: { patientId: string }) {
+  const { data } = usePatient(patientId);
+  if (!data?.isDemo) return null;
+  return <DeleteDemoBanner patientId={patientId} />;
 }
 
 function TourDemoBanner({
   def,
   tour,
+  hasOwnPatients,
 }: {
   def: TourDefinition;
   tour: OnboardingTourProgressView | undefined;
+  hasOwnPatients: boolean;
 }) {
+  if (def.id === "patients" && !tour?.demoPatientId && hasOwnPatients) {
+    return <UseOwnPatientBanner />;
+  }
   if (!tour) return null;
   if (def.id === "patients" && tour.demoPatientId) {
-    return <DeleteDemoBanner patientId={tour.demoPatientId} />;
+    return <TourPatientBanner patientId={tour.demoPatientId} />;
   }
   if (def.id === "agenda" && tour.demoAppointmentId) {
     return <DeleteDemoAppointmentBanner appointmentId={tour.demoAppointmentId} />;
@@ -86,11 +104,13 @@ function TourCard({
   tour,
   role,
   entitlements,
+  hasOwnPatients,
 }: {
   def: TourDefinition;
   tour: OnboardingTourProgressView | undefined;
   role: UserRole | null;
   entitlements: Entitlements | undefined;
+  hasOwnPatients: boolean;
 }) {
   const { start } = useTour();
   const cta = primaryCta(tour);
@@ -135,7 +155,7 @@ function TourCard({
         <CardDescription>{def.summary}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <TourDemoBanner def={def} tour={tour} />
+        {canStart ? <TourDemoBanner def={def} tour={tour} hasOwnPatients={hasOwnPatients} /> : null}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {def.chapters.map((chapter) => {
             const view = chapterView(chapter, tour, entitlements);
@@ -152,7 +172,7 @@ function TourCard({
                 isDemoPlayRecovery(def, chapter, tour));
             const reason =
               view.status === "locked"
-                ? lockReasonText(view.lockReason, entitlements)
+                ? lockReasonText(view.lockReason, entitlements, canStart && hasOwnPatients)
                 : null;
             return (
               <Card
@@ -253,6 +273,9 @@ export function HubView({ role }: { role: UserRole | null }) {
   const { data: onboarding } = useOnboarding();
   const { data: subscription } = useSubscription();
   const entitlements = subscription?.entitlements;
+  // Só importa se existe ao menos um: o tour de Pacientes pode seguir com um deles.
+  const ownPatients = usePatients({ pageSize: 1 });
+  const hasOwnPatients = (ownPatients.data?.total ?? 0) > 0;
 
   return (
     <div className="space-y-5">
@@ -271,6 +294,7 @@ export function HubView({ role }: { role: UserRole | null }) {
           tour={onboarding?.tours.find((row) => row.tourId === def.id)}
           role={role}
           entitlements={entitlements}
+          hasOwnPatients={hasOwnPatients}
         />
       ))}
     </div>
