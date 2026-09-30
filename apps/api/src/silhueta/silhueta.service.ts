@@ -13,6 +13,7 @@ import { AIInteractionType } from '../generated/prisma/client';
 import { UploadedImage, isSupportedImage } from '../supabase/image-upload';
 import { silhuetaResponseSchema, SilhuetaResponse } from './silhueta-response.schema';
 import { SILHUETA_SYSTEM_PROMPT, buildSilhuetaUserPrompt } from '../ai/prompts/silhueta.prompt';
+import { saoPauloCalendarDate } from '../common/calendar-date';
 import { CreateSilhuetaScanDto } from './dto/create-silhueta-scan.dto';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -131,7 +132,7 @@ export class SilhuetaService {
     return this.prisma.bodyAssessment.create({
       data: {
         patientId,
-        assessmentDate: scan.scanDate,
+        assessmentDate: saoPauloCalendarDate(scan.scanDate),
         weight: scan.weightKg,
         bodyFatPercentage: scan.bodyFatPercentage,
         muscleMassPercentage: scan.muscleMassPercentage,

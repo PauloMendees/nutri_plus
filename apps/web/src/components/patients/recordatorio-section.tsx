@@ -6,11 +6,8 @@ import { useFoodRecalls } from '@/lib/queries/food-recalls';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Info } from 'lucide-react';
+import { formatIsoDateUtc } from '@/lib/format/date';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR');
-}
 
 export function RecordatorioSection({
   patientId,
@@ -81,7 +78,7 @@ export function RecordatorioSection({
               href={`/patients/${patientId}/recordatorios/${r.id}`}
               className="flex items-center justify-between rounded-xl border bg-card p-4 hover:bg-muted/40"
             >
-              <span className="font-medium">{formatDate(r.recallDate)}</span>
+              <span className="font-medium">{formatIsoDateUtc(r.recallDate)}</span>
               {r.notes ? <span className="truncate text-sm text-muted-foreground">{r.notes}</span> : null}
             </Link>
           ))}

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { ReactNode } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -170,5 +170,20 @@ describe('BioimpedanceSection', () => {
     });
     render(<BioimpedanceSection patientId="p1" canEdit />);
     expect(screen.getAllByText('≈ 9,1 kg').length).toBeGreaterThan(0); // summary card + history
+  });
+
+  // Datas de calendário chegam como meia-noite UTC; no fuso do Brasil o
+  // toLocaleDateString local recuava um dia (bug reportado por usuária).
+  describe('in America/Sao_Paulo', () => {
+    const originalTz = process.env.TZ;
+    beforeEach(() => { process.env.TZ = 'America/Sao_Paulo'; });
+    afterEach(() => { process.env.TZ = originalTz; });
+
+    it('shows the saved calendar day, not the day before', () => {
+      useAssessments.mockReturnValue({ isLoading: false, isError: false, data: [assessment()] });
+      render(<BioimpedanceSection patientId="p1" canEdit />);
+      expect(screen.getAllByText('12/05/2026').length).toBeGreaterThan(0);
+      expect(screen.queryByText('11/05/2026')).toBeNull();
+    });
   });
 });

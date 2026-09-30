@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import type { BodyAssessment } from '@nutri-plus/shared-types';
 import { Camera, Smartphone } from 'lucide-react';
+import { formatIsoDateUtc, formatIsoDayMonthUtc } from '@/lib/format/date';
 import { useAssessments } from '@/lib/queries/assessments';
 import { kgFromPercent } from '@/lib/health/imc';
 import { cn } from '@/lib/utils';
@@ -66,12 +67,6 @@ function fmtKg(weight: number | null, pct: number | null): string | null {
   const kg = kgFromPercent(weight, pct);
   return kg == null ? null : `≈ ${kg.toLocaleString('pt-BR')} kg`;
 }
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR');
-}
-function fmtShort(iso: string): string {
-  return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-}
 
 export function BioimpedanceSection({
   patientId,
@@ -94,7 +89,7 @@ export function BioimpedanceSection({
       [...data]
         .reverse()
         .filter((a) => a[metric] != null)
-        .map((a) => ({ date: fmtShort(a.assessmentDate), value: a[metric] as number })),
+        .map((a) => ({ date: formatIsoDayMonthUtc(a.assessmentDate), value: a[metric] as number })),
     [data, metric],
   );
 
@@ -254,7 +249,7 @@ export function BioimpedanceSection({
                             </UiTooltip>
                           </TooltipProvider>
                         )}
-                        {fmtDate(a.assessmentDate)}
+                        {formatIsoDateUtc(a.assessmentDate)}
                       </span>
                     </td>
                     <td className="px-4 py-3">{fmt(a.weight)}</td>

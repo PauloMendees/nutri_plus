@@ -52,7 +52,9 @@ function labelOf(y: number): string {
   return Number.isInteger(y) ? String(y) : y.toFixed(1).replace('.', ',');
 }
 
-const fmtDate = (d: Date | string) => new Date(d).toLocaleDateString('pt-BR');
+// assessmentDate é data de calendário (meia-noite UTC): formatar em UTC mantém o
+// dia certo seja qual for o fuso do servidor.
+const fmtDate = (d: Date | string) => new Date(d).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
 const fmtNum = (n: number | null | undefined) => (n == null ? '—' : n.toLocaleString('pt-BR'));
 
 function bmiOf(weight: number | null, height: number | null): number | null {
