@@ -61,6 +61,12 @@ function PickPatientDialog({ open, onOpenChange }: { open: boolean; onOpenChange
           onChange={(e) => setSearch(e.target.value)}
           aria-label="Buscar paciente"
         />
+        {/* Buscar e salvar levam alguns segundos: sem indicador parecia travado. */}
+        {patch.isPending ? (
+          <p className="text-sm text-muted-foreground" role="status">Salvando…</p>
+        ) : patients.isFetching && !patients.isLoading ? (
+          <p className="text-sm text-muted-foreground" role="status">Buscando…</p>
+        ) : null}
         {patients.isLoading ? (
           <p className="text-sm text-muted-foreground">Carregando…</p>
         ) : items.length === 0 ? (

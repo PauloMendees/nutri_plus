@@ -17,6 +17,7 @@ import { useOnboarding } from "@/lib/queries/onboarding";
 import { usePatient, usePatients } from "@/lib/queries/patients";
 import { useSubscription } from "@/lib/queries/subscription";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -270,12 +271,16 @@ function TourCard({
 }
 
 export function HubView({ role }: { role: UserRole | null }) {
-  const { data: onboarding } = useOnboarding();
-  const { data: subscription } = useSubscription();
-  const entitlements = subscription?.entitlements;
+  const onboardingQuery = useOnboarding();
+  const subscriptionQuery = useSubscription();
+  const onboarding = onboardingQuery.data;
+  const entitlements = subscriptionQuery.data?.entitlements;
   // Só importa se existe ao menos um: o tour de Pacientes pode seguir com um deles.
   const ownPatients = usePatients({ pageSize: 1 });
   const hasOwnPatients = (ownPatients.data?.total ?? 0) > 0;
+  // Os textos de bloqueio dependem das três respostas: antes delas, a página
+  // mostrava "…demonstração primeiro." e "Disponível no plano Pro" provisórios.
+  const loading = onboardingQuery.isLoading || subscriptionQuery.isLoading || ownPatients.isLoading;
 
   return (
     <div className="space-y-5">
@@ -287,16 +292,23 @@ export function HubView({ role }: { role: UserRole | null }) {
           pular, sair e rever quando quiser.
         </p>
       </div>
-      {ALL_TOURS.map((def) => (
-        <TourCard
-          key={def.id}
-          def={def}
-          tour={onboarding?.tours.find((row) => row.tourId === def.id)}
-          role={role}
-          entitlements={entitlements}
-          hasOwnPatients={hasOwnPatients}
-        />
-      ))}
+      {loading ? (
+        <div data-testid="tutorials-loading" className="space-y-5">
+          <Skeleton className="h-56 w-full rounded-xl" />
+          <Skeleton className="h-56 w-full rounded-xl" />
+        </div>
+      ) : (
+        ALL_TOURS.map((def) => (
+          <TourCard
+            key={def.id}
+            def={def}
+            tour={onboarding?.tours.find((row) => row.tourId === def.id)}
+            role={role}
+            entitlements={entitlements}
+            hasOwnPatients={hasOwnPatients}
+          />
+        ))
+      )}
     </div>
   );
 }
