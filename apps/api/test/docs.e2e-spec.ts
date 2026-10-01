@@ -16,7 +16,7 @@ describe('Docs (e2e)', () => {
     const { ConfigService } = await import('@nestjs/config');
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(ConfigService)
-      .useValue({ getOrThrow: (key: string) => process.env[key] })
+      .useValue({ get: (key: string) => process.env[key], getOrThrow: (key: string) => process.env[key] })
       .compile();
     app = moduleRef.createNestApplication();
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
