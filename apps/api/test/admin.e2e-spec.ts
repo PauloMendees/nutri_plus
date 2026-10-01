@@ -64,7 +64,13 @@ describe('Admin (e2e)', () => {
   it('answers 404 on every admin route to a nutritionist not on the allowlist', async () => {
     const token = await syncNutritionist('nutri-comum', 'nutri@x.com', 'Nutri');
     for (const route of ADMIN_ROUTES) {
-      await request(app.getHttpServer()).get(route).set('Authorization', `Bearer ${token}`).expect(404);
+      const res = await request(app.getHttpServer()).get(route).set('Authorization', `Bearer ${token}`).expect(404);
+      // Corpo idêntico ao de uma rota inexistente: nada denuncia o painel.
+      const unknown = await request(app.getHttpServer())
+        .get(route.replace('/v1/admin', '/v1/nao-existe'))
+        .set('Authorization', `Bearer ${token}`)
+        .expect(404);
+      expect(res.body).toEqual({ ...unknown.body, message: unknown.body.message.replace('/v1/nao-existe', '/v1/admin') });
     }
   });
 

@@ -11,9 +11,12 @@ export class AdminGuard implements CanActivate {
   constructor(private readonly config: ConfigService) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const ctx: AuthContext | undefined = context.switchToHttp().getRequest().user;
+    const req = context.switchToHttp().getRequest();
+    const ctx: AuthContext | undefined = req.user;
     if (!ctx?.user || !isAdminEmail(ctx.user.email ?? ctx.email, this.config.get<string>('ADMIN_EMAILS'))) {
-      throw new NotFoundException();
+      // Mesma mensagem do 404 do roteador do Nest, para o corpo ser idêntico ao
+      // de uma rota que não existe.
+      throw new NotFoundException(`Cannot ${req.method} ${req.originalUrl ?? req.url}`);
     }
     return true;
   }
