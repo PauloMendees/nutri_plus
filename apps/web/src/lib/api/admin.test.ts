@@ -7,7 +7,13 @@ vi.mock('@/lib/api/browser', () => ({
   browserApiDownload: (...a: unknown[]) => browserApiDownload(...a),
 }));
 
-import { adminQueryString, downloadAdminNutritionistsReport, listAdminNutritionists, listAdminPatients } from './admin';
+import {
+  adminQueryString,
+  downloadAdminNutritionistsReport,
+  getAdminNutritionist,
+  listAdminNutritionists,
+  listAdminPatients,
+} from './admin';
 
 beforeEach(() => {
   browserApiFetch.mockReset().mockResolvedValue({ items: [] });
@@ -38,6 +44,29 @@ describe('admin api', () => {
     } finally {
       click.mockRestore();
     }
+  });
+
+  // O nome leva o dia de São Paulo, como o fileName que a API devolve.
+  it('names the downloaded PDF with the São Paulo date', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    // 02:00 UTC de 01/10 ainda é 30/09 em São Paulo.
+    vi.setSystemTime(new Date('2026-10-01T02:00:00.000Z'));
+    let downloadName = '';
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      downloadName = this.download;
+    });
+    try {
+      await downloadAdminNutritionistsReport({});
+      expect(downloadName).toBe('nutricionistas-2026-09-30.pdf');
+    } finally {
+      click.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('encodes the nutritionist id in the detail path', async () => {
+    await getAdminNutritionist('a/b?c');
+    expect(browserApiFetch).toHaveBeenCalledWith('/admin/nutritionists/a%2Fb%3Fc');
   });
 
   it('lists patients with search and page', async () => {

@@ -42,7 +42,12 @@ export async function downloadAdminNutritionistsReport(f: AdminNutritionistFilte
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'nutricionistas.pdf';
+  // Dia de São Paulo no nome, como o fileName do Content-Disposition da API (o
+  // download via blob não o aproveita): relatórios de dias diferentes não se sobrescrevem.
+  const day = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+  a.download = `nutricionistas-${day}.pdf`;
   document.body.append(a);
   a.click();
   a.remove();
@@ -50,7 +55,7 @@ export async function downloadAdminNutritionistsReport(f: AdminNutritionistFilte
 }
 
 export function getAdminNutritionist(id: string): Promise<AdminNutritionistDetail> {
-  return browserApiFetch(`/admin/nutritionists/${id}`);
+  return browserApiFetch(`/admin/nutritionists/${encodeURIComponent(id)}`);
 }
 
 export function listAdminPatients(search: string, page: number, pageSize = ADMIN_PAGE_SIZE): Promise<Paginated<AdminPatientRow>> {
