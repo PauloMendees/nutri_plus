@@ -1,8 +1,9 @@
-import { Controller, Get, Query, StreamableFile } from '@nestjs/common';
+import { Controller, Get, Param, Query, StreamableFile } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { BillingExempt } from '../billing/decorators';
 import { AdminOnly } from './admin-only.decorator';
 import { AdminService } from './admin.service';
+import { ListAdminPatientsDto } from './dto/list-admin-patients.dto';
 import { AdminNutritionistFiltersDto, ListAdminNutritionistsDto } from './dto/list-admin-nutritionists.dto';
 
 // Somente GET: o painel não altera nada. Sem @Roles — o acesso é a allowlist.
@@ -28,5 +29,15 @@ export class AdminController {
       type: 'application/pdf',
       disposition: `attachment; filename="${fileName}"`,
     });
+  }
+
+  @Get('nutritionists/:id')
+  nutritionistDetail(@Param('id') id: string) {
+    return this.admin.nutritionistDetail(id);
+  }
+
+  @Get('patients')
+  listPatients(@Query() q: ListAdminPatientsDto) {
+    return this.admin.listPatients(q.search, q.page ?? 1, q.pageSize ?? 20);
   }
 }
