@@ -53,3 +53,22 @@ describe('AdminService.listNutritionists', () => {
     await expect(service.listNutritionists({}, 1, 20)).rejects.toBeInstanceOf(BadGatewayException);
   });
 });
+
+describe('AdminService.nutritionistsReport', () => {
+  it('uses every filtered row, ignoring pagination, and names the file by date', async () => {
+    const prisma = mockDeep<PrismaService>();
+    const supabase = mockDeep<SupabaseAdminService>();
+    const service = new AdminService(prisma, supabase);
+    const rows = Array.from({ length: 45 }, (_, i) => ({
+      id: `n${i}`, name: `N${i}`, email: `n${i}@x.com`, phone: null, confirmed: true,
+      patientCount: 0, plan: 'NONE' as const, createdAt: '2026-09-10T15:00:00.000Z',
+    }));
+    const all = jest.spyOn(service, 'allNutritionists').mockResolvedValue(rows);
+
+    const { buffer, fileName } = await service.nutritionistsReport({ confirmed: 'yes' });
+
+    expect(all).toHaveBeenCalledWith({ confirmed: 'yes' });
+    expect(buffer.subarray(0, 4).toString()).toBe('%PDF');
+    expect(fileName).toMatch(/^nutricionistas-\d{4}-\d{2}-\d{2}\.pdf$/);
+  });
+});
