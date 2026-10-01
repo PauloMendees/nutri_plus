@@ -227,4 +227,18 @@ describe('PatientsList', () => {
     // Nome, selo de convite e objetivo continuam no card.
     expect(within(card).getByText('Perda de peso')).toBeInTheDocument();
   });
+
+  // Com rolagem interna, a coluna do paciente fica fixa à esquerda para não
+  // perder de vista de quem é cada linha.
+  it('keeps the patient column pinned while the table scrolls sideways', () => {
+    usePatients.mockReturnValue({ isLoading: false, isError: false, isFetching: false, data: envelope() });
+    render(<PatientsList />);
+    const table = screen.getByRole('table');
+    const header = within(table).getByRole('columnheader', { name: /paciente/i });
+    const firstCell = within(table).getAllByRole('cell')[0];
+    for (const el of [header, firstCell]) {
+      expect(el).toHaveClass('sticky', 'left-0');
+      expect(el.className).toMatch(/\bbg-card\b/);
+    }
+  });
 });

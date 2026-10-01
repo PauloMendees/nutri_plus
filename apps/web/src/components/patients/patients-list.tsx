@@ -20,6 +20,11 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR');
 }
 
+// Coluna "Paciente" fixa na rolagem interna da tabela. Fundo opaco (bg-card)
+// para as outras colunas passarem por baixo; no hover da linha, a mesma cor de
+// bg-muted/40 já misturada ao card, porque a translúcida deixaria ver através.
+const PINNED_CELL = 'sticky left-0 z-10 bg-card shadow-[inset_-1px_0_0_var(--border)]';
+
 export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -162,7 +167,7 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-4 py-3 font-semibold">Paciente</th>
+                  <th className={`${PINNED_CELL} px-4 py-3 font-semibold`}>Paciente</th>
                   <th className="px-4 py-3 font-semibold">Telefone</th>
                   <th className="px-4 py-3 font-semibold">E-mail</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
@@ -174,8 +179,8 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
               </thead>
               <tbody>
                 {items.map((p) => (
-                  <tr key={p.id} className="border-b last:border-0 hover:bg-muted/40">
-                    <td className="px-4 py-3">
+                  <tr key={p.id} className="group border-b last:border-0 hover:bg-muted/40">
+                    <td className={`${PINNED_CELL} px-4 py-3 group-hover:bg-[color-mix(in_oklab,var(--card),var(--muted)_40%)]`}>
                       <Link href={`/patients/${p.id}`} className="flex items-center gap-3 font-semibold">
                         <PatientAvatar name={p.name} photoUrl={p.photoUrl} className="size-10 text-sm" />
                         <span className="flex min-w-0 items-center gap-2">
