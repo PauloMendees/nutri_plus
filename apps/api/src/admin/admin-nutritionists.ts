@@ -1,26 +1,27 @@
 import type { AdminNutritionistFilters, AdminNutritionistRow, Paginated } from '@nutri-plus/shared-types';
 import type { AuthUserSummary } from '../supabase/supabase-admin.service';
 
-// Quem se cadastrou e não confirmou o e-mail existe só no Supabase Auth: o
-// usuário local (User + NutritionistProfile) nasce no sync-user, depois da
-// confirmação. Convidados (pacientes/funcionários) também não confirmam até
-// aceitar o convite — o invited_at separa os dois casos.
-export function unconfirmedRows(authUsers: AuthUserSummary[], localAuthIds: Set<string>): AdminNutritionistRow[] {
+// Cadastros que existem só no Supabase Auth, sem perfil local: o usuário local
+// (User + NutritionistProfile) nasce no sync-user, depois da confirmação. Entra
+// quem não confirmou o e-mail e também quem confirmou mas nunca chegou ao
+// sync-user (ex.: abandonou o primeiro login) — senão sumiria do painel.
+// Convidados (pacientes/funcionários) ficam de fora: o invited_at os separa.
+export function authOnlyRows(authUsers: AuthUserSummary[], localAuthIds: Set<string>): AdminNutritionistRow[] {
   return authUsers
-    .filter((u) => !u.emailConfirmedAt && !u.invitedAt && !localAuthIds.has(u.id) && !!u.email)
+    .filter((u) => !u.invitedAt && !localAuthIds.has(u.id) && !!u.email)
     .map((u) => ({
       id: null,
       name: u.name?.trim() || (u.email as string),
       email: u.email as string,
       phone: u.phone,
-      confirmed: false,
+      confirmed: !!u.emailConfirmedAt,
       patientCount: 0,
       plan: 'NONE' as const,
       createdAt: new Date(u.createdAt).toISOString(),
     }));
 }
 
-const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const fold = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 // Dia de São Paulo (YYYY-MM-DD) de um instante ISO; compara-se como texto.
 function saoPauloDay(iso: string): string {

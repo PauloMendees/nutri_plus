@@ -1,4 +1,4 @@
-import { filterNutritionists, paginate, unconfirmedRows } from './admin-nutritionists';
+import { authOnlyRows, filterNutritionists, paginate } from './admin-nutritionists';
 import type { AdminNutritionistRow } from '@nutri-plus/shared-types';
 
 function row(over: Partial<AdminNutritionistRow> = {}): AdminNutritionistRow {
@@ -8,16 +8,17 @@ function row(over: Partial<AdminNutritionistRow> = {}): AdminNutritionistRow {
   };
 }
 
-describe('unconfirmedRows', () => {
+describe('authOnlyRows', () => {
   const base = { emailConfirmedAt: null, invitedAt: null, createdAt: '2026-09-01T10:00:00.000Z', name: 'Bia', phone: '+55 (11) 9' };
 
-  it('keeps only signups that never confirmed and have no local user', () => {
-    const rows = unconfirmedRows(
+  it('keeps signups without a local user, confirmed or not, and skips invites', () => {
+    const rows = authOnlyRows(
       [
         { ...base, id: 'a1', email: 'pendente@x.com' },
         { ...base, id: 'a2', email: 'confirmou@x.com', emailConfirmedAt: '2026-09-02T00:00:00Z' },
         { ...base, id: 'a3', email: 'convidado@x.com', invitedAt: '2026-09-02T00:00:00Z' },
         { ...base, id: 'a4', email: 'local@x.com' },
+        { ...base, id: 'a5', email: null },
       ],
       new Set(['a4']),
     );
@@ -26,11 +27,16 @@ describe('unconfirmedRows', () => {
         id: null, name: 'Bia', email: 'pendente@x.com', phone: '+55 (11) 9', confirmed: false,
         patientCount: 0, plan: 'NONE', createdAt: '2026-09-01T10:00:00.000Z',
       },
+      // Confirmou mas nunca chegou ao sync-user: aparece como confirmada, sem perfil.
+      {
+        id: null, name: 'Bia', email: 'confirmou@x.com', phone: '+55 (11) 9', confirmed: true,
+        patientCount: 0, plan: 'NONE', createdAt: '2026-09-01T10:00:00.000Z',
+      },
     ]);
   });
 
   it('falls back to the e-mail when the signup has no name', () => {
-    const [r] = unconfirmedRows([{ ...base, id: 'a1', email: 'semnome@x.com', name: null }], new Set());
+    const [r] = authOnlyRows([{ ...base, id: 'a1', email: 'semnome@x.com', name: null }], new Set());
     expect(r.name).toBe('semnome@x.com');
   });
 });
@@ -48,6 +54,7 @@ describe('filterNutritionists', () => {
 
   it('searches name or e-mail ignoring case and accents', () => {
     expect(filterNutritionists(rows, { search: 'lucia' }).map((r) => r.id)).toEqual(['n1']);
+    expect(filterNutritionists(rows, { search: 'LÚCIA' }).map((r) => r.id)).toEqual(['n1']);
     expect(filterNutritionists(rows, { search: 'bruno@' }).map((r) => r.id)).toEqual(['n2']);
   });
 

@@ -13,7 +13,7 @@ import { planLabelOf } from '../billing/plan-policy';
 import { inviteStatusOf } from '../patients/invite-status';
 import { renderPdf } from '../meal-plans/pdf/pdf-printer';
 import { buildNutritionistsReportDoc } from './admin-report-doc';
-import { filterNutritionists, paginate, unconfirmedRows } from './admin-nutritionists';
+import { authOnlyRows, filterNutritionists, paginate } from './admin-nutritionists';
 
 const PATIENT_SELECT = {
   id: true, name: true, email: true, phone: true, userId: true, firstAppLoginAt: true, createdAt: true,
@@ -78,7 +78,7 @@ export class AdminService {
       createdAt: p.user.createdAt.toISOString(),
     }));
     const localAuthIds = new Set(profiles.map((p) => p.user.authProviderId));
-    return filterNutritionists([...confirmed, ...unconfirmedRows(authUsers, localAuthIds)], f);
+    return filterNutritionists([...confirmed, ...authOnlyRows(authUsers, localAuthIds)], f);
   }
 
   async nutritionistsReport(f: AdminNutritionistFilters): Promise<{ buffer: Buffer; fileName: string }> {

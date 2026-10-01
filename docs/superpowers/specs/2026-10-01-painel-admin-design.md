@@ -39,21 +39,24 @@ exportação da aba Pacientes.
 
 ### Nutricionistas (junção Supabase Auth + banco)
 
-A nutricionista só vira linha no banco (`User` + `NutritionistProfile`) depois
-de confirmar o e-mail (`sync-user` no callback). Quem se cadastrou e não
-confirmou existe **só no Supabase Auth**.
+A nutricionista só vira linha no banco (`User` + `NutritionistProfile`) no
+`sync-user` do callback, depois de confirmar o e-mail. Quem se cadastrou e não
+confirmou — ou confirmou mas nunca chegou ao `sync-user` (ex.: abandonou o
+primeiro login) — existe **só no Supabase Auth**.
 
 - **Banco:** todas as `NutritionistProfile` com `user` (nome, e-mail,
   `createdAt`), `whatsappNumber`, `subscription` e a contagem de pacientes
   **reais** (`isDemo = false`).
 - **Supabase Auth:** todos os usuários via `auth.admin.listUsers`, paginando até
-  o fim (`perPage` 1000). Um usuário vira linha "não confirmado" quando:
-  `email_confirmed_at` é nulo **e** `invited_at` é nulo (convidados — pacientes
-  e funcionários — ficam de fora) **e** não existe `User` local com o mesmo
-  `authProviderId`. Nome e telefone vêm de `user_metadata.name` /
-  `user_metadata.whatsapp`; cadastro em `created_at`.
-- **Junção:** linhas do banco (`confirmed: true`) + linhas não confirmadas
-  (`confirmed: false`, 0 pacientes, plano "Sem plano", sem `id` de perfil).
+  o fim (`perPage` 1000). Um usuário vira linha "só no Auth" (`authOnlyRows`)
+  quando: `invited_at` é nulo (convidados — pacientes e funcionários — ficam de
+  fora) **e** não existe `User` local com o mesmo `authProviderId` **e** tem
+  e-mail. Confirmado ou não: `confirmed` reflete `email_confirmed_at`. Nome e
+  telefone vêm de `user_metadata.name` / `user_metadata.whatsapp`; cadastro em
+  `created_at`.
+- **Junção:** linhas do banco (`confirmed: true`) + linhas só no Auth
+  (`confirmed` = e-mail confirmado, 0 pacientes, plano "Sem plano", sem `id` de
+  perfil — não abrem detalhe).
 - **Escala:** a junção, os filtros, a ordenação e a paginação são feitos em
   memória. Adequado para centenas a poucos milhares de contas; acima disso, o
   caminho é guardar o cadastro no banco no signup (fora do escopo).
@@ -72,7 +75,7 @@ Mesma lógica de `EntitlementsService.resolveAccess`, exposta como rótulo:
 | `ESSENCIAL` | Essencial | `ACTIVE`, `currentPeriodEnd` no futuro, `plan` `ESSENCIAL` ou nulo |
 | `TRIAL` | Teste grátis | `TRIALING`, `trialEndsAt` no futuro |
 | `EXPIRED` | Vencida | tem assinatura, mas nenhum dos casos acima |
-| `NONE` | Sem plano | sem assinatura (inclui quem não confirmou) |
+| `NONE` | Sem plano | sem assinatura (inclui quem existe só no Supabase Auth) |
 
 A função pura `planLabelOf(sub, now)` fica em `billing/plan-policy.ts`, ao lado
 das outras regras de plano.

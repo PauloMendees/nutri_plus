@@ -139,7 +139,7 @@ export function NutritionistsTab() {
                   data.items.map((n) => (
                     <tr
                       key={n.id ?? n.email}
-                      // Quem não confirmou não tem perfil (nem pacientes): sem detalhe.
+                      // Quem existe só no Supabase Auth não tem perfil (nem pacientes): sem detalhe.
                       onClick={n.id ? () => router.push(`/admin/nutritionists/${n.id}`) : undefined}
                       className={`group border-b last:border-0 ${n.id ? 'cursor-pointer hover:bg-muted/40' : ''}`}
                     >
