@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useHorizontalOverflow } from '@/lib/hooks/use-horizontal-overflow';
 import { PatientAvatar } from '@/components/patients/patient-avatar';
 
 const PAGE_SIZE = 20;
@@ -19,6 +20,13 @@ const PAGE_SIZE = 20;
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR');
 }
+
+// Coluna "Paciente" fixa na rolagem interna da tabela. Fundo opaco (bg-card)
+// para as outras colunas passarem por baixo; no hover da linha, a mesma cor de
+// bg-muted/40 já misturada ao card, porque a translúcida deixaria ver através.
+const PINNED_CELL = 'sticky left-0 z-10 bg-card';
+// Borda à direita da coluna fixa: só quando a tabela rola por dentro.
+const PINNED_DIVIDER = 'shadow-[inset_-1px_0_0_var(--border)]';
 
 export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
   const [search, setSearch] = useState('');
@@ -34,6 +42,7 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
   const data = query.data;
   const items = data?.items ?? [];
   const hasSearch = search.trim().length > 0;
+  const [tableBoxRef, tableOverflows] = useHorizontalOverflow<HTMLDivElement>();
 
   return (
     <div className="space-y-5">
@@ -158,11 +167,11 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
           {/* Desktop: table */}
           {/* overflow-x-auto: se alguma coluna ainda estourar, a rolagem fica na
               tabela e não empurra a página inteira. */}
-          <div className="hidden overflow-x-auto rounded-xl border bg-card md:block">
+          <div ref={tableBoxRef} className="hidden overflow-x-auto rounded-xl border bg-card md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="px-4 py-3 font-semibold">Paciente</th>
+                  <th className={`${PINNED_CELL} ${tableOverflows ? PINNED_DIVIDER : ''} px-4 py-3 font-semibold`}>Paciente</th>
                   <th className="px-4 py-3 font-semibold">Telefone</th>
                   <th className="px-4 py-3 font-semibold">E-mail</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
@@ -174,8 +183,8 @@ export function PatientsList({ canCreate = true }: { canCreate?: boolean }) {
               </thead>
               <tbody>
                 {items.map((p) => (
-                  <tr key={p.id} className="border-b last:border-0 hover:bg-muted/40">
-                    <td className="px-4 py-3">
+                  <tr key={p.id} className="group border-b last:border-0 hover:bg-muted/40">
+                    <td className={`${PINNED_CELL} ${tableOverflows ? PINNED_DIVIDER : ''} px-4 py-3 group-hover:bg-[color-mix(in_oklab,var(--card),var(--muted)_40%)]`}>
                       <Link href={`/patients/${p.id}`} className="flex items-center gap-3 font-semibold">
                         <PatientAvatar name={p.name} photoUrl={p.photoUrl} className="size-10 text-sm" />
                         <span className="flex min-w-0 items-center gap-2">

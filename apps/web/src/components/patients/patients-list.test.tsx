@@ -227,4 +227,35 @@ describe('PatientsList', () => {
     // Nome, selo de convite e objetivo continuam no card.
     expect(within(card).getByText('Perda de peso')).toBeInTheDocument();
   });
+
+  // Com rolagem interna, a coluna do paciente fica fixa à esquerda para não
+  // perder de vista de quem é cada linha.
+  it('keeps the patient column pinned while the table scrolls sideways', () => {
+    usePatients.mockReturnValue({ isLoading: false, isError: false, isFetching: false, data: envelope() });
+    render(<PatientsList />);
+    const table = screen.getByRole('table');
+    const header = within(table).getByRole('columnheader', { name: /paciente/i });
+    const firstCell = within(table).getAllByRole('cell')[0];
+    for (const el of [header, firstCell]) {
+      expect(el).toHaveClass('sticky', 'left-0');
+      expect(el.className).toMatch(/\bbg-card\b/);
+    }
+  });
+
+  // A borda à direita da coluna fixa só faz sentido quando há rolagem interna.
+  it('shows the pinned-column divider only when the table overflows', () => {
+    usePatients.mockReturnValue({ isLoading: false, isError: false, isFetching: false, data: envelope() });
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800);
+    const { unmount } = render(<PatientsList />);
+    const header = () => within(screen.getByRole('table')).getByRole('columnheader', { name: /paciente/i });
+    expect(header().className).not.toMatch(/shadow-\[inset/);
+    unmount();
+
+    vi.spyOn(HTMLElement.prototype, 'scrollWidth', 'get').mockReturnValue(1600);
+    render(<PatientsList />);
+    expect(header().className).toMatch(/shadow-\[inset/);
+    expect(within(screen.getByRole('table')).getAllByRole('cell')[0].className).toMatch(/shadow-\[inset/);
+    vi.restoreAllMocks();
+  });
 });
