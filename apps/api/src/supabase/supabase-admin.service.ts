@@ -7,6 +7,16 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { AuthApiError, createClient, SupabaseClient } from '@supabase/supabase-js';
 
+export interface AuthUserSummary {
+  id: string;
+  email: string | null;
+  emailConfirmedAt: string | null;
+  invitedAt: string | null;
+  createdAt: string;
+  name: string | null;
+  phone: string | null;
+}
+
 // Wraps the Supabase Admin API (service-role key). Used to invite a user by
 // email at creation time and to roll back (delete) the created auth user if the
 // subsequent local DB write fails.
@@ -169,6 +179,36 @@ export class SupabaseAdminService {
     } catch {
       this.logger.warn(`Storage download failed (bucket=${bucket})`);
       throw new BadGatewayException('Storage download failed');
+    }
+  }
+
+  // Todos os usuários do Supabase Auth (painel de administradores). Pagina até
+  // a última página; qualquer falha vira 502 — melhor do que uma lista que
+  // esconderia quem não confirmou.
+  async listAllUsers(): Promise<AuthUserSummary[]> {
+    const perPage = 1000;
+    const out: AuthUserSummary[] = [];
+    for (let page = 1; ; page++) {
+      let res: Awaited<ReturnType<SupabaseClient['auth']['admin']['listUsers']>>;
+      try {
+        res = await this.client.auth.admin.listUsers({ page, perPage });
+      } catch {
+        throw new BadGatewayException('Não foi possível consultar o Supabase Auth.');
+      }
+      if (res.error) throw new BadGatewayException('Não foi possível consultar o Supabase Auth.');
+      for (const u of res.data.users) {
+        const meta = (u.user_metadata ?? {}) as { name?: unknown; whatsapp?: unknown };
+        out.push({
+          id: u.id,
+          email: u.email ?? null,
+          emailConfirmedAt: u.email_confirmed_at ?? null,
+          invitedAt: u.invited_at ?? null,
+          createdAt: u.created_at,
+          name: typeof meta.name === 'string' ? meta.name : null,
+          phone: typeof meta.whatsapp === 'string' ? meta.whatsapp : null,
+        });
+      }
+      if (res.data.users.length < perPage) return out;
     }
   }
 }

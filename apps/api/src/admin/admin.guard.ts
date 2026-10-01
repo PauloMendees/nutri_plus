@@ -4,7 +4,8 @@ import { AuthContext } from '../auth/types/auth-context';
 import { isAdminEmail } from './admin-access';
 
 // 404 (e não 403) para quem está logado mas não é admin: não revela que o
-// painel existe. Só roda via @AdminOnly() e sempre confere (falha fechada). Sem login, o SupabaseAuthGuard global já respondeu 401.
+// painel existe. Só roda via @AdminOnly() e sempre confere (falha fechada).
+// Sem login, o SupabaseAuthGuard global já respondeu 401.
 @Injectable()
 export class AdminGuard implements CanActivate {
   constructor(private readonly config: ConfigService) {}
