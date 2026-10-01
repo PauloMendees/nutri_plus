@@ -2,13 +2,14 @@ import type { PatientInviteStatus } from './patient';
 
 // Painel de administradores (somente leitura). Valores do plano ativo como
 // rótulo, derivados da mesma regra de acesso do EntitlementsService.
-export type AdminPlanLabel = 'COMP' | 'PRO' | 'ESSENCIAL' | 'TRIAL' | 'EXPIRED' | 'NONE';
+export type AdminPlanLabel = 'COMP' | 'PRO' | 'ESSENCIAL' | 'TRIAL' | 'TRIAL_ENDED' | 'EXPIRED' | 'NONE';
 
 export const ADMIN_PLAN_LABELS: Record<AdminPlanLabel, string> = {
   COMP: 'Cortesia',
   PRO: 'Pro',
   ESSENCIAL: 'Essencial',
   TRIAL: 'Teste grátis',
+  TRIAL_ENDED: 'Teste encerrado',
   EXPIRED: 'Vencida',
   NONE: 'Sem plano',
 };

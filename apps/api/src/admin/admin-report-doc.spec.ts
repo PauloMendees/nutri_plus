@@ -36,4 +36,22 @@ describe('buildNutritionistsReportDoc', () => {
     const buf = await renderPdf(empty);
     expect(buf.subarray(0, 4).toString()).toBe('%PDF');
   });
+
+  it('ends with a legend explaining every plan status and the confirmation column', () => {
+    const json = JSON.stringify(buildNutritionistsReportDoc({ rows: [row], filters: {}, generatedAt: new Date() }));
+    expect(json).toContain('Legenda dos status');
+    for (const label of ['Cortesia', 'Pro', 'Essencial', 'Teste grátis', 'Teste encerrado', 'Vencida', 'Sem plano']) {
+      expect(json).toContain(label);
+    }
+    expect(json).toContain('usou o teste grátis e não assinou');
+    expect(json).toContain('já foi assinante');
+    expect(json).toContain('Confirmou: Não');
+    // A legenda vem depois da tabela.
+    expect(json.indexOf('Legenda dos status')).toBeGreaterThan(json.indexOf('Ana Souza'));
+  });
+
+  it('shows the legend even when there are no rows', () => {
+    const json = JSON.stringify(buildNutritionistsReportDoc({ rows: [], filters: {}, generatedAt: new Date() }));
+    expect(json).toContain('Legenda dos status');
+  });
 });

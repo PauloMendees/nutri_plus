@@ -36,9 +36,21 @@ describe('planLabelOf', () => {
   });
   it('is TRIAL for a running trial', () =>
     expect(planLabelOf({ ...base, status: 'TRIALING', plan: null, currentPeriodEnd: null, trialEndsAt: later }, now)).toBe('TRIAL'));
-  it('is EXPIRED once the period or the trial is over', () => {
+  // Vencida = já foi assinante pago (teve período) e o período acabou ou o
+  // pagamento não foi feito.
+  it('is EXPIRED for a former paying subscriber whose period is over', () => {
     expect(planLabelOf({ ...base, currentPeriodEnd: earlier }, now)).toBe('EXPIRED');
-    expect(planLabelOf({ ...base, status: 'TRIALING', currentPeriodEnd: null, trialEndsAt: earlier }, now)).toBe('EXPIRED');
-    expect(planLabelOf({ ...base, status: 'CANCELED', currentPeriodEnd: null }, now)).toBe('EXPIRED');
+    expect(planLabelOf({ ...base, status: 'PAST_DUE', currentPeriodEnd: earlier }, now)).toBe('EXPIRED');
+    expect(planLabelOf({ ...base, status: 'CANCELED', currentPeriodEnd: earlier }, now)).toBe('EXPIRED');
+  });
+
+  // Teste encerrado = usou o teste grátis e nunca pagou (não assinante).
+  it('is TRIAL_ENDED when the trial is over and there was never a paid period', () => {
+    expect(planLabelOf({ ...base, status: 'TRIALING', plan: null, currentPeriodEnd: null, trialEndsAt: earlier }, now)).toBe('TRIAL_ENDED');
+    expect(planLabelOf({ ...base, status: 'PAST_DUE', currentPeriodEnd: null, trialEndsAt: earlier }, now)).toBe('TRIAL_ENDED');
+  });
+
+  it('is NONE for a checkout that never paid nor trialed', () => {
+    expect(planLabelOf({ ...base, status: 'PAST_DUE', currentPeriodEnd: null, trialEndsAt: null }, now)).toBe('NONE');
   });
 });

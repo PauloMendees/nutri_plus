@@ -70,7 +70,8 @@ export function entitlementsForTier(tier: PlanTier, aiUsed: number): Omit<Entitl
 
 // Plano ativo como rótulo (painel de administradores). Mesma ordem de decisão
 // de EntitlementsService.resolveAccess: cortesia > ativa no período > teste no
-// prazo > o resto é vencida.
+// prazo. Fora disso: vencida se já houve período pago (currentPeriodEnd só é
+// gravado quando um pagamento confirma), teste encerrado se só houve teste.
 export function planLabelOf(
   sub: {
     isComp: boolean;
@@ -87,5 +88,9 @@ export function planLabelOf(
     return sub.plan === 'PRO' ? 'PRO' : 'ESSENCIAL';
   }
   if (sub.status === 'TRIALING' && sub.trialEndsAt && sub.trialEndsAt > now) return 'TRIAL';
-  return 'EXPIRED';
+  // Teve período pago ⇒ já foi assinante: o período acabou ou deixou de pagar.
+  if (sub.currentPeriodEnd) return 'EXPIRED';
+  // Nunca pagou, mas usou o teste grátis.
+  if (sub.trialEndsAt) return 'TRIAL_ENDED';
+  return 'NONE';
 }

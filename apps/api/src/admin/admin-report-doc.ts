@@ -17,6 +17,17 @@ export function describeFilters(f: AdminNutritionistFilters): string {
   return parts.length ? parts.join(' · ') : 'Sem filtros';
 }
 
+const L = ADMIN_PLAN_LABELS;
+const LEGEND: [string, string][] = [
+  [L.COMP, 'acesso Pro concedido sem cobrança.'],
+  [`${L.PRO} / ${L.ESSENCIAL}`, 'assinatura ativa e em dia.'],
+  [L.TRIAL, 'período de teste em andamento.'],
+  [L.TRIAL_ENDED, 'usou o teste grátis e não assinou.'],
+  [L.EXPIRED, 'já foi assinante, mas o período pago acabou ou o pagamento não foi feito.'],
+  [L.NONE, 'nunca iniciou teste nem assinatura.'],
+  ['Confirmou: Não', 'se cadastrou, mas ainda não confirmou o e-mail.'],
+];
+
 // Relatório da listagem de nutricionistas do painel admin: todas as linhas que
 // passam nos filtros (sem paginação), em A4 paisagem.
 export function buildNutritionistsReportDoc(input: {
@@ -55,6 +66,11 @@ export function buildNutritionistsReportDoc(input: {
             layout: 'lightHorizontalLines',
           }
         : { text: 'Nenhuma nutricionista encontrada.', italics: true },
+      { text: 'Legenda dos status', bold: true, margin: [0, 16, 0, 4] },
+      {
+        ul: LEGEND.map(([label, meaning]) => ({ text: [{ text: `${label}: `, bold: true }, meaning] })),
+        color: '#5b6b64',
+      },
     ],
   };
 }

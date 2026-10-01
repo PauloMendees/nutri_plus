@@ -74,8 +74,11 @@ Mesma lógica de `EntitlementsService.resolveAccess`, exposta como rótulo:
 | `PRO` | Pro | `ACTIVE`, `currentPeriodEnd` no futuro, `plan = PRO` |
 | `ESSENCIAL` | Essencial | `ACTIVE`, `currentPeriodEnd` no futuro, `plan` `ESSENCIAL` ou nulo |
 | `TRIAL` | Teste grátis | `TRIALING`, `trialEndsAt` no futuro |
-| `EXPIRED` | Vencida | tem assinatura, mas nenhum dos casos acima |
-| `NONE` | Sem plano | sem assinatura (inclui quem existe só no Supabase Auth) |
+| `EXPIRED` | Vencida | nenhum dos casos acima e `currentPeriodEnd` preenchido (já foi assinante pago; o período acabou ou deixou de pagar) |
+| `TRIAL_ENDED` | Teste encerrado | nenhum dos casos acima, sem período pago e com `trialEndsAt` (usou o teste e não assinou) |
+| `NONE` | Sem plano | sem assinatura, ou assinatura sem teste e sem período pago (inclui quem existe só no Supabase Auth) |
+
+O PDF termina com uma **legenda** explicando cada status e o "Confirmou: Não".
 
 A função pura `planLabelOf(sub, now)` fica em `billing/plan-policy.ts`, ao lado
 das outras regras de plano.
@@ -95,7 +98,7 @@ Módulo novo `AdminModule` (controller + service), importa `SupabaseAdminModule`
 - `GET /v1/admin/nutritionists`
   - Query: `search?` (nome ou e-mail, contém, sem diferenciar maiúsculas e
     acentos), `confirmed?` (`yes` | `no`), `plan?` (`COMP` | `PRO` |
-    `ESSENCIAL` | `TRIAL` | `EXPIRED` | `NONE`), `createdFrom?`, `createdTo?`
+    `ESSENCIAL` | `TRIAL` | `TRIAL_ENDED` | `EXPIRED` | `NONE`), `createdFrom?`, `createdTo?`
     (`YYYY-MM-DD`, dias de São Paulo, ambos inclusivos), `page` (≥ 1, padrão 1),
     `pageSize` (1–100, padrão 20).
   - Ordenação: cadastro mais recente primeiro.
@@ -138,7 +141,7 @@ Tipos em `packages/shared-types/src/v1/admin.ts`.
   URL (`?tab=nutricionistas|pacientes`, padrão nutricionistas).
 - `components/admin/nutritionists-tab.tsx`:
   - Filtros: busca (debounce 300 ms), Confirmou (Todos/Sim/Não), Plano (Todos +
-    os 6 rótulos), Cadastro de/até (`type="date"`). Mudar um filtro volta para a
+    os 7 rótulos), Cadastro de/até (`type="date"`). Mudar um filtro volta para a
     página 1.
   - Tabela: Nome, E-mail, Telefone, Confirmou (Sim/Não), Pacientes, Plano,
     Cadastro. Coluna do nome fixa na rolagem interna (mesmo padrão da lista de
