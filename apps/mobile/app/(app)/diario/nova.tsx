@@ -5,16 +5,11 @@ import type { CreateMealLogRequest } from '@nutri-plus/shared-types';
 import { Screen } from '../../../components/ui/screen';
 import { Button } from '../../../components/ui/button';
 import { MealLogForm } from '../../../components/meal-diary/meal-log-form';
-import { ApiError } from '../../../lib/api';
 import { useCreateMealLog } from '../../../lib/queries/meal-logs';
+import { mealLogErrorMessage } from '../../../lib/meal-diary/errors';
 import { useMyMealPlan, useMyMealPlans } from '../../../lib/queries/meal-plans';
 
-const LOCK_MESSAGE = 'Só é possível editar ou apagar uma refeição nas primeiras 24 horas.';
 
-function mutationErrorMessage(err: unknown): string {
-  if (err instanceof ApiError && err.status === 403) return LOCK_MESSAGE;
-  return 'Não foi possível salvar. Tente novamente.';
-}
 
 export default function DiarioNova() {
   const plansQuery = useMyMealPlans();
@@ -55,7 +50,7 @@ export default function DiarioNova() {
       await create.mutateAsync(body);
       router.back();
     } catch (err) {
-      setFormError(mutationErrorMessage(err));
+      setFormError(mealLogErrorMessage(err));
     }
   }
 

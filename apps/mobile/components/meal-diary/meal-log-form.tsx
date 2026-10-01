@@ -3,6 +3,9 @@ import { Pressable, Text, View } from 'react-native';
 import type { CreateMealLogRequest, MealPlan, MealPlanSummary } from '@nutri-plus/shared-types';
 import { Button } from '../ui/button';
 import { DatePickerField } from '../ui/date-picker-field';
+
+// Mesma folga da API (FUTURE_SLACK_MS em meal-logs.service.ts) para relógios dessincronizados.
+const FUTURE_SLACK_MS = 5 * 60 * 1000;
 import { TextField } from '../ui/text-field';
 
 export type MealLogFormValues = {
@@ -74,6 +77,12 @@ export function MealLogForm({
       setFormError('Preencha a data e a hora.');
       return;
     }
+    // A API recusa refeições no futuro ("Data inválida."): o seletor de data já
+    // para em hoje, e a hora digitada é conferida aqui, com a mesma folga de 5 min.
+    if (consumed.getTime() > Date.now() + FUTURE_SLACK_MS) {
+      setFormError('A data e a hora não podem estar no futuro.');
+      return;
+    }
     const consumedAt = consumed.toISOString();
     const trimmedNote = note.trim();
 
@@ -112,6 +121,7 @@ export function MealLogForm({
         label="Data (DD/MM/AAAA)"
         value={consumedAtDate}
         onChange={setConsumedAtDate}
+        maximumDate={now}
       />
       <TextField
         label="Hora (HH:mm)"

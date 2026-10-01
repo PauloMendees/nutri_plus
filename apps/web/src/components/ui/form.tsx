@@ -70,9 +70,11 @@ const FormItemContext = React.createContext<FormItemContextValue>(
 function FormItem({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   const id = React.useId()
 
+  // content-start: esticado por um vizinho mais alto na mesma linha da grade, o
+  // item mantém rótulo e campo no topo (alinhados com o vizinho).
   return (
     <FormItemContext.Provider value={{ id }}>
-      <div data-slot="form-item" className={cn("grid gap-2", className)} {...props} />
+      <div data-slot="form-item" className={cn("grid content-start gap-2", className)} {...props} />
     </FormItemContext.Provider>
   )
 }

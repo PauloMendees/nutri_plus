@@ -173,4 +173,49 @@ describe('MealLogForm', () => {
     );
     expect(onSubmit).not.toHaveBeenCalledWith(expect.objectContaining({ source: 'PLAN' }));
   });
+
+  // Bug do app: o seletor deixava escolher um dia futuro (31/10 em 01/10) e a
+  // API recusava com uma mensagem genérica no app.
+  it('does not let the date picker go past today', async () => {
+    await render(<MealLogForm plans={[]} plan={null} submitting={false} onSubmit={jest.fn()} />);
+    await fireEvent.press(screen.getByLabelText(/data \(dd\/mm\/aaaa\)/i));
+    const max = screen.getByTestId('date-time-picker').props.maximumDate as Date;
+    expect(max).toBeInstanceOf(Date);
+    expect(Math.abs(max.getTime() - Date.now())).toBeLessThan(60_000);
+  });
+
+  it('refuses a future date and time before submitting', async () => {
+    const onSubmit = jest.fn();
+    await render(
+      <MealLogForm
+        plans={[]}
+        plan={null}
+        submitting={false}
+        onSubmit={onSubmit}
+        initialValues={{ consumedAtDate: '2099-01-01', consumedAtTime: '12:00' }}
+      />,
+    );
+    await fireEvent.changeText(screen.getByLabelText(/descrição/i), 'Pizza');
+    await fireEvent.press(screen.getByRole('button', { name: /salvar/i }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('A data e a hora não podem estar no futuro.')).toBeTruthy();
+  });
+
+  it('accepts a past date', async () => {
+    const onSubmit = jest.fn();
+    await render(
+      <MealLogForm
+        plans={[]}
+        plan={null}
+        submitting={false}
+        onSubmit={onSubmit}
+        initialValues={{ consumedAtDate: '2026-09-15', consumedAtTime: '12:30' }}
+      />,
+    );
+    await fireEvent.changeText(screen.getByLabelText(/descrição/i), 'Pizza');
+    await fireEvent.press(screen.getByRole('button', { name: /salvar/i }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ consumedAt: new Date('2026-09-15T12:30:00').toISOString() }),
+    );
+  });
 });

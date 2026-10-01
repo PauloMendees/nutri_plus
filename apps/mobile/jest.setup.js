@@ -5,9 +5,10 @@ jest.mock('@react-native-community/datetimepicker', () => {
   const { Pressable, Text } = require('react-native');
   return {
     __esModule: true,
-    default: ({ value, onChange, testID }) => (
+    default: ({ value, onChange, testID, maximumDate }) => (
       <Pressable
         testID={testID ?? 'date-time-picker'}
+        maximumDate={maximumDate}
         accessibilityRole="button"
         accessibilityLabel="Confirmar data"
         onPress={() => onChange({ type: 'set' }, value)}

@@ -39,4 +39,13 @@ describe('DatePickerField', () => {
     expect(screen.queryByTestId('date-time-picker')).toBeNull();
     jest.restoreAllMocks();
   });
+
+  it('forwards maximumDate to the native picker', async () => {
+    const max = new Date(2026, 9, 1);
+    await render(
+      <DatePickerField label="Data (DD/MM/AAAA)" value="2026-09-30" onChange={jest.fn()} maximumDate={max} />,
+    );
+    await fireEvent.press(screen.getByLabelText(/data \(dd\/mm\/aaaa\)/i));
+    expect(screen.getByTestId('date-time-picker').props.maximumDate).toBe(max);
+  });
 });

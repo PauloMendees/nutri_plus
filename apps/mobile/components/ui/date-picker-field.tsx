@@ -25,10 +25,12 @@ export function DatePickerField({
   label,
   value,
   onChange,
+  maximumDate,
 }: {
   label: string;
   value: string; // YYYY-MM-DD
   onChange: (isoDate: string) => void;
+  maximumDate?: Date;
 }) {
   const [open, setOpen] = useState(false);
   const selected = isoToLocalDate(value);
@@ -73,6 +75,7 @@ export function DatePickerField({
             mode="date"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             locale="pt-BR"
+            maximumDate={maximumDate}
             onChange={onPickerChange}
             testID="date-time-picker"
           />
