@@ -26,6 +26,10 @@ export const envSchema = z.object({
   RESEND_API_KEY: z.string().min(1).optional(),
   SUPPORT_INBOX_EMAIL: z.string().email().optional(),
   SUPPORT_FROM_EMAIL: z.string().min(1).optional(),
+  // Painel de administradores: e-mails separados por vírgula. Ausente ⇒ ninguém
+  // é admin (o painel fica inacessível). Todo endereço listado precisa ser uma
+  // conta já cadastrada e confirmada.
+  ADMIN_EMAILS: z.string().optional(),
   // --- Meta Conversions API ---
   // Todos opcionais: sem pixel + token o MetaCapiService vira no-op silencioso,
   // então dev e testes rodam sem nenhuma variável do Meta configurada.
@@ -35,9 +39,6 @@ export const envSchema = z.object({
   META_CAPI_ACCESS_TOKEN: z.string().min(1).optional(),
   // Preenchido só em dev: manda os eventos para a aba "Eventos de teste".
   META_CAPI_TEST_EVENT_CODE: z.string().min(1).optional(),
-  // Painel de administradores: e-mails separados por vírgula. Ausente ⇒ ninguém
-  // é admin (o painel fica inacessível).
-  ADMIN_EMAILS: z.string().optional(),
   META_CAPI_API_VERSION: z.string().regex(/^v\d+\.\d+$/).default('v21.0'),
 });
 
