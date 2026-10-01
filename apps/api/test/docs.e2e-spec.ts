@@ -51,6 +51,12 @@ describe('Docs (e2e)', () => {
     );
   });
 
+  // O painel admin é oculto: publicá-lo no Swagger revelaria que ele existe.
+  it('does not publish the admin routes', async () => {
+    const res = await request(app.getHttpServer()).get('/docs-json').expect(200);
+    expect(Object.keys(res.body.paths).filter((p) => p.startsWith('/v1/admin'))).toEqual([]);
+  });
+
   it('declares the bearer security scheme', async () => {
     const res = await request(app.getHttpServer()).get('/docs-json').expect(200);
     expect(res.body.components?.securitySchemes).toBeDefined();

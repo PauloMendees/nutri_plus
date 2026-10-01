@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query, StreamableFile } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiExcludeController } from '@nestjs/swagger';
 import { BillingExempt } from '../billing/decorators';
 import { AdminOnly } from './admin-only.decorator';
 import { AdminService } from './admin.service';
@@ -7,8 +7,8 @@ import { ListAdminPatientsDto } from './dto/list-admin-patients.dto';
 import { AdminNutritionistFiltersDto, ListAdminNutritionistsDto } from './dto/list-admin-nutritionists.dto';
 
 // Somente GET: o painel não altera nada. Sem @Roles — o acesso é a allowlist.
-@ApiTags('admin')
-@ApiBearerAuth()
+// Fora do Swagger: o painel é oculto, e o /docs não pode revelar que ele existe.
+@ApiExcludeController()
 @Controller({ path: 'admin', version: '1' })
 @AdminOnly()
 @BillingExempt()
