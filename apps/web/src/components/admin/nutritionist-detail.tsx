@@ -9,7 +9,15 @@ import { INVITE_STATUS_LABELS } from '@/lib/patients/labels';
 import { useAdminNutritionist } from '@/lib/queries/admin';
 
 // Tabela de pacientes do painel admin (aba Pacientes e detalhe da nutricionista).
-export function AdminPatientsTable({ patients, showNutritionist = false }: { patients: AdminPatientRow[]; showNutritionist?: boolean }) {
+export function AdminPatientsTable({
+  patients,
+  showNutritionist = false,
+  emptyMessage = 'Nenhum paciente cadastrado.',
+}: {
+  patients: AdminPatientRow[];
+  showNutritionist?: boolean;
+  emptyMessage?: string;
+}) {
   return (
     <div className="overflow-x-auto rounded-xl border bg-card">
       <table className="w-full text-sm">
@@ -27,7 +35,7 @@ export function AdminPatientsTable({ patients, showNutritionist = false }: { pat
           {patients.length === 0 ? (
             <tr>
               <td colSpan={showNutritionist ? 6 : 5} className="px-4 py-8 text-center text-muted-foreground">
-                Nenhum paciente cadastrado.
+                {emptyMessage}
               </td>
             </tr>
           ) : (

@@ -39,7 +39,12 @@ export function PatientsTab() {
           <p className="text-sm text-muted-foreground">
             {data.total} {data.total === 1 ? 'paciente' : 'pacientes'}
           </p>
-          <AdminPatientsTable patients={data.items} showNutritionist />
+          <AdminPatientsTable
+            patients={data.items}
+            showNutritionist
+            // Com busca ativa, lista vazia é "nada encontrado", não base vazia.
+            emptyMessage={debounced.trim() ? 'Nenhum paciente encontrado.' : undefined}
+          />
           {data.totalPages > 1 && (
             <div className="flex items-center justify-center gap-3 text-sm">
               <Button variant="outline" size="sm" className="rounded-full" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>

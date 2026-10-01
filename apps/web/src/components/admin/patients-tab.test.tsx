@@ -36,4 +36,17 @@ describe('PatientsTab', () => {
     await userEvent.type(screen.getByLabelText(/buscar/i), 'mar');
     expect(useAdminPatients.mock.calls.at(-1)).toEqual(['mar', 1]);
   });
+
+  // Busca sem resultado não é o mesmo que base vazia.
+  it('says nothing was found when a search has no rows', async () => {
+    useAdminPatients.mockReturnValue({
+      isLoading: false, isError: false,
+      data: { items: [], total: 0, page: 1, pageSize: 20, totalPages: 0 },
+    });
+    render(<PatientsTab />);
+    expect(screen.getByText('Nenhum paciente cadastrado.')).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText(/buscar/i), 'zzz');
+    expect(screen.getByText('Nenhum paciente encontrado.')).toBeInTheDocument();
+    expect(screen.queryByText('Nenhum paciente cadastrado.')).not.toBeInTheDocument();
+  });
 });
