@@ -1,4 +1,5 @@
 'use client';
+import type { ColorSchemeName } from 'react-native';
 import { vars } from 'nativewind';
 
 // nutri-plus semantic tokens — the flat palette consumed by className styling
@@ -46,7 +47,8 @@ export const SEMANTIC_LIGHT: Record<string, string> = {
 // circular dependency.
 export function resolveScheme(
   mode: 'light' | 'dark' | 'system',
-  device: 'light' | 'dark' | null | undefined,
+  // ColorSchemeName do React Native; desde a 0.86 inclui 'unspecified'.
+  device: ColorSchemeName | null | undefined,
 ): 'light' | 'dark' {
   if (mode === 'light' || mode === 'dark') return mode;
   return device === 'light' ? 'light' : 'dark';

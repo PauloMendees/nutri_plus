@@ -15,6 +15,12 @@ describe('resolveScheme', () => {
     expect(resolveScheme('system', null)).toBe('dark');
     expect(resolveScheme('system', undefined)).toBe('dark');
   });
+
+  // React Native 0.86 (Expo SDK 57) passou a devolver 'unspecified' quando o
+  // sistema não tem preferência: mesmo tratamento do desconhecido.
+  it("treats the device's 'unspecified' scheme like an unknown one", () => {
+    expect(resolveScheme('system', 'unspecified')).toBe('dark');
+  });
 });
 
 describe('semantic theme tokens', () => {
