@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -9,8 +10,27 @@ vi.mock('@/lib/queries/admin', () => ({
 const downloadReport = vi.fn();
 vi.mock('@/lib/api/admin', () => ({ downloadAdminNutritionistsReport: (...a: unknown[]) => downloadReport(...a) }));
 vi.mock('@/lib/hooks/use-debounced-value', () => ({ useDebouncedValue: (v: unknown) => v }));
+// URL de mentira com estado: replace() troca a query e re-renderiza quem lê
+// useSearchParams, como o App Router faz.
+let currentParams = new URLSearchParams();
+const listeners = new Set<() => void>();
+function setUrl(qs: string) {
+  currentParams = new URLSearchParams(qs);
+  listeners.forEach((l) => l());
+}
 const push = vi.fn();
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
+const replace = vi.fn((url: string) => setUrl(url.split('?')[1] ?? ''));
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push, replace }),
+  useSearchParams: () =>
+    useSyncExternalStore(
+      (l) => {
+        listeners.add(l);
+        return () => listeners.delete(l);
+      },
+      () => currentParams,
+    ),
+}));
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
 
 import { NutritionistsTab } from './nutritionists-tab';
@@ -32,7 +52,13 @@ beforeEach(() => {
   });
   downloadReport.mockReset().mockResolvedValue(undefined);
   push.mockReset();
+  replace.mockClear();
+  currentParams = new URLSearchParams();
 });
+
+function lastUrl() {
+  return new URLSearchParams((replace.mock.calls.at(-1)?.[0] as string).split('?')[1]);
+}
 
 describe('NutritionistsTab', () => {
   it('renders the columns and rows', () => {
@@ -63,10 +89,60 @@ describe('NutritionistsTab', () => {
     );
   });
 
+  // Filtros e página vivem na URL: voltar do detalhe (link ou navegador) os reabre.
+  it('starts from the filters and page in the URL', () => {
+    setUrl('tab=nutricionistas&search=ana&confirmed=no&plan=TRIAL&createdFrom=2026-09-01&createdTo=2026-09-30&page=2');
+    render(<NutritionistsTab />);
+    expect(lastArgs()).toEqual([
+      { search: 'ana', confirmed: 'no', plan: 'TRIAL', createdFrom: '2026-09-01', createdTo: '2026-09-30' },
+      2,
+    ]);
+    expect(screen.getByLabelText(/buscar/i)).toHaveValue('ana');
+    expect(screen.getByLabelText(/confirmou/i)).toHaveValue('no');
+    expect(screen.getByLabelText(/^plano$/i)).toHaveValue('TRIAL');
+    expect(screen.getByLabelText(/cadastro de/i)).toHaveValue('2026-09-01');
+    expect(screen.getByLabelText(/cadastro até/i)).toHaveValue('2026-09-30');
+  });
+
+  it('ignores invalid filter values in the URL', () => {
+    setUrl('confirmed=talvez&plan=GRATIS&page=abc');
+    render(<NutritionistsTab />);
+    expect(lastArgs()).toEqual([{}, 1]);
+  });
+
+  it('writes filter changes to the URL and resets the page', async () => {
+    setUrl('tab=nutricionistas&page=3');
+    render(<NutritionistsTab />);
+    expect(replace).not.toHaveBeenCalled();
+
+    await userEvent.selectOptions(screen.getByLabelText(/^plano$/i), 'PRO');
+    expect(lastUrl().get('tab')).toBe('nutricionistas');
+    expect(lastUrl().get('plan')).toBe('PRO');
+    expect(lastUrl().get('page')).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: /próxima/i }));
+    expect(lastUrl().get('page')).toBe('2');
+
+    await userEvent.type(screen.getByLabelText(/buscar/i), 'ana');
+    expect(lastUrl().get('search')).toBe('ana');
+    expect(lastUrl().get('plan')).toBe('PRO');
+    expect(lastUrl().get('page')).toBeNull();
+
+    await userEvent.selectOptions(screen.getByLabelText(/^plano$/i), '');
+    expect(lastUrl().get('plan')).toBeNull();
+  });
+
   it('opens the detail of a confirmed nutritionist, not of a pending one', async () => {
     render(<NutritionistsTab />);
     await userEvent.click(screen.getByText('Ana Souza'));
     expect(push).toHaveBeenCalledWith('/admin/nutritionists/n1');
+    push.mockReset();
+    // Com filtros ativos, o detalhe recebe a query do painel para poder voltar a ela.
+    setUrl('tab=nutricionistas&plan=PRO&page=2');
+    await userEvent.click(screen.getByText('Ana Souza'));
+    expect(push).toHaveBeenCalledWith(
+      `/admin/nutritionists/n1?voltar=${encodeURIComponent('tab=nutricionistas&plan=PRO&page=2')}`,
+    );
     push.mockReset();
     await userEvent.click(screen.getByText('Pendente'));
     expect(push).not.toHaveBeenCalled();

@@ -34,4 +34,16 @@ describe('AdminNutritionistDetail', () => {
     render(<AdminNutritionistDetail id="n1" />);
     expect(screen.getByText('Nenhum paciente cadastrado.')).toBeInTheDocument();
   });
+
+  it('links back to the given panel URL', () => {
+    useAdminNutritionist.mockReturnValue({
+      isLoading: false, isError: false,
+      data: {
+        nutritionist: { id: 'n1', name: 'Ana', email: 'a@x.com', phone: null, confirmed: true, patientCount: 0, plan: 'NONE', createdAt: '2026-09-01T12:00:00.000Z' },
+        patients: [],
+      },
+    });
+    render(<AdminNutritionistDetail id="n1" backHref="/admin?tab=nutricionistas&plan=PRO" />);
+    expect(screen.getByRole('link', { name: /voltar para o painel/i })).toHaveAttribute('href', '/admin?tab=nutricionistas&plan=PRO');
+  });
 });

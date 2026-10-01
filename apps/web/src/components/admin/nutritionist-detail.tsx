@@ -60,7 +60,8 @@ export function AdminPatientsTable({
   );
 }
 
-export function AdminNutritionistDetail({ id }: { id: string }) {
+// backHref reabre o painel com os filtros de onde se veio (ver lib/admin/panel-url).
+export function AdminNutritionistDetail({ id, backHref = '/admin' }: { id: string; backHref?: string }) {
   const query = useAdminNutritionist(id);
   if (query.isLoading) return <Skeleton className="h-64 w-full" />;
   if (query.isError || !query.data) {
@@ -69,7 +70,7 @@ export function AdminNutritionistDetail({ id }: { id: string }) {
   const { nutritionist: n, patients } = query.data;
   return (
     <div className="space-y-5">
-      <Link href="/admin" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link href={backHref} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ChevronLeft className="h-4 w-4" aria-hidden />
         Voltar para o painel
       </Link>

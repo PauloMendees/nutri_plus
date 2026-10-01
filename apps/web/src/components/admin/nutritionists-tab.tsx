@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { ADMIN_PLAN_LABELS, type AdminNutritionistFilters, type AdminPlanLabel } from '@nutri-plus/shared-types';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { downloadAdminNutritionistsReport } from '@/lib/api/admin';
 import { formatAdminDate } from '@/lib/admin/labels';
+import { adminNutritionistHref } from '@/lib/admin/panel-url';
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 import { useHorizontalOverflow } from '@/lib/hooks/use-horizontal-overflow';
 import { useAdminNutritionists } from '@/lib/queries/admin';
@@ -18,20 +19,63 @@ const SELECT_CLASS =
 const PINNED_CELL = 'sticky left-0 z-10 bg-card';
 const PINNED_DIVIDER = 'shadow-[inset_-1px_0_0_var(--border)]';
 
+type FilterKey = 'search' | 'confirmed' | 'plan' | 'createdFrom' | 'createdTo';
+
+const isPlan = (v: string | null): v is AdminPlanLabel => !!v && v in ADMIN_PLAN_LABELS;
+
+// Filtros e página moram na URL (?tab=nutricionistas&plan=PRO&page=2…): abrir
+// um detalhe e voltar — pelo navegador ou pelo link — reabre a mesma lista.
 export function NutritionistsTab() {
   const router = useRouter();
-  const [search, setSearch] = useState('');
-  const [confirmed, setConfirmed] = useState<'' | 'yes' | 'no'>('');
-  const [plan, setPlan] = useState<'' | AdminPlanLabel>('');
-  const [createdFrom, setCreatedFrom] = useState('');
-  const [createdTo, setCreatedTo] = useState('');
-  const [page, setPage] = useState(1);
+  const searchParams = useSearchParams();
+  const urlSearch = searchParams.get('search') ?? '';
+  const rawConfirmed = searchParams.get('confirmed');
+  const confirmed: '' | 'yes' | 'no' = rawConfirmed === 'yes' || rawConfirmed === 'no' ? rawConfirmed : '';
+  const rawPlan = searchParams.get('plan');
+  const plan: '' | AdminPlanLabel = isPlan(rawPlan) ? rawPlan : '';
+  const createdFrom = searchParams.get('createdFrom') ?? '';
+  const createdTo = searchParams.get('createdTo') ?? '';
+  const page = Math.max(1, Math.floor(Number(searchParams.get('page'))) || 1);
+
+  // O campo de busca tem estado próprio (digitação); a URL só recebe o valor
+  // depois do debounce, para não reescrever o histórico a cada tecla.
+  const [search, setSearch] = useState(urlSearch);
   const [downloading, setDownloading] = useState(false);
   const [tableBoxRef, tableOverflows] = useHorizontalOverflow<HTMLDivElement>();
   const debouncedSearch = useDebouncedValue(search, 300);
 
+  // replace (não push): filtrar não cria entradas no histórico, então o "voltar"
+  // do navegador no detalhe cai direto na lista filtrada.
+  function updateUrl(changes: Partial<Record<FilterKey | 'page', string>>) {
+    const next = new URLSearchParams(searchParams.toString());
+    next.set('tab', 'nutricionistas');
+    for (const [k, v] of Object.entries(changes)) {
+      if (v) next.set(k, v);
+      else next.delete(k);
+    }
+    router.replace(`/admin?${next.toString()}`, { scroll: false });
+  }
+
+  // Mudar qualquer filtro volta para a primeira página.
+  function setFilter(key: FilterKey, value: string) {
+    updateUrl({ [key]: value, page: '' });
+  }
+
+  function setPage(p: number) {
+    updateUrl({ page: p > 1 ? String(p) : '' });
+  }
+
+  const openDetail = (id: string) => () => router.push(adminNutritionistHref(id, searchParams.toString()));
+
+  useEffect(() => {
+    const term = debouncedSearch.trim();
+    if (term !== urlSearch) setFilter('search', term);
+    // Só reage à busca digitada; a URL é a fonte dos demais filtros.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+
   const filters: AdminNutritionistFilters = {
-    search: debouncedSearch.trim() || undefined,
+    search: urlSearch || undefined,
     confirmed: confirmed || undefined,
     plan: plan || undefined,
     createdFrom: createdFrom || undefined,
@@ -39,14 +83,6 @@ export function NutritionistsTab() {
   };
   const query = useAdminNutritionists(filters, page);
   const data = query.data;
-
-  // Mudar qualquer filtro volta para a primeira página.
-  function onFilter<T>(set: (v: T) => void) {
-    return (v: T) => {
-      set(v);
-      setPage(1);
-    };
-  }
 
   async function download() {
     setDownloading(true);
@@ -68,13 +104,13 @@ export function NutritionistsTab() {
             aria-label="Buscar"
             placeholder="Nome ou e-mail"
             value={search}
-            onChange={(e) => onFilter(setSearch)(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
             className="w-64"
           />
         </label>
         <label className="space-y-1 text-sm">
           <span className="block text-muted-foreground">Confirmou</span>
-          <select aria-label="Confirmou" className={SELECT_CLASS} value={confirmed} onChange={(e) => onFilter(setConfirmed)(e.target.value as '' | 'yes' | 'no')}>
+          <select aria-label="Confirmou" className={SELECT_CLASS} value={confirmed} onChange={(e) => setFilter('confirmed', e.target.value)}>
             <option value="">Todos</option>
             <option value="yes">Sim</option>
             <option value="no">Não</option>
@@ -82,7 +118,7 @@ export function NutritionistsTab() {
         </label>
         <label className="space-y-1 text-sm">
           <span className="block text-muted-foreground">Plano</span>
-          <select aria-label="Plano" className={SELECT_CLASS} value={plan} onChange={(e) => onFilter(setPlan)(e.target.value as '' | AdminPlanLabel)}>
+          <select aria-label="Plano" className={SELECT_CLASS} value={plan} onChange={(e) => setFilter('plan', e.target.value)}>
             <option value="">Todos</option>
             {(Object.keys(ADMIN_PLAN_LABELS) as AdminPlanLabel[]).map((k) => (
               <option key={k} value={k}>
@@ -93,11 +129,11 @@ export function NutritionistsTab() {
         </label>
         <label className="space-y-1 text-sm">
           <span className="block text-muted-foreground">Cadastro de</span>
-          <Input aria-label="Cadastro de" type="date" value={createdFrom} onChange={(e) => onFilter(setCreatedFrom)(e.target.value)} />
+          <Input aria-label="Cadastro de" type="date" value={createdFrom} onChange={(e) => setFilter('createdFrom', e.target.value)} />
         </label>
         <label className="space-y-1 text-sm">
           <span className="block text-muted-foreground">até</span>
-          <Input aria-label="Cadastro até" type="date" value={createdTo} onChange={(e) => onFilter(setCreatedTo)(e.target.value)} />
+          <Input aria-label="Cadastro até" type="date" value={createdTo} onChange={(e) => setFilter('createdTo', e.target.value)} />
         </label>
         <Button type="button" variant="outline" className="ml-auto rounded-full" onClick={download} disabled={downloading}>
           {downloading ? 'Gerando…' : 'Baixar relatório (PDF)'}
@@ -140,7 +176,7 @@ export function NutritionistsTab() {
                     <tr
                       key={n.id ?? n.email}
                       // Quem existe só no Supabase Auth não tem perfil (nem pacientes): sem detalhe.
-                      onClick={n.id ? () => router.push(`/admin/nutritionists/${n.id}`) : undefined}
+                      onClick={n.id ? openDetail(n.id) : undefined}
                       className={`group border-b last:border-0 ${n.id ? 'cursor-pointer hover:bg-muted/40' : ''}`}
                     >
                       <td className={`${PINNED_CELL} ${tableOverflows ? PINNED_DIVIDER : ''} px-4 py-3 font-semibold ${n.id ? 'group-hover:bg-[color-mix(in_oklab,var(--card),var(--muted)_40%)]' : ''}`}>
@@ -162,11 +198,11 @@ export function NutritionistsTab() {
           </div>
           {data.totalPages > 1 && (
             <div className="flex items-center justify-center gap-3 text-sm">
-              <Button variant="outline" size="sm" className="rounded-full" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+              <Button variant="outline" size="sm" className="rounded-full" onClick={() => setPage(page - 1)} disabled={page <= 1}>
                 Anterior
               </Button>
               <span className="text-muted-foreground">Página {data.page} de {data.totalPages}</span>
-              <Button variant="outline" size="sm" className="rounded-full" onClick={() => setPage((p) => p + 1)} disabled={page >= data.totalPages}>
+              <Button variant="outline" size="sm" className="rounded-full" onClick={() => setPage(page + 1)} disabled={page >= data.totalPages}>
                 Próxima
               </Button>
             </div>
