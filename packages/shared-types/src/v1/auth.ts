@@ -14,4 +14,6 @@ export interface MeResponse {
   // /auth/me devolve o LocalUser inteiro; só o que o web lê está tipado aqui.
   nutritionistProfile?: { displayName: string | null } | null;
   patient?: { id: string; nutritionistId: string | null };
+  // Painel de administradores: true só para e-mails em ADMIN_EMAILS (API).
+  isAdmin?: boolean;
 }

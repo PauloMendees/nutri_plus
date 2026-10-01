@@ -13,7 +13,9 @@ describe('AuthService', () => {
       createWithProfile: jest.fn(),
       updateBasics: jest.fn(),
     } as any;
-    service = new AuthService(users as unknown as UsersService);
+    service = new AuthService(users as unknown as UsersService, {
+      get: (k: string) => (k === 'ADMIN_EMAILS' ? 'admin@x.com' : undefined),
+    } as any);
   });
 
   const newCtx: AuthContext = Object.freeze({
@@ -21,6 +23,16 @@ describe('AuthService', () => {
     email: 'a@x.com',
     name: 'Ann',
     user: null,
+  });
+
+  it('flags the admin on /me', () => {
+    const ctx = { ...newCtx, email: 'admin@x.com', user: { id: 'u1', email: 'Admin@x.com' } as any };
+    expect(service.me(ctx)).toMatchObject({ id: 'u1', isAdmin: true });
+  });
+
+  it('does not flag other users on /me', () => {
+    const ctx = { ...newCtx, user: { id: 'u2', email: 'a@x.com' } as any };
+    expect(service.me(ctx)).toMatchObject({ id: 'u2', isAdmin: false });
   });
 
   it('creates a new user on first sync and returns it', async () => {
@@ -70,7 +82,7 @@ describe('AuthService', () => {
 
   it('me() returns the resolved local user', () => {
     const ctx: AuthContext = { ...newCtx, user: { id: 'u1' } as any };
-    expect(service.me(ctx)).toEqual({ id: 'u1' });
+    expect(service.me(ctx)).toEqual({ id: 'u1', isAdmin: false });
   });
 
   it('me() throws ConflictException when the user has not synced yet', () => {

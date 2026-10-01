@@ -27,7 +27,7 @@ export class AuthController {
   }
 
   @Get('me')
-  me(@CurrentUser() ctx: AuthContext): LocalUser {
+  me(@CurrentUser() ctx: AuthContext): LocalUser & { isAdmin: boolean } {
     return this.auth.me(ctx);
   }
 }

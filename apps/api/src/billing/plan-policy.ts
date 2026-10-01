@@ -1,4 +1,4 @@
-import { PLAN_CATALOG, type Entitlements, type PlanFeature, type PlanTier } from '@nutri-plus/shared-types';
+import { PLAN_CATALOG, type AdminPlanLabel, type Entitlements, type PlanFeature, type PlanTier } from '@nutri-plus/shared-types';
 
 export const TRIAL_DAYS = 7;
 export const COURTESY_DAYS = 30;
@@ -66,4 +66,26 @@ export function entitlementsForTier(tier: PlanTier, aiUsed: number): Omit<Entitl
     aiQuota: cfg.aiActionsPerMonth,
     aiUsed,
   };
+}
+
+// Plano ativo como rótulo (painel de administradores). Mesma ordem de decisão
+// de EntitlementsService.resolveAccess: cortesia > ativa no período > teste no
+// prazo > o resto é vencida.
+export function planLabelOf(
+  sub: {
+    isComp: boolean;
+    status: string;
+    plan: 'ESSENCIAL' | 'PRO' | null;
+    currentPeriodEnd: Date | null;
+    trialEndsAt: Date | null;
+  } | null,
+  now: Date,
+): AdminPlanLabel {
+  if (!sub) return 'NONE';
+  if (sub.isComp) return 'COMP';
+  if (sub.status === 'ACTIVE' && sub.currentPeriodEnd && sub.currentPeriodEnd > now) {
+    return sub.plan === 'PRO' ? 'PRO' : 'ESSENCIAL';
+  }
+  if (sub.status === 'TRIALING' && sub.trialEndsAt && sub.trialEndsAt > now) return 'TRIAL';
+  return 'EXPIRED';
 }

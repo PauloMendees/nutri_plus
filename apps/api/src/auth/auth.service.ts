@@ -1,11 +1,16 @@
 import { ConflictException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { isAdminEmail } from '../admin/admin-access';
 import { UsersService } from '../users/users.service';
 import { AuthContext, LocalUser } from './types/auth-context';
 import { SyncUserDto } from './dto/sync-user.dto';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly users: UsersService) {}
+  constructor(
+    private readonly users: UsersService,
+    private readonly config: ConfigService,
+  ) {}
 
   async syncUser(ctx: AuthContext, dto: SyncUserDto): Promise<LocalUser> {
     if (ctx.user) {
@@ -24,12 +29,15 @@ export class AuthService {
     });
   }
 
-  me(ctx: AuthContext): LocalUser {
+  me(ctx: AuthContext): LocalUser & { isAdmin: boolean } {
     if (!ctx.user) {
       throw new ConflictException(
         'User not synced. Call POST /v1/auth/sync-user first.',
       );
     }
-    return ctx.user;
+    return {
+      ...ctx.user,
+      isAdmin: isAdminEmail(ctx.user.email ?? ctx.email, this.config.get<string>('ADMIN_EMAILS')),
+    };
   }
 }
