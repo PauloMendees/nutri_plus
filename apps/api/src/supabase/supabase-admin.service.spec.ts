@@ -19,7 +19,7 @@ const storage = {
 
 describe('SupabaseAdminService', () => {
   let service: SupabaseAdminService;
-  let admin: { inviteUserByEmail: jest.Mock; deleteUser: jest.Mock };
+  let admin: { inviteUserByEmail: jest.Mock; deleteUser: jest.Mock; listUsers: jest.Mock };
 
   beforeEach(() => {
     const config = {
@@ -30,7 +30,7 @@ describe('SupabaseAdminService', () => {
       },
     } as unknown as ConfigService;
     service = new SupabaseAdminService(config);
-    admin = { inviteUserByEmail: jest.fn(), deleteUser: jest.fn() };
+    admin = { inviteUserByEmail: jest.fn(), deleteUser: jest.fn(), listUsers: jest.fn() };
     // Reset storage mocks to their default happy-path values.
     jest.clearAllMocks();
     storage.getBucket.mockResolvedValue({ data: { name: 'b' }, error: null });
@@ -171,6 +171,38 @@ describe('SupabaseAdminService', () => {
       storageBucketApi.remove.mockResolvedValue({ data: [], error: null });
       await expect(service.removeObject('nutritionist-logos', 'n1.png')).resolves.toBeUndefined();
       expect(storageBucketApi.remove).toHaveBeenCalledWith(['n1.png']);
+    });
+  });
+
+  describe('listAllUsers', () => {
+    const user = (i: number, over: object = {}) => ({
+      id: `u${i}`, email: `u${i}@x.com`, email_confirmed_at: null, invited_at: null,
+      created_at: '2026-09-01T10:00:00Z', user_metadata: {}, ...over,
+    });
+
+    it('maps users and walks every page', async () => {
+      const full = Array.from({ length: 1000 }, (_, i) => user(i));
+      admin.listUsers
+        .mockResolvedValueOnce({ data: { users: full }, error: null })
+        .mockResolvedValueOnce({
+          data: { users: [user(1000, { user_metadata: { name: 'Bia', whatsapp: '+55 11 9' }, email_confirmed_at: 'c' })] },
+          error: null,
+        });
+      const res = await service.listAllUsers();
+      expect(res).toHaveLength(1001);
+      expect(admin.listUsers).toHaveBeenNthCalledWith(2, { page: 2, perPage: 1000 });
+      expect(res[1000]).toEqual({
+        id: 'u1000', email: 'u1000@x.com', emailConfirmedAt: 'c', invitedAt: null,
+        createdAt: '2026-09-01T10:00:00Z', name: 'Bia', phone: '+55 11 9',
+      });
+      expect(res[0].name).toBeNull();
+    });
+
+    it('turns an API error or a thrown error into a 502', async () => {
+      admin.listUsers.mockResolvedValueOnce({ data: null, error: { message: 'boom' } });
+      await expect(service.listAllUsers()).rejects.toBeInstanceOf(BadGatewayException);
+      admin.listUsers.mockRejectedValueOnce(new Error('network'));
+      await expect(service.listAllUsers()).rejects.toBeInstanceOf(BadGatewayException);
     });
   });
 });

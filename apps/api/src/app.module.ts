@@ -27,6 +27,7 @@ import { HealthModule } from './health/health.module';
 import { FoodsModule } from './foods/foods.module';
 import { FoodRecallsModule } from './food-recalls/food-recalls.module';
 import { MealLogsModule } from './meal-logs/meal-logs.module';
+import { AdminModule } from './admin/admin.module';
 import { ConsentModule } from './consent/consent.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -76,6 +77,7 @@ import { LifecycleEmailsModule } from './lifecycle-emails/lifecycle-emails.modul
     FoodsModule,
     FoodRecallsModule,
     MealLogsModule,
+    AdminModule,
     ConsentModule,
     NotificationsModule,
     BillingModule,

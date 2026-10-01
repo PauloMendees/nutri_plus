@@ -46,6 +46,10 @@ services:
       # /v1/internal/reminders/dispatch com o header x-reminder-key = este valor.
       - key: REMINDER_DISPATCH_KEY
         sync: false
+      # Painel de administradores: e-mails separados por vírgula. Vazio ⇒
+      # ninguém acessa o painel (as rotas /v1/admin respondem 404).
+      - key: ADMIN_EMAILS
+        sync: false
       # --- Meta (Conversions API) ---
       # META_CAPI_ACCESS_TOKEN é o segredo: token do Gerenciador de Eventos,
       # preenchido só no painel. Sem pixel + token a CAPI fica desligada e o

@@ -16,7 +16,7 @@ describe('Docs (e2e)', () => {
     const { ConfigService } = await import('@nestjs/config');
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(ConfigService)
-      .useValue({ getOrThrow: (key: string) => process.env[key] })
+      .useValue({ get: (key: string) => process.env[key], getOrThrow: (key: string) => process.env[key] })
       .compile();
     app = moduleRef.createNestApplication();
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
@@ -49,6 +49,12 @@ describe('Docs (e2e)', () => {
         '/v1/appointments/{id}',
       ]),
     );
+  });
+
+  // O painel admin é oculto: publicá-lo no Swagger revelaria que ele existe.
+  it('does not publish the admin routes', async () => {
+    const res = await request(app.getHttpServer()).get('/docs-json').expect(200);
+    expect(Object.keys(res.body.paths).filter((p) => p.startsWith('/v1/admin'))).toEqual([]);
   });
 
   it('declares the bearer security scheme', async () => {

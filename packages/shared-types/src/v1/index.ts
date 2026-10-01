@@ -33,3 +33,4 @@ export * from './whatsapp';
 export * from './meal-log';
 export * from './meta';
 export * from './patient-export';
+export * from './admin';
