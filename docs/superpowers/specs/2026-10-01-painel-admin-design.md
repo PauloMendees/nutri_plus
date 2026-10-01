@@ -24,9 +24,10 @@ exportação da aba Pacientes.
   comparação sem diferenciar maiúsculas e espaços). Ausente ou vazia ⇒ ninguém
   é admin. Valor inicial: `paulo.h.mendes25@gmail.com`.
 - **API:** decorator `@AdminOnly()` + `AdminGuard`. Admin = usuário autenticado
-  cujo `email` está em `ADMIN_EMAILS`, qualquer `role`. Não admin ou sem login ⇒
+  cujo `email` está em `ADMIN_EMAILS`, qualquer `role`. Logado e não admin ⇒
   **404** (`NotFoundException`), nunca 403, para não revelar que a rota existe.
-  O `AdminGuard` roda depois do `SupabaseAuthGuard` (precisa do `AuthContext`).
+  Sem login ⇒ **401** do `SupabaseAuthGuard` global, como qualquer rota da API
+  (não revela nada). O `AdminGuard` roda depois dele (precisa do `AuthContext`).
 - **Cobrança:** as rotas são só `GET`, então o `SubscriptionGuard` já as deixa
   passar mesmo para tenant em só leitura. As rotas de admin levam
   `@BillingExempt()` mesmo assim, para não depender disso.
@@ -153,7 +154,7 @@ Tipos em `packages/shared-types/src/v1/admin.ts`.
 
 **API**
 - `AdminGuard`: e-mail na lista ⇒ passa; fora da lista, lista vazia ou sem
-  usuário ⇒ `NotFoundException`; comparação ignora maiúsculas e espaços.
+  usuário local ⇒ `NotFoundException`; comparação ignora maiúsculas e espaços.
 - `planLabelOf`: cada linha da tabela de rótulos, incluindo os limites de data.
 - Serviço de nutricionistas:
   - junta banco + Supabase; descarta convidados e quem já tem `User` local;
