@@ -16,6 +16,11 @@ describe('decideRedirect', () => {
     }
   });
 
+  // O paciente chega aqui já deslogado, depois de trocar a senha pelo link do e-mail.
+  it('lets unauthenticated users reach /senha-alterada', () => {
+    expect(decideRedirect(false, '/senha-alterada')).toBeNull();
+  });
+
   it('sends authenticated users away from /login and /signup into the app', () => {
     expect(decideRedirect(true, '/login')).toBe('/patients');
     expect(decideRedirect(true, '/signup')).toBe('/patients');
