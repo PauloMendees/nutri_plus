@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createClient } from '@/lib/supabase/client';
+import { getMe } from '@/lib/api/auth';
+import { UserRole } from '@nutri-plus/shared-types';
 import { resetPasswordSchema, type ResetPasswordValues } from '@/lib/validation/auth';
 import { mapAuthError } from '@/lib/auth/errors';
 import { Button } from '@/components/ui/button';
@@ -17,6 +19,19 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+
+async function isPatientSession(supabase: ReturnType<typeof createClient>): Promise<boolean> {
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) return false;
+    const me = await getMe(session.access_token);
+    return me.role === UserRole.PATIENT;
+  } catch {
+    return false;
+  }
+}
 
 export function ResetPasswordForm() {
   const router = useRouter();
@@ -35,8 +50,12 @@ export function ResetPasswordForm() {
       setFormError(mapAuthError(error));
       return;
     }
+    // Paciente não tem acesso ao web: em vez do login web, vai para a página que
+    // abre o app. O papel é lido antes do logout, enquanto há sessão; se a
+    // consulta falhar, segue para o login como antes.
+    const isPatient = await isPatientSession(supabase);
     await supabase.auth.signOut();
-    router.push('/login?reset=1');
+    router.push(isPatient ? '/senha-alterada' : '/login?reset=1');
   }
 
   return (

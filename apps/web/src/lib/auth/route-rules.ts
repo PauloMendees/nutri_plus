@@ -8,6 +8,7 @@ const PUBLIC_ROUTES = [
   '/forgot-password',
   '/accept-invite',
   '/download-app',
+  '/senha-alterada',
   '/privacy',
   '/suporte',
 ];
