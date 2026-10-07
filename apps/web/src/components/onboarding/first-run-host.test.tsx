@@ -37,24 +37,24 @@ describe('FirstRunHost', () => {
   it('does not open the dialog when onboardedAt is null', () => {
     subscriptionState.data = { onboardedAt: null };
     render(<FirstRunHost />);
-    expect(screen.queryByRole('heading', { name: 'Conheça o iNutri' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Boas-vindas ao iNutri' })).not.toBeInTheDocument();
   });
 
   it('does not open the dialog when promptDismissedAt is set', () => {
     onboardingState.data = { promptDismissedAt: '2026-08-02T00:00:00Z', tours: [] };
     render(<FirstRunHost />);
-    expect(screen.queryByRole('heading', { name: 'Conheça o iNutri' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Boas-vindas ao iNutri' })).not.toBeInTheDocument();
   });
 
   it('opens the dialog when onboardedAt is set and tours are empty', () => {
     render(<FirstRunHost />);
-    expect(screen.getByRole('heading', { name: /primeiros passos no inutri/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Boas-vindas ao iNutri' })).toBeInTheDocument();
   });
 
   it('does not open the dialog when onboarding data is missing', () => {
     onboardingState.data = undefined;
     render(<FirstRunHost />);
-    expect(screen.queryByRole('heading', { name: 'Conheça o iNutri' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Boas-vindas ao iNutri' })).not.toBeInTheDocument();
   });
 
   it('does not open the dialog when a tour is IN_PROGRESS', () => {
@@ -71,7 +71,7 @@ describe('FirstRunHost', () => {
       ],
     };
     render(<FirstRunHost />);
-    expect(screen.queryByRole('heading', { name: 'Conheça o iNutri' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Boas-vindas ao iNutri' })).not.toBeInTheDocument();
   });
 
   it('does not open the dialog when a tour is COMPLETED', () => {
@@ -88,20 +88,24 @@ describe('FirstRunHost', () => {
       ],
     };
     render(<FirstRunHost />);
-    expect(screen.queryByRole('heading', { name: 'Conheça o iNutri' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Boas-vindas ao iNutri' })).not.toBeInTheDocument();
   });
 
-  it('PATCH-dismisses only from Agora não', async () => {
+  it('PATCH-dismisses only from Pular apresentação', async () => {
     render(<FirstRunHost />);
-    await userEvent.click(screen.getByRole('button', { name: 'Agora não' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Pular apresentação' }));
     expect(dismiss).toHaveBeenCalledTimes(1);
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('navigates to tutoriais and also dismisses the prompt', async () => {
+  // Sem tutorial guiado: vai direto para o cadastro, e o paciente fica real.
+  it('opens the new patient page and also dismisses the prompt', async () => {
     render(<FirstRunHost />);
-    await userEvent.click(screen.getByRole('button', { name: 'Ver tutoriais' }));
-    expect(push).toHaveBeenCalledWith('/primeiros-passos');
+    await userEvent.click(screen.getByRole('button', { name: 'Vamos lá!' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Próximo' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cadastrar primeiro paciente' }));
+    expect(push).toHaveBeenCalledWith('/patients/new');
+    expect(screen.queryByRole('heading', { name: 'Comece por aqui' })).not.toBeInTheDocument();
     expect(dismiss).toHaveBeenCalledTimes(1);
   });
 });

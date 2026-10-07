@@ -122,6 +122,15 @@ beforeEach(() => {
 });
 
 describe('HubView', () => {
+  it('has a big button at the top to (re)watch the intro video', async () => {
+    renderHub(UserRole.NUTRITIONIST);
+    await userEvent.click(screen.getByRole('button', { name: /assista à introdução ao inutri/i }));
+    const video = screen.getByTitle('Introdução ao iNutri');
+    expect(video.getAttribute('src')).toContain('https://www.youtube-nocookie.com/embed/lN8bnCbW1J0');
+    await userEvent.click(screen.getByRole('button', { name: 'Fechar vídeo' }));
+    expect(screen.queryByTitle('Introdução ao iNutri')).not.toBeInTheDocument();
+  });
+
   it('shows Começar for a nutritionist with empty progress', () => {
     renderHub(UserRole.NUTRITIONIST);
     expect(card('patients').getByRole('button', { name: /começar/i })).toBeEnabled();
