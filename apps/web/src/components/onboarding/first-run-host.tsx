@@ -39,14 +39,15 @@ export function FirstRunHost() {
     void dismiss.mutateAsync().catch(() => undefined);
   }
 
-  function onStart() {
+  // Vai direto para o cadastro, sem tutorial guiado: o paciente criado é real.
+  function onCreatePatient() {
     if (!skipDismissRef.current) {
       skipDismissRef.current = true;
       void dismiss.mutateAsync().catch(() => undefined);
     }
     setStarted(true);
-    router.push('/primeiros-passos');
+    router.push('/patients/new');
   }
 
-  return <FirstRunDialog open={open} onDismiss={onDismiss} onStart={onStart} />;
+  return <FirstRunDialog open={open} onDismiss={onDismiss} onCreatePatient={onCreatePatient} />;
 }

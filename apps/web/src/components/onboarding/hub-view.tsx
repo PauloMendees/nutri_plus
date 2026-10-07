@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Lock, Play } from "lucide-react";
 import {
   UserRole,
@@ -7,6 +8,8 @@ import {
   type OnboardingTourProgressView,
 } from "@nutri-plus/shared-types";
 import { ALL_TOURS, type TourDefinition } from "@/lib/onboarding/catalog";
+import { INTRO_VIDEO } from "@/lib/onboarding/intro-video";
+import { Logo } from "@/components/brand/logo";
 import {
   chapterView,
   continuePlayChapterId,
@@ -32,6 +35,7 @@ import {
   DeleteDemoBanner,
   DeleteDemoTransactionBanner,
 } from "./delete-demo-banner";
+import { IntroVideoDialog } from "./intro-video-dialog";
 import { useTour } from "./tour-provider";
 import { UseOwnPatientBanner } from "./use-own-patient";
 
@@ -270,6 +274,34 @@ function TourCard({
   );
 }
 
+// Botão grande no topo dos Tutoriais para (re)assistir o vídeo de introdução.
+function IntroVideoBanner() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="group flex w-full items-center gap-5 rounded-2xl bg-[radial-gradient(circle_at_90%_20%,rgba(20,191,166,0.45),transparent_50%),linear-gradient(120deg,#0a5c45,#2f8f78)] px-6 py-5 text-left text-white shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      >
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-white text-[#0a5c45] transition-transform group-hover:scale-105">
+          <Play className="ml-1 size-6 fill-current" aria-hidden="true" />
+        </span>
+        <span className="min-w-0">
+          <span className="block font-heading text-lg font-bold sm:text-xl">
+            Assista à introdução ao iNutri
+          </span>
+          <span className="block text-sm text-white/85">
+            Veja como o iNutri organiza o seu consultório · {INTRO_VIDEO.duration}
+          </span>
+        </span>
+        <Logo variant="full" tone="reverse" className="ml-auto hidden h-7 shrink-0 opacity-90 sm:block" />
+      </button>
+      <IntroVideoDialog open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
+
 export function HubView({ role }: { role: UserRole | null }) {
   const onboardingQuery = useOnboarding();
   const subscriptionQuery = useSubscription();
@@ -292,6 +324,7 @@ export function HubView({ role }: { role: UserRole | null }) {
           pular, sair e rever quando quiser.
         </p>
       </div>
+      <IntroVideoBanner />
       {loading ? (
         <div data-testid="tutorials-loading" className="space-y-5">
           <Skeleton className="h-56 w-full rounded-xl" />
