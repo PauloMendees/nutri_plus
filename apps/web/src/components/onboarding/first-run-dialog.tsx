@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { INTRO_VIDEO, INTRO_VIDEO_THUMBNAIL_URL } from '@/lib/onboarding/intro-video';
 import { cn } from '@/lib/utils';
-import { IntroVideoDialog } from './intro-video-dialog';
+import { IntroVideoDialog, isIntroVideoEvent } from './intro-video-dialog';
 
 const STEP_TITLES = ['Boas-vindas ao iNutri', 'Conheça o iNutri', 'Comece por aqui'] as const;
 
@@ -92,54 +92,60 @@ export function FirstRunDialog({
   }
 
   return (
-    <>
-      <Dialog
-        open={open}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) onDismiss();
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onDismiss();
+      }}
+    >
+      <DialogContent
+        aria-describedby={undefined}
+        // Fechar o vídeo (clique fora dele) não pode fechar a apresentação.
+        onPointerDownOutside={(event) => {
+          if (videoOpen || isIntroVideoEvent(event)) event.preventDefault();
         }}
+        onInteractOutside={(event) => {
+          if (videoOpen || isIntroVideoEvent(event)) event.preventDefault();
+        }}
+        className="max-w-lg gap-0 overflow-hidden p-0 [&>button:last-child]:flex [&>button:last-child]:size-8 [&>button:last-child]:items-center [&>button:last-child]:justify-center [&>button:last-child]:rounded-full [&>button:last-child]:bg-white/20 [&>button:last-child]:text-white [&>button:last-child]:opacity-100"
       >
-        <DialogContent
-          aria-describedby={undefined}
-          className="max-w-lg gap-0 overflow-hidden p-0 [&>button:last-child]:flex [&>button:last-child]:size-8 [&>button:last-child]:items-center [&>button:last-child]:justify-center [&>button:last-child]:rounded-full [&>button:last-child]:bg-white/20 [&>button:last-child]:text-white [&>button:last-child]:opacity-100"
-        >
-          <div className="flex h-40 flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_20%_20%,rgba(20,191,166,0.55),transparent_55%),radial-gradient(circle_at_85%_80%,rgba(20,191,166,0.35),transparent_50%),linear-gradient(135deg,#0a5c45,#0d7a5e)]">
-            <span className="flex size-12 items-center justify-center rounded-full bg-white shadow-sm">
-              <Logo variant="icon" className="h-6" />
-            </span>
-            <DialogTitle className="text-2xl text-white">{STEP_TITLES[step]}</DialogTitle>
-          </div>
+        <div className="flex h-40 flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_20%_20%,rgba(20,191,166,0.55),transparent_55%),radial-gradient(circle_at_85%_80%,rgba(20,191,166,0.35),transparent_50%),linear-gradient(135deg,#0a5c45,#0d7a5e)]">
+          <span className="flex size-12 items-center justify-center rounded-full bg-white shadow-sm">
+            <Logo variant="icon" className="h-6" />
+          </span>
+          <DialogTitle className="text-2xl text-white">{STEP_TITLES[step]}</DialogTitle>
+        </div>
 
-          <div className="flex min-h-56 flex-col justify-center px-7 py-6 text-center">
-            {step === 0 && <WelcomeStep />}
-            {step === 1 && <VideoStep onPlay={() => setVideoOpen(true)} />}
-            {step === 2 && <FirstPatientStep />}
-          </div>
+        <div className="flex min-h-56 flex-col justify-center px-7 py-6 text-center">
+          {step === 0 && <WelcomeStep />}
+          {step === 1 && <VideoStep onPlay={() => setVideoOpen(true)} />}
+          {step === 2 && <FirstPatientStep />}
+        </div>
 
-          <div className="flex items-center justify-between gap-3 border-t px-5 py-4">
-            <Button
-              type="button"
-              variant="ghost"
-              className="text-muted-foreground"
-              onClick={() => (step === 0 ? onDismiss() : setStep(step - 1))}
-            >
-              {step === 0 ? 'Pular apresentação' : 'Voltar'}
-            </Button>
-            <div className="flex gap-1.5" aria-hidden="true">
-              {STEP_TITLES.map((title, i) => (
-                <span
-                  key={title}
-                  className={cn('h-1.5 rounded-full transition-all', i === step ? 'w-5 bg-primary' : 'w-1.5 bg-border')}
-                />
-              ))}
-            </div>
-            <Button type="button" className="rounded-full" onClick={next}>
-              {step === 0 ? 'Vamos lá!' : step === last ? 'Cadastrar primeiro paciente' : 'Próximo'}
-            </Button>
+        <div className="flex items-center justify-between gap-3 border-t px-5 py-4">
+          <Button
+            type="button"
+            variant="ghost"
+            className="text-muted-foreground"
+            onClick={() => (step === 0 ? onDismiss() : setStep(step - 1))}
+          >
+            {step === 0 ? 'Pular apresentação' : 'Voltar'}
+          </Button>
+          <div className="flex gap-1.5" aria-hidden="true">
+            {STEP_TITLES.map((title, i) => (
+              <span
+                key={title}
+                className={cn('h-1.5 rounded-full transition-all', i === step ? 'w-5 bg-primary' : 'w-1.5 bg-border')}
+              />
+            ))}
           </div>
-        </DialogContent>
-      </Dialog>
-      <IntroVideoDialog open={videoOpen} onOpenChange={setVideoOpen} />
-    </>
+          <Button type="button" className="rounded-full" onClick={next}>
+            {step === 0 ? 'Vamos lá!' : step === last ? 'Cadastrar primeiro paciente' : 'Próximo'}
+          </Button>
+        </div>
+        {/* Dentro do conteúdo: o Radix trata o player como diálogo aninhado. */}
+        <IntroVideoDialog open={videoOpen} onOpenChange={setVideoOpen} />
+      </DialogContent>
+    </Dialog>
   );
 }

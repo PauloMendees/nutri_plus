@@ -58,4 +58,29 @@ describe('FirstRunDialog', () => {
     expect(onCreatePatient).toHaveBeenCalled();
     expect(onDismiss).not.toHaveBeenCalled();
   });
+
+  // Clicar fora do player fecha só o vídeo; a apresentação continua aberta.
+  it('closes only the video when clicking outside the player', async () => {
+    const { onDismiss } = renderDialog();
+    await userEvent.click(screen.getByRole('button', { name: 'Vamos lá!' }));
+    await userEvent.click(screen.getByRole('button', { name: /assistir à introdução/i }));
+    expect(screen.getByTitle('Introdução ao iNutri')).toBeInTheDocument();
+
+    await userEvent.click(document.querySelector('[data-intro-video]:not([role=dialog])')!);
+
+    expect(screen.queryByTitle('Introdução ao iNutri')).not.toBeInTheDocument();
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Conheça o iNutri' })).toBeInTheDocument();
+  });
+
+  it('closes only the video on Escape', async () => {
+    const { onDismiss } = renderDialog();
+    await userEvent.click(screen.getByRole('button', { name: 'Vamos lá!' }));
+    await userEvent.click(screen.getByRole('button', { name: /assistir à introdução/i }));
+    await userEvent.keyboard('{Escape}');
+
+    expect(screen.queryByTitle('Introdução ao iNutri')).not.toBeInTheDocument();
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Conheça o iNutri' })).toBeInTheDocument();
+  });
 });
