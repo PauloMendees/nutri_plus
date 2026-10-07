@@ -25,7 +25,7 @@ const PAYMENT_STATUS_LABEL: Record<string, string> = {
 const BILLING_TYPE_LABEL: Record<string, string> = { PIX: 'Pix', CREDIT_CARD: 'Cartão', BOLETO: 'Boleto' };
 const fmt = (iso: string | null) => formatIsoDateUtc(iso);
 
-export function SubscriptionTab() {
+export function SubscriptionTab({ email }: { email: string }) {
   const { data, refetch } = useSubscription();
   const [editingCard, setEditingCard] = useState(false);
   const [confirmPix, setConfirmPix] = useState(false);
@@ -76,6 +76,9 @@ export function SubscriptionTab() {
   return (
     <div className="space-y-6">
       <div className="space-y-1 text-sm">
+        <p>
+          E-mail da conta: <strong className="break-all">{email}</strong>
+        </p>
         <p>
           Plano:{' '}
           <strong>

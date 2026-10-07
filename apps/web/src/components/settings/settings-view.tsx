@@ -51,7 +51,7 @@ function defaults(s?: NutritionistSettings): SettingsValues {
   };
 }
 
-export function SettingsView() {
+export function SettingsView({ email }: { email: string }) {
   const query = useNutritionistSettings();
   const update = useUpdateNutritionistSettings();
   const uploadLogo = useUploadLogo();
@@ -356,7 +356,7 @@ export function SettingsView() {
             <TabsContent value="assinatura">
               <section className="space-y-4 rounded-xl border bg-card p-5" data-tour="config.assinatura">
                 <h2 className="font-heading text-base font-bold">Assinatura</h2>
-                <SubscriptionTab />
+                <SubscriptionTab email={email} />
               </section>
             </TabsContent>
           </Tabs>
