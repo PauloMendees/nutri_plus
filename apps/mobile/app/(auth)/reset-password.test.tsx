@@ -35,6 +35,11 @@ async function fillValid() {
 }
 
 describe('Reset password screen', () => {
+  it('tells the user to also check the spam folder', async () => {
+    await render(<ResetPassword />);
+    expect(screen.getByText(/caixa de spam/i)).toBeTruthy();
+  });
+
   it('renders the code and password fields', async () => {
     await render(<ResetPassword />);
     expect(screen.getByLabelText('Código')).toBeTruthy();

@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { createClient } from '@/lib/supabase/client';
 import { forgotPasswordSchema, type ForgotPasswordValues } from '@/lib/validation/auth';
 import { mapAuthError } from '@/lib/auth/errors';
+import { SpamHint } from '@/components/auth/spam-hint';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -47,6 +48,7 @@ export function ForgotPasswordForm() {
         <p className="text-sm text-muted-foreground">
           Se existe uma conta com esse e-mail, enviamos um link para redefinir a senha.
         </p>
+        <SpamHint />
         <p className="text-sm text-muted-foreground">
           <Link href="/login" className="font-semibold text-primary hover:underline">
             Voltar para o login

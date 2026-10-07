@@ -9,6 +9,7 @@ import { mapAuthError } from '../../lib/auth/errors';
 import { Button } from '../../components/ui/button';
 import { TextField } from '../../components/ui/text-field';
 import { Screen } from '../../components/ui/screen';
+import { SpamHint } from '../../components/ui/spam-hint';
 
 const RESEND_COOLDOWN_SECONDS = 30;
 
@@ -76,6 +77,8 @@ export default function ResetPassword() {
             Enviamos um código para {email ?? 'seu e-mail'}. Digite o código e escolha uma nova senha.
           </Text>
         </View>
+
+        <SpamHint />
 
         <View className="gap-4">
           <Controller

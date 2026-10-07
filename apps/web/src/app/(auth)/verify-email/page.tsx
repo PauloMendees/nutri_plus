@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { MetaPixel } from '@/components/analytics/meta-pixel';
+import { SpamHint } from '@/components/auth/spam-hint';
 
 export default async function VerifyEmailPage({
   searchParams,
@@ -18,6 +19,7 @@ export default async function VerifyEmailPage({
         {email && <span className="font-medium text-foreground">{email}</span>}. Abra o e-mail e
         clique no link para ativar sua conta.
       </p>
+      <SpamHint />
       <p className="text-sm text-muted-foreground">
         Clicar no link do e-mail já ativa sua conta e entra automaticamente.
       </p>
