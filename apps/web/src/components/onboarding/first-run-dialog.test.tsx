@@ -83,4 +83,26 @@ describe('FirstRunDialog', () => {
     expect(onDismiss).not.toHaveBeenCalled();
     expect(screen.getByRole('heading', { name: 'Conheça o iNutri' })).toBeInTheDocument();
   });
+
+  // Só "Pular apresentação" e o X fecham a apresentação.
+  it('does not close when clicking outside the dialog', async () => {
+    const { onDismiss } = renderDialog();
+    const overlay = document.querySelector('[data-slot=dialog-overlay]')!;
+    await userEvent.click(overlay);
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Boas-vindas ao iNutri' })).toBeInTheDocument();
+  });
+
+  it('does not close on Escape', async () => {
+    const { onDismiss } = renderDialog();
+    await userEvent.keyboard('{Escape}');
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Boas-vindas ao iNutri' })).toBeInTheDocument();
+  });
+
+  it('closes from the X button', async () => {
+    const { onDismiss } = renderDialog();
+    await userEvent.click(screen.getByRole('button', { name: 'Fechar' }));
+    expect(onDismiss).toHaveBeenCalled();
+  });
 });

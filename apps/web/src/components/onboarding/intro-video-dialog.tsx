@@ -4,12 +4,6 @@ import { Dialog as DialogPrimitive } from 'radix-ui';
 import { XIcon } from 'lucide-react';
 import { INTRO_VIDEO, INTRO_VIDEO_EMBED_URL } from '@/lib/onboarding/intro-video';
 
-// O clique veio do player (fundo escuro ou conteúdo)? Usado pela apresentação
-// para não fechar junto quando a pessoa fecha só o vídeo.
-export function isIntroVideoEvent(event: { target: EventTarget | null }): boolean {
-  return event.target instanceof Element && event.target.closest('[data-intro-video]') != null;
-}
-
 // Player do vídeo de introdução, por cima de tudo (inclusive da apresentação).
 // O iframe só existe enquanto está aberto: fechar remove o vídeo e para o som.
 export function IntroVideoDialog({

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { INTRO_VIDEO, INTRO_VIDEO_THUMBNAIL_URL } from '@/lib/onboarding/intro-video';
 import { cn } from '@/lib/utils';
-import { IntroVideoDialog, isIntroVideoEvent } from './intro-video-dialog';
+import { IntroVideoDialog } from './intro-video-dialog';
 
 const STEP_TITLES = ['Boas-vindas ao iNutri', 'Conheça o iNutri', 'Comece por aqui'] as const;
 
@@ -100,13 +100,11 @@ export function FirstRunDialog({
     >
       <DialogContent
         aria-describedby={undefined}
-        // Fechar o vídeo (clique fora dele) não pode fechar a apresentação.
-        onPointerDownOutside={(event) => {
-          if (videoOpen || isIntroVideoEvent(event)) event.preventDefault();
-        }}
-        onInteractOutside={(event) => {
-          if (videoOpen || isIntroVideoEvent(event)) event.preventDefault();
-        }}
+        // Só "Pular apresentação" e o X fecham: clique fora e Esc não (o
+        // player, aninhado, continua fechando com clique fora e Esc).
+        onPointerDownOutside={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={(event) => event.preventDefault()}
         className="max-w-lg gap-0 overflow-hidden p-0 [&>button:last-child]:flex [&>button:last-child]:size-8 [&>button:last-child]:items-center [&>button:last-child]:justify-center [&>button:last-child]:rounded-full [&>button:last-child]:bg-white/20 [&>button:last-child]:text-white [&>button:last-child]:opacity-100"
       >
         <div className="flex h-40 flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_20%_20%,rgba(20,191,166,0.55),transparent_55%),radial-gradient(circle_at_85%_80%,rgba(20,191,166,0.35),transparent_50%),linear-gradient(135deg,#0a5c45,#0d7a5e)]">
