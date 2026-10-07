@@ -31,7 +31,7 @@ beforeEach(() => {
 describe('SettingsView', () => {
   it('shows a loading state', () => {
     useNutritionistSettings.mockReturnValue({ isLoading: true });
-    render(<SettingsView />);
+    render(<SettingsView email="ana@clinica.com" />);
     expect(screen.getByTestId('settings-loading')).toBeInTheDocument();
   });
 
@@ -44,7 +44,7 @@ describe('SettingsView', () => {
         whatsappNumber: null,
       },
     });
-    render(<SettingsView />);
+    render(<SettingsView email="ana@clinica.com" />);
     expect(screen.getByRole('tab', { name: /plano alimentar/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /aparência/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /aplicativo paciente/i })).toBeInTheDocument();
@@ -61,7 +61,7 @@ describe('SettingsView', () => {
         whatsappNumber: null,
       },
     });
-    render(<SettingsView />);
+    render(<SettingsView email="ana@clinica.com" />);
     await userEvent.type(screen.getByLabelText(/nome de exibição/i), 'Dra. Ana');
     await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
     await waitFor(() => expect(updateMut).toHaveBeenCalledTimes(1));
@@ -77,7 +77,7 @@ describe('SettingsView', () => {
         whatsappNumber: null,
       },
     });
-    render(<SettingsView />);
+    render(<SettingsView email="ana@clinica.com" />);
     await userEvent.clear(screen.getByLabelText(/nome de exibição/i));
     await userEvent.clear(screen.getByLabelText(/instruções padrão/i));
     await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
@@ -96,7 +96,7 @@ describe('SettingsView', () => {
         whatsappNumber: null,
       },
     });
-    render(<SettingsView />);
+    render(<SettingsView email="ana@clinica.com" />);
     const file = new File(['x'], 'logo.png', { type: 'image/png' });
     await userEvent.upload(screen.getByLabelText(/logomarca/i), file);
     await waitFor(() => expect(uploadMut).toHaveBeenCalledTimes(1));
@@ -112,7 +112,7 @@ describe('SettingsView', () => {
         whatsappNumber: null,
       },
     });
-    render(<SettingsView />);
+    render(<SettingsView email="ana@clinica.com" />);
     await userEvent.click(screen.getByRole('button', { name: /remover logo/i }));
     await waitFor(() => expect(deleteMut).toHaveBeenCalledTimes(1));
   });
@@ -126,7 +126,7 @@ describe('SettingsView', () => {
         whatsappNumber: null,
       },
     });
-    render(<SettingsView />);
+    render(<SettingsView email="ana@clinica.com" />);
     expect(document.querySelector('[data-tour="config.tabs"]')).not.toBeNull();
     expect(document.querySelector('[data-tour="config.plano"]')).not.toBeNull();
     expect(screen.getByRole('tab', { name: 'Aparência' })).toHaveAttribute('data-tour', 'config.tab.aparencia');
@@ -158,7 +158,7 @@ describe('SettingsView', () => {
 
     it('shows the explanatory text and the two toggles', async () => {
       setData();
-      render(<SettingsView />);
+      render(<SettingsView email="ana@clinica.com" />);
       await userEvent.click(screen.getByRole('tab', { name: /aplicativo paciente/i }));
       expect(
         screen.getByText(/configurações padrão aplicadas a novos pacientes/i),
@@ -173,7 +173,7 @@ describe('SettingsView', () => {
 
     it('toggles both defaults and saves them in the update body', async () => {
       setData();
-      render(<SettingsView />);
+      render(<SettingsView email="ana@clinica.com" />);
       await userEvent.click(screen.getByRole('tab', { name: /aplicativo paciente/i }));
 
       const toggles = screen.getAllByRole('button', { name: /desligado/i });
@@ -192,7 +192,7 @@ describe('SettingsView', () => {
 
     it('renders the WhatsApp field and includes it in save', async () => {
       setData({ whatsappNumber: null });
-      render(<SettingsView />);
+      render(<SettingsView email="ana@clinica.com" />);
       await userEvent.click(screen.getByRole('tab', { name: /aplicativo paciente/i }));
       expect(screen.getByLabelText(/whatsapp para pacientes/i)).toBeInTheDocument();
       await userEvent.type(screen.getByLabelText(/whatsapp para pacientes/i), '11999998888');
@@ -203,7 +203,7 @@ describe('SettingsView', () => {
 
     it('disables Testar when empty and points wa.me at canonical digits when valid', async () => {
       setData({ whatsappNumber: null });
-      render(<SettingsView />);
+      render(<SettingsView email="ana@clinica.com" />);
       await userEvent.click(screen.getByRole('tab', { name: /aplicativo paciente/i }));
       const testLink = screen.getByRole('link', { name: /testar no whatsapp/i });
       expect(testLink).toHaveAttribute('aria-disabled', 'true');

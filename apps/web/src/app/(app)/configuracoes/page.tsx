@@ -8,5 +8,5 @@ export default async function SettingsPage() {
   if (!me || !canManageSettings(me.role)) {
     return <Unauthorized />;
   }
-  return <SettingsView />;
+  return <SettingsView email={me.email} />;
 }
