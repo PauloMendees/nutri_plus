@@ -34,6 +34,13 @@ describe('ForgotPasswordForm', () => {
     expect(email).toBe('ana@clinica.com');
     expect(opts.redirectTo).toContain('/auth/callback?next=/reset-password');
     expect(screen.getByText(/se existe uma conta/i)).toBeInTheDocument();
+    // Aviso fixo na tela (não é toast): o e-mail pode cair no spam.
+    expect(screen.getByText(/não encontrou o e-mail/i)).toHaveTextContent(/caixa de spam ou de lixo eletrônico/i);
+  });
+
+  it('does not show the spam hint before sending', () => {
+    render(<ForgotPasswordForm />);
+    expect(screen.queryByText(/não encontrou o e-mail/i)).not.toBeInTheDocument();
   });
 
   it('shows a mapped error on failure', async () => {
