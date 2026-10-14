@@ -13,7 +13,47 @@ beforeEach(() => {
   submit.mockReset();
 });
 
+async function openEmailForm() {
+  await userEvent.click(screen.getByRole('button', { name: /enviar por e-mail/i }));
+}
+
 describe('SupportDialog', () => {
+  it('oferece WhatsApp com mensagem pré-preenchida incluindo o e-mail da conta', () => {
+    render(
+      <SupportDialog open onOpenChange={vi.fn()} defaultEmail="ana@inutri.life" />,
+    );
+
+    const link = screen.getByRole('link', { name: /whatsapp/i });
+    const url = new URL(link.getAttribute('href')!);
+    expect(url.origin + url.pathname).toBe('https://wa.me/5562991376124');
+    expect(url.searchParams.get('text')).toBe(
+      'Olá! Sou nutricionista e uso o iNutri (conta: ana@inutri.life). Preciso de ajuda com: ',
+    );
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(screen.queryByLabelText(/descrição/i)).not.toBeInTheDocument();
+  });
+
+  it('fecha o diálogo ao abrir o WhatsApp', async () => {
+    const onOpenChange = vi.fn();
+    render(
+      <SupportDialog open onOpenChange={onOpenChange} defaultEmail="ana@inutri.life" />,
+    );
+    await userEvent.click(screen.getByRole('link', { name: /whatsapp/i }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('vai para o formulário de e-mail e volta para a escolha', async () => {
+    render(
+      <SupportDialog open onOpenChange={vi.fn()} defaultEmail="ana@inutri.life" />,
+    );
+    await openEmailForm();
+    expect(screen.getByLabelText(/descrição/i)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /voltar/i }));
+    expect(screen.getByRole('link', { name: /whatsapp/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/descrição/i)).not.toBeInTheDocument();
+  });
+
   it('pré-preenche o e-mail e envia o pedido', async () => {
     submit.mockResolvedValue({ ok: true });
     const onOpenChange = vi.fn();
@@ -21,6 +61,7 @@ describe('SupportDialog', () => {
       <SupportDialog open onOpenChange={onOpenChange} defaultEmail="ana@inutri.life" />,
     );
 
+    await openEmailForm();
     expect(screen.getByLabelText(/e-mail para retorno/i)).toHaveValue('ana@inutri.life');
 
     await userEvent.click(screen.getByRole('combobox'));
@@ -48,6 +89,7 @@ describe('SupportDialog', () => {
     render(
       <SupportDialog open onOpenChange={vi.fn()} defaultEmail="ana@inutri.life" />,
     );
+    await openEmailForm();
     await userEvent.type(screen.getByLabelText(/descrição/i), 'curto');
     await userEvent.click(screen.getByRole('button', { name: /^enviar$/i }));
     expect(submit).not.toHaveBeenCalled();
