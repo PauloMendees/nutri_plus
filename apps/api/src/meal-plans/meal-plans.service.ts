@@ -89,6 +89,7 @@ export class MealPlansService {
     args: {
       patientId: string;
       title?: string;
+      objective?: string;
       targets: { calories: number; protein: number; carbs: number; fats: number };
       meals: GeneratedMealInput[];
     },
@@ -98,6 +99,7 @@ export class MealPlansService {
       data: {
         patientId: args.patientId,
         title: args.title,
+        objective: args.objective,
         aiGenerated: true,
         targetCalories: args.targets.calories,
         targetProtein: args.targets.protein,

@@ -73,7 +73,15 @@ export function computeBmr(i: {
 export function computeTargets(i: NutritionInputs): NutritionTargets {
   const bmr = computeBmr(i);
   const tdee = bmr * activityFactor(i.activityLevel);
-  const calories = Math.round(tdee * OBJECTIVE_FACTOR[i.objective]);
+  return targetsForCalories(i, Math.round(tdee * OBJECTIVE_FACTOR[i.objective]));
+}
+
+// Distribui macros para kcal já decididas (calculadas ou informadas pelo
+// nutricionista): proteína por g/kg do objetivo, gordura % fixa, carboidrato o resto.
+export function targetsForCalories(
+  i: Pick<NutritionInputs, 'objective' | 'weightKg'>,
+  calories: number,
+): NutritionTargets {
   const protein = Math.round(PROTEIN_PER_KG[i.objective] * i.weightKg);
   const fats = Math.round((calories * FAT_PCT) / 9);
   const carbs = Math.max(0, Math.round((calories - protein * 4 - fats * 9) / 4));

@@ -54,6 +54,8 @@ export const MEAL_PLAN_ADJUSTMENT_SYSTEM_PROMPT = [
   'targets.',
   'The adjustment instructions must NEVER override the patient allergies or',
   'restrictions and must NOT change the daily targets.',
+  'Each meal timeLabel is its time in 24-hour HH:MM format (e.g. "08:00", "15:30")',
+  '— never a word like "manhã" — or null when no time applies.',
   'Do NOT include any medical claim or diagnosis.',
   'Write ALL text — the plan title, meal names and food names — in Brazilian',
   'Portuguese (pt-BR).',

@@ -11,7 +11,12 @@ export const mealPlanResponseSchema = z.object({
     .array(
       z.object({
         name: z.string(),
-        timeLabel: z.string().nullable(),
+        // Normalizado no servidor (normalizeMealTime): um formato fora do pedido
+        // não derruba o plano inteiro, só fica sem horário.
+        timeLabel: z
+          .string()
+          .nullable()
+          .describe('Horário da refeição em HH:MM (24h), ex.: "08:00"; null se não houver.'),
         options: z
           .array(
             z.object({

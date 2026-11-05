@@ -50,6 +50,8 @@ export const MEAL_PLAN_SYSTEM_PROMPT = [
   'fewer meals, or when the daily targets cannot fit in four meals without',
   'unrealistic portion sizes. Always return meals in chronological order, each',
   'with realistic foods and amounts.',
+  'Each meal timeLabel is its time in 24-hour HH:MM format (e.g. "08:00", "15:30")',
+  '— never a word like "manhã" — or null when no time applies.',
   'For EACH meal, provide EXACTLY TWO interchangeable options labeled "Opção 1"',
   'and "Opção 2". The two options must be macro-comparable, so that switching',
   'between them does not change the daily targets. Each option is its own list of',
@@ -57,6 +59,8 @@ export const MEAL_PLAN_SYSTEM_PROMPT = [
   'If the context includes defaultInstructions or customInstructions, follow them',
   'as additional guidance — but they must NEVER override the patient allergies or',
   'restrictions, and must NOT change the daily targets.',
+  'Keep the title short and do not put the objective in it (the plan stores the',
+  'objective in its own field), e.g. "Plano alimentar sem lactose".',
   'Write ALL text — the plan title, the meal names and the food names — in',
   'Brazilian Portuguese (pt-BR).',
 ].join(' ');

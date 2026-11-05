@@ -64,6 +64,12 @@ describe('AiGenerateDialog', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it('explica de onde vem a meta do plano', () => {
+    render(<AiGenerateDialog open onOpenChange={onOpenChange} patientId="p1" />);
+    expect(screen.getByText(/meta salva.*é usada/i)).toBeInTheDocument();
+    expect(screen.getByText(/sem meta salva.*kcal.*instruções/i)).toBeInTheDocument();
+  });
+
   it('generates with no instructions (undefined) when the field is empty', async () => {
     render(<AiGenerateDialog open onOpenChange={onOpenChange} patientId="p1" />);
     await userEvent.click(screen.getByRole('button', { name: /gerar plano/i }));

@@ -14,6 +14,14 @@ export enum PatientObjective {
   RECOMPOSITION = 'RECOMPOSITION',
 }
 
+// Rótulo pt-BR: na tela e no campo Objetivo do plano gerado pela IA.
+export const PATIENT_OBJECTIVE_LABELS: Record<PatientObjective, string> = {
+  [PatientObjective.WEIGHT_LOSS]: 'Perda de peso',
+  [PatientObjective.MUSCLE_GAIN]: 'Ganho de massa',
+  [PatientObjective.MAINTENANCE]: 'Manutenção',
+  [PatientObjective.RECOMPOSITION]: 'Recomposição',
+};
+
 export enum ActivityLevel {
   SEDENTARY = 'SEDENTARY',
   LIGHT = 'LIGHT',
