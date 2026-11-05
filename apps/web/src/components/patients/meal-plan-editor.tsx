@@ -197,6 +197,25 @@ export function parseGrams(text: string): number | null {
   return unit === 'kg' || unit === 'l' ? n * 1000 : n;
 }
 
+// Número puro vale como gramas, a unidade padrão da TACO. Só é lido ao sair do
+// campo: lido a cada tecla, o "2" de "2 fatias" viraria 2 g no meio da digitação.
+export function parseQuantityGrams(text: string): number | null {
+  const bare = text.trim().match(/^(\d+(?:[.,]\d+)?)$/);
+  if (!bare) return parseGrams(text);
+  const n = Number(bare[1].replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+type PortionBase = { grams: number; macros: Record<MacroKey, number> };
+
+function portionBaseOf(item: ItemValues | undefined): PortionBase | null {
+  const grams = Number(item?.grams);
+  if (!item || !(grams > 0)) return null;
+  const macros = {} as Record<MacroKey, number>;
+  for (const { key } of ITEM_MACROS) macros[key] = Number(item[key]) || 0;
+  return { grams, macros };
+}
+
 // Auto-grow single-line text fields: sized like the Inputs they replace, but the
 // shadcn Textarea's `field-sizing-content` lets them grow vertically with content.
 const GROW = 'min-h-8 resize-none py-1';
@@ -918,6 +937,15 @@ function OptionCard({
 
   const [pickerFor, setPickerFor] = useState<number | null>(null);
   const foodCache = useRef<Record<string, Food>>({});
+  // Item de plano salvo não tem o alimento da TACO em memória: reescalamos a
+  // partir da última porção válida. Guardar essa base por item evita acumular
+  // arredondamento a cada recálculo.
+  const portionBase = useRef<Record<string, PortionBase | null>>({});
+  const [badQuantity, setBadQuantity] = useState<Record<string, boolean>>({});
+  const flagQuantity = (itemIndex: number, bad: boolean) => {
+    const id = items.fields[itemIndex]?.id;
+    if (id && Boolean(badQuantity[id]) !== bad) setBadQuantity((prev) => ({ ...prev, [id]: bad }));
+  };
 
   const setField = (itemIndex: number, field: string, value: string) =>
     setValue(
@@ -932,6 +960,7 @@ function OptionCard({
 
   function onPickFood(itemIndex: number, food: Food) {
     foodCache.current[food.id] = food;
+    flagQuantity(itemIndex, false);
     setField(itemIndex, 'foodId', food.id);
     setField(itemIndex, 'foodName', food.name);
     let grams = parseGrams(watchedItems?.[itemIndex]?.quantity ?? '');
@@ -947,12 +976,36 @@ function OptionCard({
 
   // `grams` continua existindo no formulário e no banco — some só da tela. É ele
   // que alimenta o recálculo pela TACO, então segue sincronizado com o texto.
+  // Texto sem gramas legíveis não mexe em `grams` nem nos macros: o que vai
+  // para o banco continua coerente com o que está na tela.
+  function applyGrams(itemIndex: number, grams: number) {
+    const item = watchedItems?.[itemIndex];
+    const food = item?.foodId ? foodCache.current[item.foodId] : undefined;
+    if (food) {
+      fillMacros(itemIndex, food, grams);
+    } else if (item?.foodId) {
+      const id = items.fields[itemIndex].id;
+      if (!(id in portionBase.current)) portionBase.current[id] = portionBaseOf(item);
+      const base = portionBase.current[id];
+      if (base) {
+        for (const { key } of ITEM_MACROS) {
+          setField(itemIndex, key, fmtMacro(key, (base.macros[key] * grams) / base.grams));
+        }
+      }
+    }
+    setField(itemIndex, 'grams', String(grams));
+  }
+
   function onQuantityChange(itemIndex: number, text: string) {
+    flagQuantity(itemIndex, false);
     const grams = parseGrams(text);
-    setField(itemIndex, 'grams', grams == null ? '' : String(grams));
-    const foodId = watchedItems?.[itemIndex]?.foodId;
-    const food = foodId ? foodCache.current[foodId] : undefined;
-    if (food && grams != null) fillMacros(itemIndex, food, grams);
+    if (grams != null) applyGrams(itemIndex, grams);
+  }
+
+  function onQuantityBlur(itemIndex: number, text: string) {
+    const grams = parseQuantityGrams(text);
+    if (grams != null) applyGrams(itemIndex, grams);
+    else flagQuantity(itemIndex, Boolean(watchedItems?.[itemIndex]?.foodId) && text.trim() !== '');
   }
 
   return (
@@ -1015,10 +1068,20 @@ function OptionCard({
                     className={`w-40 ${GROW_SM}`}
                     placeholder="120 g"
                     aria-label="Quantidade"
+                    aria-invalid={badQuantity[itemField.id] || undefined}
+                    title={
+                      badQuantity[itemField.id]
+                        ? 'Não entendi a quantidade. Use gramas (ex.: 120 ou 1 xícara (120 g)) para recalcular os macros.'
+                        : undefined
+                    }
                     {...quantityField}
                     onChange={(e) => {
                       void quantityField.onChange(e);
                       onQuantityChange(itemIndex, e.target.value);
+                    }}
+                    onBlur={(e) => {
+                      void quantityField.onBlur(e);
+                      onQuantityBlur(itemIndex, e.target.value);
                     }}
                   />
                 </td>

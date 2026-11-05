@@ -56,7 +56,7 @@ vi.mock('@/lib/queries/ai-jobs', async (orig) => ({
 }));
 vi.mock('@/lib/api/ai-jobs', () => ({ getAiJob: (...a: unknown[]) => getAiJobMock(...a) }));
 
-import { MealPlanEditor, fmtMacro, parseGrams } from './meal-plan-editor';
+import { MealPlanEditor, fmtMacro, parseGrams, parseQuantityGrams } from './meal-plan-editor';
 
 const plan = {
   id: 'm1', patientId: 'p1', title: 'Plano A', objective: 'Hipertrofia', aiGenerated: false,
@@ -802,6 +802,128 @@ describe('MealPlanEditor (create mode)', () => {
 
     // Sem gramas no texto, os macros ficam como estavam — não zeram.
     expect(within(optionCard).getByLabelText('Kcal')).toHaveValue(149);
+  });
+});
+
+describe('MealPlanEditor — quantidade sem unidade', () => {
+  async function pickArroz(optionCard: HTMLElement) {
+    await userEvent.click(within(optionCard).getByRole('button', { name: /buscar alimento/i }));
+    await userEvent.type(screen.getByRole('textbox', { name: /buscar alimento/i }), 'arroz');
+    await userEvent.click(await screen.findByRole('button', { name: /arroz integral cozido/i }));
+  }
+
+  it.each([
+    ['150', 186],
+    ['150 G', 186],
+    ['150g', 186],
+    ['150,5', 187],
+  ])('interpreta "%s" como gramas ao sair do campo', async (typed, kcal) => {
+    render(<MealPlanEditor patientId="p1" canEdit />);
+    const optionCard = screen.getAllByTestId('option-card')[0];
+    await pickArroz(optionCard);
+
+    const quantity = within(optionCard).getByLabelText('Quantidade');
+    await userEvent.clear(quantity);
+    await userEvent.type(quantity, typed);
+    await userEvent.tab();
+
+    expect(within(optionCard).getByLabelText('Kcal')).toHaveValue(kcal);
+    expect(quantity).not.toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('mantém os macros e sinaliza o campo quando a quantidade não é legível', async () => {
+    render(<MealPlanEditor patientId="p1" canEdit />);
+    const optionCard = screen.getAllByTestId('option-card')[0];
+    await pickArroz(optionCard);
+
+    const quantity = within(optionCard).getByLabelText('Quantidade');
+    await userEvent.clear(quantity);
+    await userEvent.type(quantity, 'a gosto');
+    await userEvent.tab();
+
+    expect(within(optionCard).getByLabelText('Kcal')).toHaveValue(124);
+    expect(quantity).toHaveAttribute('aria-invalid', 'true');
+
+    // Corrigir a entrada tira o alerta.
+    await userEvent.clear(quantity);
+    await userEvent.type(quantity, '200');
+    await userEvent.tab();
+    expect(quantity).not.toHaveAttribute('aria-invalid', 'true');
+    expect(within(optionCard).getByLabelText('Kcal')).toHaveValue(248);
+  });
+
+  it('grava gramas coerentes com os macros exibidos', async () => {
+    render(<MealPlanEditor patientId="p1" canEdit />);
+    await userEvent.type(screen.getByLabelText(/título/i), 'Novo plano');
+    const optionCard = screen.getAllByTestId('option-card')[0];
+    await pickArroz(optionCard);
+
+    const quantity = within(optionCard).getByLabelText('Quantidade');
+    await userEvent.clear(quantity);
+    await userEvent.type(quantity, '2 fatias');
+    await userEvent.tab();
+
+    await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
+    await waitFor(() => expect(createMut).toHaveBeenCalledTimes(1));
+    const item = createMut.mock.calls[0][0].meals[0].options[0].items[0];
+    // Sem gramas legíveis, gramas e macros seguem os últimos válidos (100 g).
+    expect(item).toMatchObject({ quantity: '2 fatias', grams: 100, calories: 124 });
+  });
+
+  it('recalcula item de plano salvo, sem passar pela busca de alimento', async () => {
+    useMealPlan.mockReturnValue({
+      data: {
+        ...plan,
+        meals: [{
+          ...plan.meals[0],
+          options: [{
+            ...plan.meals[0].options[0],
+            items: [{
+              id: 'it1', mealOptionId: 'op1', foodName: 'Ovo, de galinha, inteiro, cozido',
+              quantity: '100 g', grams: 100, foodId: 'f-ovo',
+              calories: 146, protein: 13, carbs: 1, fats: 9, fiber: 0, sodium: 146, order: 0,
+            }],
+          }],
+        }],
+      },
+      isLoading: false,
+      isError: false,
+    });
+    render(<MealPlanEditor patientId="p1" planId="m1" canEdit />);
+    const optionCard = screen.getAllByTestId('option-card')[0];
+
+    const quantity = within(optionCard).getByLabelText('Quantidade');
+    await userEvent.clear(quantity);
+    await userEvent.type(quantity, '150');
+    await userEvent.tab();
+
+    expect(within(optionCard).getByLabelText('Kcal')).toHaveValue(219);
+    expect(within(optionCard).getByLabelText('P')).toHaveValue(19.5);
+    expect(within(optionCard).getByLabelText('G')).toHaveValue(13.5);
+
+    await userEvent.click(screen.getByRole('button', { name: /^salvar$/i }));
+    await waitFor(() => expect(updateMut).toHaveBeenCalledTimes(1));
+    const item = updateMut.mock.calls[0][0].body.meals[0].options[0].items[0];
+    expect(item).toMatchObject({ quantity: '150', grams: 150, calories: 219 });
+  });
+});
+
+describe('parseQuantityGrams', () => {
+  it('aceita número puro como gramas, com vírgula ou ponto', () => {
+    expect(parseQuantityGrams('150')).toBe(150);
+    expect(parseQuantityGrams(' 150,5 ')).toBe(150.5);
+    expect(parseQuantityGrams('150.5')).toBe(150.5);
+  });
+
+  it('segue as regras de parseGrams quando há unidade', () => {
+    expect(parseQuantityGrams('150 G')).toBe(150);
+    expect(parseQuantityGrams('1 xícara (120 g)')).toBe(120);
+  });
+
+  it('devolve null para texto sem gramas e para zero', () => {
+    expect(parseQuantityGrams('2 fatias')).toBeNull();
+    expect(parseQuantityGrams('0')).toBeNull();
+    expect(parseQuantityGrams('')).toBeNull();
   });
 });
 
