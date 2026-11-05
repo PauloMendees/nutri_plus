@@ -213,6 +213,34 @@ describe('PatientDetail', () => {
     expect(screen.getByText('Paciente criado')).toBeInTheDocument();
   });
 
+  it('o banner de paciente criado abre a aba Bioimpedância já com "Nova avaliação"', async () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created canEdit />);
+    await userEvent.click(screen.getByRole('button', { name: /prosseguir para bioimped/i }));
+    expect(await screen.findByRole('dialog', { name: /nova avaliação/i })).toBeInTheDocument();
+    // Com o modal aberto o resto da página fica aria-hidden.
+    expect(screen.getByRole('tab', { name: /bioimpedância/i, hidden: true })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByText('Paciente criado')).not.toBeInTheDocument();
+  });
+
+  it('não reabre "Nova avaliação" ao voltar para a aba depois de fechar', async () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created canEdit />);
+    await userEvent.click(screen.getByRole('button', { name: /prosseguir para bioimped/i }));
+    await screen.findByRole('dialog', { name: /nova avaliação/i });
+    await userEvent.keyboard('{Escape}');
+    await userEvent.click(screen.getByRole('tab', { name: /dados/i }));
+    await userEvent.click(screen.getByRole('tab', { name: /bioimpedância/i }));
+    await screen.findByText(/nenhuma avaliação ainda/i);
+    expect(screen.queryByRole('dialog', { name: /nova avaliação/i })).not.toBeInTheDocument();
+  });
+
+  it('não oferece prosseguir para bioimpedância sem permissão de edição', () => {
+    usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
+    render(<PatientDetail id="p1" created canEdit={false} />);
+    expect(screen.queryByRole('button', { name: /prosseguir para bioimped/i })).not.toBeInTheDocument();
+  });
+
   it('saves clinical edits via updatePatient', async () => {
     usePatient.mockReturnValue({ isLoading: false, isError: false, data: patient });
     mutateAsync.mockResolvedValue(patient);

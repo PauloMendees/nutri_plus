@@ -71,13 +71,16 @@ function fmtKg(weight: number | null, pct: number | null): string | null {
 export function BioimpedanceSection({
   patientId,
   canEdit = true,
+  startCreating = false,
 }: {
   patientId: string;
   canEdit?: boolean;
+  /** Abre "Nova avaliação" ao montar (vindo do banner de paciente criado). */
+  startCreating?: boolean;
 }) {
   const query = useAssessments(patientId);
   const [metric, setMetric] = useState<MetricKey>('weight');
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(startCreating && canEdit);
   const [editing, setEditing] = useState<BodyAssessment | null>(null);
 
   const data = query.data ?? [];
