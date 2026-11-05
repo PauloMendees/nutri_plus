@@ -2,6 +2,7 @@ import {
   computeAge,
   computeBmr,
   computeTargets,
+  targetsForCalories,
   Gender,
   PatientObjective,
   ActivityLevel,
@@ -71,5 +72,22 @@ describe('computeTargets', () => {
       measuredBmr: 500,
     });
     expect(t.carbs).toBe(0);
+  });
+});
+
+describe('targetsForCalories', () => {
+  const inputs = {
+    weightKg: 80, heightCm: 180, age: 30, gender: Gender.MALE,
+    objective: PatientObjective.WEIGHT_LOSS, activityLevel: ActivityLevel.MODERATE,
+  };
+
+  it('fixa as kcal e distribui os macros pelas mesmas regras de computeTargets', () => {
+    // Proteína 2 g/kg, gordura 25% das kcal, carboidrato o resto.
+    expect(targetsForCalories(inputs, 1800)).toEqual({ calories: 1800, protein: 160, fats: 50, carbs: 178 });
+  });
+
+  it('coincide com computeTargets quando recebe as kcal calculadas', () => {
+    const computed = computeTargets(inputs);
+    expect(targetsForCalories(inputs, computed.calories)).toEqual(computed);
   });
 });

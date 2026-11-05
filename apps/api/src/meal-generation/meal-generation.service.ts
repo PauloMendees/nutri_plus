@@ -13,6 +13,9 @@ import { resolveScopeNutritionistId } from '../auth/auth-scope';
 import {
   computeAge,
   computeTargets,
+  targetsForCalories,
+  NutritionTargets,
+  PATIENT_OBJECTIVE_LABELS,
   NutritionInputs,
   Gender,
   PatientObjective,
@@ -22,6 +25,8 @@ import {
   missingPlanInputsMessage,
 } from '@nutri-plus/shared-types';
 import { matchFood } from './food-matcher';
+import { normalizeMealTime } from './meal-time';
+import { caloriesFromInstructions } from './instruction-targets';
 import { mealPlanResponseSchema, MealPlanResponse } from './schema/meal-plan-response.schema';
 import {
   MEAL_PLAN_SYSTEM_PROMPT,
@@ -55,7 +60,7 @@ export class MealGenerationService {
     }
 
     const inputs = this.requireInputs(patient);
-    const targets = computeTargets(inputs);
+    const targets = await this.resolveTargets(patientId, inputs, instructions);
 
     const settings = await this.prisma.nutritionistProfile.findUnique({
       where: { id: nutritionistId },
@@ -95,10 +100,11 @@ export class MealGenerationService {
     return this.mealPlans.createGeneratedPlan(ctx, {
       patientId,
       title: generated.title,
+      objective: PATIENT_OBJECTIVE_LABELS[inputs.objective],
       targets,
       meals: generated.meals.map((m): GeneratedMealInput => ({
         name: m.name,
-        timeLabel: m.timeLabel ?? undefined,
+        timeLabel: normalizeMealTime(m.timeLabel) ?? undefined,
         options: m.options.map((o) => ({
           label: o.label,
           items: o.items.map((it) => this.groundItem(it, foods)),
@@ -169,14 +175,14 @@ export class MealGenerationService {
 
     return {
       title: revised.title,
-      objective: plan.objective ?? undefined,
+      objective: plan.objective || objectiveLabel(patient?.objective) || undefined,
       targetCalories: plan.targetCalories ?? undefined,
       targetProtein: plan.targetProtein ?? undefined,
       targetCarbs: plan.targetCarbs ?? undefined,
       targetFats: plan.targetFats ?? undefined,
       meals: revised.meals.map((m) => ({
         name: m.name,
-        timeLabel: m.timeLabel ?? undefined,
+        timeLabel: normalizeMealTime(m.timeLabel) ?? undefined,
         options: m.options.map((o) => ({ label: o.label, items: o.items })),
       })),
     };
@@ -223,6 +229,30 @@ export class MealGenerationService {
     };
   }
 
+  // Meta do plano, nesta ordem: a Meta salva mais recente do paciente (aba
+  // Metas); sem ela, as kcal escritas nas instruções, com macros distribuídos
+  // pela regra padrão; sem nenhuma das duas, o cálculo pela avaliação.
+  private async resolveTargets(
+    patientId: string,
+    inputs: NutritionInputs,
+    instructions?: string,
+  ): Promise<NutritionTargets> {
+    const saved = await this.prisma.nutritionTarget.findFirst({
+      where: { patientId },
+      orderBy: { targetDate: 'desc' },
+    });
+    if (saved) {
+      return {
+        calories: Math.round(saved.targetCalories),
+        protein: Math.round(saved.proteinGrams),
+        carbs: Math.round(saved.carbGrams),
+        fats: Math.round(saved.fatGrams),
+      };
+    }
+    const calories = caloriesFromInstructions(instructions);
+    return calories != null ? targetsForCalories(inputs, calories) : computeTargets(inputs);
+  }
+
   // Validates that every field the calculation needs is present; otherwise 422
   // listing exactly what is missing. weight + measured BMR come from the latest
   // assessment; the rest from the profile.
@@ -251,4 +281,10 @@ export class MealGenerationService {
     };
   }
 
+}
+
+function objectiveLabel(objective: string | null | undefined): string | undefined {
+  return objective && objective in PATIENT_OBJECTIVE_LABELS
+    ? PATIENT_OBJECTIVE_LABELS[objective as PatientObjective]
+    : undefined;
 }

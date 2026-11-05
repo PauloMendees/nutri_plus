@@ -450,6 +450,7 @@ describe('MealPlansService', () => {
       const result = await service.createGeneratedPlan(ctx, {
         patientId: 'p1',
         title: 'AI Plan',
+        objective: 'Perda de peso',
         targets: { calories: 2000, protein: 150, carbs: 200, fats: 56 },
         meals: [
           {
@@ -470,6 +471,7 @@ describe('MealPlansService', () => {
         data: {
           patientId: 'p1',
           title: 'AI Plan',
+          objective: 'Perda de peso',
           aiGenerated: true,
           targetCalories: 2000,
           targetProtein: 150,

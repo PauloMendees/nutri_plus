@@ -80,9 +80,17 @@ export function AiGenerateDialog({
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
           />
-          <p className="text-xs text-muted-foreground">
-            As instruções padrão das suas Configurações também se aplicam. Alergias, restrições e as metas do dia são sempre respeitadas.
-          </p>
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <p>
+              Meta do plano: se o paciente tiver uma Meta salva (aba Metas), ela é usada. Sem Meta
+              salva, as kcal escritas nas instruções viram a meta do plano (ex.: ~1800 kcal); sem
+              nenhuma das duas, calculamos pela última avaliação.
+            </p>
+            <p>
+              As instruções padrão das suas Configurações também se aplicam. Alergias e restrições
+              são sempre respeitadas.
+            </p>
+          </div>
         </div>
 
         <DialogFooter className="justify-end">

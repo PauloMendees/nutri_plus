@@ -12,6 +12,14 @@ describe('meal-plan prompt', () => {
     expect(MEAL_PLAN_SYSTEM_PROMPT).toMatch(/estimate.*macro|macro.*estim/i);
   });
 
+  it('system prompt pede horário em HH:MM (24h)', () => {
+    expect(MEAL_PLAN_SYSTEM_PROMPT).toMatch(/timeLabel[^.]*HH:MM/);
+  });
+
+  it('system prompt tira o objetivo do título (ele tem campo próprio)', () => {
+    expect(MEAL_PLAN_SYSTEM_PROMPT).toMatch(/title[^.]*not[^.]*objective/i);
+  });
+
   it('system prompt instructs Brazilian Portuguese output', () => {
     expect(MEAL_PLAN_SYSTEM_PROMPT).toMatch(/Brazilian Portuguese|pt-BR/i);
   });

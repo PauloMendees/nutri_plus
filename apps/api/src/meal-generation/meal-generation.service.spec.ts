@@ -10,6 +10,13 @@ import { MealPlansService } from '../meal-plans/meal-plans.service';
 import { MealGenerationService } from './meal-generation.service';
 import { AuthContext } from '../auth/types/auth-context';
 import { AIInteractionType } from '../generated/prisma/client';
+import {
+  ActivityLevel,
+  computeAge,
+  computeTargets,
+  Gender,
+  PatientObjective,
+} from '@nutri-plus/shared-types';
 
 const ctx: AuthContext = {
   authProviderId: 'sub-n',
@@ -224,6 +231,95 @@ describe('MealGenerationService', () => {
     expect(userCtx.customInstructions).toBe('Apenas 4 refeições');
   });
 
+  describe('metas, objetivo e horários do plano gerado', () => {
+    function arrange(timeLabel: string | null = '08:00') {
+      prisma.patientProfile.findFirst.mockResolvedValue(completePatient() as any);
+      prisma.nutritionistProfile.findUnique.mockResolvedValue(null);
+      provider.generateStructured.mockResolvedValue({
+        ...aiResponse,
+        meals: [{ ...aiResponse.meals[0], timeLabel }],
+      } as any);
+      prisma.food.findMany.mockResolvedValue([mockedFood] as any);
+      mealPlans.createGeneratedPlan.mockResolvedValue({ id: 'mp1' } as any);
+    }
+    const promptTargets = () => JSON.parse(provider.generateStructured.mock.calls[0][0].user).targets;
+    const persisted = () => mealPlans.createGeneratedPlan.mock.calls[0][1];
+
+    it('usa a Meta salva mais recente do paciente', async () => {
+      arrange();
+      prisma.nutritionTarget.findFirst.mockResolvedValue({
+        targetCalories: 1950.4, proteinGrams: 150.2, carbGrams: 210.6, fatGrams: 58.9,
+      } as any);
+
+      await service.generate(ctx, 'p1');
+
+      expect(prisma.nutritionTarget.findFirst).toHaveBeenCalledWith({
+        where: { patientId: 'p1' },
+        orderBy: { targetDate: 'desc' },
+      });
+      const expected = { calories: 1950, protein: 150, carbs: 211, fats: 59 };
+      expect(promptTargets()).toEqual(expected);
+      expect(persisted().targets).toEqual(expected);
+    });
+
+    it('a Meta salva prevalece sobre kcal escritas nas instruções', async () => {
+      arrange();
+      prisma.nutritionTarget.findFirst.mockResolvedValue({
+        targetCalories: 1950, proteinGrams: 150, carbGrams: 211, fatGrams: 59,
+      } as any);
+
+      await service.generate(ctx, 'p1', '~1800 kcal');
+
+      expect(persisted().targets.calories).toBe(1950);
+    });
+
+    it('sem Meta salva, usa as kcal das instruções e distribui os macros', async () => {
+      arrange();
+      prisma.nutritionTarget.findFirst.mockResolvedValue(null);
+
+      await service.generate(ctx, 'p1', '4 refeições, sem lactose, ~1800 kcal');
+
+      const expected = { calories: 1800, protein: 160, fats: 50, carbs: 178 };
+      expect(promptTargets()).toEqual(expected);
+      expect(persisted().targets).toEqual(expected);
+    });
+
+    it('sem Meta nem kcal nas instruções, calcula pela avaliação', async () => {
+      arrange();
+      prisma.nutritionTarget.findFirst.mockResolvedValue(null);
+
+      await service.generate(ctx, 'p1', 'apenas 4 refeições');
+
+      // A idade do fixture depende da data de hoje: compara com o cálculo real.
+      const p = completePatient();
+      expect(persisted().targets).toEqual(
+        computeTargets({
+          weightKg: 80, heightCm: p.height, gender: Gender.MALE,
+          age: computeAge(p.birthDate, new Date()),
+          objective: PatientObjective.WEIGHT_LOSS, activityLevel: ActivityLevel.MODERATE,
+          measuredBmr: null,
+        }),
+      );
+    });
+
+    it('preenche o objetivo do plano a partir do objetivo do paciente', async () => {
+      arrange();
+      await service.generate(ctx, 'p1');
+      expect(persisted().objective).toBe('Perda de peso');
+    });
+
+    it.each([
+      ['manhã', '08:00'],
+      ['8h', '08:00'],
+      ['quando acordar', undefined],
+      [null, undefined],
+    ])('normaliza o horário "%s" antes de salvar', async (timeLabel, expected) => {
+      arrange(timeLabel);
+      await service.generate(ctx, 'p1');
+      expect(persisted().meals[0].timeLabel).toBe(expected);
+    });
+  });
+
   describe('adjust', () => {
     const plan = {
       id: 'm1', patientId: 'p1', title: 'Plano', objective: 'Cutting',
@@ -250,6 +346,29 @@ describe('MealGenerationService', () => {
       expect(draft.meals[0].options?.[0].items?.[0].foodName).toBe('Omelete');
       expect(mealPlans.createGeneratedPlan).not.toHaveBeenCalled();
       expect(prisma.mealPlan.update).not.toHaveBeenCalled();
+    });
+
+    it('normaliza os horários do rascunho de ajuste', async () => {
+      mealPlans.getPlan.mockResolvedValue(plan as any);
+      prisma.patientProfile.findUnique.mockResolvedValue({ objective: 'MUSCLE_GAIN' } as any);
+      provider.generateStructured.mockResolvedValue({
+        ...revised,
+        meals: [{ ...revised.meals[0], timeLabel: 'manhã' }, { ...revised.meals[0], name: 'Lanche', timeLabel: 'tarde' }],
+      } as any);
+
+      const draft = await service.adjust(ctx, 'm1', 'x');
+
+      expect(draft.meals.map((m) => m.timeLabel)).toEqual(['08:00', undefined]);
+    });
+
+    it('preenche o objetivo vazio do plano a partir do paciente', async () => {
+      mealPlans.getPlan.mockResolvedValue({ ...plan, objective: null } as any);
+      prisma.patientProfile.findUnique.mockResolvedValue({ objective: 'MUSCLE_GAIN' } as any);
+      provider.generateStructured.mockResolvedValue(revised as any);
+
+      const draft = await service.adjust(ctx, 'm1', 'x');
+
+      expect(draft.objective).toBe('Ganho de massa');
     });
 
     it('propagates 404 from getPlan for a non-owned plan', async () => {
