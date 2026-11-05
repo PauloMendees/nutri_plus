@@ -83,6 +83,9 @@ export function PatientDetail({
   // Deriva direto de searchParams em vez de useState: nenhum efeito precisa
   // sincronizar os dois sentidos, e um F5 já chega na aba certa.
   const tab = resolveTab(searchParams.get('tab'), canEdit);
+  // Pedido do banner de paciente criado para abrir "Nova avaliação". Zera em
+  // qualquer troca de aba: voltar à Bioimpedância depois não reabre o modal.
+  const [startAssessment, setStartAssessment] = useState(false);
 
   // Escreve a aba com replace (não push): trocar de aba não deve empilhar
   // histórico — o botão voltar do navegador precisa sair da ficha, não
@@ -162,7 +165,17 @@ export function PatientDetail({
         Voltar para pacientes
       </Link>
 
-      <CreatedBanner show={created} />
+      <CreatedBanner
+        show={created}
+        onProceed={
+          canEdit
+            ? () => {
+                setStartAssessment(true);
+                goToTab('bioimpedancia');
+              }
+            : undefined
+        }
+      />
 
       <div
         className="flex flex-col gap-4 rounded-xl border bg-card p-4 sm:flex-row sm:items-start"
@@ -286,7 +299,13 @@ export function PatientDetail({
         <p className="text-lg font-bold">{formatImc(patient.imc)}</p>
       </div>
 
-      <Tabs value={tab} onValueChange={goToTab}>
+      <Tabs
+        value={tab}
+        onValueChange={(next) => {
+          setStartAssessment(false);
+          goToTab(next);
+        }}
+      >
         <TabsList>
           <TabsTrigger value="dados" data-tour="patients.tab.dados">
             Dados
@@ -332,7 +351,12 @@ export function PatientDetail({
           </div>
         </TabsContent>
         <TabsContent value="bioimpedancia">
-          <BioimpedanceSection patientId={patient.id} canEdit={canEdit} />
+          <BioimpedanceSection
+            key={startAssessment ? 'start' : 'idle'}
+            patientId={patient.id}
+            canEdit={canEdit}
+            startCreating={startAssessment}
+          />
         </TabsContent>
         {canEdit && (
           <TabsContent value="metas">
