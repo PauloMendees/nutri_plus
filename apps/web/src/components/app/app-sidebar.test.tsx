@@ -24,6 +24,19 @@ vi.mock('@/components/recording/recording-provider', () => ({
   useRecording: () => ({ state: { status: recordingStatus } }),
 }));
 vi.mock('sonner', () => ({ toast: { error: (...a: unknown[]) => toastError(...a) } }));
+// O next/link real não expõe `prefetch` no DOM; o dublê grava o valor num
+// data-attribute para a suíte conferir quais links pré-carregam.
+vi.mock('next/link', () => ({
+  default: ({
+    prefetch,
+    children,
+    ...props
+  }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { prefetch?: boolean | null }) => (
+    <a data-prefetch={String(prefetch)} {...props}>
+      {children}
+    </a>
+  ),
+}));
 
 import { AppSidebar } from './app-sidebar';
 import { NAV_ITEMS } from './nav-items';
@@ -65,6 +78,16 @@ describe('AppSidebar', () => {
     expect(screen.getByRole('link', { name: /funcionários/i })).toHaveAttribute('href', '/employees');
     const agendaLinks = screen.getAllByRole('link', { name: /agenda/i });
     expect(agendaLinks.some((el) => el.getAttribute('href') === '/agenda')).toBe(true);
+  });
+
+  it('pré-carrega só Pacientes; os demais links ficam sem prefetch', () => {
+    renderSidebar();
+    const links = screen.getAllByRole('link').filter((l) => l.getAttribute('data-prefetch') !== null);
+    const prefetching = links
+      .filter((l) => l.getAttribute('data-prefetch') !== 'false')
+      .map((l) => l.getAttribute('href'));
+    expect(prefetching).toEqual(['/patients']);
+    expect(links.length).toBeGreaterThan(5);
   });
 
   it('marks the active item based on the pathname', () => {
@@ -118,6 +141,10 @@ describe('AppSidebar', () => {
     expect(support).toBeInTheDocument();
     await userEvent.click(support);
     expect(await screen.findByRole('heading', { name: /^suporte$/i })).toBeInTheDocument();
+    // O diálogo abre na escolha de canal; o WhatsApp já leva o e-mail da conta.
+    const whatsapp = screen.getByRole('link', { name: /whatsapp/i });
+    expect(new URL(whatsapp.getAttribute('href')!).searchParams.get('text')).toContain('ana@inutri.life');
+    await userEvent.click(screen.getByRole('button', { name: /enviar por e-mail/i }));
     expect(screen.getByLabelText(/e-mail para retorno/i)).toHaveValue('ana@inutri.life');
   });
 
