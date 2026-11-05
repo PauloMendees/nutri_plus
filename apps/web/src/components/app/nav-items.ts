@@ -22,10 +22,16 @@ export type NavItem = {
   icon: LucideIcon;
   children?: NavChild[];
   canAccess?: (role: UserRole) => boolean;
+  /**
+   * Pré-carrega a rota quando o link aparece na tela. Desligado por padrão:
+   * a barra lateral inteira fica visível em toda página, e pré-carregar ~13
+   * rotas dinâmicas a cada carga disparava 503 intermitentes (cold start).
+   */
+  prefetch?: boolean;
 };
 
 export const NAV_ITEMS: NavItem[] = [
-  { label: 'Pacientes', href: '/patients', icon: Users },
+  { label: 'Pacientes', href: '/patients', icon: Users, prefetch: true },
   { label: 'Alimentos', href: '/alimentos', icon: Apple, canAccess: canBrowseFoods },
   {
     label: 'Agenda',

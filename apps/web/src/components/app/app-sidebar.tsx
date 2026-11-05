@@ -91,7 +91,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
                   }}
                   className="h-9 gap-3 data-[active=true]:shadow-[inset_2px_0_0_var(--sidebar-ring)]"
                 >
-                  <Link href={item.href}>
+                  <Link href={item.href} prefetch={item.prefetch ?? false}>
                     <Icon />
                     <span>{item.label}</span>
                   </Link>
@@ -107,7 +107,9 @@ export function AppSidebar({ user }: AppSidebarProps) {
                             if (isMobile) setOpenMobile(false);
                           }}
                         >
-                          <Link href={child.href}>{child.label}</Link>
+                          <Link href={child.href} prefetch={false}>
+                            {child.label}
+                          </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                     ))}
